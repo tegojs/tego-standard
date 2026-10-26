@@ -12,6 +12,7 @@ import {
   type AccessExpandedListRequest,
 } from './expanded-reads';
 import { captureAccessFilter } from './filter-input';
+import { AccessFilterTreeService } from './filter-tree';
 import { AccessManyToManyExpansionService } from './many-to-many-expansion';
 import { AccessManyToManyReadService } from './many-to-many-reads';
 import type { AccessQueryService } from './query';
@@ -33,7 +34,7 @@ import {
   type AccessSumRequest,
 } from './reads';
 import { AccessReferenceService } from './references';
-import type { AccessFilterReadGrant } from './request-filter';
+import { AccessRequestFilterParser, type AccessFilterReadGrant } from './request-filter';
 import {
   parseResourceAssociationGetParams,
   parseResourceCountParams,
@@ -199,6 +200,51 @@ export class AccessEntryReadService {
       authorization.resolveGrant,
       authorization.assertCurrent,
     );
+  }
+
+  /** Captures read-authorized conditions without reading rows or granting a write operation. */
+  captureFilter(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, filter: unknown) {
+    const request = captureAccessFilter(filter);
+    const authorization = this.operation('list', ctx, source, authenticated);
+    const operation = {
+      kind: 'list' as const,
+      context: ctx,
+      source: authorization.source,
+      authenticated: authorization.authenticated,
+    };
+    const paths = collectRelatedReadPaths(this.db, this.resolveIdentity, operation, { filter: request });
+    const metadata = captureReadPreparationMetadata(
+      this.db,
+      this.prepared,
+      this.resolveIdentity,
+      ctx,
+      this.db.getCollection(source.collectionName),
+      paths,
+    );
+    const parsed = new AccessRequestFilterParser(this.db, authorization.resolveGrant).parse(
+      authorization.source,
+      request,
+    );
+    const checks: Array<() => void> = [metadata, authorization.assertCurrent];
+    const assertCurrent = () => {
+      for (const check of checks) check();
+    };
+    assertCurrent();
+    return {
+      assertCurrent,
+      scope: async (transaction: Transaction) => {
+        assertCurrent();
+        const scoped = await new AccessFilterTreeService(this.db, this.prepared, this.queries).scopeRoots(
+          ctx,
+          authorization.source,
+          authorization.authenticated,
+          { ...parsed, transaction },
+        );
+        checks.push(scoped.assertCurrent);
+        assertCurrent();
+        return scoped.query;
+      },
+    };
   }
 
   list(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessListRequest) {

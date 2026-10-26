@@ -86,23 +86,29 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     }
   });
 
-  async function context(operation = 'update', params: Record<string, unknown> = {}, permission: object = {}) {
+  async function context(
+    operation = 'update',
+    params: Record<string, unknown> = {},
+    permission: object = {},
+    resourceName = 'documents',
+    sources = [mainIdentity],
+  ) {
     const acl = new ACL();
     acl.setAvailableAction('update', {});
     acl.setAvailableAction('destroy', {});
     acl.setAvailableAction('list', {});
-    acl.define({ role: 'editor' }).grantAction(`documents:${operation}`, permission);
+    acl.define({ role: 'editor' }).grantAction(`${resourceName}:${operation}`, permission);
     const resourcer = new Resourcer();
-    resourcer.define({ name: 'documents', actions: { update: {}, destroy: {}, list: {} } });
-    const action = resourcer.getAction('documents', operation).clone();
+    resourcer.define({ name: resourceName, actions: { update: {}, destroy: {}, list: {} } });
+    const action = resourcer.getAction(resourceName, operation).clone();
     Object.assign(action, {
-      resourceName: 'documents',
+      resourceName,
       actionName: operation,
       sourceId: undefined,
       resourceOf: undefined,
     });
     action.mergeParams({
-      resourceName: 'documents',
+      resourceName,
       actionName: operation,
       filterByTk: operation === 'list' ? undefined : 3,
       ...params,
@@ -119,7 +125,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
       permission: undefined as unknown,
       body: 'unchanged' as unknown,
     };
-    await adapter.prepare(result, [mainIdentity]);
+    await adapter.prepare(result, sources);
     await acl.middleware()(result as never, async () => {});
     return result;
   }
@@ -131,6 +137,120 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
   }
 
   const read = async (id = 3) => (await docs.model.findByPk(id))?.get();
+
+  describe('relational root selectors', () => {
+    const sources = () => [mainIdentity, identity(db.getCollection('tenants'))];
+    const related = (
+      operation = 'update',
+      params: Record<string, unknown> = {},
+      permission: object = {},
+      name = 'documents',
+    ) => context(operation, params, permission, name, sources());
+    const authorize = (collection: Collection) =>
+      related(
+        'list',
+        {},
+        collection === docs ? { fields: ['id', 'name'], appends: ['owner'] } : { fields: ['id', 'enabled'] },
+        collection.name,
+      );
+
+    beforeEach(async () => {
+      await db.getRepository('collections').create({ values: { name: 'tenants', key: 'tenants-key' } });
+      await store.save(
+        identity(db.getCollection('tenants')),
+        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+        { userId: 28 },
+      );
+      docs.setField('ownerId', { type: 'string' });
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'ownerId' });
+      await docs.model.sync({ alter: { drop: false } });
+      await docs.model.update({ ownerId: 'B' }, { where: { id: [1, 3, 4, 5] } });
+    });
+
+    it.each(['update', 'destroy'])(
+      'keeps keyed and matching relational %s in the same supported transaction',
+      async (operation) => {
+        for (const keyed of [true, false]) {
+          if (!(await read()))
+            await docs.model.create({ id: 3, tenantId: 'B', name: 'Owned', amount: 30, ownerId: 'B' });
+          const ctx = await related(operation, {
+            filterByTk: keyed ? 3 : undefined,
+            filter: { owner: { enabled: true } },
+            ...(operation === 'update' ? { values: { name: 'Changed' } } : {}),
+          });
+          const result = handler.handle(ctx, auth(), authorize);
+          if (dialect === 'sqlite') {
+            await expect(result).rejects.toThrow(/PostgreSQL/);
+            expect(ctx.body).toBe('unchanged');
+            expect(await read()).toMatchObject({ name: 'Owned' });
+          } else {
+            await result;
+            expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+            if (operation === 'destroy') expect(await read()).toBeUndefined();
+            else expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+          }
+        }
+      },
+    );
+
+    it.skipIf(dialect !== 'postgres')(
+      'retains input and identity snapshots across related read decisions',
+      async () => {
+        const ctx = await related('update', { filter: { owner: { enabled: true } }, values: { name: 'Changed' } });
+        const actor = auth();
+        await handler.handle(ctx, actor, async (collection) => {
+          actor.tenantId = 'C';
+          Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+            filter: { owner: { enabled: false } },
+            values: { name: 'Injected' },
+          });
+          return authorize(collection);
+        });
+        expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+        expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+        expect(await read(4)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+      },
+    );
+
+    it.skipIf(dialect !== 'postgres')('rejects target metadata changes while authorizing related reads', async () => {
+      const ctx = await related('update', { filter: { owner: { enabled: true } }, values: { name: 'Forbidden' } });
+      const attribute = db.getCollection('tenants').model.rawAttributes.enabled;
+      const field = attribute.field;
+      try {
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            const decision = await authorize(collection);
+            if (collection !== docs) attribute.field = 'changed_enabled';
+            return decision;
+          }),
+        ).rejects.toThrow(/metadata|changed/);
+      } finally {
+        attribute.field = field;
+      }
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned' });
+    });
+
+    it.skipIf(dialect !== 'postgres')(
+      'rejects a later write and rolls back an earlier relationally selected deletion',
+      async () => {
+        await docs.model.create({ id: 7, tenantId: 'B', name: 'Owned', amount: 70, ownerId: 'B' });
+        const ctx = await related('destroy', { filterByTk: undefined, filter: { owner: { enabled: true } } });
+        let observed = false;
+        db.on('documents.afterDestroy', async (record, options) => {
+          if (record.get('id') !== 7) return;
+          expect(await docs.model.findByPk(3, { transaction: options.transaction })).toBeNull();
+          observed = true;
+          throw new Error('Late relational deletion failure');
+        });
+        await expect(handler.handle(ctx, auth(), authorize)).rejects.toThrow('Late relational deletion failure');
+        expect(observed).toBe(true);
+        expect(await read()).toMatchObject({ name: 'Owned' });
+        expect(await read(7)).toMatchObject({ name: 'Owned' });
+        expect(ctx.body).toBe('unchanged');
+      },
+    );
+  });
 
   it('updates using final field grants and returns only a minimal committed result', async () => {
     const ctx = await context('update', { values: { name: 'Changed', amount: 999 } }, { fields: ['name'] });

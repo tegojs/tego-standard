@@ -29,6 +29,8 @@ export interface ExistingAccessMutation {
 
 export type MatchingAccessMutation = Omit<ExistingAccessMutation, 'keys' | 'where'> & { where: WhereOptions };
 
+type MutationSelection = (transaction: Transaction) => Promise<{ where: WhereOptions; bind?: Record<string, unknown> }>;
+
 export interface ExistingAccessWritePlan {
   readonly records: readonly Model[];
   readonly transaction: Transaction;
@@ -230,6 +232,20 @@ export class AccessMutationService {
     return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent);
   }
 
+  /** Resolves relational selection inside the owned SERIALIZABLE write transaction. */
+  async withSelectedRecords(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation | MatchingAccessMutation,
+    selection: MutationSelection,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (typeof selection !== 'function') invalid('Mutation selection is unavailable');
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent, undefined, selection);
+  }
+
   /** The caller owns commit/rollback, including rollback after any authorization or post-write error. */
   async withExistingRecordsInTransaction(
     ctx: object,
@@ -252,16 +268,30 @@ export class AccessMutationService {
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
     assertEntryCurrent?: () => void,
     inheritedTransaction?: Transaction,
+    selection?: MutationSelection,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
     request = cloneDeep(request);
     const { config, collection } = this.configuration(ctx, identity);
     const model = collection.model;
-    const serializable = requiresSerializable(config, request, collection);
+    const serializable = selection !== undefined || requiresSerializable(config, request, collection);
     try {
       const execute = async (transaction: Transaction) => {
         assertEntryCurrent?.();
+        if (selection) {
+          this.validateValues(request, collection, config.ownership.enabled);
+          await validateWriteTransaction(this.db, transaction, true);
+          const scoped = await selection(transaction);
+          assertEntryCurrent?.();
+          if (Object.keys(scoped.bind ?? {}).some((name) => Object.hasOwn(request.bind ?? {}, name)))
+            invalid('Mutation selection SQL bindings conflict');
+          request = {
+            ...request,
+            where: request.where === undefined ? scoped.where : { [Op.and]: [request.where, scoped.where] },
+            bind: { ...request.bind, ...scoped.bind },
+          };
+        }
         let selected: ExistingAccessMutation;
         if ('keys' in request) selected = request;
         else {

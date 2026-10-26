@@ -10,6 +10,7 @@ import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService, type ExistingAccessWritePlan } from './mutation';
 import type { AccessQueryService } from './query';
+import { prepareRelationalMutationFilter } from './relational-mutation-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { prepareScalarMutationFilter } from './scalar-mutation-filter';
 import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
@@ -235,16 +236,32 @@ export class AccessRootMutationHandler {
     } else if (params.values !== undefined) invalid('Deletion cannot supply values');
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
     const role = compiler.compile(identity, filter);
-    const selection = prepareScalarMutationFilter(
-      this.db,
-      collection,
-      identity,
-      config,
-      requestFilter,
-      actor.roleName,
-      compiler,
-      this.resolveIdentity,
-    );
+    const relational =
+      operation !== 'create' && filtered
+        ? prepareRelationalMutationFilter(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            collection,
+            identity,
+            actor,
+            requestFilter,
+            this.resolveIdentity,
+          )
+        : undefined;
+    const selection = relational
+      ? undefined
+      : prepareScalarMutationFilter(
+          this.db,
+          collection,
+          identity,
+          config,
+          requestFilter,
+          actor.roleName,
+          compiler,
+          this.resolveIdentity,
+        );
     const assertCurrent = () => {
       const current = this.resolveIdentity(collection);
       if (
@@ -259,6 +276,7 @@ export class AccessRootMutationHandler {
       role.assertCurrent();
       reference?.assertCurrent();
       selection?.assertCurrent();
+      relational?.assertCurrent();
     };
     assertCurrent();
     if (operation === 'create') {
@@ -290,6 +308,7 @@ export class AccessRootMutationHandler {
       return;
     }
     const requested = selection ? await selection.resolve(authorizeRead, assertCurrent) : undefined;
+    const relatedSelection = relational ? await relational.resolve(authorizeRead, assertCurrent) : undefined;
     const where = requested ? { [Op.and]: [role.rootWhere ?? role.where, requested] } : (role.rootWhere ?? role.where);
     const mutations = new AccessMutationService(this.db, this.prepared, this.queries);
     const writer = async (plan: ExistingAccessWritePlan) => {
@@ -307,16 +326,26 @@ export class AccessRootMutationHandler {
         assertCurrent();
       }
     };
-    const result = matching
-      ? await mutations.withMatchingRecords(ctx, identity, actor, { operation, values, where }, writer, assertCurrent)
-      : await mutations.withExistingRecords(
+    const result = relatedSelection
+      ? await mutations.withSelectedRecords(
           ctx,
           identity,
           actor,
-          { operation, keys, values, where },
+          matching ? { operation, values, where } : { operation, keys, values, where },
+          relatedSelection,
           writer,
           assertCurrent,
-        );
+        )
+      : matching
+        ? await mutations.withMatchingRecords(ctx, identity, actor, { operation, values, where }, writer, assertCurrent)
+        : await mutations.withExistingRecords(
+            ctx,
+            identity,
+            actor,
+            { operation, keys, values, where },
+            writer,
+            assertCurrent,
+          );
     ctx.body = result;
   }
 }

@@ -285,6 +285,286 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
   });
 
+  it.each(['keyed', 'matching'])('updates ordinary fields using a %s relational HTTP filter', async (selection) => {
+    await grant('documents', 'view', ['id', 'name', 'project']);
+    await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: [3, 4] } });
+    const response = await supertest(app.callback())
+      .post('/api/documents:update')
+      .query({
+        ...(selection === 'keyed' ? { filterByTk: 3 } : {}),
+        filter: JSON.stringify({ project: { name: 'Visible' } }),
+      })
+      .send({ name: 'Changed' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+    expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 102 });
+    expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+  });
+
+  describe('relational-filtered ordinary HTTP writes', () => {
+    beforeEach(async () => {
+      await grant('documents', 'view', ['id', 'name', 'project']);
+      await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: [3, 4] } });
+    });
+    const filtered = (filter: object = { project: { name: 'Visible' } }, key: number | null = 3) =>
+      supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ ...(key === null ? {} : { filterByTk: key }), filter: JSON.stringify(filter) })
+        .send({ name: 'Changed' });
+
+    it.each([
+      'source-field',
+      'target-field',
+      'target-operation',
+      'target-role',
+      'source-read-role',
+      'source-write-role',
+      'ownership',
+      'request',
+      'target-visibility',
+    ])('retains the %s boundary', async (boundary) => {
+      if (boundary === 'source-field') await grant('documents', 'view', ['id', 'name']);
+      if (boundary === 'target-field') await grant('projects', 'view', ['id']);
+      if (boundary === 'target-operation') acl.getRole('editor').revokeAction('projects:view');
+      if (boundary === 'target-role') await grant('projects', 'view', ['id', 'name'], { name: 'Other' });
+      if (boundary === 'source-read-role')
+        await grant('documents', 'view', ['id', 'name', 'project'], { name: 'Other' });
+      if (boundary === 'source-write-role') await grant('documents', 'update', ['name'], { name: 'Other' });
+      if (boundary === 'target-visibility')
+        await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+      const response = await filtered(
+        {
+          project: { name: boundary === 'request' ? 'Other' : boundary === 'target-visibility' ? 'Hidden' : 'Visible' },
+        },
+        boundary === 'ownership' ? 4 : 3,
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    });
+
+    it.each(['keyed', 'matching'])(
+      'interprets hidden targets as absent for a %s negative filter',
+      async (selection) => {
+        await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+        const response = await filtered({ 'project.$notExists': true }, selection === 'keyed' ? 3 : null);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await row()).toMatchObject({ name: 'Changed', projectId: 103, tenantId: 'B' });
+        expect(await row('projects', 103)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+      },
+    );
+
+    it('does not fall back from explicit keys whose member misses the relational condition', async () => {
+      await app.db.getCollection('documents').model.create({ id: 7, name: 'Other', tenantId: 'B', projectId: 101 });
+      const response = await supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ 'filterByTk[]': [3, 7], filter: JSON.stringify({ project: { name: 'Visible' } }) })
+        .send({ name: 'Changed' });
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({ name: 'Owned' });
+      expect(await row('documents', 7)).toMatchObject({ name: 'Other' });
+    });
+
+    it('returns an empty result for a matching selection with no readable target', async () => {
+      await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+      const response = await filtered({ project: { name: 'Hidden' } }, null);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [], affected: 0 } });
+      expect(await row()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    it('honors a source permission that permits only a nested target id', async () => {
+      await grant('documents', 'view', ['id', 'name']);
+      acl.addFixedParams('documents', 'list', () => ({ appends: ['project.id'] }));
+      const response = await filtered();
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({ name: 'Owned' });
+      const allowed = await filtered({ project: { id: 102 } });
+      expect(allowed.status).toBe(200);
+      expect(allowed.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toMatchObject({ name: 'Changed' });
+    });
+
+    it('commits even when the edited source exits its former request and role ranges', async () => {
+      await grant('documents', 'view', ['id', 'name', 'project'], { name: 'Owned' });
+      await grant('documents', 'update', ['name'], { name: 'Owned' });
+      const response = await filtered({ name: 'Owned', project: { name: 'Visible' } });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+    });
+
+    it('keeps read-only legacy sources unchanged', async () => {
+      await app.db.getCollection('documents').model.update({ tenantId: null, name: 'Visible' }, { where: { id: 3 } });
+      const response = await filtered();
+      expect(response.status).toBe(403);
+      expect(await row()).toMatchObject({ name: 'Visible', tenantId: null });
+    });
+
+    it('claims an editable historical source without claiming its filter target', async () => {
+      const source = identity(app.db.getCollection('documents'));
+      const saved = (await store.read(source))!;
+      await store.save(
+        source,
+        { ...configFor({ type: 'constant', value: true }), revision: saved.revision },
+        { userId: 28 },
+      );
+      await app.db.getCollection('documents').model.update({ tenantId: null }, { where: { id: 3 } });
+      const response = await filtered();
+      expect(response.status).toBe(200);
+      expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+      expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    });
+
+    it('rolls back all selected sources after a later repository failure', async () => {
+      await app.db.getCollection('documents').model.create({ id: 7, name: 'Owned', tenantId: 'B', projectId: 102 });
+      let observed = false;
+      app.db.on('documents.afterUpdate', async (record, options) => {
+        if (record.get('id') !== 7) return;
+        const first = await app.db.getCollection('documents').model.findByPk(3, { transaction: options.transaction });
+        expect(first?.get('name')).toBe('Changed');
+        expect(options.transaction.options.isolationLevel).toBe('SERIALIZABLE');
+        observed = true;
+        throw new Error('Late relational selection failure');
+      });
+      const response = await filtered({ project: { name: 'Visible' } }, null);
+      expect(response.status).toBe(500);
+      expect(observed).toBe(true);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({ name: 'Owned' });
+      expect(await row('documents', 7)).toMatchObject({ name: 'Owned' });
+    });
+
+    it('rolls back when participating target metadata changes after persistence', async () => {
+      const attribute = app.db.getCollection('projects').model.rawAttributes.name;
+      const field = attribute.field;
+      app.db.on('documents.afterUpdate', () => {
+        attribute.field = 'changed_name';
+      });
+      try {
+        const response = await filtered();
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      } finally {
+        attribute.field = field;
+      }
+      expect(await row()).toMatchObject({ name: 'Owned' });
+    });
+
+    describe('many-to-many selection', () => {
+      beforeEach(async () => {
+        const through = app.db.getCollection('document_projects');
+        await store.save(
+          identity(through),
+          { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+          { userId: 28 },
+        );
+        await grant('documents', 'view', ['id', 'name', 'projects']);
+        await grant('document_projects', 'view', ['documentId', 'projectId']);
+        await seedLinks([101, 102]);
+      });
+      it('updates each root once despite duplicate matching targets', async () => {
+        const response = await filtered({ 'projects.id': { $in: [101, 102] } });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+        expect(await links()).toEqual([101, 102]);
+      });
+      it('requires the through table list operation', async () => {
+        acl.getRole('editor').revokeAction('document_projects:view');
+        const response = await filtered({ 'projects.id': 102 });
+        expect(response.status).toBe(403);
+        expect(await row()).toMatchObject({ name: 'Owned' });
+        expect(await links()).toEqual([101, 102]);
+      });
+      it('honors the independent through row role scope', async () => {
+        await grant('document_projects', 'view', ['documentId', 'projectId'], { projectId: 101 });
+        const response = await filtered({ 'projects.id': 102 });
+        expect(response.status).toBe(403);
+        expect(await row()).toMatchObject({ name: 'Owned' });
+        expect(await links()).toEqual([101, 102]);
+      });
+      it('honors through table access rules independently of its role scope', async () => {
+        const source = identity(app.db.getCollection('document_projects'));
+        const saved = (await store.read(source))!;
+        await store.save(
+          source,
+          { ...configFor({ type: 'constant', value: false }), ownership: { enabled: false }, revision: saved.revision },
+          { userId: 28 },
+        );
+        const response = await filtered({ 'projects.id': 102 });
+        expect(response.status).toBe(403);
+        expect(await row()).toMatchObject({ name: 'Owned' });
+        expect(await links()).toEqual([101, 102]);
+      });
+    });
+
+    describe.each(['HasMany', 'HasOne'])('%s filter targets', (kind) => {
+      const name = kind === 'HasMany' ? 'children' : 'profiles';
+      beforeEach(async () => {
+        const target = app.db.collection({
+          name,
+          timestamps: false,
+          fields: [
+            { name: 'id', type: 'integer', primaryKey: true },
+            { name: 'tenantId', type: 'string' },
+            { name: 'documentId', type: 'integer' },
+            { name: 'name', type: 'string' },
+          ],
+        });
+        app.db.getCollection('documents').setField(name, {
+          type: kind === 'HasMany' ? 'hasMany' : 'hasOne',
+          target: name,
+          foreignKey: 'documentId',
+          onDelete: 'RESTRICT',
+        });
+        await target.model.sync();
+        await app.db.getRepository('collections').create({ values: { key: `${name}-key`, name } });
+        const config = configFor(ownerCondition);
+        config.rules.push({
+          ...configFor(
+            {
+              type: 'compare',
+              operator: 'eq',
+              left: { type: 'field', path: 'name' },
+              right: { type: 'literal', value: 'Visible' },
+            },
+            'visibility',
+          ).rules[0],
+          id: 'visible',
+        });
+        await store.save(identity(target), { ...config, revision: 0 }, { userId: 28 });
+        await target.model.create({ id: 201, tenantId: 'B', documentId: 3, name: 'Owned' });
+        await grant('documents', 'view', ['id', 'name', name]);
+        await grant(name, 'view', ['id', 'name']);
+      });
+      it.each(['keyed', 'matching'])('uses readable children without writing them for %s roots', async (selection) => {
+        const response = await filtered({ [name]: { name: 'Owned' } }, selection === 'keyed' ? 3 : null);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+        expect(await row(name, 201)).toMatchObject({ name: 'Owned', tenantId: 'B', documentId: 3 });
+      });
+      it('uses a visible historical child without claiming it', async () => {
+        await app.db.getCollection(name).model.update({ tenantId: null, name: 'Visible' }, { where: { id: 201 } });
+        const response = await filtered({ [name]: { name: 'Visible' } });
+        expect(response.status).toBe(200);
+        expect(await row(name, 201)).toMatchObject({ name: 'Visible', tenantId: null, documentId: 3 });
+      });
+      it('keeps target role conditions independent of source permissions', async () => {
+        await grant(name, 'view', ['id', 'name'], { name: 'Missing' });
+        const response = await filtered({ [name]: { name: 'Owned' } });
+        expect(response.status).toBe(403);
+        expect(await row()).toMatchObject({ name: 'Owned' });
+      });
+    });
+  });
+
   it.each(['request', 'field', 'read-scope', 'ownership'])(
     'preserves the %s boundary on filtered HTTP updates',
     async (boundary) => {

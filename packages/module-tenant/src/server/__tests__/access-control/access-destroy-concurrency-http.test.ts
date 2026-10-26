@@ -205,7 +205,12 @@ describe.skipIf(!postgresUrl || !coreAvailable)('concurrent relational-filtered 
     expect((await app.db.getCollection('projects').model.findByPk(102))?.get('name')).toBe('Visible');
   });
 
-  describe.each(['exists', 'not-exists'])('%s filter', (existence) => {
+  describe.each([
+    ['exists', 'verification'],
+    ['not-exists', 'verification'],
+    ['exists', 'commit'],
+    ['not-exists', 'commit'],
+  ] as const)('%s filter at %s', (existence, stage) => {
     it.each(modes)('rolls back all actual %s deletes after an inconsistent concurrent change', async (mode) => {
       const db = app.db;
       const docs = db.getCollection('documents');
@@ -221,13 +226,11 @@ describe.skipIf(!postgresUrl || !coreAvailable)('concurrent relational-filtered 
       const deleted: number[] = [];
       let notifications = 0;
       let interference = 0;
-      docs.model.addHook('afterDestroy', 'concurrent-delete', async (record, options) => {
-        deleted.push(Number(record.get('id')));
-        options.transaction.afterCommit(() => {
-          notifications++;
-        });
-        if (record.get('id') !== keys[keys.length - 1]) return;
-        expect(await docs.model.findAll({ where: { id: keys }, transaction: options.transaction })).toEqual([]);
+      let commitAttempts = 0;
+      let commitErrorCode: string | undefined;
+      let restoreCommit: (() => void) | undefined;
+      const interfere = async (writeTransaction: Transaction) => {
+        expect(await docs.model.findAll({ where: { id: keys }, transaction: writeTransaction })).toEqual([]);
         interference++;
         await competitor.sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
@@ -244,6 +247,29 @@ describe.skipIf(!postgresUrl || !coreAvailable)('concurrent relational-filtered 
             });
           },
         );
+      };
+      docs.model.addHook('afterDestroy', 'concurrent-delete', async (record, options) => {
+        deleted.push(Number(record.get('id')));
+        options.transaction.afterCommit(() => {
+          notifications++;
+        });
+        if (record.get('id') !== keys[keys.length - 1]) return;
+        if (stage === 'verification') await interfere(options.transaction);
+        else {
+          const transaction = options.transaction;
+          const commit = transaction.commit.bind(transaction);
+          const spy = vi.spyOn(transaction, 'commit').mockImplementation(async () => {
+            commitAttempts++;
+            await interfere(transaction);
+            try {
+              await commit();
+            } catch (error) {
+              commitErrorCode = (error as { original?: { code?: string } }).original?.code;
+              throw error;
+            }
+          });
+          restoreCommit = () => spy.mockRestore();
+        }
       });
       try {
         const response = await request(mode, filter);
@@ -251,6 +277,10 @@ describe.skipIf(!postgresUrl || !coreAvailable)('concurrent relational-filtered 
         expect(response.body).not.toHaveProperty('data');
         expect(deleted).toEqual(keys);
         expect(interference).toBe(1);
+        if (stage === 'commit') {
+          expect(commitAttempts).toBe(1);
+          expect(commitErrorCode).toBe('40001');
+        }
         expect(notifications).toBe(0);
         expect(await rows()).toEqual(original);
         expect((await projects.model.findByPk(102))?.get('name')).toBe(nextName);
@@ -262,6 +292,7 @@ describe.skipIf(!postgresUrl || !coreAvailable)('concurrent relational-filtered 
         expect(await rows()).toEqual(original);
       } finally {
         docs.model.removeHook('afterDestroy', 'concurrent-delete');
+        restoreCommit?.();
         await competitor.close();
       }
     });

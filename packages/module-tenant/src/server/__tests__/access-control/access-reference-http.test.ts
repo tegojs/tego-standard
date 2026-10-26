@@ -269,6 +269,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     request: () => PromiseLike<{ status: number; body: unknown }>,
     nextName = 'Revoked',
     childTable?: string,
+    stage: 'verification' | 'commit' = 'verification',
   ) {
     const db = app.db;
     const competitor = isolatedPostgresDatabase(postgresUrl!);
@@ -282,6 +283,9 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     let interference = 0;
     let observedSource: unknown;
     let observedChildren: unknown;
+    let commitAttempts = 0;
+    let commitErrorCode: string | undefined;
+    let restoreCommit: (() => void) | undefined;
     const interfere = async (transaction: Transaction) => {
       if (interference++) throw new Error('HTTP writer unexpectedly retried');
       observedSource = (await docs.model.findByPk(3, { transaction }))?.get('name');
@@ -305,7 +309,21 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       options.transaction.afterCommit(() => {
         notifications++;
       });
-      if (!childTable) await interfere(options.transaction);
+      if (stage === 'commit') {
+        const transaction = options.transaction;
+        const commit = transaction.commit.bind(transaction);
+        const spy = vi.spyOn(transaction, 'commit').mockImplementation(async () => {
+          commitAttempts++;
+          await interfere(transaction);
+          try {
+            await commit();
+          } catch (error) {
+            commitErrorCode = (error as { original?: { code?: string } }).original?.code;
+            throw error;
+          }
+        });
+        restoreCommit = () => spy.mockRestore();
+      } else if (!childTable) await interfere(options.transaction);
     });
     if (childTable)
       db.getCollection(childTable).model.addHook(
@@ -320,7 +338,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
           const keys = children.map((child) => child.get('documentId'));
           if (keys[0] !== 3 || keys[1] !== null) return;
           observedChildren = keys;
-          await interfere(options.transaction);
+          if (stage === 'verification') await interfere(options.transaction);
         },
       );
     try {
@@ -329,6 +347,10 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       expect(response.body).not.toHaveProperty('data');
       expect(sourceWrites).toBe(1);
       expect(interference).toBe(1);
+      if (stage === 'commit') {
+        expect(commitAttempts).toBe(1);
+        expect(commitErrorCode).toBe('40001');
+      }
       expect(observedSource).toBe('Changed');
       if (childTable) expect(observedChildren).toEqual([3, null]);
       expect(notifications).toBe(0);
@@ -336,6 +358,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       expect((await row('projects', 102)).name).toBe(nextName);
     } finally {
       docs.model.removeHook('afterUpdate', 'http-relational-concurrency');
+      restoreCommit?.();
       if (childTable) db.getCollection(childTable).model.removeHook('afterUpdate', 'http-relational-concurrency');
       await competitor.close();
     }
@@ -384,6 +407,51 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       await grant('documents', 'view', ['id', 'name', 'project']);
       await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: 3 } });
     });
+
+    it.each(['keyed', 'matching', 'project', 'projects', 'mixed'])(
+      'preserves the real COMMIT failure on a %s update',
+      async (kind) => {
+        await assertConcurrentFilterRollback(
+          () =>
+            supertest(app.callback())
+              .post('/api/documents:update')
+              .query({
+                ...(kind === 'matching' ? {} : { filterByTk: 3 }),
+                filter: JSON.stringify({ project: { name: 'Visible' } }),
+              })
+              .send({
+                name: 'Changed',
+                ...(['project', 'mixed'].includes(kind) ? { project: 101 } : {}),
+                ...(['projects', 'mixed'].includes(kind) ? { projects: [101] } : {}),
+              }),
+          'Revoked',
+          undefined,
+          'commit',
+        );
+        expect(await links()).toEqual([]);
+        expect(await row('projects', 101)).toEqual({ id: 101, name: 'Owned', tenantId: 'B' });
+      },
+    );
+
+    it.each(['keyed', 'matching'])(
+      'preserves the real COMMIT failure on a %s negated-existence update',
+      async (kind) => {
+        await app.db.getCollection('projects').model.update({ name: 'Hidden' }, { where: { id: 102 } });
+        await assertConcurrentFilterRollback(
+          () =>
+            supertest(app.callback())
+              .post('/api/documents:update')
+              .query({
+                ...(kind === 'matching' ? {} : { filterByTk: 3 }),
+                filter: JSON.stringify({ 'project.$notExists': true }),
+              })
+              .send({ name: 'Changed' }),
+          'Visible',
+          undefined,
+          'commit',
+        );
+      },
+    );
 
     it.each(['keyed', 'matching'])('rolls back a %s update after concurrent filter revocation', async (mode) => {
       await assertConcurrentFilterRollback(() =>
@@ -2034,6 +2102,18 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
           expect(afterRevocation.status).toBe(403);
           expect(await selected(target)).toEqual([205]);
           expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: 102 });
+        });
+
+        it('preserves the real COMMIT failure after persisting source and both children', async () => {
+          await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: 3 } });
+          await assertConcurrentFilterRollback(
+            () => filteredUpdate({ name: 'Changed', [association]: selection }, { project: { name: 'Visible' } }),
+            'Revoked',
+            target,
+            'commit',
+          );
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
         });
 
         it.each([

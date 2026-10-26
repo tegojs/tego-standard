@@ -547,6 +547,19 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
     expect(ctx.body).toBe('unchanged');
   });
   it.each([{ project: 102 }, { projects: [102] }, { children: [101] }, { profiles: 101 }])(
+    'keeps filter-only association assignments unsupported %j',
+    async (values) => {
+      const ctx = await context('documents', 'update', {
+        filterByTk: undefined,
+        filter: { name: 'Owned' },
+        values: { name: 'Denied', ...values },
+      });
+      await expect(run(ctx)).rejects.toMatchObject({ code: expect.any(String) });
+      expect((await row()).name).toBe('Owned');
+      expect(ctx.body).toBe('unchanged');
+    },
+  );
+  it.each([{ project: 102 }, { projects: [102] }, { children: [101] }, { profiles: 101 }])(
     'retains source relationship field grants %j',
     async (values) => {
       const ctx = await context(

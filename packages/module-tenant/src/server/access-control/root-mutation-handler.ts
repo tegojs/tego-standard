@@ -8,7 +8,7 @@ import { assertCreationKeyArray } from './creation-links';
 import { prepareCreationReferences, type AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
-import { AccessMutationService } from './mutation';
+import { AccessMutationService, type ExistingAccessWritePlan } from './mutation';
 import type { AccessQueryService } from './query';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { prepareScalarMutationFilter } from './scalar-mutation-filter';
@@ -34,7 +34,7 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Reflect.ownKeys(input)) data(input, key);
 }
 
-/** Internal root creation and explicit-key scalar mutation bridge. No runtime routes are registered here. */
+/** Internal root creation and scalar mutation bridge. No runtime routes are registered here. */
 export class AccessRootMutationHandler {
   constructor(
     private readonly db: Database,
@@ -122,11 +122,13 @@ export class AccessRootMutationHandler {
     ] as const)
       if (Object.hasOwn(params, key) && params[key] !== expected) invalid('Mutation transport metadata does not match');
     const locator = params.filterByTk;
+    const matching = operation !== 'create' && locator === undefined && filtered;
     const locators = Array.isArray(locator) ? locator : [locator];
     if (operation === 'create') {
       if (locator !== undefined || params.resourceIndex !== undefined)
         invalid('Creation cannot supply record locators');
     } else if (
+      !matching &&
       locators.some(
         (key) =>
           !(
@@ -184,7 +186,7 @@ export class AccessRootMutationHandler {
       invalid('Mutation permission contains unsupported fields');
     if (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute)
       invalid('Alternate mutation target keys require their own adapter');
-    const keys = operation === 'create' ? [] : normalizeKeys(locators, collection);
+    const keys = operation === 'create' || matching ? [] : normalizeKeys(locators, collection);
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Root mutation requires a prepared access configuration');
     const reference =
@@ -289,28 +291,32 @@ export class AccessRootMutationHandler {
     }
     const requested = selection ? await selection.resolve(authorizeRead, assertCurrent) : undefined;
     const where = requested ? { [Op.and]: [role.rootWhere ?? role.where, requested] } : (role.rootWhere ?? role.where);
-    const result = await new AccessMutationService(this.db, this.prepared, this.queries).withExistingRecords(
-      ctx,
-      identity,
-      actor,
-      { operation, keys, values, where },
-      async (plan) => {
+    const mutations = new AccessMutationService(this.db, this.prepared, this.queries);
+    const writer = async (plan: ExistingAccessWritePlan) => {
+      assertCurrent();
+      for (const record of plan.records) {
+        const filterByTk = record.getDataValue(model.primaryKeyAttribute) as string | number;
+        if (operation === 'update')
+          await collection.repository.update({
+            filterByTk,
+            values: plan.valuesFor(record),
+            transaction: plan.transaction,
+            context: ctx,
+          });
+        else await collection.repository.destroy({ filterByTk, transaction: plan.transaction, context: ctx });
         assertCurrent();
-        for (const record of plan.records) {
-          const filterByTk = record.getDataValue(model.primaryKeyAttribute) as string | number;
-          if (operation === 'update')
-            await collection.repository.update({
-              filterByTk,
-              values: plan.valuesFor(record),
-              transaction: plan.transaction,
-              context: ctx,
-            });
-          else await collection.repository.destroy({ filterByTk, transaction: plan.transaction, context: ctx });
-          assertCurrent();
-        }
-      },
-      assertCurrent,
-    );
+      }
+    };
+    const result = matching
+      ? await mutations.withMatchingRecords(ctx, identity, actor, { operation, values, where }, writer, assertCurrent)
+      : await mutations.withExistingRecords(
+          ctx,
+          identity,
+          actor,
+          { operation, keys, values, where },
+          writer,
+          assertCurrent,
+        );
     ctx.body = result;
   }
 }

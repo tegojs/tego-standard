@@ -1,11 +1,12 @@
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import { ACL, type Collection, type Context } from '@tego/server';
+import { ACL, Resourcer, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey } from '../../access-control/config-store';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessRootMutationHandler } from '../../access-control/root-mutation-handler';
+import type { AccessRootReadContext } from '../../access-control/root-read-context';
 import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import { grantStoredScope, seedAclScopes } from './acl-database';
 import { configStore, mainIdentity, seedConfigStore } from './config-database';
@@ -135,7 +136,31 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
       app.resourcer.registerActionHandler(`documents:${action}`, async (resourceContext) => {
         const ctx = resourceContext as Context & { permission: unknown };
         if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
-        await writer.handle(ctx, ctx.state.accessTestActor);
+        const related: AccessRootReadContext[] = [];
+        try {
+          await writer.handle(ctx, ctx.state.accessTestActor, async (collection) => {
+            const resourcer = new Resourcer();
+            resourcer.define({ name: collection.name, actions: { list: {} } });
+            const action = resourcer.getAction(collection.name, 'list').clone();
+            Object.assign(action, { resourceName: collection.name, actionName: 'list' });
+            action.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
+            const decision = {
+              db,
+              action,
+              permission: undefined as unknown,
+              state: ctx.state,
+              get: ctx.get.bind(ctx),
+              logger: ctx.logger,
+              throw: ctx.throw.bind(ctx),
+            };
+            related.push(decision);
+            await adapter.prepare(decision, [mainIdentity]);
+            await acl.middleware()(decision as never, async () => {});
+            return decision;
+          });
+        } finally {
+          for (const decision of related) adapter.release(decision);
+        }
       });
   });
 
@@ -287,6 +312,89 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
   }
 
   const record = async (id: number) => (await app.db.getCollection('documents').model.findByPk(id))?.get();
+
+  describe('filter-only HTTP mutations', () => {
+    const request = (operation: 'update' | 'destroy', filter: object) =>
+      supertest(app.callback())
+        .post(`/api/documents:${operation}`)
+        .query({ filter: JSON.stringify(filter) })
+        .send(operation === 'update' ? { name: 'Changed', amount: 999 } : {});
+
+    it.each(['update', 'destroy'] as const)('intersects actual %s, list and ownership scopes', async (operation) => {
+      await grantMutation(operation, { amount: { $gte: 200 } });
+      await app.db.getCollection('documents').model.bulkCreate([
+        { id: 7, tenantId: 'B', name: 'D3', amount: 350 },
+        { id: 8, tenantId: 'B', name: 'Other', amount: 350 },
+        { id: 9, tenantId: 'B', name: 'D3', amount: 150 },
+      ]);
+      const stored = await grantStoredScope(app.db, acl, { key: 'conditional-list', scope: { name: 'D3' } });
+      await stored.action.update({ fields: ['id', 'name', 'amount'] });
+      await stored.action.writeToACL({
+        acl,
+        role: acl.getRole('member'),
+        resourceName: 'documents',
+        associationFieldsActions: {},
+        grantHelper: {},
+      });
+      const response = await request(operation, { amount: { $gte: 100 } });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3, 7], affected: 2 } });
+      if (operation === 'update') {
+        expect(await record(3)).toMatchObject({ name: 'Changed', amount: 300, tenantId: 'B' });
+        expect(await record(7)).toMatchObject({ name: 'Changed', amount: 350, tenantId: 'B' });
+      } else {
+        expect(await record(3)).toBeUndefined();
+        expect(await record(7)).toBeUndefined();
+      }
+      expect(await record(1)).toMatchObject({ name: 'D1', tenantId: 'H' });
+      expect(await record(4)).toMatchObject({ name: 'D4', tenantId: 'C' });
+      expect(await record(8)).toMatchObject({ name: 'Other' });
+      expect(await record(9)).toMatchObject({ name: 'D3', amount: 150 });
+    });
+
+    it.each(['update', 'destroy'] as const)(
+      'returns a committed empty HTTP %s result without V-only writes',
+      async (operation) => {
+        await grantMutation(operation);
+        const response = await request(operation, { id: 1 });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [], affected: 0 } });
+        expect(await record(1)).toMatchObject({ name: 'D1', tenantId: 'H' });
+      },
+    );
+
+    it.each(['operation', 'read-field', 'list-operation'])(
+      'rejects missing %s authorization before selecting',
+      async (boundary) => {
+        if (boundary !== 'operation') await grantMutation('update');
+        if (boundary === 'read-field') acl.addFixedParams('documents', 'list', () => ({ fields: ['id'] }));
+        if (boundary === 'list-operation') acl.getRole('member').revokeAction('documents:view');
+        const response = await request('update', { name: 'D3' });
+        expect(response.status).toBe(boundary === 'read-field' ? 400 : 403);
+        expect(response.body).not.toHaveProperty('data');
+        expect(await record(3)).toMatchObject({ name: 'D3', tenantId: 'B' });
+      },
+    );
+
+    it('rolls back all HTTP matches after a later write hook fails', async () => {
+      await grantMutation('update');
+      await app.db.getCollection('documents').model.create({ id: 7, tenantId: 'B', name: 'D3', amount: 300 });
+      let observed = false;
+      app.db.on('documents.afterUpdate', async (row, options) => {
+        if (row.get('id') !== 7) return;
+        const first = await app.db.getCollection('documents').model.findByPk(3, { transaction: options.transaction });
+        expect(first?.get('name')).toBe('Changed');
+        observed = true;
+        throw new Error('Late HTTP matching failure');
+      });
+      const response = await request('update', { name: 'D3' });
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toBe(true);
+      expect(await record(3)).toMatchObject({ name: 'D3' });
+      expect(await record(7)).toMatchObject({ name: 'D3' });
+    });
+  });
 
   it('commits an owned record update using actual write field permissions', async () => {
     await grantMutation('update');

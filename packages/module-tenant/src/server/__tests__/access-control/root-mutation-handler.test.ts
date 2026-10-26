@@ -1,4 +1,4 @@
-import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, Transaction, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -146,6 +146,298 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     expect(await read()).toBeUndefined();
   });
 
+  it.each(['update', 'destroy'])('selects only matching writable records for a filter-only %s', async (operation) => {
+    await docs.model.bulkCreate([
+      { id: 7, tenantId: 'B', name: 'Owned', amount: 70 },
+      { id: 8, tenantId: 'B', name: 'Owned', amount: 80 },
+      { id: 9, tenantId: 'B', name: 'Other', amount: 90 },
+    ]);
+    const ctx = await context(
+      operation,
+      {
+        filterByTk: undefined,
+        filter: { amount: { $gte: 10 } },
+        ...(operation === 'update' ? { values: { name: 'Changed', amount: 999 } } : {}),
+      },
+      { fields: ['name'], filter: { amount: { $lte: 70 } } },
+    );
+    await handler.handle(ctx, auth(), () => context('list', {}, { filter: { name: 'Owned' } }));
+    expect(ctx.body).toEqual({ keys: [3, 7], affected: 2 });
+    if (operation === 'update') {
+      expect(await read()).toMatchObject({ name: 'Changed', amount: 30, tenantId: 'B' });
+      expect(await read(7)).toMatchObject({ name: 'Changed', amount: 70, tenantId: 'B' });
+    } else {
+      expect(await read()).toBeUndefined();
+      expect(await read(7)).toBeUndefined();
+    }
+    expect(await read(1)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    expect(await read(4)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+    expect(await read(5)).toMatchObject({ name: 'Legacy', tenantId: null });
+    expect(await read(8)).toMatchObject({ name: 'Owned', amount: 80 });
+    expect(await read(9)).toMatchObject({ name: 'Other', amount: 90 });
+  });
+
+  describe('filter-only scalar mutations', () => {
+    const matching = (operation = 'update', filter: object = { name: 'Owned' }, permission: object = {}) =>
+      context(
+        operation,
+        {
+          filterByTk: undefined,
+          filter,
+          ...(operation === 'update' ? { values: { name: 'Changed' } } : {}),
+        },
+        permission,
+      );
+
+    it.each(['update', 'destroy'])('returns an empty committed result for a nonmatching %s', async (operation) => {
+      const ctx = await matching(operation, { name: 'Missing' });
+      await handler.handle(ctx, auth(), () => context('list'));
+      expect(ctx.body).toEqual({ keys: [], affected: 0 });
+      expect(await docs.model.count()).toBe(4);
+      expect(await read()).toMatchObject({ name: 'Owned' });
+    });
+
+    it.each([{ name: 'Visible' }, { name: 'Legacy' }, { $or: [] }])(
+      'does not promote readable or false matches into writable selections: %j',
+      async (filter) => {
+        const ctx = await matching('update', filter);
+        await handler.handle(ctx, auth(), () => context('list'));
+        expect(ctx.body).toEqual({ keys: [], affected: 0 });
+        expect(await read(1)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+        expect(await read(5)).toMatchObject({ name: 'Legacy', tenantId: null });
+      },
+    );
+
+    it('applies G even when a nonempty logical filter matches all records', async () => {
+      const ctx = await matching('update', { $or: [{}] });
+      await handler.handle(ctx, auth(), () => context('list'));
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+      expect(await read(4)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+    });
+
+    it.each(['update', 'destroy'])(
+      'checks %s permission fields and conditions even when no rows match',
+      async (operation) => {
+        const ctx = await matching(operation, { name: 'Missing' });
+        (ctx.permission as { parsedParams: object }).parsedParams = { own: true };
+        await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+        expect(await docs.model.count()).toBe(4);
+      },
+    );
+
+    it.each(['field', 'denied', 'wrong-role', 'scoped-request'])(
+      'rejects an invalid %s read decision',
+      async (kind) => {
+        const ctx = await matching();
+        await expect(
+          handler.handle(ctx, auth(), async () => {
+            if (kind === 'denied') return null;
+            const decision = await context(
+              'list',
+              kind === 'scoped-request' ? { filter: { id: 3 } } : {},
+              kind === 'field' ? { fields: ['id'] } : {},
+            );
+            if (kind === 'wrong-role')
+              Object.assign(decision.permission as object, {
+                can: { resource: 'documents', action: 'list', role: 'another-role' },
+              });
+            return decision;
+          }),
+        ).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+        expect(await read()).toMatchObject({ name: 'Owned' });
+      },
+    );
+
+    it.each([undefined, {}, null, []])('rejects missing or empty selection conditions %j', async (filter) => {
+      const ctx = await matching();
+      (ctx.permission as { rawParams: { filter: unknown } }).rawParams.filter = filter;
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow();
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned' });
+    });
+
+    it.each([null, [], '', '_'])(
+      'does not turn an invalid explicit key %j into a matching selection',
+      async (filterByTk) => {
+        const ctx = await matching();
+        (ctx.permission as { rawParams: { filterByTk: unknown } }).rawParams.filterByTk = filterByTk;
+        await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+        expect(await read()).toMatchObject({ name: 'Owned' });
+      },
+    );
+
+    it('captures filter, values and identity before asynchronous read authorization', async () => {
+      const ctx = await matching();
+      const actor = auth();
+      await handler.handle(ctx, actor, async () => {
+        Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+          filter: { name: 'Hidden' },
+          values: { name: 'Injected' },
+        });
+        actor.tenantId = 'C';
+        return context('list');
+      });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+      expect(await read(4)).toMatchObject({ name: 'Hidden' });
+    });
+
+    it.each(['update', 'destroy'])(
+      'rolls back every selected %s after a late repository failure',
+      async (operation) => {
+        await docs.model.create({ id: 7, tenantId: 'B', name: 'Owned', amount: 70 });
+        const ctx = await matching(operation);
+        let observed = false;
+        db.on(`documents.${operation === 'update' ? 'afterUpdate' : 'afterDestroy'}`, async (record, options) => {
+          if (record.get('id') !== 7) return;
+          const first = await docs.model.findByPk(3, { transaction: options.transaction });
+          if (operation === 'update') expect(first?.get('name')).toBe('Changed');
+          else expect(first).toBeNull();
+          observed = true;
+          throw new Error('Late matching failure');
+        });
+        await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow('Late matching failure');
+        expect(observed).toBe(true);
+        expect(await read()).toMatchObject({ name: 'Owned' });
+        expect(await read(7)).toMatchObject({ name: 'Owned' });
+        expect(ctx.body).toBe('unchanged');
+      },
+    );
+
+    it.each(['empty', 'matched'])('rejects phase changes after the %s selection query', async (selection) => {
+      const ctx = await matching('update', { name: selection === 'empty' ? 'Missing' : 'Owned' });
+      const original = docs.model.findAll;
+      vi.spyOn(docs.model, 'findAll').mockImplementation(async function (this: typeof docs.model, ...args) {
+        const rows = await original.apply(this, args);
+        adapter.release(ctx);
+        return rows;
+      });
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow(/phase|prepared/);
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned' });
+    });
+
+    it('claims a selected editable legacy record without changing referenced or unmatched records', async () => {
+      await configure(configFor({ type: 'constant', value: true }));
+      const ctx = await matching('update', { name: 'Legacy' });
+      await handler.handle(ctx, auth(), () => context('list'));
+      expect(ctx.body).toEqual({ keys: [5], affected: 1 });
+      expect(await read(5)).toMatchObject({ name: 'Changed', tenantId: 'B' });
+      expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    });
+
+    it('rejects direct legacy deletion atomically even when G includes legacy records', async () => {
+      await configure(configFor({ type: 'constant', value: true }));
+      const ctx = await matching('destroy', { id: { $in: [3, 5] } });
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toMatchObject({
+        code: 'LEGACY_DATA_READ_ONLY',
+      });
+      expect(await read()).toMatchObject({ name: 'Owned' });
+      expect(await read(5)).toMatchObject({ name: 'Legacy', tenantId: null });
+      expect(ctx.body).toBe('unchanged');
+    });
+
+    it('does not bypass cascade validation for an empty matching destroy', async () => {
+      const children = db.collection({
+        name: 'cascade_children',
+        timestamps: false,
+        fields: [
+          { name: 'document', type: 'belongsTo', target: 'documents', foreignKey: 'documentId', onDelete: 'CASCADE' },
+        ],
+      });
+      await children.model.sync();
+      const ctx = await matching('destroy', { name: 'Missing' });
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toMatchObject({
+        code: 'UNSUPPORTED_ACCESS_MUTATION',
+      });
+      expect(ctx.body).toBe('unchanged');
+      expect(await docs.model.count()).toBe(4);
+    });
+
+    it.each(['context', 'constant'])('requires a valid active tenant for an empty match with %s G', async (rule) => {
+      if (rule === 'constant') await configure(configFor({ type: 'constant', value: true }));
+      const ctx = await matching('update', { name: 'Missing' });
+      await db.getCollection('tenants').model.update({ enabled: false }, { where: { id: 'B' } });
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow();
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned' });
+    });
+
+    it('rejects ownership transfers in a nonempty selection before writing', async () => {
+      const ctx = await matching();
+      (ctx.permission as { rawParams: { values: unknown } }).rawParams.values = { name: 'Forbidden', tenantId: 'C' };
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toMatchObject({
+        code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN',
+      });
+      expect(await read()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(ctx.body).toBe('unchanged');
+    });
+
+    it('rejects more than 1000 matches before changing any record', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 1000 }, (_, index) => ({
+          id: index + 10,
+          tenantId: 'B',
+          name: 'Owned',
+          amount: 10,
+        })),
+      );
+      const ctx = await matching();
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toThrow(/1000/);
+      expect(await docs.model.count({ where: { name: 'Owned' } })).toBe(1001);
+      expect(ctx.body).toBe('unchanged');
+    });
+
+    it.each(['empty', 'matched'])('retains relational read scope isolation for a %s selection', async (selection) => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await matching('update', { name: selection === 'empty' ? 'Missing' : 'Owned' });
+      let isolation: string | undefined;
+      db.on('documents.afterUpdate', (_record, options) => {
+        isolation = options.transaction.options.isolationLevel;
+      });
+      const result = handler.handle(ctx, auth(), () =>
+        context('list', {}, { fields: ['name'], filter: { owner: { enabled: true } } }),
+      );
+      if (dialect === 'sqlite') {
+        await expect(result).rejects.toThrow(/PostgreSQL/);
+        expect(ctx.body).toBe('unchanged');
+      } else {
+        await result;
+        expect(ctx.body).toEqual(selection === 'empty' ? { keys: [], affected: 0 } : { keys: [3], affected: 1 });
+        if (selection === 'matched') expect(isolation).toBe(Transaction.ISOLATION_LEVELS.SERIALIZABLE);
+      }
+      expect(await read()).toMatchObject({
+        name: dialect === 'postgres' && selection === 'matched' ? 'Changed' : 'Owned',
+      });
+    });
+
+    it('allows exactly 1000 matching records with ordered per-record repository hooks', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 999 }, (_, index) => ({
+          id: index + 10,
+          tenantId: 'B',
+          name: 'Owned',
+          amount: 10,
+        })),
+      );
+      const observed: number[] = [];
+      db.on('documents.afterDestroy', (record) => {
+        observed.push(record.get('id'));
+      });
+      const ctx = await matching('destroy');
+      await handler.handle(ctx, auth(), () => context('list'));
+      expect(ctx.body).toMatchObject({ affected: 1000 });
+      expect(observed).toHaveLength(1000);
+      expect(observed.slice(0, 3)).toEqual([3, 10, 11]);
+      expect(observed.at(-1)).toBe(1008);
+      expect(await docs.model.count()).toBe(3);
+    }, 60_000);
+  });
+
   it.each(['update', 'destroy'])('accepts an explicit empty request filter for keyed %s', async (operation) => {
     const ctx = await context(
       operation,
@@ -218,14 +510,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     'read-role',
     'read-action',
     'association',
-    'missing-key',
   ])('rejects a keyed filtered mutation outside its %s boundary without writing', async (boundary) => {
     if (boundary === 'association')
       docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
     const ctx = await context(
       'update',
       {
-        filterByTk: boundary === 'ownership' ? 1 : boundary === 'missing-key' ? undefined : 3,
+        filterByTk: boundary === 'ownership' ? 1 : 3,
         filter:
           boundary === 'association'
             ? { owner: { id: 'B' } }

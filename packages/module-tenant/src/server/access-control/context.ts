@@ -81,6 +81,11 @@ function requiredPaths(config: AccessConfig): Set<ContextPath> {
   return paths;
 }
 
+/** Tenant facts require the primary authority, including facts used only by a rule's subject. */
+export function requiresTenantAccessContext(config: AccessConfig): boolean {
+  return requiredPaths(config).has('tenant.id');
+}
+
 /** Config must already be validated. A mutation adapter must pass its actual authorization transaction. */
 export async function resolveAccessContext(
   db: Database,

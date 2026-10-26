@@ -5,7 +5,8 @@ import type { ACL, ACLRole, Database } from '@tego/server';
 import { canDelegateBuiltinTenantScope, readBuiltinTenantScopeId } from './builtin-tenant-scope';
 import { AccessConfigError } from './config-errors';
 import type { AccessCollectionIdentity, AccessConfigStore } from './config-store';
-import type { AccessConfig } from './types';
+import { requiresTenantAccessContext } from './context';
+import { AccessRuleError, type AccessConfig } from './types';
 
 type ActionParams = ReturnType<ACLRole['getActionParams']>;
 
@@ -81,7 +82,14 @@ type ResolvingAcl = ACL & {
 };
 
 interface RequestPhase {
-  configs?: Map<string, { identity: AccessCollectionIdentity; config: AccessConfig | null }>;
+  configs?: Map<
+    string,
+    {
+      identity: AccessCollectionIdentity;
+      config: AccessConfig | null;
+      unsupportedTenantAuthority: boolean;
+    }
+  >;
   builtinScopeId?: unknown;
 }
 
@@ -126,7 +134,16 @@ export class AccessAclScopeAdapter {
         if (identity.dataSourceKey !== this.dataSourceKey || configs.has(identity.collectionName)) {
           throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Ambiguous access collection data source');
         }
-        configs.set(identity.collectionName, { identity, config: await snapshot.read(identity) });
+        const config = await snapshot.read(identity);
+        configs.set(identity.collectionName, {
+          identity,
+          config,
+          // External business tables cannot stand in for the primary tenant authority.
+          unsupportedTenantAuthority:
+            !!config &&
+            this.dataSourceKey !== 'main' &&
+            (config.ownership.enabled || requiresTenantAccessContext(config)),
+        });
       }
       const builtinScopeId = [...configs.values()].some(({ config }) => config)
         ? await readBuiltinTenantScopeId(this.db, this.dataSourceKey)
@@ -237,6 +254,12 @@ export class AccessAclScopeAdapter {
       entry.identity.dataSourceKey !== identity.dataSourceKey
     ) {
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Access request collection identity is not prepared');
+    }
+    if (entry.unsupportedTenantAuthority) {
+      throw new AccessRuleError(
+        'MISSING_ACCESS_CONTEXT',
+        'Tenant-aware external data sources require an authoritative tenant context adapter',
+      );
     }
     return entry.config;
   }

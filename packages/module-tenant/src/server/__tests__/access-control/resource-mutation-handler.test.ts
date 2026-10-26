@@ -265,6 +265,111 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
     expect(await row()).toMatchObject({ name: 'Edited' });
     expect(ctx.body).toEqual({ keys: [3], affected: 1 });
   });
+  describe.each(['children', 'profiles'])('relational-filtered target-FK adapter (%s)', (name) => {
+    beforeEach(async () => {
+      await docs.model.update({ projectId: 101 }, { where: { id: 3 } });
+    });
+    const filtered = () =>
+      context('documents', 'update', {
+        filterByTk: 3,
+        filter: { project: { name: 'Owned' } },
+        values: { name: 'Edited', [name]: name === 'children' ? [101] : 101 },
+      });
+    const unchanged = async (ctx: Awaited<ReturnType<typeof context>>) => {
+      expect(ctx.body).toBe('unchanged');
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: 101 });
+      expect((await row(name, 101)).documentId).toBeNull();
+    };
+
+    it('captures filter, values and actor before asynchronous source authorization', async () => {
+      const ctx = await filtered();
+      const authenticated = { ...actor };
+      await handler.handle(ctx, authenticated, {
+        ...decisions(),
+        read: async (collection) => {
+          if (collection === docs) {
+            Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+              filter: { project: { name: 'Hidden' } },
+              values: { name: 'Injected', [name]: name === 'children' ? [103] : 103 },
+            });
+            authenticated.tenantId = 'C';
+          }
+          return context(collection.name, 'list');
+        },
+      });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B', projectId: 101 });
+      expect(await row(name, 101)).toMatchObject({ documentId: 3, tenantId: 'B' });
+      expect((await row(name, 103)).documentId).toBeNull();
+    });
+
+    it.each(['documents', 'projects', 'child'])(
+      'rejects an expired original preparation during %s read authorization',
+      async (stage) => {
+        const ctx = await filtered();
+        await expect(
+          run(ctx, {
+            ...decisions(),
+            read: async (collection) => {
+              const decision = await context(collection.name, 'list');
+              if (collection.name === (stage === 'child' ? name : stage)) adapter.release(ctx);
+              return decision;
+            },
+          }),
+        ).rejects.toThrow();
+        await unchanged(ctx);
+      },
+    );
+
+    it.each(['child-read', 'child-write'])(
+      'retains filter-only metadata during later %s authorization',
+      async (stage) => {
+        const ctx = await filtered();
+        const attribute = db.getCollection('projects').model.rawAttributes.name;
+        const original = attribute.field;
+        try {
+          await expect(
+            run(ctx, {
+              ...decisions(),
+              read: async (collection) => {
+                const decision = await context(collection.name, 'list');
+                if (stage === 'child-read' && collection.name === name) attribute.field = 'changed_name';
+                return decision;
+              },
+              update: async (collection) => {
+                const decision = await context(collection.name, 'update');
+                if (stage === 'child-write') attribute.field = 'changed_name';
+                return decision;
+              },
+            }),
+          ).rejects.toThrow(/metadata changed/);
+        } finally {
+          attribute.field = original;
+        }
+        await unchanged(ctx);
+      },
+    );
+
+    it('retains filter-only metadata after the source is actually persisted', async () => {
+      const ctx = await filtered();
+      const attribute = db.getCollection('projects').model.rawAttributes.name;
+      const original = attribute.field;
+      let observed: unknown;
+      db.on('documents.afterUpdate', async (record, options) => {
+        const source = await docs.model.findByPk(3, { transaction: options.transaction });
+        observed = source?.get('name');
+        attribute.field = 'changed_name';
+      });
+      try {
+        await expect(run(ctx)).rejects.toThrow(/metadata changed/);
+        expect(observed).toBe('Edited');
+      } finally {
+        attribute.field = original;
+      }
+      await unchanged(ctx);
+    });
+  });
+
   describe.each(['children', 'profiles'])('scalar-filtered target-FK adapter (%s)', (name) => {
     const filtered = () =>
       context('documents', 'update', {

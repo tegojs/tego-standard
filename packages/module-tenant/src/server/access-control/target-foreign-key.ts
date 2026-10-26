@@ -5,7 +5,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { accessMetadataGuard } from './metadata-snapshot';
-import type { AccessMutationService } from './mutation';
+import type { AccessMutationSelection, AccessMutationService } from './mutation';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import type { AccessReferenceService } from './references';
@@ -42,6 +42,7 @@ export interface TargetForeignKeyWriteRequest {
 /** Trusted final-ACL entry; request values must never supply these callbacks. */
 export interface TargetForeignKeyMutationEntry {
   assertCurrent(): void;
+  sourceScope?: AccessMutationSelection;
   targetReadScope(): Promise<{ where?: WhereOptions }>;
   targetWriteScope(): Promise<{ where?: WhereOptions }>;
   /** Explicit lifecycle stage after every relation write, before final verification. */
@@ -173,8 +174,16 @@ export abstract class AccessTargetForeignKeyService {
                 authenticated,
                 { ...sourceRequest, operation: 'update', values: request.sourceValues },
                 transaction,
+                entry?.sourceScope,
               )
-            : await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction);
+            : await this.mutations.authorizeReferenceSource(
+                ctx,
+                source,
+                authenticated,
+                sourceRequest,
+                transaction,
+                entry?.sourceScope,
+              );
         current();
         const primary = relation.targetModel.primaryKeyAttribute;
         const candidateWhere = {

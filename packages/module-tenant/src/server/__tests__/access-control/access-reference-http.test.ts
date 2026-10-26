@@ -1800,16 +1800,171 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         expect((await row(target, 205)).documentId).toBeNull();
       });
 
-      it('rejects a relational request filter before saving source or children', async () => {
+      it('supports relational-filtered child replacement with source edits', async () => {
+        await grant('documents', 'view', ['id', 'name', 'project']);
+        await app.db.getCollection('documents').model.update({ projectId: 101 }, { where: { id: 3 } });
         const response = await supertest(app.callback())
           .post('/api/documents:update')
-          .query({ filterByTk: 3, filter: JSON.stringify({ [association]: { name: 'Owned' } }) })
-          .send({ name: 'Forbidden', [association]: selection });
-        expect(response.status).toBe(400);
-        expect(response.body).not.toHaveProperty('data');
-        expect(await selected(target)).toEqual([205]);
-        expect((await row()).name).toBe('Owned');
-        expect((await row(target, 201)).documentId).toBeNull();
+          .query({ filterByTk: 3, filter: JSON.stringify({ project: { name: 'Owned' } }) })
+          .send({ name: 'Edited', [association]: selection });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await selected(target)).toEqual([201]);
+        expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B', projectId: 101 });
+        expect((await row(target, 201)).documentId).toBe(3);
+        expect((await row(target, 205)).documentId).toBeNull();
+      });
+
+      describe('relational-filtered child update boundaries', () => {
+        const filteredUpdate = (values: object, filter: object = { project: { name: 'Owned' } }, source = 3) =>
+          supertest(app.callback())
+            .post('/api/documents:update')
+            .query({ filterByTk: source, filter: JSON.stringify(filter) })
+            .send(values);
+
+        beforeEach(async () => {
+          await grant('documents', 'view', ['id', 'name', 'project']);
+          await app.db.getCollection('documents').model.update({ projectId: 101 }, { where: { id: [3, 4] } });
+        });
+
+        it.each([
+          'request',
+          'source-read',
+          'source-path',
+          'source-write',
+          'source-owner',
+          'filter-read',
+          'filter-field',
+          'filter-role',
+          'filter-hidden',
+          'child-read',
+          'child-owner',
+          'child-field',
+          'selected-write',
+          'detached-write',
+          'detached-owner',
+        ])('rejects the independent %s boundary before any source or child edit', async (boundary) => {
+          if (boundary === 'source-read') acl.getRole('editor').revokeAction('documents:view');
+          if (boundary === 'source-path') await grant('documents', 'view', ['id', 'name']);
+          if (boundary === 'source-write') await grant('documents', 'update', ['name', association], { id: 4 });
+          if (boundary === 'filter-read') acl.getRole('editor').revokeAction('projects:view');
+          if (boundary === 'filter-field') await grant('projects', 'view', ['id']);
+          if (boundary === 'filter-role') await grant('projects', 'view', ['id', 'name'], { id: 102 });
+          if (boundary === 'filter-hidden')
+            await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+          if (boundary === 'child-read') await grant(target, 'view', ['id'], { id: 205 });
+          if (boundary === 'child-field') await grant(target, 'update', ['name']);
+          if (boundary === 'selected-write') await grant(target, 'update', ['document'], { id: 205 });
+          if (boundary === 'detached-write') await grant(target, 'update', ['document'], { id: 201 });
+          if (boundary === 'detached-owner')
+            await app.db.getCollection(target).model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 205 } });
+          const child = boundary === 'child-owner' ? 202 : 201;
+          const response = await filteredUpdate(
+            { name: 'Forbidden', [association]: association === 'children' ? [child] : child },
+            { project: { name: boundary === 'request' ? 'Other' : boundary === 'filter-hidden' ? 'Hidden' : 'Owned' } },
+            boundary === 'source-owner' ? 4 : 3,
+          );
+          expect(response.status).toBeGreaterThanOrEqual(400);
+          expect(response.status).toBeLessThan(500);
+          expect(response.body).not.toHaveProperty('data');
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+          expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+          expect((await row(target, 202)).documentId).toBeNull();
+        });
+
+        it('rejects a mismatching relational condition even when no source scalars are submitted', async () => {
+          const response = await filteredUpdate({ [association]: selection }, { project: { name: 'Other' } });
+          expect(response.status).toBe(403);
+          expect(response.body).not.toHaveProperty('data');
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+        });
+
+        it('uses a visible-only filter target without editing or claiming it', async () => {
+          await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: 3 } });
+          const response = await filteredUpdate({ [association]: selection }, { project: { name: 'Visible' } });
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([201]);
+          expect(await row('projects', 102)).toEqual({ id: 102, name: 'Visible', tenantId: 'H' });
+        });
+
+        it('clears an unreadable old child without requiring its list grant', async () => {
+          acl.getRole('editor').revokeAction(`${target}:view`);
+          const response = await filteredUpdate({ [association]: association === 'children' ? [] : null });
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([]);
+          expect((await row(target, 205)).documentId).toBeNull();
+        });
+
+        it('does not require child write permission when only source scalars change', async () => {
+          acl.getRole('editor').revokeAction(`${target}:update`);
+          const response = await filteredUpdate({
+            name: 'Edited',
+            [association]: association === 'children' ? [205] : 205,
+          });
+          expect(response.status).toBe(200);
+          expect(await row()).toMatchObject({ name: 'Edited' });
+          expect(await selected(target)).toEqual([205]);
+        });
+
+        it.each([false, true])(
+          'claims a historical source only for a real child edit (changed=%s)',
+          async (changed) => {
+            const docs = app.db.getCollection('documents');
+            const key = identity(docs);
+            const previous = (await store.read(key))!;
+            await store.save(
+              key,
+              { ...configFor({ type: 'constant', value: true }), revision: previous.revision },
+              { userId: 28 },
+            );
+            await docs.model.update({ tenantId: null }, { where: { id: 3 } });
+            const response = await filteredUpdate({
+              [association]: changed ? selection : association === 'children' ? [205] : 205,
+            });
+            expect(response.status).toBe(200);
+            expect(await row()).toMatchObject({ name: 'Owned', tenantId: changed ? 'B' : null });
+            expect(await selected(target)).toEqual(changed ? [201] : [205]);
+            expect(await row('projects', 101)).toEqual({ id: 101, name: 'Owned', tenantId: 'B' });
+          },
+        );
+
+        it('matches the old child before replacing it, without applying the old condition after saving', async () => {
+          await grant('documents', 'view', ['id', 'name', association]);
+          await grant(target, 'view', ['id', 'name']);
+          await app.db.getCollection(target).model.update({ name: 'Replacement' }, { where: { id: 201 } });
+          const response = await filteredUpdate({ [association]: selection }, { [association]: { name: 'Owned' } });
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([201]);
+          expect((await row(target, 201)).name).toBe('Replacement');
+          expect((await row(target, 205)).documentId).toBeNull();
+        });
+
+        it('rolls back source and both child writes after a late failure', async () => {
+          let observed: unknown;
+          app.db.getCollection(target).model.addHook('afterUpdate', async (_record, options) => {
+            const children = await app.db.getCollection(target).model.findAll({
+              where: { id: [201, 205] },
+              order: [['id', 'ASC']],
+              transaction: options.transaction,
+            });
+            if (children[0]?.get('documentId') !== 3 || children[1]?.get('documentId') !== null) return;
+            const source = await app.db
+              .getCollection('documents')
+              .model.findByPk(3, { transaction: options.transaction });
+            observed = { name: source?.get('name'), children: children.map((child) => child.get('documentId')) };
+            throw new Error('Relational child rollback fixture');
+          });
+          const response = await filteredUpdate({ name: 'Edited', [association]: selection });
+          expect(response.status).toBe(500);
+          expect(observed).toEqual({ name: 'Edited', children: [3, null] });
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+        });
       });
 
       describe('scalar-filtered child update boundaries', () => {

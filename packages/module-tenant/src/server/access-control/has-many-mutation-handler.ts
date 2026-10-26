@@ -13,6 +13,7 @@ import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
+import { prepareRelationalMutationFilter } from './relational-mutation-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import { prepareScalarMutationFilter } from './scalar-mutation-filter';
@@ -250,16 +251,32 @@ export class AccessTargetForeignKeyMutationHandler {
       [{ model: source.model, path: [name] }, ...aliases.map((alias) => ({ model: target.model, path: [alias] }))],
     );
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
-    const selection = prepareScalarMutationFilter(
-      this.db,
-      source,
-      sourceIdentity,
-      relation.sourceConfig,
-      input.requestFilter ?? {},
-      roleName,
-      compiler,
-      this.resolveIdentity,
-    );
+    const relational =
+      rootPermission && Reflect.ownKeys(input.requestFilter ?? {}).length
+        ? prepareRelationalMutationFilter(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            source,
+            sourceIdentity,
+            actor,
+            input.requestFilter!,
+            this.resolveIdentity,
+          )
+        : undefined;
+    const selection = relational
+      ? undefined
+      : prepareScalarMutationFilter(
+          this.db,
+          source,
+          sourceIdentity,
+          relation.sourceConfig,
+          input.requestFilter ?? {},
+          roleName,
+          compiler,
+          this.resolveIdentity,
+        );
     const roles: Array<ReturnType<AccessRoleFilterCompiler['compile']>> = [];
     let assertReadCurrent: (() => void) | undefined;
     const current = () => {
@@ -267,6 +284,7 @@ export class AccessTargetForeignKeyMutationHandler {
       metadata();
       roles.forEach((role) => role.assertCurrent());
       selection?.assertCurrent();
+      relational?.assertCurrent();
       assertReadCurrent?.();
       if (
         source.getField(name) !== field ||
@@ -369,9 +387,11 @@ export class AccessTargetForeignKeyMutationHandler {
     }
     current();
     const requested = selection ? await selection.resolve(authorizeRead, current) : undefined;
+    const sourceScope = relational ? await relational.resolve(authorizeRead, current) : undefined;
     const sourceWhere = requested ? { [Op.and]: [sourceRoleWhere, requested] } : sourceRoleWhere;
     const entry = {
       assertCurrent: current,
+      ...(sourceScope ? { sourceScope } : {}),
       targetReadScope: async () => {
         current();
         const related = await authorizeRead(target);

@@ -1,4 +1,4 @@
-import type { Collection, Database } from '@tego/server';
+import { Op, type Collection, type Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationLinkInput, captureAssociationSourcePermission } from './association-link-input';
@@ -15,15 +15,9 @@ import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
+import { prepareScalarMutationFilter } from './scalar-mutation-filter';
 import { resolveTargetForeignKey } from './target-foreign-key-metadata';
-import {
-  assertEmptyMutationFilter,
-  cloneDeep,
-  invalid,
-  normalizeKeys,
-  plain,
-  validateRootValues,
-} from './write-support';
+import { cloneDeep, invalid, normalizeKeys, plain, validateRootValues } from './write-support';
 
 function data(input: object, key: PropertyKey): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -97,7 +91,9 @@ export class AccessTargetForeignKeyMutationHandler {
     if (!plain(raw) || Reflect.ownKeys(raw).some((key) => typeof key !== 'string' || !allowed.includes(key)))
       invalid('Unsupported root child parameters');
     for (const key of Reflect.ownKeys(raw)) data(raw, key);
-    assertEmptyMutationFilter(data(raw, 'filter'));
+    const rawFilter = data(raw, 'filter');
+    const requestFilter = rawFilter === undefined ? {} : captureAccessFilter(rawFilter);
+    if (!plain(requestFilter)) invalid('Mutation request filters must be plain objects');
     const submitted = data(raw, 'values');
     if (!plain(submitted)) invalid('Root child update requires named values');
     for (const key of Reflect.ownKeys(submitted)) {
@@ -153,6 +149,7 @@ export class AccessTargetForeignKeyMutationHandler {
         resourceName,
         operation: 'set',
         sourceKey,
+        requestFilter,
         value:
           this.associationType === 'HasMany'
             ? (value as Array<string | number>)
@@ -177,6 +174,7 @@ export class AccessTargetForeignKeyMutationHandler {
       targetName?: string;
       operation: 'add' | 'remove' | 'set';
       sourceKey: string | number;
+      requestFilter?: Record<PropertyKey, unknown>;
       value: Array<string | number>;
       permission?: Readonly<AccessFinalActionPermission>;
       sourceValues?: Record<string, unknown>;
@@ -252,12 +250,23 @@ export class AccessTargetForeignKeyMutationHandler {
       [{ model: source.model, path: [name] }, ...aliases.map((alias) => ({ model: target.model, path: [alias] }))],
     );
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
+    const selection = prepareScalarMutationFilter(
+      this.db,
+      source,
+      sourceIdentity,
+      relation.sourceConfig,
+      input.requestFilter ?? {},
+      roleName,
+      compiler,
+      this.resolveIdentity,
+    );
     const roles: Array<ReturnType<AccessRoleFilterCompiler['compile']>> = [];
     let assertReadCurrent: (() => void) | undefined;
     const current = () => {
       relation.current();
       metadata();
       roles.forEach((role) => role.assertCurrent());
+      selection?.assertCurrent();
       assertReadCurrent?.();
       if (
         source.getField(name) !== field ||
@@ -345,7 +354,7 @@ export class AccessTargetForeignKeyMutationHandler {
     current();
     const sourcePermission =
       rootPermission ?? captureAssociationSourcePermission(this.db, source, roleName, operation, related);
-    const sourceWhere = compile(sourcePermission, source, [name], !rootPermission);
+    const sourceRoleWhere = compile(sourcePermission, source, [name], !rootPermission);
     let sourceValues: Record<string, unknown> | undefined;
     if (rootPermission) {
       const grants = sourcePermission.params as { whitelist?: string[]; blacklist?: string[] };
@@ -359,6 +368,8 @@ export class AccessTargetForeignKeyMutationHandler {
       );
     }
     current();
+    const requested = selection ? await selection.resolve(authorizeRead, current) : undefined;
+    const sourceWhere = requested ? { [Op.and]: [sourceRoleWhere, requested] } : sourceRoleWhere;
     const entry = {
       assertCurrent: current,
       targetReadScope: async () => {

@@ -265,6 +265,126 @@ describe.skipIf(!postgresUrl)('unified internal resource mutations', () => {
     expect(await row()).toMatchObject({ name: 'Edited' });
     expect(ctx.body).toEqual({ keys: [3], affected: 1 });
   });
+  describe.each(['children', 'profiles'])('scalar-filtered target-FK adapter (%s)', (name) => {
+    const filtered = () =>
+      context('documents', 'update', {
+        filterByTk: 3,
+        filter: { name: 'Owned' },
+        values: { name: 'Edited', [name]: name === 'children' ? [101] : 101 },
+      });
+    const unchanged = async (ctx: Awaited<ReturnType<typeof context>>) => {
+      expect(ctx.body).toBe('unchanged');
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect((await row(name, 101)).documentId).toBeNull();
+    };
+
+    it('captures source filters, values and identity before independent authorization', async () => {
+      const ctx = await filtered();
+      const authenticated = { ...actor };
+      await handler.handle(ctx, authenticated, {
+        ...decisions(),
+        read: async (collection) => {
+          if (collection === docs) {
+            Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+              filter: { name: 'Other' },
+              values: { name: 'Injected', [name]: name === 'children' ? [103] : 103 },
+            });
+            authenticated.tenantId = 'C';
+            return context('documents', 'list', {}, { fields: ['name'], filter: { name: 'Owned' } });
+          }
+          return context(collection.name, 'list', {}, { fields: ['id'] });
+        },
+      });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B' });
+      expect(await row(name, 101)).toMatchObject({ documentId: 3, tenantId: 'B' });
+      expect((await row(name, 103)).documentId).toBeNull();
+    });
+
+    it.each(['denied', 'filtered', 'wrong-role', 'wrong-resource', 'wrong-action'])(
+      'rejects the %s source list decision',
+      async (boundary) => {
+        const ctx = await filtered();
+        await expect(
+          run(ctx, {
+            ...decisions(),
+            read: async (collection) => {
+              if (collection !== docs) return context(collection.name, 'list');
+              if (boundary === 'denied') return null;
+              const decision = await context(
+                boundary === 'wrong-resource' ? name : 'documents',
+                'list',
+                boundary === 'filtered' ? { filter: { id: 3 } } : {},
+              );
+              if (boundary === 'wrong-role')
+                Object.assign(decision.permission as object, {
+                  can: { resource: 'documents', action: 'list', role: 'other' },
+                });
+              if (boundary === 'wrong-action') Object.assign(decision.action, { actionName: 'get' });
+              return decision;
+            },
+          }),
+        ).rejects.toThrow();
+        await unchanged(ctx);
+      },
+    );
+
+    it('rejects an expired prepared phase during source read authorization', async () => {
+      const ctx = await filtered();
+      await expect(
+        run(ctx, {
+          ...decisions(),
+          read: async (collection) => {
+            const decision = await context(collection.name, 'list');
+            if (collection === docs) adapter.release(ctx);
+            return decision;
+          },
+        }),
+      ).rejects.toThrow();
+      await unchanged(ctx);
+    });
+
+    it('retains hidden source read-role facts through a successful child edit', async () => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await filtered();
+      await run(ctx, {
+        ...decisions(),
+        read: (collection) =>
+          collection === docs
+            ? context('documents', 'list', {}, { fields: ['name'], filter: { owner: { enabled: true } } })
+            : context(collection.name, 'list'),
+      });
+      expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B' });
+      expect(await row(name, 101)).toMatchObject({ documentId: 3, tenantId: 'B' });
+    });
+
+    it('rechecks source read-role dependencies during later target write authorization', async () => {
+      docs.setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'tenantId' });
+      const ctx = await filtered();
+      const attribute = db.getCollection('tenants').model.rawAttributes.enabled;
+      const original = attribute.field;
+      try {
+        await expect(
+          run(ctx, {
+            ...decisions(),
+            read: (collection) =>
+              collection === docs
+                ? context('documents', 'list', {}, { fields: ['name'], filter: { owner: { enabled: true } } })
+                : context(collection.name, 'list'),
+            update: async (collection) => {
+              const decision = await context(collection.name, 'update');
+              attribute.field = 'changed_enabled';
+              return decision;
+            },
+          }),
+        ).rejects.toThrow();
+      } finally {
+        attribute.field = original;
+      }
+      await unchanged(ctx);
+    });
+  });
+
   it.each([{ project: null }, { projects: [] }, { children: [] }, { profiles: null }])(
     'retains no-op results without repository writes %j',
     async (values) => {

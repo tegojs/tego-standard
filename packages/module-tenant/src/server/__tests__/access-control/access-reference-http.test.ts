@@ -1307,6 +1307,19 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: null });
       });
 
+      it('supports scalar-filtered child replacement with source edits', async () => {
+        const response = await supertest(app.callback())
+          .post('/api/documents:update')
+          .query({ filterByTk: 3, filter: JSON.stringify({ name: { $startsWith: 'Own' } }) })
+          .send({ name: 'Edited', [association]: selection });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await selected(target)).toEqual([201]);
+        expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B' });
+        expect((await row(target, 201)).documentId).toBe(3);
+        expect((await row(target, 205)).documentId).toBeNull();
+      });
+
       it('accepts an empty HTTP filter with source scalars and a child replacement', async () => {
         const response = await supertest(app.callback())
           .post('/api/documents:update?filterByTk=3&filter=%7B%7D')
@@ -1319,16 +1332,134 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         expect((await row(target, 205)).documentId).toBeNull();
       });
 
-      it('rejects a nonempty request filter before saving source or children', async () => {
+      it('rejects a relational request filter before saving source or children', async () => {
         const response = await supertest(app.callback())
           .post('/api/documents:update')
-          .query({ filterByTk: 3, filter: JSON.stringify({ name: 'Owned' }) })
+          .query({ filterByTk: 3, filter: JSON.stringify({ [association]: { name: 'Owned' } }) })
           .send({ name: 'Forbidden', [association]: selection });
         expect(response.status).toBe(400);
         expect(response.body).not.toHaveProperty('data');
         expect(await selected(target)).toEqual([205]);
         expect((await row()).name).toBe('Owned');
         expect((await row(target, 201)).documentId).toBeNull();
+      });
+
+      describe('scalar-filtered child update boundaries', () => {
+        const filteredUpdate = (values: object, filter: object = { name: 'Owned' }, source = 3) =>
+          supertest(app.callback())
+            .post('/api/documents:update')
+            .query({ filterByTk: source, filter: JSON.stringify(filter) })
+            .send(values);
+
+        it.each([
+          'request',
+          'source-read',
+          'source-field',
+          'source-write',
+          'source-owner',
+          'child-read',
+          'child-owner',
+          'child-field',
+          'selected-write',
+          'detached-write',
+          'detached-owner',
+        ])('rejects the %s boundary without editing source or either child', async (boundary) => {
+          if (boundary === 'source-read') await grant('documents', 'view', ['id', 'name'], { name: 'Other' });
+          if (boundary === 'source-field') await grant('documents', 'view', ['id']);
+          if (boundary === 'source-write') await grant('documents', 'update', ['name', association], { name: 'Other' });
+          if (boundary === 'child-read') await grant(target, 'view', ['id'], { id: 205 });
+          if (boundary === 'child-field') await grant(target, 'update', ['name']);
+          if (boundary === 'selected-write') await grant(target, 'update', ['document'], { id: 205 });
+          if (boundary === 'detached-write') await grant(target, 'update', ['document'], { id: 201 });
+          if (boundary === 'detached-owner')
+            await app.db.getCollection(target).model.update({ tenantId: 'H', name: 'Visible' }, { where: { id: 205 } });
+          const source = boundary === 'source-owner' ? 4 : 3;
+          const child = boundary === 'child-owner' ? 202 : 201;
+          const filter = { name: boundary === 'source-owner' ? 'Visible' : boundary === 'request' ? 'Other' : 'Owned' };
+          const response = await filteredUpdate(
+            { name: 'Forbidden', [association]: association === 'children' ? [child] : child },
+            filter,
+            source,
+          );
+          expect(response.status).toBeGreaterThanOrEqual(400);
+          expect(response.body).not.toHaveProperty('data');
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+          expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+          expect((await row(target, 202)).documentId).toBeNull();
+        });
+
+        it('clears children with source read and child write grants but no child list grant', async () => {
+          acl.getRole('editor').revokeAction(`${target}:view`);
+          const response = await filteredUpdate({
+            [association]: association === 'children' ? [] : null,
+            name: 'Edited',
+          });
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([]);
+          expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B' });
+          expect((await row(target, 205)).documentId).toBeNull();
+        });
+
+        it('updates source scalars while retaining a readable unchanged child without child write permission', async () => {
+          acl.getRole('editor').revokeAction(`${target}:update`);
+          const response = await filteredUpdate({
+            [association]: association === 'children' ? [205] : 205,
+            name: 'Edited',
+          });
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([205]);
+          expect(await row()).toMatchObject({ name: 'Edited', tenantId: 'B' });
+        });
+
+        it('keeps template markers in request filter strings literal', async () => {
+          await app.db.getCollection('documents').model.update({ name: '{{ literal name }}' }, { where: { id: 3 } });
+          const response = await filteredUpdate(
+            { [association]: selection, name: 'Edited' },
+            { name: '{{ literal name }}' },
+          );
+          expect(response.status).toBe(200);
+          expect(await selected(target)).toEqual([201]);
+          expect(await row()).toMatchObject({ name: 'Edited' });
+        });
+
+        it('claims a legacy source only after its scalar filter matches and children change', async () => {
+          const docs = app.db.getCollection('documents');
+          const key = identity(docs);
+          const previous = (await store.read(key))!;
+          await store.save(
+            key,
+            { ...configFor({ type: 'constant', value: true }), revision: previous.revision },
+            { userId: 28 },
+          );
+          await docs.model.create({ id: 5, name: 'Legacy', tenantId: null });
+          const rejected = await filteredUpdate({ [association]: selection }, { name: 'Other' }, 5);
+          expect(rejected.status).toBeGreaterThanOrEqual(400);
+          expect(await row('documents', 5)).toMatchObject({ name: 'Legacy', tenantId: null });
+          expect((await row(target, 201)).documentId).toBeNull();
+          const allowed = await filteredUpdate({ [association]: selection }, { name: 'Legacy' }, 5);
+          expect(allowed.status).toBe(200);
+          expect(await row('documents', 5)).toMatchObject({ name: 'Legacy', tenantId: 'B' });
+          expect((await row(target, 201)).documentId).toBe(5);
+          expect(await selected(target)).toEqual([205]);
+        });
+
+        it('does not claim a legacy source when the matching child selection is unchanged', async () => {
+          const docs = app.db.getCollection('documents');
+          const key = identity(docs);
+          const previous = (await store.read(key))!;
+          await store.save(
+            key,
+            { ...configFor({ type: 'constant', value: true }), revision: previous.revision },
+            { userId: 28 },
+          );
+          await docs.model.update({ tenantId: null }, { where: { id: 3 } });
+          const response = await filteredUpdate({ [association]: association === 'children' ? [205] : 205 });
+          expect(response.status).toBe(200);
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: null });
+          expect(await selected(target)).toEqual([205]);
+        });
       });
 
       it('rejects implicit detachment of a visible-only child before changing source scalars', async () => {
@@ -1354,35 +1485,44 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         expect(await row(target, 203)).toEqual({ id: 203, name: 'Hidden', tenantId: 'C', documentId: null });
       });
 
-      it('restores the source and both foreign keys after a post-write hook fails', async () => {
-        let observed: unknown;
-        app.db.getCollection(target).model.addHook('afterUpdate', async (_record, options) => {
-          const children = await app.db.getCollection(target).model.findAll({
-            where: { id: [201, 205] },
-            order: [['id', 'ASC']],
-            transaction: options.transaction,
+      it.each([false, true])(
+        'restores the source and foreign keys after a late failure (filtered=%s)',
+        async (filtered) => {
+          let observed: unknown;
+          app.db.getCollection(target).model.addHook('afterUpdate', async (_record, options) => {
+            const children = await app.db.getCollection(target).model.findAll({
+              where: { id: [201, 205] },
+              order: [['id', 'ASC']],
+              transaction: options.transaction,
+            });
+            if (children[0]?.get('documentId') !== 3 || children[1]?.get('documentId') !== null) return;
+            const source = await app.db
+              .getCollection('documents')
+              .model.findByPk(3, { transaction: options.transaction });
+            observed = { source: source?.toJSON(), children: children.map((child) => child.toJSON()) };
+            throw new Error('HTTP child rollback fixture');
           });
-          if (children[0]?.get('documentId') !== 3 || children[1]?.get('documentId') !== null) return;
-          const source = await app.db
-            .getCollection('documents')
-            .model.findByPk(3, { transaction: options.transaction });
-          observed = { source: source?.toJSON(), children: children.map((child) => child.toJSON()) };
-          throw new Error('HTTP child rollback fixture');
-        });
-        const response = await update({ name: 'Edited', [association]: selection });
-        expect(response.status).toBe(500);
-        expect(response.body).not.toHaveProperty('data');
-        expect(observed).toEqual({
-          source: { id: 3, name: 'Edited', tenantId: 'B', projectId: null },
-          children: [
-            { id: 201, name: 'Owned', tenantId: 'B', documentId: 3 },
-            { id: 205, name: 'Owned', tenantId: 'B', documentId: null },
-          ],
-        });
-        expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
-        expect(await row(target, 201)).toEqual({ id: 201, name: 'Owned', tenantId: 'B', documentId: null });
-        expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: 3 });
-      });
+          const values = { name: 'Edited', [association]: selection };
+          const response = await (filtered
+            ? supertest(app.callback())
+                .post('/api/documents:update')
+                .query({ filterByTk: 3, filter: JSON.stringify({ name: 'Owned' }) })
+                .send(values)
+            : update(values));
+          expect(response.status).toBe(500);
+          expect(response.body).not.toHaveProperty('data');
+          expect(observed).toEqual({
+            source: { id: 3, name: 'Edited', tenantId: 'B', projectId: null },
+            children: [
+              { id: 201, name: 'Owned', tenantId: 'B', documentId: 3 },
+              { id: 205, name: 'Owned', tenantId: 'B', documentId: null },
+            ],
+          });
+          expect(await row()).toEqual({ id: 3, name: 'Owned', tenantId: 'B', projectId: null });
+          expect(await row(target, 201)).toEqual({ id: 201, name: 'Owned', tenantId: 'B', documentId: null });
+          expect(await row(target, 205)).toEqual({ id: 205, name: 'Owned', tenantId: 'B', documentId: 3 });
+        },
+      );
     });
 
     it('removes the current HasOne child without list permission', async () => {

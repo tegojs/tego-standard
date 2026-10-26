@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
+import { ACL, RelationField, Resourcer, Transaction, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -263,6 +263,83 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
       Number(record.get('projectId')),
     );
   const update = (values: object, id = 3) => app.agent().resource('documents').update({ filterByTk: id, values });
+
+  /** Real second connection creates a read/write cycle after the HTTP writer has persisted its patch. */
+  async function assertConcurrentFilterRollback(
+    request: () => PromiseLike<{ status: number; body: unknown }>,
+    nextName = 'Revoked',
+    childTable?: string,
+  ) {
+    const db = app.db;
+    const competitor = isolatedPostgresDatabase(postgresUrl!);
+    const docs = db.getCollection('documents');
+    const projects = db.getCollection('projects');
+    const quote = db.sequelize.getQueryInterface().queryGenerator;
+    const documentsTable = quote.quoteTable(docs.model.getTableName());
+    const projectsTable = quote.quoteTable(projects.model.getTableName());
+    let sourceWrites = 0;
+    let notifications = 0;
+    let interference = 0;
+    let observedSource: unknown;
+    let observedChildren: unknown;
+    const interfere = async (transaction: Transaction) => {
+      if (interference++) throw new Error('HTTP writer unexpectedly retried');
+      observedSource = (await docs.model.findByPk(3, { transaction }))?.get('name');
+      await competitor.sequelize.transaction(
+        { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+        async (changer) => {
+          await competitor.sequelize.query("SET LOCAL statement_timeout = '10s'", { transaction: changer });
+          const [before] = await competitor.sequelize.query(`SELECT name FROM ${documentsTable} WHERE id = 3`, {
+            transaction: changer,
+          });
+          expect(before).toEqual([{ name: 'Owned' }]);
+          await competitor.sequelize.query(`UPDATE ${projectsTable} SET name = $name WHERE id = 102`, {
+            bind: { name: nextName },
+            transaction: changer,
+          });
+        },
+      );
+    };
+    docs.model.addHook('afterUpdate', 'http-relational-concurrency', async (_record, options) => {
+      sourceWrites++;
+      options.transaction.afterCommit(() => {
+        notifications++;
+      });
+      if (!childTable) await interfere(options.transaction);
+    });
+    if (childTable)
+      db.getCollection(childTable).model.addHook(
+        'afterUpdate',
+        'http-relational-concurrency',
+        async (_record, options) => {
+          const children = await db.getCollection(childTable).model.findAll({
+            where: { id: [201, 205] },
+            order: [['id', 'ASC']],
+            transaction: options.transaction,
+          });
+          const keys = children.map((child) => child.get('documentId'));
+          if (keys[0] !== 3 || keys[1] !== null) return;
+          observedChildren = keys;
+          await interfere(options.transaction);
+        },
+      );
+    try {
+      const response = await request();
+      expect(response.status).toBe(409);
+      expect(response.body).not.toHaveProperty('data');
+      expect(sourceWrites).toBe(1);
+      expect(interference).toBe(1);
+      expect(observedSource).toBe('Changed');
+      if (childTable) expect(observedChildren).toEqual([3, null]);
+      expect(notifications).toBe(0);
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: 102 });
+      expect((await row('projects', 102)).name).toBe(nextName);
+    } finally {
+      docs.model.removeHook('afterUpdate', 'http-relational-concurrency');
+      if (childTable) db.getCollection(childTable).model.removeHook('afterUpdate', 'http-relational-concurrency');
+      await competitor.close();
+    }
+  }
   async function grantLink(operation: 'add' | 'remove' | 'set') {
     acl.setAvailableAction(operation, {});
     await grant('documents', operation, ['projects']);
@@ -300,6 +377,120 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 102 });
     expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H' });
     expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+  });
+
+  describe('concurrent relational-filtered HTTP writes', () => {
+    beforeEach(async () => {
+      await grant('documents', 'view', ['id', 'name', 'project']);
+      await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: 3 } });
+    });
+
+    it.each(['keyed', 'matching'])('rolls back a %s update after concurrent filter revocation', async (mode) => {
+      await assertConcurrentFilterRollback(() =>
+        supertest(app.callback())
+          .post('/api/documents:update')
+          .query({
+            ...(mode === 'keyed' ? { filterByTk: 3 } : {}),
+            filter: JSON.stringify({ project: { name: 'Visible' } }),
+          })
+          .send({ name: 'Changed' }),
+      );
+    });
+
+    it.each(['keyed', 'matching'])(
+      'rolls back a %s negated-existence update after a concurrent grant',
+      async (mode) => {
+        await app.db.getCollection('projects').model.update({ name: 'Hidden' }, { where: { id: 102 } });
+        await assertConcurrentFilterRollback(
+          () =>
+            supertest(app.callback())
+              .post('/api/documents:update')
+              .query({
+                ...(mode === 'keyed' ? { filterByTk: 3 } : {}),
+                filter: JSON.stringify({ 'project.$notExists': true }),
+              })
+              .send({ name: 'Changed' }),
+          'Visible',
+        );
+      },
+    );
+
+    it.each(['project', 'projects', 'mixed'])(
+      'rolls back %s assignments after concurrent filter revocation',
+      async (kind) => {
+        await assertConcurrentFilterRollback(() =>
+          supertest(app.callback())
+            .post('/api/documents:update')
+            .query({ filterByTk: 3, filter: JSON.stringify({ project: { name: 'Visible' } }) })
+            .send({
+              name: 'Changed',
+              ...(kind === 'projects' ? {} : { project: 101 }),
+              ...(kind === 'project' ? {} : { projects: [101] }),
+            }),
+        );
+        expect(await links()).toEqual([]);
+        expect(await row('projects', 101)).toEqual({ id: 101, name: 'Owned', tenantId: 'B' });
+      },
+    );
+
+    it.each(['scalar', 'project', 'projects', 'mixed'])(
+      'rejects a %s request started after revocation committed',
+      async (kind) => {
+        await app.db.getCollection('projects').model.update({ name: 'Revoked' }, { where: { id: 102 } });
+        const response = await supertest(app.callback())
+          .post('/api/documents:update')
+          .query({ filterByTk: 3, filter: JSON.stringify({ project: { name: 'Visible' } }) })
+          .send({
+            name: 'Changed',
+            ...(['project', 'mixed'].includes(kind) ? { project: 101 } : {}),
+            ...(['projects', 'mixed'].includes(kind) ? { projects: [101] } : {}),
+          });
+        expect(response.status).toBe(403);
+        expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: 102 });
+        expect(await links()).toEqual([]);
+      },
+    );
+
+    it('allows a legal serial order when the concurrent changer does not read the source', async () => {
+      const db = app.db;
+      const competitor = isolatedPostgresDatabase(postgresUrl!);
+      const table = db.sequelize
+        .getQueryInterface()
+        .queryGenerator.quoteTable(db.getCollection('projects').model.getTableName());
+      let writes = 0;
+      let notifications = 0;
+      db.getCollection('documents').model.addHook(
+        'afterUpdate',
+        'legal-http-interleaving',
+        async (_record, options) => {
+          writes++;
+          options.transaction.afterCommit(() => {
+            notifications++;
+          });
+          await competitor.sequelize.transaction(
+            { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+            async (transaction) => {
+              await competitor.sequelize.query(`UPDATE ${table} SET name = 'Revoked' WHERE id = 102`, { transaction });
+            },
+          );
+        },
+      );
+      try {
+        const response = await supertest(app.callback())
+          .post('/api/documents:update')
+          .query({ filterByTk: 3, filter: JSON.stringify({ project: { name: 'Visible' } }) })
+          .send({ name: 'Changed' });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+        expect(await row()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 102 });
+        expect((await row('projects', 102)).name).toBe('Revoked');
+        expect(writes).toBe(1);
+        expect(notifications).toBe(1);
+      } finally {
+        db.getCollection('documents').model.removeHook('afterUpdate', 'legal-http-interleaving');
+        await competitor.close();
+      }
+    });
   });
 
   describe('relational-filtered ordinary HTTP writes', () => {
@@ -1825,6 +2016,24 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
         beforeEach(async () => {
           await grant('documents', 'view', ['id', 'name', 'project']);
           await app.db.getCollection('documents').model.update({ projectId: 101 }, { where: { id: [3, 4] } });
+        });
+
+        it('rolls back persisted source and both children after concurrent filter revocation', async () => {
+          await app.db.getCollection('documents').model.update({ projectId: 102 }, { where: { id: 3 } });
+          await assertConcurrentFilterRollback(
+            () => filteredUpdate({ name: 'Changed', [association]: selection }, { project: { name: 'Visible' } }),
+            'Revoked',
+            target,
+          );
+          expect(await selected(target)).toEqual([205]);
+          expect((await row(target, 201)).documentId).toBeNull();
+          const afterRevocation = await filteredUpdate(
+            { name: 'Changed', [association]: selection },
+            { project: { name: 'Visible' } },
+          );
+          expect(afterRevocation.status).toBe(403);
+          expect(await selected(target)).toEqual([205]);
+          expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: 102 });
         });
 
         it.each([

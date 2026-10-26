@@ -181,6 +181,42 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('access many-to-
     await adapter.prepare(ctx, [mainIdentity, target, throughIdentity]);
   }
 
+  it.skipIf(dialect !== 'postgres').each([false, true])(
+    'preserves a matching=%s source condition through the single-link wrapper',
+    async (matches) => {
+      const entry = {
+        assertCurrent() {},
+        sourceScope: async (transaction: Transaction) => {
+          expect(transaction.options.isolationLevel).toBe(Transaction.ISOLATION_LEVELS.SERIALIZABLE);
+          return { where: { name: matches ? 'Owned' : 'Missing' } };
+        },
+        targetScope: async () => ({}),
+      };
+      const result = links.withLinks(
+        ctx,
+        mainIdentity,
+        target,
+        throughIdentity,
+        authenticated,
+        {
+          association: 'projects',
+          operation: 'add',
+          sourceKeys: [3],
+          targetKeys: [103],
+        },
+        entry,
+      );
+      if (matches) {
+        expect(await result).toEqual({ keys: [3], affected: 1 });
+        expect(await linked()).toEqual([103]);
+      } else {
+        await expect(result).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(await linked()).toEqual([]);
+      }
+      expect((await docs.model.findByPk(3))?.get()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    },
+  );
+
   describe.runIf(dialect === 'postgres')('caller-owned link transactions', () => {
     const begin = (options = {}) =>
       db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, ...options });

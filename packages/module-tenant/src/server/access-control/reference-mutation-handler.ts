@@ -15,6 +15,7 @@ import { AccessMutationService } from './mutation';
 import type { AccessQueryService } from './query';
 import { AccessReadGrantAdapter } from './read-grants';
 import { AccessReferenceService } from './references';
+import { prepareRelationalMutationFilter } from './relational-mutation-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
 import { prepareScalarMutationFilter } from './scalar-mutation-filter';
@@ -311,16 +312,32 @@ export class AccessReferenceMutationHandler {
         return { name: selectedName, field, target, identity, relation, targetKey };
       });
     const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
-    const selection = prepareScalarMutationFilter(
-      this.db,
-      source,
-      sourceIdentity,
-      relation.sourceConfig,
-      input.requestFilter ?? {},
-      roleName,
-      compiler,
-      this.resolveIdentity,
-    );
+    const relational =
+      input.operation === undefined && Reflect.ownKeys(input.requestFilter ?? {}).length
+        ? prepareRelationalMutationFilter(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            source,
+            sourceIdentity,
+            actor,
+            input.requestFilter!,
+            this.resolveIdentity,
+          )
+        : undefined;
+    const selection = relational
+      ? undefined
+      : prepareScalarMutationFilter(
+          this.db,
+          source,
+          sourceIdentity,
+          relation.sourceConfig,
+          input.requestFilter ?? {},
+          roleName,
+          compiler,
+          this.resolveIdentity,
+        );
     let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     const metadata = accessMetadataGuard(
@@ -352,6 +369,7 @@ export class AccessReferenceMutationHandler {
       role?.assertCurrent();
       targetRole?.assertCurrent();
       selection?.assertCurrent();
+      relational?.assertCurrent();
       for (const guard of targetGuards.values()) guard();
       if (
         source.getField(name) !== field ||
@@ -449,11 +467,13 @@ export class AccessReferenceMutationHandler {
     }
     assertCurrent();
     const requested = selection ? await selection.resolve(authorizeTarget, assertCurrent) : undefined;
+    const sourceScope = relational ? await relational.resolve(authorizeTarget, assertCurrent) : undefined;
     const sourceWhere = requested
       ? { [Op.and]: [role.rootWhere ?? role.where, requested] }
       : (role.rootWhere ?? role.where);
     const entry = {
       assertCurrent,
+      ...(sourceScope ? { sourceScope } : {}),
       ...(targetRole
         ? {
             authorizeChanges: async (keys: string[], transaction: Transaction) => {
@@ -528,6 +548,7 @@ export class AccessReferenceMutationHandler {
         },
         {
           assertCurrent: entry.assertCurrent,
+          ...(entry.sourceScope ? { sourceScope: entry.sourceScope } : {}),
           targetScope: entry.targetScope,
           referenceScope: (index: number) => entry.targetScope(linkReferences.length + index),
           ...(entry.authorizeChanges

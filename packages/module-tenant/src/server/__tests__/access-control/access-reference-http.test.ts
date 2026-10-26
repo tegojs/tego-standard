@@ -699,6 +699,194 @@ describe.skipIf(!coreAvailable || !postgresUrl)('reference updates over real HTT
     });
   });
 
+  describe('relational-filtered root reference updates', () => {
+    beforeEach(async () => {
+      await grant('documents', 'view', ['id', 'name', 'project']);
+      await app.db.getCollection('documents').model.update({ projectId: 101 }, { where: { id: [3, 4] } });
+      await seedLinks([101]);
+    });
+    const filtered = (values: object, filter: object = { project: { name: 'Owned' } }, id = 3) =>
+      supertest(app.callback())
+        .post('/api/documents:update')
+        .query({ filterByTk: id, filter: JSON.stringify(filter) })
+        .send(values);
+
+    it.each([
+      { kind: 'single', values: { project: 102, name: 'Changed' }, projectId: 102, projectIds: [101] },
+      { kind: 'multiple', values: { projects: [102], name: 'Changed' }, projectId: 101, projectIds: [102] },
+      { kind: 'mixed', values: { project: 102, projects: [102], name: 'Changed' }, projectId: 102, projectIds: [102] },
+    ])('retains pre-write selection for $kind references', async ({ values, projectId, projectIds }) => {
+      const response = await filtered(values);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toMatchObject({ name: 'Changed', projectId, tenantId: 'B' });
+      expect(await links()).toEqual(projectIds);
+      expect(await row('projects', 101)).toMatchObject({ name: 'Owned', tenantId: 'B' });
+      expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: 'H' });
+    });
+
+    it.each(
+      ['project', 'projects'].flatMap((name) =>
+        [
+          'request',
+          'source-read-field',
+          'source-read-role',
+          'source-write-role',
+          'source-write-field',
+          'source-ownership',
+          'filter-target-hidden',
+          'new-target-hidden',
+          'new-target-field',
+          'new-target-role',
+        ].map((boundary) => ({ name, boundary })),
+      ),
+    )('retains $boundary for $name writes', async ({ name, boundary }) => {
+      if (boundary === 'source-read-field') await grant('documents', 'view', ['id', 'name']);
+      if (boundary === 'source-read-role')
+        await grant('documents', 'view', ['id', 'name', 'project'], { name: 'Other' });
+      if (boundary === 'source-write-role')
+        await grant('documents', 'update', ['name', 'project', 'projects'], { name: 'Other' });
+      if (boundary === 'source-write-field') await grant('documents', 'update', ['name']);
+      if (boundary === 'new-target-field') await grant('projects', 'view', ['name']);
+      if (boundary === 'new-target-role') await grant('projects', 'view', ['id', 'name'], { id: 101 });
+      if (boundary === 'filter-target-hidden')
+        await app.db.getCollection('documents').model.update({ projectId: 103 }, { where: { id: 3 } });
+      const selected = boundary === 'new-target-hidden' ? 103 : 102;
+      const response = await filtered(
+        { [name]: name === 'project' ? selected : [selected], name: 'Forbidden' },
+        {
+          project: {
+            name: boundary === 'request' ? 'Other' : boundary === 'filter-target-hidden' ? 'Hidden' : 'Owned',
+          },
+        },
+        boundary === 'source-ownership' ? 4 : 3,
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await row()).toMatchObject({
+        name: 'Owned',
+        tenantId: 'B',
+        projectId: boundary === 'filter-target-hidden' ? 103 : 101,
+      });
+      expect(await row('documents', 4)).toMatchObject({ name: 'Visible', tenantId: 'H', projectId: 101 });
+      expect(await links()).toEqual([101]);
+    });
+
+    const legacySource = async () => {
+      const source = identity(app.db.getCollection('documents'));
+      const current = (await store.read(source))!;
+      await store.save(
+        source,
+        { ...configFor({ type: 'constant', value: true }), revision: current.revision },
+        { userId: 28 },
+      );
+      await app.db.getCollection('documents').model.update({ tenantId: null }, { where: { id: 3 } });
+    };
+    it.each(['project', 'projects'])(
+      'does not claim a historical source for an unchanged %s selection',
+      async (name) => {
+        await legacySource();
+        const response = await filtered({ [name]: name === 'project' ? 101 : [101] });
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({ data: { keys: [], affected: 0 } });
+        expect(await row()).toMatchObject({ name: 'Owned', tenantId: null, projectId: 101 });
+        expect(await links()).toEqual([101]);
+      },
+    );
+    it.each(['project', 'projects'])('claims only the edited historical source for a changed %s', async (name) => {
+      await legacySource();
+      await app.db.getCollection('projects').model.update({ tenantId: null }, { where: { id: 102 } });
+      const response = await filtered({ [name]: name === 'project' ? 102 : [102] });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toMatchObject({ name: 'Owned', tenantId: 'B', projectId: name === 'project' ? 102 : 101 });
+      expect(await links()).toEqual(name === 'project' ? [101] : [102]);
+      expect(await row('projects', 102)).toMatchObject({ name: 'Visible', tenantId: null });
+    });
+
+    it.each(['project', 'projects'])('clears hidden %s references without separately reading them', async (name) => {
+      const source = app.db.getCollection('documents');
+      source.setField('filterProject', { type: 'belongsTo', target: 'projects', foreignKey: 'filterProjectId' });
+      await source.model.sync({ alter: { drop: false } });
+      await source.model.update({ filterProjectId: 101, projectId: 103 }, { where: { id: 3 } });
+      await app.db.getCollection('document_projects').model.destroy({ where: { documentId: 3 } });
+      await seedLinks([103]);
+      await grant('documents', 'view', ['id', 'name', 'filterProject']);
+      await grant('projects', 'view', ['name']);
+      const response = await filtered({ [name]: name === 'project' ? null : [] }, { filterProject: { name: 'Owned' } });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ data: { keys: [3], affected: 1 } });
+      expect(await row()).toMatchObject({
+        tenantId: 'B',
+        projectId: name === 'project' ? null : 103,
+        filterProjectId: 101,
+      });
+      expect(await links()).toEqual(name === 'project' ? [103] : []);
+      expect(await row('projects', 103)).toMatchObject({ name: 'Hidden', tenantId: 'C' });
+    });
+
+    it('rolls back scalar edits, references and links after a late join failure', async () => {
+      let observed: unknown;
+      app.db.getCollection('document_projects').model.addHook('afterBulkCreate', async (_records, options) => {
+        observed = {
+          source: (
+            await app.db.getCollection('documents').model.findByPk(3, { transaction: options.transaction })
+          )?.toJSON(),
+          links: (
+            await app.db.getCollection('document_projects').model.findAll({ transaction: options.transaction })
+          ).map((record) => Number(record.get('projectId'))),
+        };
+        expect(options.transaction.options.isolationLevel).toBe('SERIALIZABLE');
+        throw new Error('relational reference rollback fixture');
+      });
+      const response = await filtered({ project: 102, projects: [102], name: 'Forbidden' });
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty('data');
+      expect(observed).toEqual({ source: { id: 3, name: 'Forbidden', tenantId: 'B', projectId: 102 }, links: [102] });
+      expect(await row()).toMatchObject({ name: 'Owned', projectId: 101, tenantId: 'B' });
+      expect(await links()).toEqual([101]);
+    });
+
+    it.each(['project', 'projects'])(
+      'retains the relational filter metadata guard after %s persistence',
+      async (name) => {
+        const attribute = app.db.getCollection('projects').model.rawAttributes.name;
+        const original = attribute.field;
+        let observed = false;
+        app.db.on('documents.afterUpdate', () => {
+          observed = true;
+          attribute.field = 'changed_name';
+        });
+        try {
+          const response = await filtered({ [name]: name === 'project' ? 102 : [102], name: 'Changed' });
+          expect(response.status).toBe(400);
+          expect(response.body).not.toHaveProperty('data');
+          expect(observed).toBe(true);
+        } finally {
+          attribute.field = original;
+        }
+        expect(await row()).toMatchObject({ name: 'Owned', projectId: 101, tenantId: 'B' });
+        expect(await links()).toEqual([101]);
+      },
+    );
+
+    it('keeps configured business join tables protected when filtering the relation being assigned', async () => {
+      const through = identity(app.db.getCollection('document_projects'));
+      await store.save(
+        through,
+        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+        { userId: 28 },
+      );
+      await grant('documents', 'view', ['id', 'name', 'projects']);
+      await grant('document_projects', 'view', ['documentId', 'projectId']);
+      const response = await filtered({ projects: [102] }, { projects: { name: 'Owned' } });
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await links()).toEqual([101]);
+      expect(await row()).toMatchObject({ name: 'Owned', projectId: 101 });
+    });
+  });
+
   describe('association reads', () => {
     const concrete = (relation: string, action: string, source: number | string = 3, query: object = {}) =>
       supertest(app.callback()).get(`/api/documents/${source}/${relation}:${action}`).query(query);

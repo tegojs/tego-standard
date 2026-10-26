@@ -170,6 +170,126 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     return handler.handle(ctx, auth(), async () => related);
   };
 
+  describe('relational-filtered reference guards', () => {
+    beforeEach(async () => {
+      customers = db.collection({
+        name: 'customers',
+        timestamps: false,
+        fields: [
+          { name: 'id', type: 'integer', primaryKey: true },
+          { name: 'tenantId', type: 'string' },
+          { name: 'name', type: 'string' },
+        ],
+      });
+      await customers.model.sync();
+      docs.setField('customer', { type: 'belongsTo', target: 'customers', foreignKey: 'customerId' });
+      await docs.model.sync({ alter: { drop: false } });
+      await db.getRepository('collections').create({ values: { key: 'customers-key', name: 'customers' } });
+      await store.save(customerIdentity, { ...configFor(ownerCondition), revision: 0 }, { userId: 28 });
+      await customers.model.create({ id: 203, tenantId: 'B', name: 'Owned' });
+      await docs.model.update({ customerId: 203 }, { where: { id: 3 } });
+    });
+    const filtered = () =>
+      context('documents', 'update', {
+        filter: { customer: { name: 'Owned' } },
+        values: { project: 101, name: 'Changed' },
+      });
+    const authorize = (collection: Collection) =>
+      context(
+        collection.name,
+        'list',
+        {},
+        collection === docs
+          ? { fields: ['name'], appends: ['customer'] }
+          : { fields: collection === customers ? ['id', 'name'] : ['id'] },
+      );
+
+    pg('captures relation conditions, values and identity before independent read authorization', async () => {
+      const ctx = await filtered();
+      const actor = auth();
+      await handler.handle(ctx, actor, async (collection) => {
+        Object.assign((ctx.permission as { rawParams: object }).rawParams, {
+          filter: { customer: { name: 'Other' } },
+          values: { project: 102, name: 'Injected' },
+        });
+        actor.tenantId = 'C';
+        return authorize(collection);
+      });
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B', projectId: 101, customerId: 203 });
+      expect((await customers!.model.findByPk(203))?.get()).toMatchObject({ name: 'Owned', tenantId: 'B' });
+    });
+
+    pg('rejects missing independent source read authorization for relational reference updates', async () => {
+      const ctx = await filtered();
+      await expect(
+        handler.handle(ctx, auth(), async (collection) => (collection === docs ? null : authorize(collection))),
+      ).rejects.toThrow();
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    for (const stage of ['documents', 'customers', 'projects']) {
+      pg(`rejects a phase ended during the ${stage} read decision`, async () => {
+        const ctx = await filtered();
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            const decision = await authorize(collection);
+            if (collection.name === stage) adapter.release(ctx);
+            return decision;
+          }),
+        ).rejects.toThrow();
+        expect(ctx.body).toBe('unchanged');
+        expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+      });
+    }
+
+    pg('retains filter-only target metadata through later new-reference authorization', async () => {
+      const ctx = await filtered();
+      const attribute = customers!.model.rawAttributes.name;
+      const original = attribute.field;
+      try {
+        await expect(
+          handler.handle(ctx, auth(), async (collection) => {
+            const decision = await authorize(collection);
+            if (collection === projects) attribute.field = 'changed_name';
+            return decision;
+          }),
+        ).rejects.toThrow(/metadata|changed/);
+      } finally {
+        attribute.field = original;
+      }
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+
+    pg('rolls back if filter-only target metadata changes after source persistence', async () => {
+      const ctx = await filtered();
+      const attribute = customers!.model.rawAttributes.name;
+      const original = attribute.field;
+      let observed = false;
+      db.on('documents.afterUpdate', () => {
+        observed = true;
+        attribute.field = 'changed_name';
+      });
+      try {
+        await expect(handler.handle(ctx, auth(), authorize)).rejects.toThrow(/metadata|changed/);
+        expect(observed).toBe(true);
+      } finally {
+        attribute.field = original;
+      }
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103, customerId: 203 });
+    });
+
+    it.runIf(dialect === 'sqlite')('rejects relational reference writes on an unsupported dialect', async () => {
+      const ctx = await filtered();
+      await expect(handler.handle(ctx, auth(), authorize)).rejects.toThrow(/PostgreSQL/);
+      expect(ctx.body).toBe('unchanged');
+      expect(await read()).toMatchObject({ name: 'Owned', projectId: 103 });
+    });
+  });
+
   describe('scalar-filtered source selection', () => {
     const filtered = (params: object = {}, grant: object = {}) =>
       context(
@@ -653,7 +773,6 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized belon
     { values: { projectId: 101 } },
     { values: { project: 101, projectId: 102 } },
     { values: { project: 101, unknown: 'edit' } },
-    { filter: { project: { name: 'Owned' } }, values: { project: 101 } },
     { appends: ['project'], values: { project: 101 } },
     { filterByTk: [3], values: { project: 101 } },
     { filterByTk: undefined, values: { project: 101 } },

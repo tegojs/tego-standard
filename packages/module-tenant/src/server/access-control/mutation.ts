@@ -29,7 +29,9 @@ export interface ExistingAccessMutation {
 
 export type MatchingAccessMutation = Omit<ExistingAccessMutation, 'keys' | 'where'> & { where: WhereOptions };
 
-type MutationSelection = (transaction: Transaction) => Promise<{ where: WhereOptions; bind?: Record<string, unknown> }>;
+export type AccessMutationSelection = (
+  transaction: Transaction,
+) => Promise<{ where: WhereOptions; bind?: Record<string, unknown> }>;
 
 export interface ExistingAccessWritePlan {
   readonly records: readonly Model[];
@@ -78,8 +80,9 @@ export class AccessMutationService {
     authenticated: AccessIdentity,
     request: ExistingAccessMutation,
     transaction: Transaction | undefined,
+    selection?: AccessMutationSelection,
   ): Promise<ExistingAccessWritePlan> {
-    return this.authorize(ctx, identity, authenticated, request, transaction, false);
+    return this.authorize(ctx, identity, authenticated, request, transaction, false, selection);
   }
 
   /** Internal relation-source primitive: authorizes/locks roots and produces only the claim patch. */
@@ -89,6 +92,7 @@ export class AccessMutationService {
     authenticated: AccessIdentity,
     request: Pick<ExistingAccessMutation, 'keys' | 'where' | 'bind'>,
     transaction: Transaction,
+    selection?: AccessMutationSelection,
   ): Promise<ExistingAccessWritePlan> {
     return this.authorize(
       ctx,
@@ -102,6 +106,7 @@ export class AccessMutationService {
       },
       transaction,
       true,
+      selection,
     );
   }
 
@@ -112,6 +117,7 @@ export class AccessMutationService {
     request: ExistingAccessMutation,
     transaction: Transaction | undefined,
     referenceOnly: boolean,
+    selection?: AccessMutationSelection,
   ): Promise<ExistingAccessWritePlan> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -128,7 +134,15 @@ export class AccessMutationService {
     if (!referenceOnly) this.validateValues(request, collection, config.ownership.enabled);
     const keys = normalizeKeys(request.keys, collection);
     if (!transaction) invalid('An active root write transaction is required');
-    await validateWriteTransaction(this.db, transaction, requiresSerializable(config, request, collection));
+    await validateWriteTransaction(
+      this.db,
+      transaction,
+      selection !== undefined || requiresSerializable(config, request, collection),
+    );
+    if (selection) {
+      request = await this.select(request, selection, transaction);
+      current();
+    }
     const activeTenant =
       !config.ownership.enabled || authenticated.tenantId === undefined
         ? undefined
@@ -238,7 +252,7 @@ export class AccessMutationService {
     identity: AccessCollectionIdentity,
     authenticated: AccessIdentity,
     request: ExistingAccessMutation | MatchingAccessMutation,
-    selection: MutationSelection,
+    selection: AccessMutationSelection,
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
     assertEntryCurrent: () => void,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
@@ -268,7 +282,7 @@ export class AccessMutationService {
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
     assertEntryCurrent?: () => void,
     inheritedTransaction?: Transaction,
-    selection?: MutationSelection,
+    selection?: AccessMutationSelection,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -282,15 +296,8 @@ export class AccessMutationService {
         if (selection) {
           this.validateValues(request, collection, config.ownership.enabled);
           await validateWriteTransaction(this.db, transaction, true);
-          const scoped = await selection(transaction);
+          request = await this.select(request, selection, transaction);
           assertEntryCurrent?.();
-          if (Object.keys(scoped.bind ?? {}).some((name) => Object.hasOwn(request.bind ?? {}, name)))
-            invalid('Mutation selection SQL bindings conflict');
-          request = {
-            ...request,
-            where: request.where === undefined ? scoped.where : { [Op.and]: [request.where, scoped.where] },
-            bind: { ...request.bind, ...scoped.bind },
-          };
         }
         let selected: ExistingAccessMutation;
         if ('keys' in request) selected = request;
@@ -417,5 +424,20 @@ export class AccessMutationService {
         );
       throw error;
     }
+  }
+
+  private async select<T extends Pick<ExistingAccessMutation, 'where' | 'bind'>>(
+    request: T,
+    selection: AccessMutationSelection,
+    transaction: Transaction,
+  ): Promise<T> {
+    const scoped = await selection(transaction);
+    if (Object.keys(scoped.bind ?? {}).some((name) => Object.hasOwn(request.bind ?? {}, name)))
+      invalid('Mutation selection SQL bindings conflict');
+    return {
+      ...request,
+      where: request.where === undefined ? scoped.where : { [Op.and]: [request.where, scoped.where] },
+      bind: { ...request.bind, ...scoped.bind },
+    };
   }
 }

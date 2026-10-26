@@ -16,7 +16,7 @@ import type { AccessIdentity } from './context';
 import { guardJoinWrite } from './join-write-guard';
 import { resolveManyToMany } from './many-to-many-metadata';
 import { accessMetadataGuard } from './metadata-snapshot';
-import type { AccessMutationService } from './mutation';
+import type { AccessMutationSelection, AccessMutationService } from './mutation';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import type { AccessReferenceService } from './references';
@@ -62,6 +62,7 @@ export interface ManyToManyLinkSetsRequest
 
 export interface ManyToManyLinkSetsWriteEntry {
   assertCurrent(): void;
+  sourceScope?: AccessMutationSelection;
   targetScope(index: number): Promise<{ where?: WhereOptions }>;
   referenceScope?(index: number): Promise<{ where?: WhereOptions }>;
   authorizeChanges?(index: number, keys: string[], transaction: Transaction): Promise<void>;
@@ -88,6 +89,7 @@ export class AccessManyToManyService {
     request: ManyToManyWriteRequest,
     entry?: {
       assertCurrent(): void;
+      sourceScope?: AccessMutationSelection;
       targetScope(): Promise<{ where?: WhereOptions }>;
       /** Trusted finalized action predicates on every actual addition/removal, including set removals. */
       authorizeChanges?(keys: string[], transaction: Transaction): Promise<void>;
@@ -134,6 +136,7 @@ export class AccessManyToManyService {
       },
       entry && {
         assertCurrent: () => entry.assertCurrent(),
+        sourceScope: entry.sourceScope,
         targetScope: () => entry.targetScope(),
         ...(entry.authorizeChanges
           ? {
@@ -338,13 +341,21 @@ export class AccessManyToManyService {
         };
         const plan =
           request.sourceValues === undefined
-            ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+            ? await this.mutations.authorizeReferenceSource(
+                ctx,
+                source,
+                authenticated,
+                sourceRequest,
+                transaction,
+                entry?.sourceScope,
+              )
             : await this.mutations.authorizeExisting(
                 ctx,
                 source,
                 authenticated,
                 { ...sourceRequest, operation: 'update', values: request.sourceValues },
                 transaction,
+                entry?.sourceScope,
               );
         current();
         const referenceChanges = new Set<string>();

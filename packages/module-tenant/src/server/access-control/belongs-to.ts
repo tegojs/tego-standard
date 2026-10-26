@@ -5,7 +5,7 @@ import { resolveBelongsTo } from './association-metadata';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { accessMetadataGuard } from './metadata-snapshot';
-import type { AccessMutationService, ExistingAccessWritePlan } from './mutation';
+import type { AccessMutationSelection, AccessMutationService, ExistingAccessWritePlan } from './mutation';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import type { AccessReferenceService, BelongsToReadRequest } from './references';
@@ -42,6 +42,8 @@ export interface BelongsToReferencesWriteRequest
 
 export interface BelongsToReferencesWriteEntry {
   assertCurrent(): void;
+  /** Trusted read-condition plan, evaluated in this same write transaction before source authorization. */
+  sourceScope?: AccessMutationSelection;
   /** Called independently for each changed, non-null reference under the source lock. */
   targetScope(index: number): Promise<{ where?: WhereOptions }>;
 }
@@ -65,6 +67,7 @@ export class AccessBelongsToService {
     writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
     entry?: {
       assertCurrent(): void;
+      sourceScope?: AccessMutationSelection;
       /** Trusted entry callback, invoked only for a changed, non-null reference under the source lock. */
       targetScope(): Promise<{ where?: WhereOptions }>;
     },
@@ -188,13 +191,21 @@ export class AccessBelongsToService {
         };
         const sourcePlan =
           request.sourceValues === undefined
-            ? await this.mutations.authorizeReferenceSource(ctx, source, authenticated, sourceRequest, transaction)
+            ? await this.mutations.authorizeReferenceSource(
+                ctx,
+                source,
+                authenticated,
+                sourceRequest,
+                transaction,
+                entry?.sourceScope,
+              )
             : await this.mutations.authorizeExisting(
                 ctx,
                 source,
                 authenticated,
                 { ...sourceRequest, operation: 'update', values: request.sourceValues },
                 transaction,
+                entry?.sourceScope,
               );
         current();
         const changes = references.map(({ relation, targetKey }) => {

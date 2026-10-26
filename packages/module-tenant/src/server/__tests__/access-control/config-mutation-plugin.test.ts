@@ -16,17 +16,25 @@ describe('configuration guard with real collection management', () => {
   let store: AccessConfigStore;
   let identity: { dataSourceKey: string; collectionKey: string; collectionName: string };
   let sequence = 0;
-  const agent = () => app.agent().login(user).set('X-Role', 'root').set('X-Tenant-Id', 'metadata-guard-tenant');
+  const agent = (role = 'root') =>
+    app.agent().login(user).set('X-Role', role).set('X-Tenant-Id', 'metadata-guard-tenant');
 
   beforeAll(async () => {
     app = await createTenantApp(); // The application's actual plugins, isolated in-memory SQLite.
     await app.db
       .getRepository('tenants')
       .create({ values: { id: 'metadata-guard-tenant', name: 'Metadata guard tenant' } });
+    for (const [name, snippets] of [
+      ['metadata-reader', []],
+      ['metadata-impersonator', ['pm.tenant.impersonate']],
+      ['metadata-manager', ['pm.tenant.manage']],
+    ] as const) {
+      await app.db.getRepository('roles').create({ values: { name, snippets, strategy: { actions: ['view'] } } });
+    }
     user = await app.db.getRepository('users').create({
       values: {
         username: 'metadata-guard-user',
-        roles: ['root'],
+        roles: ['root', 'metadata-reader', 'metadata-impersonator', 'metadata-manager'],
         tenants: ['metadata-guard-tenant'],
         defaultTenantId: 'metadata-guard-tenant',
       },
@@ -61,6 +69,77 @@ describe('configuration guard with real collection management', () => {
     app.db.getRepository('tenantAccessRevisions').count({ filter: { collectionKey: identity.collectionKey } });
   const update = (values: object) =>
     agent().resource('collections').update({ filterByTk: identity.collectionName, values });
+
+  it.each(['metadata-reader', 'metadata-impersonator'])(
+    'keeps %s schema reads available without granting configuration management',
+    async (role) => {
+      await store.save(identity, draft(), { userId: user.get('id') });
+      const schema = await agent(role)
+        .resource('collections')
+        .list({ filter: { name: identity.collectionName }, paginate: false, appends: ['fields'] });
+      expect(schema.status).toBe(200);
+      expect(schema.body.data).toHaveLength(1);
+      expect(schema.body.data[0]).toMatchObject({ name: identity.collectionName, title: 'Original' });
+      expect(schema.body.data[0].fields).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'name' })]));
+      const config = await agent(role)
+        .resource('tenants')
+        .readAccessConfig({
+          values: { dataSourceKey: identity.dataSourceKey, collectionName: identity.collectionName },
+        });
+      expect(config.status).toBe(403);
+      expect(config.body).not.toHaveProperty('data');
+    },
+  );
+
+  it('denies anonymous audit reads after a configuration revision exists', async () => {
+    await store.save(identity, draft(), { userId: user.get('id') });
+    const revision = await app.db.getRepository('tenantAccessRevisions').findOne({
+      filter: { collectionKey: identity.collectionKey },
+    });
+    const resource = app.agent().resource('tenantAccessRevisions');
+    for (const response of [
+      await resource.list({ filter: { collectionKey: identity.collectionKey } }),
+      await resource.get({ filterByTk: revision.get('id') }),
+      await resource.count({ filter: { collectionKey: identity.collectionKey } }),
+    ]) {
+      expect([401, 403]).toContain(response.status);
+      expect(response.body).not.toHaveProperty('data');
+    }
+  });
+
+  it.each(['metadata-reader', 'metadata-impersonator', 'metadata-manager'])(
+    'does not grant %s audit history through the business view strategy',
+    async (role) => {
+      await store.save(identity, draft(), { userId: user.get('id') });
+      const revision = await app.db.getRepository('tenantAccessRevisions').findOne({
+        filter: { collectionKey: identity.collectionKey },
+      });
+      const resource = agent(role).resource('tenantAccessRevisions');
+      for (const response of [
+        await resource.list({ filter: { collectionKey: identity.collectionKey } }),
+        await resource.get({ filterByTk: revision.get('id') }),
+        await resource.count({ filter: { collectionKey: identity.collectionKey } }),
+      ]) {
+        expect(response.status).toBe(403);
+        expect(response.body).not.toHaveProperty('data');
+      }
+    },
+  );
+
+  it('lets a management role read saved configuration while preserving internal audit reads', async () => {
+    const config = await store.save(identity, draft(), { userId: user.get('id') });
+    const response = await agent('metadata-manager')
+      .resource('tenants')
+      .readAccessConfig({ values: { dataSourceKey: identity.dataSourceKey, collectionName: identity.collectionName } });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ identity, config });
+    const audit = await agent()
+      .resource('tenantAccessRevisions')
+      .list({ filter: { collectionKey: identity.collectionKey } });
+    expect(audit.status).toBe(200);
+    expect(audit.body.data).toHaveLength(1);
+    expect(audit.body.data[0]).toMatchObject({ revision: 1, config, actorUserId: String(user.get('id')) });
+  });
 
   it('keeps ordinary HTTP option editing available on an unconfigured table', async () => {
     const response = await update({ title: 'Edited', options: { color: 'blue' } });

@@ -9,6 +9,7 @@ import {
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessResourceMutationHandler } from '../../access-control/resource-mutation-handler';
+import { AccessRootReadHandler } from '../../access-control/root-read-handler';
 import type { AccessConfig } from '../../access-control/types';
 import { seedConfigStore } from './config-database';
 import { isolatedPostgresDatabase, sqliteDatabase } from './database';
@@ -343,13 +344,89 @@ describe.skipIf(!postgresUrl)('external association write boundaries', () => {
     expect(ctx.body).toBe('unchanged');
   });
 
-  it('does not treat independently configured connection records as ordinary links', async () => {
-    await configure('links', shared());
+  it('does not treat conditionally controlled connection records as ordinary links', async () => {
+    await configure('links', {
+      ...shared(),
+      rules: configFor({
+        type: 'compare',
+        operator: 'eq',
+        left: { type: 'field', path: 'projectId' },
+        right: { type: 'literal', value: 11 },
+      }).rules,
+    });
     const ctx = await root({ projects: [12] });
     const before = await snapshot(external);
     await expect(run(ctx)).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
     expect(await snapshot(external)).toEqual(before);
     expect(ctx.body).toBe('unchanged');
+  });
+
+  it.each(['constant', 'logical'] as const)(
+    'uses one %s shared connection configuration for both writes and reads',
+    async (kind) => {
+      const config = shared();
+      if (kind === 'logical')
+        config.rules[0].condition = {
+          type: 'any',
+          children: [
+            { type: 'constant', value: false },
+            { type: 'constant', value: true },
+          ],
+        };
+      await configure('links', config);
+      const write = await root({ name: 'Edited', projects: [11, 12] });
+      expect(await run(write)).toEqual({ keys: [1], affected: 1 });
+      const read = await context('projects', 'list', { fields: ['id'], sort: 'id' }, {}, '1');
+      const related: Array<Awaited<ReturnType<typeof context>>> = [];
+      try {
+        const reader = new AccessRootReadHandler(
+          external,
+          adapter,
+          new AccessQueryService(external, adapter, (collection) => accessCollectionKey(identity(collection))),
+          identity,
+        );
+        await reader.handleResourceWithRelatedContexts(read, actor, async (collection) => {
+          const result = await context(collection.name, 'list');
+          related.push(result);
+          return result;
+        });
+        expect(read.body).toMatchObject({ rows: [{ id: 11 }, { id: 12 }], count: 2 });
+      } finally {
+        for (const entry of [read, ...related]) adapter.release(entry);
+      }
+      expect(await links()).toEqual([11, 12]);
+      expect(await primary.getCollection('links').model.count()).toBe(1);
+    },
+  );
+
+  it('creates a source and connections with the explicit shared connection configuration', async () => {
+    await configure('links', shared());
+    const ctx = await context('documents', 'create', {
+      values: { id: 3, name: 'Created', project: 12, projects: [12] },
+    });
+    expect(await run(ctx)).toEqual({ keys: [3], affected: 1 });
+    expect(await row('documents', 3)).toMatchObject({ id: 3, projectId: 12, tenantId: null });
+    expect(
+      await external.getCollection('links').model.findAll({
+        attributes: ['documentId', 'projectId'],
+        where: { documentId: 3 },
+        raw: true,
+      }),
+    ).toEqual([{ documentId: 3, projectId: 12 }]);
+    expect(await row('projects', 12)).toMatchObject({ name: 'External visible', tenantId: 'H' });
+    expect(await primary.getCollection('documents').model.findByPk(3)).toBeNull();
+  });
+
+  it('filters and replaces the same explicitly shared connection in one transaction', async () => {
+    await configure('links', shared());
+    const ctx = await context('documents', 'update', {
+      filterByTk: 1,
+      filter: { projects: { id: 11 } },
+      values: { name: 'Edited', projects: [12] },
+    });
+    expect(await run(ctx)).toEqual({ keys: [1], affected: 1 });
+    expect(await links()).toEqual([12]);
+    expect(await row('documents', 1)).toMatchObject({ name: 'Edited', tenantId: 'B' });
   });
 
   it('rolls back an external child write and source values after an actual ORM hook failure', async () => {

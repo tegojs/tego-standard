@@ -3,7 +3,7 @@ import { literal, Op, type Collection, type Database, type Transaction, type Whe
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { compileAccessScopes } from './compile';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
-import { resolveAccessContext, type AccessIdentity } from './context';
+import { requiresAccessContext, resolveAccessContext, type AccessIdentity } from './context';
 import { resolveModelMetadata } from './model-metadata';
 import { AccessRuleError, type AccessConfig, type AccessScopes } from './types';
 
@@ -41,6 +41,25 @@ export class AccessQueryService {
       collection.model === model &&
       this.resolveCollectionKey(collection) === accessCollectionKey(identity)
     );
+  }
+
+  /** Prove context-independent, unrestricted G using the compiler's constant normal form; no SQL is executed. */
+  hasUnconditionalOwnership(ctx: object, identity: AccessCollectionIdentity): boolean {
+    const config = this.prepared.configuration(ctx, identity);
+    if (!config || config.ownership.enabled || requiresAccessContext(config)) return false;
+    const collection = this.db.getCollection(identity.collectionName);
+    if (!collection || !this.isCurrentCollection(identity, collection))
+      throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query model identity does not match its configuration');
+    const metadata = resolveModelMetadata(collection, { resolveCollectionKey: this.resolveCollectionKey });
+    const queryInterface = this.db.sequelize.getQueryInterface();
+    const { ownership } = compileAccessScopes(config, {
+      collection: metadata,
+      context: {},
+      quoteIdentifier: (name) => queryInterface.quoteIdentifier(name),
+    });
+    if (this.prepared.configuration(ctx, identity) !== config || !this.isCurrentCollection(identity, collection))
+      throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query phase or model identity changed');
+    return ownership.sql === 'TRUE' && Object.keys(ownership.bind).length === 0;
   }
 
   async resolveScopes(

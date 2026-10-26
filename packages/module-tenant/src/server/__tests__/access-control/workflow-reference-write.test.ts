@@ -264,7 +264,14 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
       await save(identity(dependent), targetConfig());
       await dependent.model.destroy({ where: {}, hooks: false });
     }
-    for (const join of joins.values()) await join.model.destroy({ where: {}, hooks: false });
+    for (const join of joins.values()) {
+      // The same explicit shared configuration is usable by reads and configured node writes.
+      await save(joinIdentities.get(join), {
+        ...configFor({ type: 'constant', value: true }),
+        ownership: { enabled: false },
+      });
+      await join.model.destroy({ where: {}, hooks: false });
+    }
     await documents.model.destroy({ where: {}, hooks: false });
     await projects.model.destroy({ where: {}, hooks: false });
     await projects.model.bulkCreate([

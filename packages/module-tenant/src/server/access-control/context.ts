@@ -81,6 +81,11 @@ function requiredPaths(config: AccessConfig): Set<ContextPath> {
   return paths;
 }
 
+/** Includes subjects and nested conditions of enabled rules only. */
+export function requiresAccessContext(config: AccessConfig): boolean {
+  return requiredPaths(config).size > 0;
+}
+
 /** Tenant facts require the primary authority, including facts used only by a rule's subject. */
 export function requiresTenantAccessContext(config: AccessConfig): boolean {
   return requiredPaths(config).has('tenant.id');

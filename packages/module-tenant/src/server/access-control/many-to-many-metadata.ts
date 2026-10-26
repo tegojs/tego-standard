@@ -25,7 +25,8 @@ export function resolveManyToMany(
   const sourceConfig = prepared.configuration(ctx, sourceIdentity);
   const targetConfig = prepared.configuration(ctx, targetIdentity);
   if (!sourceConfig || !targetConfig) invalid('Both relation collections must have prepared access configurations');
-  if (prepared.configuration(ctx, throughIdentity))
+  const throughConfig = prepared.configuration(ctx, throughIdentity);
+  if (throughConfig && !queries.hasUnconditionalOwnership(ctx, throughIdentity))
     invalid('Independently controlled join records require their own G adapter');
   const source = db.getCollection(sourceIdentity.collectionName);
   const target = db.getCollection(targetIdentity.collectionName);
@@ -73,7 +74,7 @@ export function resolveManyToMany(
       prepared.configuration(ctx, targetIdentity) !== targetConfig ||
       !queries.isCurrentCollection(sourceIdentity, source, sourceModel) ||
       !queries.isCurrentCollection(targetIdentity, target, targetModel) ||
-      prepared.configuration(ctx, throughIdentity) !== null ||
+      prepared.configuration(ctx, throughIdentity) !== throughConfig ||
       !queries.isCurrentCollection(throughIdentity, through, throughModel) ||
       db.getCollection(through.name) !== through ||
       through.model !== throughModel ||

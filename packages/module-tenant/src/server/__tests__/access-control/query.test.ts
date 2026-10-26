@@ -100,6 +100,91 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('tenant access r
     return rows.map((row) => row.get('id'));
   }
 
+  describe('unconditional ownership proof', () => {
+    async function prepare(
+      config = { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false } },
+    ) {
+      const previous = (await store.read(mainIdentity))!;
+      await store.save(mainIdentity, { ...config, revision: previous.revision }, { userId: 28 });
+      adapter.release(ctx);
+      ctx = {};
+      await adapter.prepare(ctx, [mainIdentity]);
+    }
+
+    it.each([
+      'shared',
+      'logical',
+      'disabled-context',
+      'conditional',
+      'visibility-only',
+      'managed',
+      'identity',
+      'empty',
+    ])('checks the actual G of %s rules without executing SQL', async (kind) => {
+      const config = { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false } };
+      if (kind === 'logical')
+        config.rules[0].condition = {
+          type: 'any',
+          children: [
+            { type: 'constant', value: false },
+            { type: 'constant', value: true },
+          ],
+        };
+      if (kind === 'disabled-context')
+        config.rules.push({
+          ...configFor({ type: 'constant', value: true }).rules[0],
+          id: 'off',
+          enabled: false,
+          subject: {
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'context', path: 'user.id' },
+            right: { type: 'literal', value: '28' },
+          },
+        });
+      if (kind === 'conditional')
+        config.rules[0].condition = {
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'id' },
+          right: { type: 'literal', value: 1 },
+        };
+      if (kind === 'visibility-only') config.rules[0].category = 'visibility';
+      if (kind === 'managed') config.ownership.enabled = true;
+      if (kind === 'identity')
+        config.rules[0].subject = {
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'context', path: 'user.id' },
+          right: { type: 'literal', value: '28' },
+        };
+      if (kind === 'empty') config.rules = [];
+      await prepare(config);
+      const sql = vi.spyOn(db.sequelize, 'query');
+      try {
+        expect(service.hasUnconditionalOwnership(ctx, mainIdentity)).toBe(
+          ['shared', 'logical', 'disabled-context'].includes(kind),
+        );
+        expect(sql).not.toHaveBeenCalled();
+      } finally {
+        sql.mockRestore();
+      }
+    });
+
+    it('includes the effective model scope in the proof', async () => {
+      await prepare();
+      docs.model.addScope('defaultScope', { where: { amount: { [Op.gt]: 100 } } }, { override: true });
+      expect(service.hasUnconditionalOwnership(ctx, mainIdentity)).toBe(false);
+    });
+
+    it('rejects stale phases and wrong stable keys rather than treating them as unrestricted', async () => {
+      await prepare();
+      expect(() => service.hasUnconditionalOwnership(ctx, { ...mainIdentity, collectionKey: 'other' })).toThrow();
+      adapter.release(ctx);
+      expect(() => service.hasUnconditionalOwnership(ctx, mainIdentity)).toThrow();
+    });
+  });
+
   it('reserves future binding names without adding unused values to root aggregates', async () => {
     const scoped = await plan('B', 'read', { reservedBindNames: ['tac_scope0_0'] });
     expect(scoped.query.bind).not.toHaveProperty('tac_scope0_0');
@@ -204,6 +289,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('tenant access r
     await adapter.prepare(ctx, [mainIdentity]);
     expect(await service.resolveScopes(ctx, mainIdentity, {})).toBeNull();
     expect(await service.scopeQuery(ctx, mainIdentity, {})).toBeNull();
+    expect(service.hasUnconditionalOwnership(ctx, mainIdentity)).toBe(false);
   });
 
   it('keeps valid transactions and rejects finished or foreign transactions', async () => {

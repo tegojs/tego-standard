@@ -771,6 +771,22 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized many-
     await store.save(throughIdentity, { ...configFor(ownerCondition), revision: 0 }, { userId: 28 });
     await expect(execute(await context())).rejects.toThrow();
   });
+  pg('accepts an explicitly shared pure connection configuration', async () => {
+    await store.save(
+      throughIdentity,
+      {
+        ...configFor({ type: 'constant', value: true }),
+        ownership: { enabled: false },
+        revision: 0,
+      },
+      { userId: 28 },
+    );
+    const ctx = await context();
+    await execute(ctx);
+    expect(await linked()).toEqual([101]);
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    expect((await projects.model.findByPk(101))?.get('tenantId')).toBe('H');
+  });
   it('explicitly refuses writes on unsupported dialects', async () => {
     if (dialect === 'postgres') return;
     const ctx = await context();

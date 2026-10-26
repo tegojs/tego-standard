@@ -449,11 +449,20 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized link 
     expect(authorize).not.toHaveBeenCalled();
   });
 
-  it('rejects independently controlled join tables before target authorization', async () => {
+  it('rejects conditionally controlled join tables before target authorization', async () => {
     const through = db.getCollection('document_projects');
     await store.save(
       identity(through),
-      { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+      {
+        ...configFor({
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'targetId' },
+          right: { type: 'literal', value: 101 },
+        }),
+        ownership: { enabled: false },
+        revision: 0,
+      },
       { userId: 28 },
     );
     const ctx = await context();

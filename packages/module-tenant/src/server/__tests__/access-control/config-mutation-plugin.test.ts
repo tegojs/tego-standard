@@ -242,6 +242,36 @@ describe('configuration guard with real collection management', () => {
     expect(await revisions()).toBe(1);
   });
 
+  it.each(['revision', 'previousConfig'])(
+    'rolls back persisted audit %s changes without publishing new runtime rules',
+    async (field) => {
+      const config = await store.save(identity, draft(), { userId: user.get('id') });
+      const corrupted = field === 'revision' ? 99 : null;
+      let observedInsert = false;
+      const alterAudit = (model) => model.setDataValue(field, corrupted);
+      const observeInsert = async (model, options) => {
+        const row = await app.db.getCollection('tenantAccessRevisions').model.findByPk(model.get('id'), {
+          transaction: options.transaction,
+        });
+        observedInsert = row.get(field) === corrupted;
+      };
+      app.db.on('tenantAccessRevisions.beforeCreate', alterAudit);
+      app.db.on('tenantAccessRevisions.afterCreate', observeInsert);
+      try {
+        await expect(store.save(identity, { ...config, rules: [] }, { userId: user.get('id') })).rejects.toMatchObject({
+          code: 'INVALID_ACCESS_CONFIG_WRITE',
+        });
+      } finally {
+        app.db.off('tenantAccessRevisions.beforeCreate', alterAudit);
+        app.db.off('tenantAccessRevisions.afterCreate', observeInsert);
+      }
+      expect(observedInsert).toBe(true);
+      expect(await store.read(identity)).toEqual(config);
+      expect(collection.options.tenantAccess).toEqual(config);
+      expect(await revisions()).toBe(1);
+    },
+  );
+
   it('preserves the newest rules when a stale native CollectionModel saves unrelated options', async () => {
     const first = await store.save(identity, draft(), { userId: user.get('id') });
     const stale = await metadata();

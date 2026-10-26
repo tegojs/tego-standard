@@ -68,6 +68,32 @@ describe.skipIf(!databaseUrl)('tenant access configuration PostgreSQL concurrenc
     expect(history[1].get('config')).toEqual(await configStore(first).read(mainIdentity));
   });
 
+  it.each(['revision', 'previousConfig'])(
+    'rolls back changed audit %s and preserves the previous version for another connection',
+    async (field) => {
+      const store = configStore(first);
+      const original = await store.save(mainIdentity, initialConfig(), { userId: 28 });
+      const alterAudit = (model) => model.setDataValue(field, field === 'revision' ? 99 : null);
+      first.on('tenantAccessRevisions.beforeCreate', alterAudit);
+      try {
+        await expect(store.save(mainIdentity, { ...original, rules: [] }, { userId: 16 })).rejects.toMatchObject({
+          code: 'INVALID_ACCESS_CONFIG_WRITE',
+        });
+      } finally {
+        first.off('tenantAccessRevisions.beforeCreate', alterAudit);
+      }
+      expect(await configStore(second).read(mainIdentity)).toEqual(original);
+      const history = await second.getRepository('tenantAccessRevisions').find();
+      expect(history).toHaveLength(1);
+      expect(history[0].get()).toMatchObject({
+        revision: 1,
+        config: original,
+        previousConfig: null,
+        actorUserId: '28',
+      });
+    },
+  );
+
   it('reads committed revisions across independent database instances without a shared cache', async () => {
     const writer = configStore(first);
     const reader = configStore(second);

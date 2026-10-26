@@ -140,10 +140,36 @@ export class AccessConfigStore {
             'A metadata hook changed the validated configuration',
           );
         }
-        await this.db.getRepository('tenantAccessRevisions').create({
-          values: { ...identity, revision: config.revision, config, previousConfig, actorUserId, savedAt: new Date() },
+        const savedAt = Date.now();
+        const audit = await this.db.getRepository('tenantAccessRevisions').create({
+          values: {
+            ...identity,
+            revision: config.revision,
+            config,
+            previousConfig,
+            actorUserId,
+            savedAt: new Date(savedAt),
+          },
           transaction,
         });
+        // Read the stored row: later hooks may have changed the insert or only the returned model.
+        const persistedAudit = await this.db.getCollection('tenantAccessRevisions').model.findByPk(audit.get('id'), {
+          transaction,
+          useMaster: true,
+        });
+        if (
+          !persistedAudit ||
+          !(['dataSourceKey', 'collectionKey', 'collectionName'] as const).every(
+            (key) => persistedAudit.getDataValue(key) === identity[key],
+          ) ||
+          String(persistedAudit.getDataValue('revision')) !== String(config.revision) ||
+          persistedAudit.getDataValue('actorUserId') !== actorUserId ||
+          !isDeepStrictEqual(persistedAudit.getDataValue('config'), config) ||
+          !isDeepStrictEqual(persistedAudit.getDataValue('previousConfig'), previousConfig) ||
+          persistedAudit.getDataValue('savedAt')?.getTime() !== savedAt
+        ) {
+          throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'A model hook changed the configuration audit');
+        }
       } finally {
         endConfigWrite(this.db, transaction);
       }

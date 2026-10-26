@@ -114,6 +114,46 @@ describe('tenant access configuration authority', () => {
     expect(await store.read(mainIdentity)).toBeNull();
   });
 
+  it.each([
+    ['dataSourceKey', 'other-source'],
+    ['collectionKey', 'other-key'],
+    ['collectionName', 'other-collection'],
+    ['revision', 99],
+    ['config', null],
+    ['previousConfig', null],
+    ['actorUserId', 'other-actor'],
+    ['savedAt', new Date(0)],
+  ])('rolls back when an audit hook changes persisted %s', async (field, value) => {
+    const first = await store.save(mainIdentity, initialConfig(), { userId: 28 });
+    const alterAudit = (model) => {
+      model.setDataValue(field, field === 'config' ? first : value);
+    };
+    db.on('tenantAccessRevisions.beforeCreate', alterAudit);
+    try {
+      await expect(store.save(mainIdentity, { ...first, rules: [] }, { userId: 16 })).rejects.toMatchObject({
+        code: 'INVALID_ACCESS_CONFIG_WRITE',
+      });
+    } finally {
+      db.off('tenantAccessRevisions.beforeCreate', alterAudit);
+    }
+    expect(await store.read(mainIdentity)).toEqual(first);
+    const history = await db.getRepository('tenantAccessRevisions').find();
+    expect(history).toHaveLength(1);
+    expect(history[0].get()).toMatchObject({ revision: 1, config: first, actorUserId: '28', previousConfig: null });
+  });
+
+  it('checks stored audit values rather than an after-create decoration of the returned model', async () => {
+    db.on('tenantAccessRevisions.afterCreate', (model) => {
+      model.setDataValue('actorUserId', 'display-only label');
+    });
+    const saved = await store.save(mainIdentity, initialConfig(), { userId: 28 });
+    expect(saved.revision).toBe(1);
+    expect(await store.read(mainIdentity)).toEqual(saved);
+    const history = await db.getRepository('tenantAccessRevisions').find();
+    expect(history).toHaveLength(1);
+    expect(history[0].get()).toMatchObject({ revision: 1, config: saved, actorUserId: '28' });
+  });
+
   it('rolls back if another metadata hook changes the validated configuration before persistence', async () => {
     db.on('collections.beforeSave', (model) => {
       model.setDataValue('options', {

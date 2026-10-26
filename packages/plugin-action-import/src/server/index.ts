@@ -5,8 +5,15 @@ import { createImportXlsx, downloadXlsxTemplate, importXlsx, type ImportXlsxReso
 import { enUS, zhCN } from './locale';
 import { importMiddleware } from './middleware';
 
-export { createImportXlsx } from './actions';
-export type { ImportXlsxExecutor, ImportXlsxResolver } from './actions';
+export { createImportXlsx, captureImportXlsxRequest, ImportXlsxRequestError } from './actions';
+export type {
+  ImportXlsxExecutor,
+  ImportXlsxResolver,
+  ImportXlsxRequest,
+  ImportXlsxColumn,
+  ImportXlsxRow,
+  ImportXlsxCell,
+} from './actions';
 
 export interface ImportPluginOptions extends PluginOptions {
   /** Server bootstrap only; selected executors own authorization, parsing, writes and the response. */

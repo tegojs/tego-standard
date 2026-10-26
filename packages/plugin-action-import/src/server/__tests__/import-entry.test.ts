@@ -3,7 +3,12 @@ import type { Context } from '@tego/server';
 
 import xlsx from 'node-xlsx';
 
-import ImportPlugin, { createImportXlsx, type ImportPluginOptions, type ImportXlsxResolver } from '..';
+import ImportPlugin, {
+  captureImportXlsxRequest,
+  createImportXlsx,
+  type ImportPluginOptions,
+  type ImportXlsxResolver,
+} from '..';
 
 describe('server-selected XLSX import entry', () => {
   let app: MockServer;
@@ -76,6 +81,40 @@ describe('server-selected XLSX import entry', () => {
       .field('columns', 'Not JSON');
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({ file: 'Executor-owned file format', columns: 'Not JSON' });
+    expect(await titles()).toEqual([]);
+  });
+
+  it('captures an actual multipart workbook inside the selected executor without importing it', async () => {
+    await register({
+      importResolver: () => async (ctx) => {
+        ctx.body = {
+          captured: captureImportXlsxRequest({ buffer: ctx.file.buffer, columns: ctx.request.body.columns }),
+        };
+      },
+    });
+    const response = await request();
+    expect(response.status).toBe(200);
+    expect(response.body.data.captured).toEqual({
+      columns: [{ dataIndex: ['title'], defaultTitle: 'Title' }],
+      fields: ['title'],
+      header: ['Title'],
+      rows: [{ rowNumber: 2, cells: ['Original spreadsheet row'] }],
+    });
+    expect(await titles()).toEqual([]);
+  });
+
+  it('does not start the original importer after selected capture rejects the template', async () => {
+    await register({
+      importResolver: () => async (ctx) => {
+        captureImportXlsxRequest({
+          buffer: ctx.file.buffer,
+          columns: [{ dataIndex: ['title'], defaultTitle: 'Different template' }],
+        });
+      },
+    });
+    const response = await request();
+    expect(response.status).toBe(400);
+    expect(response.body.errors[0].message).toContain('template does not match');
     expect(await titles()).toEqual([]);
   });
 

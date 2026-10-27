@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { accessMetadataGuard } from './metadata-snapshot';
@@ -272,17 +273,23 @@ export abstract class AccessTargetForeignKeyService {
         const changedByKey = new Map(changes.map((change) => [change.key, change]));
         const sourcePatch = sourcePlan.valuesFor(beforeSource);
         const sourceOwner = sourcePatch.tenantId ?? beforeSource.getDataValue('tenantId');
+        const sourceAudit = captureUserAuditFields(this.db, relation.source, authenticated);
+        const targetAudit = captureUserAuditFields(this.db, relation.target, authenticated);
         const sourceProtected = snapshotProtectedValues(
           this.db,
           relation.source,
           sourcePlan.records,
           relation.sourceConfig.ownership.enabled ? ['tenantId'] : [],
+          sourceAudit,
         );
         const targetRecords = targetPlan?.records ?? [];
-        const targetProtected = snapshotProtectedValues(this.db, relation.target, targetRecords, [
-          relation.foreignKey,
-          ...(relation.targetConfig.ownership.enabled ? ['tenantId'] : []),
-        ]);
+        const targetProtected = snapshotProtectedValues(
+          this.db,
+          relation.target,
+          targetRecords,
+          [relation.foreignKey, ...(relation.targetConfig.ownership.enabled ? ['tenantId'] : [])],
+          targetAudit,
+        );
         const targetOwners = new Map(
           targetRecords.map((record) => [
             normalizeKeys([record.getDataValue(primary)], relation.target)[0],
@@ -384,6 +391,7 @@ export abstract class AccessTargetForeignKeyService {
         await afterPersist?.call(entry);
         await validateWriteTransaction(this.db, transaction, true);
         current();
+        sourceAudit.assertCurrent();
         const afterSource = await relation.sourceModel.unscoped().findAll(
           internalQuery({
             where: { [relation.sourceModel.primaryKeyAttribute]: sourceKey },
@@ -391,6 +399,7 @@ export abstract class AccessTargetForeignKeyService {
           }),
         );
         current();
+        targetAudit.assertCurrent();
         const after = await relation.targetModel.unscoped().findAll(
           internalQuery({
             where: { [primary]: { [Op.in]: changes.map((change) => change.key) } },

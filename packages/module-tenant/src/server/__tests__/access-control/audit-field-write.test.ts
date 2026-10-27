@@ -288,9 +288,16 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       const record = await seed();
       const attribute = docs.model.rawAttributes.updatedById;
       const original = attribute.field;
+      let restored = false;
       app.db.sequelize.addHook('afterQuery', 'restore-audit-mapping', (options) => {
-        if (options.type === 'SELECT' && (options as { model?: typeof docs.model }).model === docs.model)
+        if (
+          options.type === 'SELECT' &&
+          (options as { model?: typeof docs.model }).model?.name === docs.model.name &&
+          attribute.field !== original
+        ) {
           attribute.field = original;
+          restored = true;
+        }
       });
       try {
         await expect(
@@ -311,6 +318,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       } finally {
         attribute.field = original;
       }
+      expect(restored).toBe(false);
       expect((await docs.model.findByPk(record.get('id')))!.get()).toMatchObject({ name: 'Before', updatedById: 29 });
     });
     it('keeps user self-association audits usable for root creation and modification', async () => {

@@ -153,9 +153,53 @@ export class AccessImportReferenceLookup {
     });
     const checks = selections.map((selection) => selection.assertCurrent);
     const assertCurrent = () => checks.forEach((check) => check());
+    const captureTargets = async () => {
+      assertCurrent();
+      const grants = [];
+      for (const selection of selections) {
+        const related = await authorize(selection.target);
+        assertCurrent();
+        if (!related) invalid('Import reference target operation is not authorized');
+        const decision = captureRelatedReadPermission(this.db, selection.target, actor.roleName, related);
+        const plan = new AccessReadGrantAdapter(this.db, (collection) => {
+          const identity = this.resolveIdentity(collection);
+          return identity && accessCollectionKey(identity);
+        }).capturePlan(selection.targetIdentity, decision, new AccessRoleFilterCompiler(this.db, this.resolveIdentity));
+        const primary = selection.target.model.primaryKeyAttribute;
+        if (!plan || !plan.grant.fields.includes(primary) || !plan.grant.fields.includes(selection.lookup))
+          invalid('Import target key and lookup field must be readable');
+        checks.push(plan.assertCurrent);
+        const grant = {
+          ...plan.grant,
+          where: { [Op.and]: [plan.grant.where ?? {}, selection.relation.scope ?? {}] },
+        };
+        const reader = new AccessReadService(
+          this.db,
+          this.prepared,
+          this.queries,
+          (collection, path) => {
+            if (collection !== selection.target || path.length)
+              invalid('Import lookup requires a root scalar predicate');
+            return grant;
+          },
+          assertCurrent,
+        );
+        grants.push({ reader, grant, primary });
+      }
+      assertCurrent();
+      return grants;
+    };
+    let authorization: ReturnType<typeof captureTargets> | undefined;
+    const targets = () => (authorization ??= captureTargets());
     let used = false;
     return {
       assertCurrent,
+      // Final ACL preparation may read configuration through its own connection.
+      // Complete it before reserving the file transaction; business matches remain transactional.
+      authorizeTargets: async () => {
+        await targets();
+        assertCurrent();
+      },
       resolve: async (input: unknown, transaction?: Transaction): Promise<AccessCreationReference[][]> => {
         if (used) invalid('Import reference lookup plans are single-use');
         used = true;
@@ -178,41 +222,7 @@ export class AccessImportReferenceLookup {
         )
           invalid('Import reference cells must match the selected columns');
         assertCurrent();
-        const grants = [];
-        for (const selection of selections) {
-          const related = await authorize(selection.target);
-          assertCurrent();
-          if (!related) invalid('Import reference target operation is not authorized');
-          const decision = captureRelatedReadPermission(this.db, selection.target, actor.roleName, related);
-          const plan = new AccessReadGrantAdapter(this.db, (collection) => {
-            const identity = this.resolveIdentity(collection);
-            return identity && accessCollectionKey(identity);
-          }).capturePlan(
-            selection.targetIdentity,
-            decision,
-            new AccessRoleFilterCompiler(this.db, this.resolveIdentity),
-          );
-          const primary = selection.target.model.primaryKeyAttribute;
-          if (!plan || !plan.grant.fields.includes(primary) || !plan.grant.fields.includes(selection.lookup))
-            invalid('Import target key and lookup field must be readable');
-          checks.push(plan.assertCurrent);
-          const grant = {
-            ...plan.grant,
-            where: { [Op.and]: [plan.grant.where ?? {}, selection.relation.scope ?? {}] },
-          };
-          const reader = new AccessReadService(
-            this.db,
-            this.prepared,
-            this.queries,
-            (collection, path) => {
-              if (collection !== selection.target || path.length)
-                invalid('Import lookup requires a root scalar predicate');
-              return grant;
-            },
-            assertCurrent,
-          );
-          grants.push({ reader, grant, primary });
-        }
+        const grants = await targets();
         assertCurrent();
         const result: AccessCreationReference[][] = [];
         for (const row of rows) {
@@ -228,7 +238,10 @@ export class AccessImportReferenceLookup {
               let value: unknown;
               if (selection.lookup === primary) value = normalizeKeys([cell], selection.target)[0];
               else {
-                const parser = selection.scalar.createParser(ctx, selection.column);
+                const parser = selection.scalar.createParser(
+                  transaction ? { ...ctx, transaction } : ctx,
+                  selection.column,
+                );
                 await parser.setValue(cell);
                 assertCurrent();
                 if (parser.errors.length) invalid(`Import reference value is invalid: ${parser.errors.join('; ')}`);

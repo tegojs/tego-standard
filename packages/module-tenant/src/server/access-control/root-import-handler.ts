@@ -1,15 +1,18 @@
 import { isDeepStrictEqual } from 'node:util';
 import { captureImportXlsxRequest } from '@tachybase/plugin-action-import';
-import type { Collection, Database, Model } from '@tego/server';
+import { Transaction, type Collection, type Database, type Model } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
-import { AccessCreationService } from './creation';
+import { AccessCreationService, type AccessCreationPlan } from './creation';
+import type { AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { captureScalarImportField } from './import-fields';
+import { AccessImportReferenceLookup } from './import-reference-lookup';
 import { accessMetadataGuard } from './metadata-snapshot';
+import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import { AccessRoleFilterCompiler } from './role-filter';
 import { cloneDeep, invalid, plain, rootWriteBlockedFields, validateRootValues } from './write-support';
@@ -40,7 +43,7 @@ function names(input: unknown): string[] | undefined {
   return result as string[];
 }
 
-/** Internal scalar-only entry. No routes or default import handlers are installed here. */
+/** Internal explicit import entry. No routes or default import handlers are installed here. */
 export class AccessRootImportHandler {
   constructor(
     private readonly db: Database,
@@ -50,7 +53,12 @@ export class AccessRootImportHandler {
   ) {}
 
   /** Upload input comes from the selected executor, never merged action values or role filters. */
-  async handle(ctx: AccessImportContext, authenticated: AccessIdentity, upload: unknown): Promise<void> {
+  async handle(
+    ctx: AccessImportContext,
+    authenticated: AccessIdentity,
+    upload: unknown,
+    authorizeRead?: AccessCreationTargetAuthorizer,
+  ): Promise<void> {
     if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object' || !plain(authenticated))
       invalid('Import database or authenticated context is unavailable');
     const resourceName = data(ctx.action, 'resourceName');
@@ -102,7 +110,7 @@ export class AccessRootImportHandler {
     for (const column of request.columns) {
       const [name] = column.dataIndex;
       if (
-        column.dataIndex.length !== 1 ||
+        (column.dataIndex.length !== 1 && (column.dataIndex.length !== 2 || typeof authorizeRead !== 'function')) ||
         (fields !== undefined && !fields.includes(name)) ||
         (whitelist !== undefined && !whitelist.includes(name)) ||
         blacklist?.includes(name) ||
@@ -110,11 +118,34 @@ export class AccessRootImportHandler {
       )
         invalid('Import mapping contains an unauthorized or unadapted field');
     }
-    validateRootValues(this.db, Object.fromEntries(request.fields.map((name) => [name, null])), collection, 'create');
-    const selections = request.columns.map((column) => ({
+    const scalarColumns = request.columns.flatMap((column, index) =>
+      column.dataIndex.length === 1 ? [{ column, index }] : [],
+    );
+    const referenceColumns = request.columns.flatMap((column, index) =>
+      column.dataIndex.length === 2 ? [{ column, index }] : [],
+    );
+    validateRootValues(
+      this.db,
+      Object.fromEntries(scalarColumns.map(({ column }) => [column.dataIndex[0], null])),
+      collection,
+      'create',
+    );
+    const selections = scalarColumns.map(({ column, index }) => ({
       column,
+      index,
       ...captureScalarImportField(this.db, collection, column.dataIndex[0]),
     }));
+    const lookup = referenceColumns.length
+      ? new AccessImportReferenceLookup(this.db, this.prepared, this.queries, this.resolveIdentity).prepare(
+          ctx,
+          identity,
+          actor,
+          referenceColumns.map(({ column }) => column),
+          authorizeRead!,
+        )
+      : undefined;
+    if (lookup && this.db.sequelize.getDialect() !== 'postgres')
+      throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Reference imports require PostgreSQL', 400);
     const protectedFields = [...rootWriteBlockedFields(this.db, collection, 'create')].sort();
     const assertCurrent = () => {
       const current = this.resolveIdentity(collection);
@@ -129,25 +160,29 @@ export class AccessRootImportHandler {
       role.assertCurrent();
       metadata();
       for (const selection of selections) selection.assertCurrent();
+      lookup?.assertCurrent();
     };
-    const values: Array<Record<string, unknown>> = [];
-    for (const row of request.rows) {
-      const record: Record<string, unknown> = {};
-      for (let index = 0; index < selections.length; index++) {
-        const cell = row.cells[index];
-        if (cell === null) continue;
-        assertCurrent();
-        const { field, column, createParser } = selections[index];
-        const parser = createParser(ctx, column);
-        await parser.setValue(typeof cell === 'string' ? cell.trim() : cell);
-        assertCurrent();
-        if (parser.errors.length)
-          invalid(`Import row ${row.rowNumber}, ${column.defaultTitle}: ${parser.errors.join('; ')}`);
-        const value: unknown = parser.getValue();
-        if (value !== undefined) record[field.name] = cloneDeep(value);
+    const parseValues = async (transaction?: Transaction) => {
+      const values: Array<Record<string, unknown>> = [];
+      const parserContext = transaction ? { ...ctx, transaction } : ctx;
+      for (const row of request.rows) {
+        const record: Record<string, unknown> = {};
+        for (const { field, column, index, createParser } of selections) {
+          const cell = row.cells[index];
+          if (cell === null) continue;
+          assertCurrent();
+          const parser = createParser(parserContext, column);
+          await parser.setValue(typeof cell === 'string' ? cell.trim() : cell);
+          assertCurrent();
+          if (parser.errors.length)
+            invalid(`Import row ${row.rowNumber}, ${column.defaultTitle}: ${parser.errors.join('; ')}`);
+          const value: unknown = parser.getValue();
+          if (value !== undefined) record[field.name] = cloneDeep(value);
+        }
+        values.push(record);
       }
-      values.push(record);
-    }
+      return values;
+    };
     // Database-wide protection discovery belongs to write stages, not each parsed cell.
     const assertWriteCurrent = () => {
       assertCurrent();
@@ -155,24 +190,61 @@ export class AccessRootImportHandler {
         invalid('Import relationship protection metadata changed');
     };
     assertWriteCurrent();
-    const result = await new AccessCreationService(this.db, this.prepared, this.queries).withCreatedRecords(
-      ctx,
-      identity,
-      actor,
-      { values, where: role.rootWhere ?? role.where },
-      async (plan) => {
-        const records: Model[] = [];
-        for (const value of plan.values) {
-          assertWriteCurrent();
-          records.push(
-            await collection.repository.create({ values: value, transaction: plan.transaction, context: ctx }),
+    const creation = new AccessCreationService(this.db, this.prepared, this.queries);
+    const writer = async (plan: AccessCreationPlan) => {
+      const records: Model[] = [];
+      for (const value of plan.values) {
+        assertWriteCurrent();
+        records.push(
+          await collection.repository.create({ values: value, transaction: plan.transaction, context: ctx }),
+        );
+        assertWriteCurrent();
+      }
+      return records;
+    };
+    let result: { affected: number };
+    try {
+      await lookup?.authorizeTargets();
+      assertWriteCurrent();
+      result = lookup
+        ? await this.db.sequelize.transaction(
+            { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+            async (transaction) => {
+              const rowReferences = await lookup.resolve(
+                request.rows.map((row) => referenceColumns.map(({ index }) => row.cells[index])),
+                transaction,
+              );
+              const values = await parseValues(transaction);
+              assertWriteCurrent();
+              return creation.withCreatedRecordsInTransaction(
+                ctx,
+                identity,
+                actor,
+                { values, rowReferences, where: role.rootWhere ?? role.where },
+                transaction,
+                writer,
+                assertWriteCurrent,
+              );
+            },
+          )
+        : await creation.withCreatedRecords(
+            ctx,
+            identity,
+            actor,
+            { values: await parseValues(), where: role.rootWhere ?? role.where },
+            writer,
+            assertWriteCurrent,
           );
-          assertWriteCurrent();
-        }
-        return records;
-      },
-      assertWriteCurrent,
-    );
+    } catch (error) {
+      const conflict = error as { original?: { code?: string }; parent?: { code?: string } };
+      if ((conflict?.original?.code ?? conflict?.parent?.code) === '40001')
+        throw new AccessMutationError(
+          'ACCESS_MUTATION_CONFLICT',
+          'Concurrent authorization changed; retry the operation',
+          409,
+        );
+      throw error;
+    }
     // This path is all-or-nothing: no failure workbook exists on success.
     ctx.body = { rows: [], successCount: result.affected, failureCount: 0 };
   }

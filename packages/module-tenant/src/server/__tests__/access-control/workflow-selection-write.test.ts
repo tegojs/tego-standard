@@ -621,6 +621,15 @@ describe.runIf(!!postgresUrl)('configured workflow relationship selection writes
     });
 
     it('does not write an independently configured through table through the pure-link adapter', async () => {
+      await save(links, {
+        ...configFor({
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'documentId' },
+          right: { type: 'literal', value: 1 },
+        }),
+        ownership: { enabled: false },
+      });
       await links.model.create({ documentId: 1, projectId: 101 });
       const job = await run('update', {
         filter: { project: { name: 'Visible' } },

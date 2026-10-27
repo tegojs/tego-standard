@@ -327,7 +327,12 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
     (await joins.get(name).model.findAll({ where: { documentId: id }, order: [['projectId', 'ASC']] })).map((row) =>
       row.getDataValue('projectId'),
     );
-  async function execute(kind: 'create' | 'update', params: object, serializable: boolean | null = true) {
+  async function execute(
+    kind: 'create' | 'update',
+    params: object,
+    serializable: boolean | null = true,
+    state: object = { currentTenantId: 'B' },
+  ) {
     await workflow.createNode({ type: kind, config: { collection: documents.name, params } });
     const transaction =
       serializable === null
@@ -338,7 +343,7 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
               : Transaction.ISOLATION_LEVELS.READ_COMMITTED,
           });
     try {
-      await plugin.trigger(workflow, {}, { transaction, context: { state: { currentTenantId: 'B' } } });
+      await plugin.trigger(workflow, {}, { transaction, context: { state } });
       const [execution] = await workflow.getExecutions({ transaction, order: [['id', 'DESC']] });
       const [job] = await execution.getJobs({ transaction });
       const result = { status: execution.status, result: job.result };
@@ -1438,5 +1443,133 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
     const job = await execute('update', { filterByTk: 1, values: { project: null } });
     expect(job.status).toBe(EXECUTION_STATUS.ERROR);
     expect((await get()).projectId).toBe(101);
+  });
+
+  describe.runIf(supportsDeferredAssociationEvents)('native workflow relationship audit fields', () => {
+    let userId: string | number;
+    let authorId: string | number;
+    beforeAll(async () => {
+      const users = app.db.getCollection('users').model;
+      userId = (await users.create({ nickname: 'Relationship workflow runner' })).get('id');
+      authorId = (await users.create({ nickname: 'Original relationship author' })).get('id');
+      for (const collection of [documents, projects, ...dependents.values()]) {
+        for (const name of ['createdBy', 'updatedBy'])
+          collection.setField(name, {
+            type: 'belongsTo',
+            target: 'users',
+            foreignKey: `${name}Id`,
+            interface: name,
+          });
+        await collection.model.sync({ alter: true });
+      }
+    });
+    const state = () => ({ currentTenantId: 'B', currentRole: 'editor', currentUser: { id: userId } });
+    const plain = async (collection, id) => (await collection.model.findByPk(id)).get({ plain: true });
+    const audit = (row, creator: string | number | null, modifier: string | number | null) => {
+      expect(String(row.createdById)).toBe(String(creator));
+      expect(String(row.updatedById)).toBe(String(modifier));
+    };
+    it.each(['create', 'update'] as const)('keeps target audit fields unchanged in a mixed %s', async (kind) => {
+      if (kind === 'update')
+        await documents.repository.create({
+          values: { id: 301, name: 'Original source', tenantId: 'B', projectId: 101 },
+          context: { state: { currentUser: { id: authorId } } },
+        });
+      const before = await Promise.all([plain(projects, 101), plain(projects, 104)]);
+      const job = await execute(
+        kind,
+        {
+          ...(kind === 'update' ? { filterByTk: 301 } : {}),
+          values: {
+            ...(kind === 'create' ? { id: 301 } : {}),
+            name: 'Audited references',
+            project: 104,
+            tags: [101, 104],
+          },
+        },
+        true,
+        state(),
+      );
+      expect(job.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+      const actual = await get(301);
+      expect(actual).toMatchObject({ name: 'Audited references', tenantId: 'B', projectId: 104 });
+      audit(actual, kind === 'create' ? userId : authorId, userId);
+      audit(kind === 'create' ? job.result : job.result.data[0], kind === 'create' ? userId : authorId, userId);
+      expect((await linked(301)).map(String)).toEqual(['101', '104']);
+      expect(await Promise.all([plain(projects, 101), plain(projects, 104)])).toEqual(before);
+    });
+    it.each(['children', 'profile'])('updates both source and selected %s with native audit fields', async (name) => {
+      const collection = dependents.get(name);
+      await collection.repository.create({
+        values: { id: 301, name: 'Authored child', tenantId: 'B' },
+        context: { state: { currentUser: { id: authorId } } },
+      });
+      const job = await execute(
+        'update',
+        { filterByTk: 1, values: { name: 'Audited child binding', [name]: name === 'children' ? [301] : 301 } },
+        true,
+        state(),
+      );
+      expect(job.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+      audit(await get(), null, userId);
+      const child = await plain(collection, 301);
+      expect(String(child.documentId)).toBe('1');
+      expect(child.tenantId).toBe('B');
+      audit(child, authorId, userId);
+      audit(job.result.data[0], null, userId);
+    });
+    it('does not claim or touch audit fields for unchanged legacy references and empty links', async () => {
+      await save(
+        source,
+        configFor({
+          type: 'any',
+          children: [ownerCondition, { type: 'isNull', operand: { type: 'field', path: 'tenantId' } }],
+        }),
+      );
+      await documents.model.update({ projectId: 104 }, { where: { id: 5 }, hooks: false });
+      const before = await get(5);
+      const targetBefore = await plain(projects, 104);
+      const job = await execute('update', { filterByTk: 5, values: { project: 104, tags: [] } }, true, state());
+      expect(job).toEqual({ status: EXECUTION_STATUS.RESOLVED, result: { length: 0, data: [] } });
+      expect(await get(5)).toEqual(before);
+      expect(await plain(projects, 104)).toEqual(targetBefore);
+      expect(await linked(5)).toEqual([]);
+    });
+    it('rolls back the source and child if a native child hook overwrites its creator', async () => {
+      const collection = dependents.get('children');
+      await collection.repository.create({
+        values: { id: 301, name: 'Protected author', tenantId: 'B' },
+        context: { state: { currentUser: { id: authorId } } },
+      });
+      const before = await get();
+      const childBefore = await plain(collection, 301);
+      let persistedWrongCreator = false;
+      collection.model.addHook('beforeUpdate', 'workflowAuditForgery', (record) => {
+        record.set('createdById', userId);
+      });
+      collection.model.addHook('afterUpdate', 'workflowAuditObserve', async (record, options) => {
+        const actual = await collection.model.findByPk(record.get('id'), {
+          transaction: options.transaction,
+          hooks: false,
+        });
+        persistedWrongCreator = String(actual.get('createdById')) === String(userId);
+      });
+      try {
+        const job = await execute(
+          'update',
+          { filterByTk: 1, values: { name: 'Do not commit', children: [301] } },
+          true,
+          state(),
+        );
+        expect(persistedWrongCreator).toBe(true);
+        expect(job.status).toBe(EXECUTION_STATUS.ERROR);
+        expect(job.result.message).toMatch(/protected relationship key/i);
+        expect(await get()).toEqual(before);
+        expect(await plain(collection, 301)).toEqual(childBefore);
+      } finally {
+        collection.model.removeHook('beforeUpdate', 'workflowAuditForgery');
+        collection.model.removeHook('afterUpdate', 'workflowAuditObserve');
+      }
+    });
   });
 });

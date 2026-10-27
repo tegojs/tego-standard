@@ -8,12 +8,13 @@ import { AccessQueryService } from '../../access-control/query';
 import * as imports from '../../access-control/root-import-handler';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
-import { sqliteDatabase } from './database';
+import { isolatedPostgresDatabase, sqliteDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
 const xlsx = createRequire(new URL('../../../../../plugin-action-import/package.json', import.meta.url))('node-xlsx');
+const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 
-describe('finalized scalar tenant import', () => {
+describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized scalar tenant import (%s)', (dialect) => {
   let db: Database;
   let docs: Collection;
   let adapter: AccessAclScopeAdapter;
@@ -47,7 +48,7 @@ describe('finalized scalar tenant import', () => {
     );
 
   beforeEach(async () => {
-    db = sqliteDatabase();
+    db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
     await seedConfigStore(db);
     await seedAclScopes(db);
     docs = db.collection({
@@ -82,7 +83,11 @@ describe('finalized scalar tenant import', () => {
   });
   afterEach(async () => {
     vi.restoreAllMocks();
-    await db?.close();
+    try {
+      if (dialect === 'postgres') await db?.sequelize.drop({ cascade: true });
+    } finally {
+      await db?.close();
+    }
   });
 
   async function context(permission: object | false = {}) {

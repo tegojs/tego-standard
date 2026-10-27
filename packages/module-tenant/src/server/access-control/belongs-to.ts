@@ -2,6 +2,7 @@ import { Op, Transaction, type Database, type Model, type WhereOptions } from '@
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
+import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { accessMetadataGuard } from './metadata-snapshot';
@@ -269,10 +270,16 @@ export class AccessBelongsToService {
             ...Object.fromEntries(references.map(({ relation, targetKey }) => [relation.foreignKey, targetKey])),
           }),
         });
-        const protectedValues = snapshotProtectedValues(this.db, relation.source, records, [
-          ...references.map(({ relation }) => relation.foreignKey),
-          ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
-        ]);
+        const protectedValues = snapshotProtectedValues(
+          this.db,
+          relation.source,
+          records,
+          [
+            ...references.map(({ relation }) => relation.foreignKey),
+            ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+          ],
+          captureUserAuditFields(this.db, relation.source, authenticated),
+        );
         await writer(plan);
         await validateWriteTransaction(this.db, transaction, true);
         current();

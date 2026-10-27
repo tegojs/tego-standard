@@ -10,6 +10,7 @@ import {
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { resolveBelongsTo } from './association-metadata';
+import { captureUserAuditFields } from './audit-fields';
 import { MAX_REFERENCE_UPDATES, type BelongsToReferenceUpdate } from './belongs-to';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
@@ -471,10 +472,16 @@ export class AccessManyToManyService {
           }
           plans.push({ link, relation, expected, changes: new Map(changes.map((change) => [change.key, change])) });
         }
-        const protectedValues = snapshotProtectedValues(this.db, relation.source, plan.records, [
-          ...references.map(({ relation }) => relation.foreignKey),
-          ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
-        ]);
+        const protectedValues = snapshotProtectedValues(
+          this.db,
+          relation.source,
+          plan.records,
+          [
+            ...references.map(({ relation }) => relation.foreignKey),
+            ...(relation.sourceConfig.ownership.enabled ? ['tenantId'] : []),
+          ],
+          captureUserAuditFields(this.db, relation.source, authenticated),
+        );
         const linkChanges = new Set(plans.flatMap((plan) => [...plan.changes.keys()]));
         const patches = new Map<string, Record<string, unknown>>();
         for (const record of plan.records) {

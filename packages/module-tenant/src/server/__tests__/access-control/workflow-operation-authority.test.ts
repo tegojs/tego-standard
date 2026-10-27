@@ -192,6 +192,55 @@ describe('workflow runtime authority with tenant data scopes', () => {
     expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
     expect(() => adapter.configuration(lastRequest.context, source)).toThrow();
   });
+  it.each(
+    (['query', 'destroy'] as const).flatMap((type) => ['role', 'user', 'tenant'].map((field) => ({ type, field }))),
+  )('does not use a transient operator $field for automatic $type', async ({ type, field }) => {
+    const original = (await store.read(source))!;
+    await store.save(
+      source,
+      {
+        ...original,
+        rules: [
+          {
+            ...original.rules[0],
+            subject:
+              field === 'tenant'
+                ? { type: 'constant', value: true }
+                : {
+                    type: 'compare',
+                    operator: 'eq',
+                    left: { type: 'context', path: field === 'role' ? 'role.name' : 'user.id' },
+                    right: { type: 'literal', value: field === 'role' ? 'operator' : '28' },
+                  },
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+    try {
+      await workflow.createNode({
+        type,
+        config: { collection: source.collectionName, ...(type === 'query' ? { multiple: true } : {}) },
+      });
+      const execution = await workflow.createExecution({
+        status: EXECUTION_STATUS.STARTED,
+        key: workflow.key,
+        context: {},
+        tenantContext: field === 'tenant' ? null : { currentTenantId: 'B' },
+        authContext: null,
+      });
+      const processor = plugin.createProcessor(execution, {
+        context: { state: { currentTenantId: 'B', currentRole: 'operator', currentUserId: 28 } },
+      });
+      await processor.start();
+      expect(execution.status, JSON.stringify(processor.lastSavedJob?.result)).toBe(EXECUTION_STATUS.ERROR);
+      expect(processor.lastSavedJob!.result.message).toMatch(/context|unavailable|authoriz|scope/i);
+      expect(await ids()).toEqual([1, 2, 3, 4]);
+    } finally {
+      const current = (await store.read(source))!;
+      await store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
   it('rejects an explicit visibility-only deletion without falling back', async () => {
     const { execution, job } = await execute('destroy', { filterByTk: 2 });
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);

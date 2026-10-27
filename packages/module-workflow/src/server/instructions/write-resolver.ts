@@ -41,10 +41,12 @@ export type WorkflowUpdateExecutor = (request: WorkflowUpdateRequest) => Promise
  * become the framework's createdBy/updatedBy value. The default resolver path keeps
  * the original repository context unchanged for backwards compatibility.
  */
-function projectPersistedExecutionUser(context: WorkflowWriteRequest['context']) {
+function projectPersistedExecutionUser(context: WorkflowWriteRequest['context'], processor: Processor) {
   const state = context?.state;
   if (!record(context) || !record(state)) return context;
-  const currentUserId = state.currentUserId;
+  const currentUserId = processor.execution
+    ? processor.execution.getDataValue('authContext')?.currentUserId
+    : state.currentUserId;
   const currentUser = state.currentUser;
   if (currentUserId == null ? currentUser == null : record(currentUser) && currentUser.id === currentUserId)
     return context;
@@ -148,7 +150,7 @@ export async function runWorkflowWriteResolver(
       if (!resolve) return runDefault(transaction);
       const request: WorkflowWriteRequest = Object.freeze({
         ...target,
-        context: projectPersistedExecutionUser(target.context),
+        context: projectPersistedExecutionUser(target.context, processor),
         transaction,
       });
       bindWorkflowDataOperationRequest(request, action, processor, node);

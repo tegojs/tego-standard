@@ -31,6 +31,7 @@ export interface AccessWorkflowOperationAuthority {
   readonly collectionName: string;
   readonly collection: unknown;
   readonly context: object;
+  readonly identityContext: object;
   readonly transaction?: Transaction;
   assertCurrent(): void;
 }
@@ -82,7 +83,7 @@ export class AccessWorkflowRootHandler {
       Array.isArray(context)
     )
       invalid('Workflow operation target or context is unavailable');
-    const authenticated = captureWorkflowAccessIdentity(context);
+    const authenticated = captureWorkflowAccessIdentity(data(authority, 'identityContext'));
     return { dataSourceName, collectionName, collection, context, transaction, authenticated, assertCurrent };
   }
 

@@ -271,6 +271,47 @@ describe('workflow > live data operation authority', () => {
     expect((await run()).execution.status).toBe(EXECUTION_STATUS.RESOLVED);
   });
 
+  it.each([
+    { field: 'currentTenantId', context: 'tenantContext', before: 'B', after: 'C' },
+    { field: 'currentUserId', context: 'authContext', before: 28, after: 99 },
+    { field: 'currentRole', context: 'authContext', before: 'worker', after: 'operator' },
+  ])('rejects a changed persisted execution $field during an active operation', async (item) => {
+    await node('query');
+    const execution = await workflow.createExecution({
+      status: EXECUTION_STATUS.STARTED,
+      key: workflow.key,
+      context: {},
+      tenantContext: { currentTenantId: 'B' },
+      authContext: { currentUserId: 28, currentRole: 'worker' },
+    });
+    const original = query;
+    query = async (request) => {
+      const authority = captureWorkflowDataOperationAuthority(request);
+      expect(authority.identityContext.state).toEqual({
+        currentTenantId: 'B',
+        currentUserId: 28,
+        currentRole: 'worker',
+      });
+      expect(Object.isFrozen(authority.identityContext.state)).toBe(true);
+      await Promise.resolve();
+      const state = execution.getDataValue(item.context);
+      state[item.field] = item.after;
+      try {
+        expect(() => authority.assertCurrent()).toThrow(/authority/i);
+        expect(() => captureWorkflowDataOperationAuthority(request)).toThrow(/authority/i);
+      } finally {
+        state[item.field] = item.before;
+      }
+      return original(request);
+    };
+    const processor = plugin.createProcessor(execution, {
+      context: { state: { currentTenantId: 'H', currentUserId: 99, currentRole: 'operator' } },
+    });
+    await processor.start();
+    expect(execution.status, JSON.stringify(processor.lastSavedJob?.result)).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(processor.lastSavedJob?.result).toEqual([{ name: 'Configured record' }]);
+  });
+
   it('preserves synchronous instructions without granting them data operation authority', async () => {
     plugin.registerInstruction('authoritySync', { run: () => ({ status: JOB_STATUS.RESOLVED, result: 42 }) });
     await workflow.createNode({ type: 'authoritySync' });

@@ -11,7 +11,7 @@ function data(input: Record<PropertyKey, unknown>, key: string): unknown {
   return descriptor.value;
 }
 
-/** Internal projection of Processor.getRepositoryContext(), not an authentication entry. */
+/** Internal workflow identity projection, not an authentication entry. */
 export function captureWorkflowAccessIdentity(context: unknown): Readonly<AccessIdentity> {
   if (!plain(context)) throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Workflow execution context is unavailable');
   const state = data(context, 'state');

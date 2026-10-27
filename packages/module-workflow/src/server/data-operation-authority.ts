@@ -31,6 +31,8 @@ export interface WorkflowDataOperationAuthority {
   readonly context: object;
   readonly transaction?: Transaction;
   readonly workflowId: string | number;
+  /** Canonical persisted execution identity, never the request that happens to resume it. */
+  readonly identityContext: Readonly<{ state: Readonly<Record<string, unknown>> }>;
   readonly executionId: string | number;
   readonly nodeId: string | number;
   assertCurrent(): void;
@@ -69,8 +71,20 @@ export function bindWorkflowDataOperationRequest(
   const workflowId = execution.workflowId;
   const executionId = execution.id;
   const nodeId = node.id;
+  const identityState = () => {
+    const tenantContext = execution.getDataValue('tenantContext');
+    const authContext = execution.getDataValue('authContext');
+    return {
+      currentTenantId: tenantContext?.currentTenantId,
+      currentUserId: authContext?.currentUserId,
+      currentRole: authContext?.currentRole,
+    };
+  };
+  const state = Object.freeze(identityState());
+  const identityContext = Object.freeze({ state });
   const { dataSourceName, collectionName, collection, context, transaction } = request;
   const assertCurrent = () => {
+    const current = identityState();
     if (
       !phase.active ||
       nodeExecutions.getStore() !== phase ||
@@ -80,6 +94,9 @@ export function bindWorkflowDataOperationRequest(
       execution.id !== executionId ||
       node.id !== nodeId ||
       node.workflowId !== workflowId ||
+      current.currentTenantId !== state.currentTenantId ||
+      current.currentUserId !== state.currentUserId ||
+      current.currentRole !== state.currentRole ||
       plugin.app.dataSourceManager.dataSources.get(dataSourceName)?.collectionManager.getCollection(collectionName) !==
         collection
     )
@@ -96,6 +113,7 @@ export function bindWorkflowDataOperationRequest(
     workflowId,
     executionId,
     nodeId,
+    identityContext,
     assertCurrent,
   });
   authorities.set(request, { plugin, authority });

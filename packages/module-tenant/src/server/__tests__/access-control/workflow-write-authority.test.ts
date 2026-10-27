@@ -911,6 +911,71 @@ describe('configured workflow scalar writes with tenant ownership', () => {
         }
       },
     );
+    it.each(
+      (['create', 'update'] as const).flatMap((kind) => ['role', 'user', 'tenant'].map((field) => ({ kind, field }))),
+    )('does not borrow a resuming operator $field for an automatic $kind execution', async ({ kind, field }) => {
+      const config = baseConfig();
+      config.rules = [
+        {
+          ...config.rules[0],
+          subject:
+            field === 'tenant'
+              ? { type: 'constant', value: true }
+              : {
+                  type: 'compare',
+                  operator: 'eq',
+                  left: { type: 'context', path: field === 'role' ? 'role.name' : 'user.id' },
+                  right: { type: 'literal', value: field === 'role' ? 'operator' : String(userId) },
+                },
+        },
+      ];
+      await saveConfig(config);
+      const delay = await workflow.createNode({
+        type: 'delay',
+        config: { duration: 60000, endStatus: JOB_STATUS.RESOLVED },
+      });
+      const last = await workflow.createNode({
+        type: kind,
+        upstreamId: delay.id,
+        config: {
+          collection: source.collectionName,
+          params: {
+            ...(kind === 'update' ? { filterByTk: 1 } : {}),
+            values: { ...(kind === 'create' ? { id: 800 } : {}), name: 'Must not borrow role' },
+          },
+        },
+      });
+      await delay.update({ downstreamId: last.id });
+      await plugin.trigger(workflow, {}, { context: { state: field === 'tenant' ? {} : { currentTenantId: 'B' } } });
+      (plugin.instructions.get('delay') as DelayInstruction).unload();
+      const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+      expect(execution.get('authContext')).toBeNull();
+      expect(execution.status).toBe(EXECUTION_STATUS.STARTED);
+      const [pending] = await execution.getJobs();
+      const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+      try {
+        const processor = plugin.createProcessor(execution, {
+          context: {
+            state: {
+              currentTenantId: 'B',
+              currentRole: 'operator',
+              ...(field === 'user' ? { currentUserId: userId } : {}),
+            },
+          },
+          transaction,
+        });
+        await processor.resume(pending);
+        expect(execution.status, JSON.stringify(processor.lastSavedJob?.result)).toBe(EXECUTION_STATUS.ERROR);
+        expect(processor.lastSavedJob!.result.message).toMatch(/context|unavailable|authoriz|scope/i);
+        // The inherited transaction belongs to this caller, including a rejected create.
+        await transaction.rollback();
+        const actual = await documents.model.findByPk(kind === 'create' ? 800 : 1, { hooks: false });
+        if (kind === 'create') expect(actual).toBeNull();
+        else expect(actual.get('name')).toBe('Owned');
+      } finally {
+        if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+      }
+    });
     it.each(['create', 'update'] as const)(
       'uses the retrying actor for a new audited %s execution without changing the original tenant',
       async (kind) => {

@@ -1,4 +1,4 @@
-import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, Transaction, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -192,6 +192,102 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized link 
     expect(await links('customers')).toEqual([]);
     expect(ctx.body).toBe('unchanged');
   }
+
+  for (const stage of ['source insert', 'connection insert'])
+    pg(`rechecks linked targets made unreadable by a ${stage} hook`, async () => {
+      const ctx = await context({ name: 'Created', projects: [101] });
+      const projects = db.getCollection('projects');
+      let notified = false;
+      const hide = async (_row, options) => {
+        options.transaction.afterCommit(() => {
+          notified = true;
+        });
+        await projects.model.update(
+          { name: 'No longer visible' },
+          { where: { id: 101 }, transaction: options.transaction },
+        );
+      };
+      if (stage === 'source insert') docs.model.addHook('afterCreate', 'hide-link-target', hide);
+      else db.getCollection('document_projects').model.addHook('afterBulkCreate', 'hide-link-target', hide);
+      await expect(execute(ctx)).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      await unchanged(ctx);
+      expect((await projects.model.findByPk(101))!.get('name')).toBe('Visible');
+      expect(notified).toBe(false);
+    });
+
+  pg('rechecks linked targets after the caller persistence stage without committing its transaction', async () => {
+    const ctx = await context({});
+    const projects = db.getCollection('projects');
+    const through = db.getCollection('document_projects');
+    const creation = new AccessCreationService(
+      db,
+      adapter,
+      new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection))),
+    );
+    let notified = false;
+    await expect(
+      db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, async (transaction) => {
+        transaction.afterCommit(() => {
+          notified = true;
+        });
+        return creation.withCreatedRecordsInTransaction(
+          ctx,
+          mainIdentity,
+          actor(),
+          {
+            values: [{ name: 'Created' }],
+            links: [{ association: 'projects', target: identity(projects), through: identity(through), keys: [101] }],
+          },
+          transaction,
+          async (plan) => [await docs.repository.create({ values: plan.values[0], transaction: plan.transaction })],
+          undefined,
+          async () => {
+            await projects.model.update({ name: 'No longer visible' }, { where: { id: 101 }, transaction });
+          },
+        );
+      }),
+    ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    await unchanged(ctx);
+    expect((await projects.model.findByPk(101))!.get('name')).toBe('Visible');
+    expect(notified).toBe(false);
+  });
+
+  pg('rechecks the target role condition after a link hook changes a still-visible target', async () => {
+    const ctx = await context({ name: 'Created', projects: [103] });
+    db.getCollection('document_projects').model.addHook(
+      'afterBulkCreate',
+      'change-link-target',
+      async (_rows, options) => {
+        await db
+          .getCollection('projects')
+          .model.update({ name: 'Changed' }, { where: { id: 103 }, transaction: options.transaction });
+      },
+    );
+    await expect(
+      handler.handle(ctx, actor(), (collection) => target(collection.name, { filter: { name: 'Owned' } })),
+    ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+    await unchanged(ctx);
+    expect((await db.getCollection('projects').model.findByPk(103))!.get('name')).toBe('Owned');
+  });
+
+  pg('allows a link hook to change target fields when its finalized read scope still permits it', async () => {
+    const ctx = await context({ name: 'Created', projects: [103] });
+    db.getCollection('document_projects').model.addHook(
+      'afterBulkCreate',
+      'change-readable-link-target',
+      async (_rows, options) => {
+        await db
+          .getCollection('projects')
+          .model.update({ name: 'Changed but owned' }, { where: { id: 103 }, transaction: options.transaction });
+      },
+    );
+    await execute(ctx);
+    expect(await links('projects')).toEqual([103]);
+    expect((await db.getCollection('projects').model.findByPk(103))!.get()).toMatchObject({
+      name: 'Changed but owned',
+      tenantId: 'B',
+    });
+  });
 
   for (const name of ['projects', 'customers']) {
     pg(`checks every ${name} selection before inserting the source`, async () => {

@@ -274,6 +274,10 @@ export class AccessCreationService {
             }
             // Insert hooks and persistence stages may change target readability inside this transaction.
             await references.authorize(authenticated, transaction, current);
+            if (linkPlan) {
+              await linkPlan.authorize(authenticated, transaction);
+              current();
+            }
             const targetWhere = { [primary]: { [Op.in]: normalized } };
             // Verify raw persisted ownership; presentation getters and returned Model fields are not authoritative.
             const stored = await model.unscoped().findAll(

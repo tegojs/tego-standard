@@ -6,12 +6,14 @@ import { Resourcer, type Context } from '@tego/server';
 
 import FilePlugin, {
   createAttachmentActionEntry,
+  withStagedAttachmentUpload,
   type AttachmentActionResolver,
   type FileManagerPluginOptions,
 } from '..';
 import ErrorPlugin from '../../../../module-error-handler/src/server';
 import initFileActions from '../actions';
 import storageDefinition from '../collections/storages';
+import storageTypes, { getStorageConfig } from '../storages';
 
 describe('server-selected attachment storage entry', () => {
   let app: MockServer;
@@ -126,6 +128,24 @@ describe('server-selected attachment storage entry', () => {
     expect(await records()).toBe(0);
     expect(await stored()).toEqual([]);
   });
+  it('preserves storage rules finalized while the legacy upload engine is constructed', async () => {
+    await register();
+    const local = getStorageConfig('local');
+    storageTypes.register('attachment-finalized-rules-test', {
+      ...local,
+      make(storage) {
+        Object.assign(storage, { rules: { mimetype: 'image/*' } });
+        return local.make(storage);
+      },
+    });
+    await app.db.getRepository('storages').update({
+      filter: { default: true },
+      values: { type: 'attachment-finalized-rules-test' },
+    });
+    expect((await upload()).status).toBe(400);
+    expect(await records()).toBe(0);
+    expect(await stored()).toEqual([]);
+  });
   it('gives the selected executor the original action finalized by ACL', async () => {
     await register({
       attachmentResolver:
@@ -140,6 +160,21 @@ describe('server-selected attachment storage entry', () => {
       decision: { role: 'editor', resource: 'files', action: 'upload' },
     });
     expect(await stored()).toEqual([]);
+  });
+  it('stages an actual selected upload after final ACL without entering the original storage writer', async () => {
+    await register({
+      attachmentResolver: () => async (ctx) => {
+        ctx.body = await withStagedAttachmentUpload(ctx, { directory, maxFileSize: 1024 }, async (file) => {
+          expect(await fs.readFile(file.path)).toEqual(bytes);
+          return { size: file.size, permittedAction: ctx.permission.can.action };
+        });
+      },
+    });
+    const response = await upload();
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ size: bytes.length, permittedAction: 'upload' });
+    expect(await stored()).toEqual([]);
+    expect(await records()).toBe(0);
   });
   it('does not execute or write physical files when final ACL denies the action', async () => {
     await register({

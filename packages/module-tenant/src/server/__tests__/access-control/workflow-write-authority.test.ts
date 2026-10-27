@@ -798,4 +798,64 @@ describe('configured workflow scalar writes with tenant ownership', () => {
     expect(job.result.message).toMatch(/prepared|phase/i);
     expect((await get(1)).name).toBe('Owned');
   });
+  describe('native user audit fields', () => {
+    let userId: string | number;
+    beforeAll(async () => {
+      const user = await app.db.getCollection('users').model.create({ nickname: 'Audit workflow runner' });
+      userId = user.get('id');
+      // Real user-module interfaces register their context fields through field.afterAdd.
+      documents.setField('createdBy', {
+        type: 'belongsTo',
+        target: 'users',
+        foreignKey: 'createdById',
+        interface: 'createdBy',
+      });
+      documents.setField('updatedBy', {
+        type: 'belongsTo',
+        target: 'users',
+        foreignKey: 'updatedById',
+        interface: 'updatedBy',
+      });
+      await documents.model.sync({ alter: true });
+    });
+    const state = () => ({ currentTenantId: 'B', currentRole: 'editor', currentUser: { id: userId } });
+    it('creates an owned record with the real execution user in both audit fields', async () => {
+      const job = await execute('create', { values: { name: 'Audited create' } }, state());
+      expect(job.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+      const actual = await get(job.result.id);
+      expect(actual).toMatchObject({ name: 'Audited create', tenantId: 'B' });
+      expect(String(actual.createdById)).toBe(String(userId));
+      expect(String(actual.updatedById)).toBe(String(userId));
+      expect(String(job.result.createdById)).toBe(String(userId));
+    });
+    it('updates only the modifier for a real execution user', async () => {
+      const author = await app.db.getCollection('users').model.create({ nickname: 'Original audit author' });
+      const original = await documents.repository.create({
+        values: { name: 'Owned audited record', tenantId: 'B' },
+        context: { state: { currentUser: { id: author.get('id') } } },
+      });
+      const job = await execute(
+        'update',
+        { filterByTk: original.get('id'), values: { name: 'Audited update' } },
+        state(),
+      );
+      expect(job.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+      const actual = await get(original.get('id'));
+      expect(actual).toMatchObject({ name: 'Audited update', tenantId: 'B' });
+      expect(String(actual.createdById)).toBe(String(author.get('id')));
+      expect(String(actual.updatedById)).toBe(String(userId));
+      expect(String(job.result.data[0].createdById)).toBe(String(author.get('id')));
+      expect(String(job.result.data[0].updatedById)).toBe(String(userId));
+    });
+    it('keeps background execution audit fields empty when no user is supplied', async () => {
+      const job = await execute('create', { values: { name: 'Background create' } });
+      expect(job.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(await get(job.result.id)).toMatchObject({
+        name: 'Background create',
+        tenantId: 'B',
+        createdById: null,
+        updatedById: null,
+      });
+    });
+  });
 });

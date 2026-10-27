@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Op, Transaction, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
 import { prepareCreationLinkRows, prepareCreationLinks, type AccessCreationLink } from './creation-links';
@@ -120,6 +121,7 @@ export class AccessCreationService {
     if (!collection || collection.db !== this.db) invalid('Creation collection identity is unavailable');
     const model = collection.model;
     const primary = model.primaryKeyAttribute;
+    const audit = captureUserAuditFields(this.db, collection, authenticated);
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)
       invalid('Create between 1 and 1000 explicit records');
     const references = prepareCreationReferenceRows(
@@ -178,6 +180,7 @@ export class AccessCreationService {
     )
       invalid('Each created row requires its own bounded combined relationship selection');
     const current = () => {
+      audit.assertCurrent();
       references.assertCurrent();
       linkPlan?.current();
       if (
@@ -347,6 +350,7 @@ export class AccessCreationService {
               stored.some((record) =>
                 blocked.some((field) => {
                   const value = record.getDataValue(field);
+                  if (audit.has(field)) return !audit.acceptsCreate(field, value);
                   const expected = expectedReferences.get(String(record.getDataValue(primary)))?.get(field);
                   return expected
                     ? expected.key === null

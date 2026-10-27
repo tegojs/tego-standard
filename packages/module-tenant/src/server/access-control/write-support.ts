@@ -9,6 +9,7 @@ import {
   type WhereOptions,
 } from '@tego/server';
 
+import type { captureUserAuditFields } from './audit-fields';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessCondition, AccessConfig } from './types';
 
@@ -252,6 +253,7 @@ export function snapshotProtectedValues(
   collection: Collection,
   records: readonly Model[],
   allowed: readonly string[] = [],
+  audit?: ReturnType<typeof captureUserAuditFields>,
 ) {
   const protectedFields = () =>
     [...rootWriteBlockedFields(db, collection, 'update')]
@@ -273,15 +275,17 @@ export function snapshotProtectedValues(
   return {
     fields,
     verify(after: readonly Model[]) {
+      audit?.assertCurrent();
       if (!isDeepStrictEqual(fields, protectedFields()))
         invalid('Protected relationship metadata changed during write');
       for (const record of after) {
         const expected = before.get(String(record.getDataValue(primary)));
         if (
           !expected ||
-          !isDeepStrictEqual(
-            expected,
-            fields.map((key) => record.getDataValue(key)),
+          fields.some((key, index) =>
+            audit?.has(key)
+              ? !audit.acceptsUpdate(key, record.getDataValue(key), expected[index])
+              : !isDeepStrictEqual(expected[index], record.getDataValue(key)),
           )
         )
           invalid('Writer changed another protected relationship key');

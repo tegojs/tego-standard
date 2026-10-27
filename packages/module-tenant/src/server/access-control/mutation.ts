@@ -1,6 +1,7 @@
 import { Op, Transaction, type Collection, type Database, type Model, type WhereOptions } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
 import { AccessMutationError } from './mutation-errors';
@@ -359,9 +360,17 @@ export class AccessMutationService {
         const expected = plan.records.map(
           (record) => plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
         );
+        const audit =
+          request.operation === 'update' ? captureUserAuditFields(this.db, collection, authenticated) : undefined;
         const protectedValues =
           request.operation === 'update'
-            ? snapshotProtectedValues(this.db, collection, plan.records, config.ownership.enabled ? ['tenantId'] : [])
+            ? snapshotProtectedValues(
+                this.db,
+                collection,
+                plan.records,
+                config.ownership.enabled ? ['tenantId'] : [],
+                audit,
+              )
             : undefined;
         await writer(plan);
         await validateWriteTransaction(this.db, transaction, serializable);
@@ -370,6 +379,7 @@ export class AccessMutationService {
           !this.queries.isCurrentCollection(identity, collection, model)
         )
           invalid('Mutation access phase changed during write');
+        audit?.assertCurrent();
         const after = await model.unscoped().findAll(
           internalQuery({
             where: { [primary]: { [Op.in]: keys } },

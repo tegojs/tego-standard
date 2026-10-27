@@ -8,6 +8,7 @@ import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
+import { captureScalarImportField } from './import-fields';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
 import { AccessRoleFilterCompiler } from './role-filter';
@@ -19,19 +20,6 @@ interface AccessImportContext {
   permission: unknown;
   body?: unknown;
 }
-
-const scalarTypes = new Set([
-  'string',
-  'text',
-  'integer',
-  'bigInt',
-  'float',
-  'double',
-  'real',
-  'decimal',
-  'boolean',
-  'date',
-]);
 
 function data(input: object, key: string): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(input, key);
@@ -123,13 +111,10 @@ export class AccessRootImportHandler {
         invalid('Import mapping contains an unauthorized or unadapted field');
     }
     validateRootValues(this.db, Object.fromEntries(request.fields.map((name) => [name, null])), collection, 'create');
-    const parserFor = (type: string) => this.db.fieldValueParsers.get(type) ?? this.db.fieldValueParsers.get('default');
-    const selections = request.columns.map((column) => {
-      const field = collection.getField(column.dataIndex[0]);
-      if (!field || !scalarTypes.has(field.type) || field.options.interface === 'attachment')
-        invalid('Import field type requires its own adapter');
-      return { column, field, parser: parserFor(field.type), options: cloneDeep(field.options) };
-    });
+    const selections = request.columns.map((column) => ({
+      column,
+      ...captureScalarImportField(this.db, collection, column.dataIndex[0]),
+    }));
     const protectedFields = [...rootWriteBlockedFields(this.db, collection, 'create')].sort();
     const assertCurrent = () => {
       const current = this.resolveIdentity(collection);
@@ -143,15 +128,7 @@ export class AccessRootImportHandler {
         invalid('Import entry identity or preparation phase changed');
       role.assertCurrent();
       metadata();
-      if (
-        selections.some(
-          ({ field, parser, options }) =>
-            collection.getField(field.name) !== field ||
-            parserFor(field.type) !== parser ||
-            !isDeepStrictEqual(field.options, options),
-        )
-      )
-        invalid('Import field or value parser changed during execution');
+      for (const selection of selections) selection.assertCurrent();
     };
     const values: Array<Record<string, unknown>> = [];
     for (const row of request.rows) {
@@ -160,8 +137,8 @@ export class AccessRootImportHandler {
         const cell = row.cells[index];
         if (cell === null) continue;
         assertCurrent();
-        const { field, column } = selections[index];
-        const parser = this.db.buildFieldValueParser(field, { ...ctx, column: cloneDeep(column) });
+        const { field, column, createParser } = selections[index];
+        const parser = createParser(ctx, column);
         await parser.setValue(typeof cell === 'string' ? cell.trim() : cell);
         assertCurrent();
         if (parser.errors.length)

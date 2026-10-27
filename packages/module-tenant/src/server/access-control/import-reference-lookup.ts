@@ -165,7 +165,10 @@ export class AccessImportReferenceLookup {
         [{ model: relation.sourceModel, path: [name] }],
       );
       const assertCurrent = () => {
-        relation.current();
+        // Reading a mapped cell needs stable identities, not whole-database join
+        // write discovery. Full checks remain at lookup and creation boundaries.
+        if ('currentIdentity' in relation) relation.currentIdentity();
+        else relation.current();
         metadata();
         scalar.assertCurrent();
         const current = this.resolveIdentity(target);
@@ -192,6 +195,10 @@ export class AccessImportReferenceLookup {
     });
     const checks = selections.map((selection) => selection.assertCurrent);
     const assertCurrent = () => checks.forEach((check) => check());
+    const assertLookupCurrent = () => {
+      if (multiple) for (const selection of selections) selection.relation.current();
+      assertCurrent();
+    };
     const captureTargets = async () => {
       assertCurrent();
       const grants = [];
@@ -289,9 +296,9 @@ export class AccessImportReferenceLookup {
             return cells;
           });
         });
-        assertCurrent();
+        assertLookupCurrent();
         const grants = await targets();
-        assertCurrent();
+        assertLookupCurrent();
         const result: AccessCreationReference[][] = [];
         const linkResult: AccessCreationLink[][] = [];
         for (const row of selectedRows) {
@@ -363,7 +370,7 @@ export class AccessImportReferenceLookup {
           result.push(references);
           linkResult.push(links);
         }
-        assertCurrent();
+        assertLookupCurrent();
         return { references: result, links: linkResult };
       },
     };

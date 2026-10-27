@@ -5,7 +5,7 @@ import { Transaction, type Collection, type Database, type Model } from '@tego/s
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
-import { AccessCreationService, type AccessCreationPlan } from './creation';
+import { AccessCreationService, MAX_CREATION_REFERENCES, type AccessCreationPlan } from './creation';
 import type { AccessCreationTargetAuthorizer } from './creation-reference';
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
@@ -121,9 +121,15 @@ export class AccessRootImportHandler {
     const scalarColumns = request.columns.flatMap((column, index) =>
       column.dataIndex.length === 1 ? [{ column, index }] : [],
     );
-    const referenceColumns = request.columns.flatMap((column, index) =>
+    const relationshipColumns = request.columns.flatMap((column, index) =>
       column.dataIndex.length === 2 ? [{ column, index }] : [],
     );
+    if (relationshipColumns.length > MAX_CREATION_REFERENCES)
+      invalid('Import relationship columns exceed the combined per-row limit');
+    const isLink = (column: (typeof relationshipColumns)[number]) =>
+      collection.model.associations[column.column.dataIndex[0]]?.associationType === 'BelongsToMany';
+    const referenceColumns = relationshipColumns.filter((column) => !isLink(column));
+    const linkColumns = relationshipColumns.filter(isLink);
     validateRootValues(
       this.db,
       Object.fromEntries(scalarColumns.map(({ column }) => [column.dataIndex[0], null])),
@@ -144,7 +150,17 @@ export class AccessRootImportHandler {
           authorizeRead!,
         )
       : undefined;
-    if (lookup && this.db.sequelize.getDialect() !== 'postgres')
+    const linkLookup = linkColumns.length
+      ? new AccessImportReferenceLookup(this.db, this.prepared, this.queries, this.resolveIdentity).prepareLinks(
+          ctx,
+          identity,
+          actor,
+          linkColumns.map(({ column }) => column),
+          authorizeRead!,
+        )
+      : undefined;
+    const related = !!(lookup || linkLookup);
+    if (related && this.db.sequelize.getDialect() !== 'postgres')
       throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Reference imports require PostgreSQL', 400);
     const protectedFields = [...rootWriteBlockedFields(this.db, collection, 'create')].sort();
     const assertCurrent = () => {
@@ -161,6 +177,7 @@ export class AccessRootImportHandler {
       metadata();
       for (const selection of selections) selection.assertCurrent();
       lookup?.assertCurrent();
+      linkLookup?.assertCurrent();
     };
     const parseValues = async (transaction?: Transaction) => {
       const values: Array<Record<string, unknown>> = [];
@@ -205,13 +222,18 @@ export class AccessRootImportHandler {
     let result: { affected: number };
     try {
       await lookup?.authorizeTargets();
+      await linkLookup?.authorizeTargets();
       assertWriteCurrent();
-      result = lookup
+      result = related
         ? await this.db.sequelize.transaction(
             { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
             async (transaction) => {
-              const rowReferences = await lookup.resolve(
+              const rowReferences = await lookup?.resolve(
                 request.rows.map((row) => referenceColumns.map(({ index }) => row.cells[index])),
+                transaction,
+              );
+              const rowLinks = await linkLookup?.resolve(
+                request.rows.map((row) => linkColumns.map(({ index }) => row.cells[index])),
                 transaction,
               );
               const values = await parseValues(transaction);
@@ -220,7 +242,12 @@ export class AccessRootImportHandler {
                 ctx,
                 identity,
                 actor,
-                { values, rowReferences, where: role.rootWhere ?? role.where },
+                {
+                  values,
+                  ...(rowReferences ? { rowReferences } : {}),
+                  ...(rowLinks ? { rowLinks } : {}),
+                  where: role.rootWhere ?? role.where,
+                },
                 transaction,
                 writer,
                 assertWriteCurrent,

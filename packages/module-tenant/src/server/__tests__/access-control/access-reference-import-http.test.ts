@@ -34,7 +34,8 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     collectionName: collection.name,
     collectionKey: collection.name === 'documents' ? mainIdentity.collectionKey : `${collection.name}-key`,
   });
-  const identities = () => ['documents', 'projects'].map((name) => identity(app.db.getCollection(name)));
+  const identities = () =>
+    ['documents', 'projects', 'document_projects'].map((name) => identity(app.db.getCollection(name)));
 
   beforeEach(async () => {
     const isolated = isolatedPostgresDatabase(postgresUrl!);
@@ -57,6 +58,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
         { name: 'tenantId', type: 'string' },
       ],
     });
+    db.collection({ name: 'document_projects', timestamps: false });
     db.collection({
       name: 'documents',
       timestamps: false,
@@ -66,6 +68,14 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
         { name: 'amount', type: 'integer' },
         { name: 'tenantId', type: 'string' },
         { name: 'project', type: 'belongsTo', target: 'projects', foreignKey: 'projectId' },
+        {
+          name: 'projects',
+          type: 'belongsToMany',
+          target: 'projects',
+          through: 'document_projects',
+          foreignKey: 'documentId',
+          otherKey: 'targetId',
+        },
       ],
     });
     db.collection({
@@ -86,6 +96,9 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
       { id: 104, name: 'Legacy', tenantId: null },
     ]);
     await db.getRepository('collections').create({ values: { name: 'projects', key: 'projects-key' } });
+    await db
+      .getRepository('collections')
+      .create({ values: { name: 'document_projects', key: 'document_projects-key' } });
     store = new AccessConfigStore(db, (key) =>
       resolveModelMetadata(db.getCollection(key.collectionName), {
         resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
@@ -185,6 +198,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     await plugin.load();
   });
   afterEach(async () => {
+    vi.restoreAllMocks();
     unregister?.();
     unregister = undefined;
     try {
@@ -271,5 +285,178 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     );
     expect((await request()).status).toBe(403);
     expect(await rows()).toEqual([]);
+  });
+
+  describe('multi-value selections', () => {
+    beforeEach(() => {
+      acl
+        .getRole('importer')
+        .grantAction('documents:importXlsx', { fields: ['name', 'project', 'projects', 'amount'] });
+    });
+    const linkRequest = (
+      selections = ['Owned;Visible', 'Legacy'],
+      options: { mixed?: boolean; title?: string } = {},
+    ) => {
+      const mixed = options.mixed ?? true;
+      const columns = [
+        { dataIndex: ['projects', 'name'], defaultTitle: 'Projects' },
+        { dataIndex: ['name'], defaultTitle: 'Name' },
+        ...(mixed ? [{ dataIndex: ['project', 'name'], defaultTitle: 'Project' }] : []),
+        { dataIndex: ['amount'], defaultTitle: 'Amount' },
+      ];
+      const data = [
+        columns.map((column) => column.defaultTitle),
+        ...selections.map((selection, index) => [
+          selection,
+          options.title ?? (index === 0 ? 'First' : 'Second'),
+          ...(mixed ? ['Visible'] : []),
+          String(index + 1),
+        ]),
+      ];
+      return supertest(app.callback())
+        .post('/api/documents:importXlsx')
+        .set('x-tenant-id', 'C')
+        .attach('file', xlsx.build([{ name: 'Import', data }]), { filename: 'import.xlsx' })
+        .field('columns', JSON.stringify(columns));
+    };
+    const links = async () => {
+      const values = await rows();
+      const stored = await app.db.getCollection('document_projects').model.findAll();
+      return values.map((value) => ({
+        name: value.name,
+        keys: stored
+          .filter((link) => link.get('documentId') === value.id)
+          .map((link) => link.get('targetId'))
+          .sort(),
+      }));
+    };
+    it('imports row-specific links and single references with interleaved scalar columns using one connection', async () => {
+      const before = (await app.db.getCollection('projects').model.findAll({ order: [['id', 'ASC']] })).map((row) =>
+        row.get(),
+      );
+      const response = await linkRequest();
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ data: [], meta: { successCount: 2, failureCount: 0 } });
+      expect(await rows()).toMatchObject([
+        { name: 'First', amount: 1, projectId: 102, tenantId: 'B' },
+        { name: 'Second', amount: 2, projectId: 102, tenantId: 'B' },
+      ]);
+      expect(await links()).toEqual([
+        { name: 'First', keys: [101, 102] },
+        { name: 'Second', keys: [104] },
+      ]);
+      expect(
+        (await app.db.getCollection('projects').model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+      ).toEqual(before);
+    });
+    it('imports only multi-value relations and permits explicit empty cells', async () => {
+      expect((await linkRequest(['Visible', ''], { mixed: false })).status).toBe(200);
+      expect(await links()).toEqual([
+        { name: 'First', keys: [102] },
+        { name: 'Second', keys: [] },
+      ]);
+    });
+    it('requires the import permission for a multi-value column independently of a single reference', async () => {
+      acl.getRole('importer').grantAction('documents:importXlsx', { fields: ['name', 'project', 'amount'] });
+      expect((await linkRequest()).status).toBe(400);
+      expect(await rows()).toEqual([]);
+    });
+    it('rejects a later hidden target without committing the first row', async () => {
+      expect((await linkRequest(['Visible', 'Legacy;Hidden'])).status).toBe(403);
+      expect(await rows()).toEqual([]);
+      expect(await app.db.getCollection('document_projects').model.count()).toBe(0);
+    });
+    it('rejects ambiguous display values instead of linking all matches', async () => {
+      await app.db.getCollection('projects').model.create({ id: 105, name: 'Owned', tenantId: 'B' });
+      expect((await linkRequest()).status).toBe(400);
+      expect(await rows()).toEqual([]);
+    });
+    it('rolls back all sources and connections after a connection hook throws', async () => {
+      let commits = 0;
+      app.db.getCollection('documents').model.addHook('afterCreate', 'observe-import-commit', (_row, options) => {
+        options.transaction!.afterCommit(() => {
+          commits++;
+        });
+      });
+      app.db.getCollection('document_projects').model.addHook('afterBulkCreate', 'reject-second-link', (records) => {
+        if (records.some((record) => record.get('targetId') === 104)) throw new Error('Later import link failed');
+      });
+      const response = await linkRequest();
+      expect(response.status).toBe(500);
+      expect(response.body.errors[0].message).toContain('Later import link failed');
+      expect(await rows()).toEqual([]);
+      expect(await app.db.getCollection('document_projects').model.count()).toBe(0);
+      expect(commits).toBe(0);
+    });
+    it('rechecks final target visibility after source insert hooks', async () => {
+      app.db.getCollection('documents').model.addHook('afterCreate', 'hide-import-target', async (_row, options) => {
+        await app.db
+          .getCollection('projects')
+          .model.update({ name: 'No longer visible' }, { where: { id: 102 }, transaction: options.transaction });
+      });
+      expect((await linkRequest(['Visible'], { mixed: false })).status).toBe(403);
+      expect(await rows()).toEqual([]);
+      expect((await app.db.getCollection('projects').model.findByPk(102))!.get('name')).toBe('Visible');
+    });
+    it('rejects sources allowed by visibility alone in a multi-value file', async () => {
+      await store.save(
+        mainIdentity,
+        { ...configFor({ type: 'constant', value: true }, 'visibility'), revision: 1 },
+        { userId: 28 },
+      );
+      expect((await linkRequest()).status).toBe(403);
+      expect(await rows()).toEqual([]);
+    });
+    it('applies final target role filters to every selected value', async () => {
+      acl.getRole('importer').grantAction('projects:list', { fields: ['id', 'name'], filter: { name: 'Owned' } });
+      expect((await linkRequest(['Owned;Visible'], { mixed: false })).status).toBe(403);
+      expect(await rows()).toEqual([]);
+    });
+    it('enforces a combined twenty-field limit before querying targets', async () => {
+      const docs = app.db.getCollection('documents');
+      const extra = Array.from({ length: 19 }, (_, index) => `secondary${index}`);
+      for (const name of extra) docs.setField(name, { type: 'belongsTo', target: 'projects', foreignKey: `${name}Id` });
+      await docs.model.sync({ alter: true });
+      const names = ['project', 'projects', ...extra];
+      acl.getRole('importer').grantAction('documents:importXlsx', { fields: names });
+      let reads = 0;
+      const targets = app.db.getCollection('projects').model;
+      app.db.sequelize.addHook('afterQuery', 'count-target-queries', (options) => {
+        if (options.type === 'SELECT' && (options as { model?: typeof targets }).model === targets) reads++;
+      });
+      const response = await supertest(app.callback())
+        .post('/api/documents:importXlsx')
+        .attach('file', xlsx.build([{ name: 'Import', data: [names, names.map(() => 'Owned')] }]), {
+          filename: 'import.xlsx',
+        })
+        .field('columns', JSON.stringify(names.map((name) => ({ dataIndex: [name, 'name'], defaultTitle: name }))));
+      expect(response.status).toBe(400);
+      expect(response.body.errors[0].message).toContain('combined per-row limit');
+      expect(reads).toBe(0);
+      expect(await rows()).toEqual([]);
+    });
+    it('keeps whole-database relationship scans out of scalar parsing while retaining write checks', async () => {
+      // Observe the real iterator; no metadata or database behavior is replaced.
+      const scans = vi.spyOn(app.db.collections, 'values');
+      const observed: number[] = [];
+      const Parser = app.db.fieldValueParsers.get('string');
+      app.db.registerFieldValueParsers({
+        string: class extends Parser {
+          async setValue(value: unknown) {
+            observed.push(scans.mock.calls.length);
+            await super.setValue(value);
+          }
+        },
+      });
+      const response = await linkRequest(['', ''], { mixed: false });
+      expect(response.status).toBe(200);
+      expect(observed).toHaveLength(2);
+      expect(new Set(observed).size).toBe(1);
+      expect(scans.mock.calls.length).toBeGreaterThan(observed[1]);
+      expect(await links()).toEqual([
+        { name: 'First', keys: [] },
+        { name: 'Second', keys: [] },
+      ]);
+    });
   });
 });

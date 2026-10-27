@@ -68,7 +68,7 @@ export function resolveManyToMany(
   if (!foreignKey || !otherKey || foreignKey === otherKey) invalid('Join keys are unavailable');
   const scope = cloneDeep(association.scope);
   const attributes = { ...throughModel.rawAttributes };
-  const current = () => {
+  const currentIdentity = () => {
     if (
       prepared.configuration(ctx, sourceIdentity) !== sourceConfig ||
       prepared.configuration(ctx, targetIdentity) !== targetConfig ||
@@ -109,6 +109,9 @@ export function resolveManyToMany(
       )
     )
       invalid('Join tables with business fields, ownership, scopes or soft deletion require a separate write adapter');
+  };
+  const current = () => {
+    currentIdentity();
     for (const collection of db.collections.values()) {
       for (const entry of Object.values(collection.model.associations)) {
         const other = entry as typeof association;
@@ -144,6 +147,7 @@ export function resolveManyToMany(
     foreignKey,
     otherKey,
     scope,
+    currentIdentity,
     current,
   };
 }

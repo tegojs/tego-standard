@@ -5,7 +5,7 @@ import { Op, Transaction, type Database, type Model, type WhereOptions } from '@
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
-import { prepareCreationLinks, type AccessCreationLink } from './creation-links';
+import { prepareCreationLinkRows, prepareCreationLinks, type AccessCreationLink } from './creation-links';
 import { prepareCreationReferenceRows } from './creation-reference-rows';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
@@ -45,6 +45,8 @@ export interface AccessCreationRequest {
   references?: AccessCreationReference[];
   /** Trusted per-input-row references. Cannot be mixed with single-record references or links. */
   rowReferences?: AccessCreationReference[][];
+  /** Per-input-row pure links. The writer is called once for each single input row in this mode. */
+  rowLinks?: AccessCreationLink[][];
   /** Trusted, independently authorized selections of existing targets through pure join tables. */
   links?: AccessCreationLink[];
 }
@@ -107,6 +109,11 @@ export class AccessCreationService {
     authenticated = { ...authenticated };
     const original = request;
     request = cloneDeep(request);
+    if (
+      request.rowLinks !== undefined &&
+      [request.reference, request.references, request.links].some((value) => value !== undefined)
+    )
+      invalid('Per-row links cannot be combined with single-record references or links');
     const config = this.prepared.configuration(ctx, identity);
     if (!config) invalid('Collection has not migrated to access control');
     const collection = this.db.getCollection(identity.collectionName);
@@ -140,9 +147,36 @@ export class AccessCreationService {
         invalid('Creation references must have distinct registered association names');
       names.add(link.association);
     }
-    const linkPlan = links.length
-      ? prepareCreationLinks(this.db, this.prepared, this.queries, ctx, identity, links, original.links!)
-      : undefined;
+    const linkPlan =
+      request.rowLinks !== undefined
+        ? prepareCreationLinkRows(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            identity,
+            request.rowLinks,
+            original.rowLinks!,
+            MAX_CREATION_REFERENCES,
+          )
+        : links.length
+          ? prepareCreationLinks(
+              this.db,
+              this.prepared,
+              this.queries,
+              ctx,
+              identity,
+              links,
+              original.links!,
+              MAX_CREATION_REFERENCES,
+            )
+          : undefined;
+    if (
+      linkPlan?.batched &&
+      (linkPlan.rowCounts.length !== request.values.length ||
+        linkPlan.rowCounts.some((count, index) => count + references.forRow(index).length > MAX_CREATION_REFERENCES))
+    )
+      invalid('Each created row requires its own bounded combined relationship selection');
     const current = () => {
       references.assertCurrent();
       linkPlan?.current();
@@ -162,10 +196,11 @@ export class AccessCreationService {
     };
     current();
     if (model.primaryKeyAttributes.length !== 1) invalid('Creation requires a single primary key');
-    const related = references.count > 0 || links.length > 0;
+    const related = references.count > 0 || (linkPlan?.count ?? 0) > 0;
     if (
       related &&
-      ((!references.batched && request.values.length !== 1) || this.db.sequelize.getDialect() !== 'postgres')
+      ((!references.batched && !linkPlan?.batched && request.values.length !== 1) ||
+        this.db.sequelize.getDialect() !== 'postgres')
     )
       throw new AccessMutationError(
         'UNSUPPORTED_ACCESS_MUTATION',
@@ -236,14 +271,33 @@ export class AccessCreationService {
           });
           let records: readonly Model[];
           try {
-            records = await writer(
-              Object.freeze({
-                get values() {
-                  return cloneDeep(values);
-                },
-                transaction,
-              }),
-            );
+            const writeRows = (input: readonly Record<string, unknown>[]) =>
+              writer(
+                Object.freeze({
+                  get values() {
+                    return cloneDeep(input);
+                  },
+                  transaction,
+                }),
+              );
+            if (linkPlan?.batched) {
+              const created: Model[] = [];
+              for (const value of values) {
+                const before = receipts.size;
+                const saved = await writeRows([value]);
+                current();
+                if (
+                  !Array.isArray(saved) ||
+                  saved.length !== 1 ||
+                  receipts.size !== before + 1 ||
+                  !receipts.has(saved[0]) ||
+                  created.includes(saved[0])
+                )
+                  invalid("Per-row link writers must return this input row's actual INSERT receipt");
+                created.push(saved[0]);
+              }
+              records = created;
+            } else records = await writeRows(values);
             await validateWriteTransaction(this.db, transaction, serializable);
             current();
             if (
@@ -263,7 +317,7 @@ export class AccessCreationService {
             if (normalized.length !== keys.length) invalid('Creation writer returned duplicate record keys');
             const expectedReferences = new Map(normalized.map((key, index) => [key, references.expectedForRow(index)]));
             if (linkPlan) {
-              await linkPlan.persist(normalized[0], transaction, current);
+              await linkPlan.persist(normalized, transaction, current);
               await validateWriteTransaction(this.db, transaction, serializable);
               current();
             }
@@ -321,7 +375,7 @@ export class AccessCreationService {
             current();
             if (allowed.length !== keys.length) unavailable();
             if (linkPlan) {
-              await linkPlan.verify(normalized[0], transaction);
+              await linkPlan.verify(normalized, transaction);
               current();
             }
             if (unexpectedInserts || receipts.size !== records.length)

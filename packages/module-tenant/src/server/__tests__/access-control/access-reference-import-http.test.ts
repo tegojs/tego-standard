@@ -4,6 +4,7 @@ import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import { ACL, Resourcer, type Collection, type Context } from '@tego/server';
 
 import ErrorPlugin from '../../../../../module-error-handler/src/server';
+import UsersPlugin from '../../../../../module-user/src/server/server';
 import ImportPlugin from '../../../../../plugin-action-import/src/server';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
@@ -46,12 +47,22 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     const errors = new ErrorPlugin(app, { name: 'test-errors' });
     await errors.beforeLoad();
     await errors.load();
+    await new UsersPlugin(app, { name: 'import-audit-users' }).beforeLoad();
     const db = app.db;
+    db.collection({
+      name: 'users',
+      timestamps: false,
+      createdBy: true,
+      updatedBy: true,
+      fields: [{ name: 'id', type: 'bigInt', primaryKey: true }],
+    });
     await seedConfigStore(db);
     await seedAclScopes(db);
     db.collection({
       name: 'projects',
       timestamps: false,
+      createdBy: true,
+      updatedBy: true,
       fields: [
         { name: 'id', type: 'integer', primaryKey: true },
         { name: 'name', type: 'string' },
@@ -62,6 +73,8 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     db.collection({
       name: 'documents',
       timestamps: false,
+      createdBy: true,
+      updatedBy: true,
       fields: [
         { name: 'id', type: 'integer', primaryKey: true, autoIncrement: true },
         { name: 'name', type: 'string' },
@@ -88,6 +101,7 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
       ],
     });
     await db.sync();
+    await db.getCollection('users').model.bulkCreate([{ id: 28 }, { id: 29 }]);
     await db.getCollection('tenants').model.bulkCreate(['B', 'C'].map((id) => ({ id, enabled: true })));
     await db.getCollection('projects').model.bulkCreate([
       { id: 101, name: 'Owned', tenantId: 'B' },
@@ -237,12 +251,43 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ data: [], meta: { successCount: 2, failureCount: 0 } });
     expect(await rows()).toMatchObject([
-      { name: 'First', projectId: 102, amount: 12, tenantId: 'B' },
-      { name: 'Second', projectId: 104, amount: 23, tenantId: 'B' },
+      { name: 'First', projectId: 102, amount: 12, tenantId: 'B', createdById: 28, updatedById: 28 },
+      { name: 'Second', projectId: 104, amount: 23, tenantId: 'B', createdById: 28, updatedById: 28 },
     ]);
     expect(
       (await app.db.getCollection('projects').model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
     ).toEqual(before);
+  });
+  it('imports scalar-only columns with native audit fields and no target read grant', async () => {
+    acl.define({ role: 'scalarImporter' }).grantAction('documents:importXlsx', { fields: ['name', 'amount'] });
+    principal.roleName = 'scalarImporter';
+    const response = await supertest(app.callback())
+      .post('/api/documents:importXlsx')
+      .attach(
+        'file',
+        xlsx.build([
+          {
+            name: 'Import',
+            data: [
+              ['Name', 'Amount'],
+              ['Only scalars', '17'],
+            ],
+          },
+        ]),
+        { filename: 'import.xlsx' },
+      )
+      .field(
+        'columns',
+        JSON.stringify([
+          { dataIndex: ['name'], defaultTitle: 'Name' },
+          { dataIndex: ['amount'], defaultTitle: 'Amount' },
+        ]),
+      );
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ data: [], meta: { successCount: 1, failureCount: 0 } });
+    expect(await rows()).toMatchObject([
+      { name: 'Only scalars', amount: 17, projectId: null, tenantId: 'B', createdById: 28, updatedById: 28 },
+    ]);
   });
   it('does not substitute create permission for import permission', async () => {
     principal.roleName = 'creator';
@@ -338,8 +383,8 @@ describe.skipIf(!coreAvailable || !postgresUrl)('tenant reference import over HT
       expect(response.status).toBe(200);
       expect(response.body).toMatchObject({ data: [], meta: { successCount: 2, failureCount: 0 } });
       expect(await rows()).toMatchObject([
-        { name: 'First', amount: 1, projectId: 102, tenantId: 'B' },
-        { name: 'Second', amount: 2, projectId: 102, tenantId: 'B' },
+        { name: 'First', amount: 1, projectId: 102, tenantId: 'B', createdById: 28, updatedById: 28 },
+        { name: 'Second', amount: 2, projectId: 102, tenantId: 'B', createdById: 28, updatedById: 28 },
       ]);
       expect(await links()).toEqual([
         { name: 'First', keys: [101, 102] },

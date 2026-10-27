@@ -59,12 +59,14 @@ export function internalQuery<T extends object>(options: T) {
   return { ...options, hooks: false, useMaster: true };
 }
 
+export const MAX_MUTATION_INPUT_NODES = 10000;
+
 /** Preserve Sequelize operator symbols and expression prototypes without adding a package dependency. */
 export function cloneDeep<T>(input: T): T {
   let nodes = 0;
   const seen = new Set<object>();
   const copy = (value: unknown, depth = 0): unknown => {
-    if (++nodes > 10000 || depth > 32) invalid('Mutation input exceeds size or depth limit');
+    if (++nodes > MAX_MUTATION_INPUT_NODES || depth > 32) invalid('Mutation input exceeds size or depth limit');
     if (typeof value === 'function') invalid('Mutation inputs cannot contain functions');
     if (value === null || typeof value !== 'object') return value;
     if (value instanceof Date) return new Date(value.getTime());

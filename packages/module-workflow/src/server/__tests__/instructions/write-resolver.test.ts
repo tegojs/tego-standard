@@ -118,6 +118,20 @@ describe.each(['create', 'update'] as const)('workflow %s executor selection', (
     );
   });
 
+  it.each([false, true])('keeps the original operator on default fallback: installed=%s', async (installed) => {
+    context.state.currentUserId = 7;
+    context.state.currentUser = { id: 99, nickname: 'Resuming operator' };
+    let actualContext;
+    collection.model.addHook(action === 'create' ? 'beforeCreate' : 'beforeUpdate', (_record, options) => {
+      actualContext = options.context;
+    });
+    const job = await run(installed ? () => undefined : undefined);
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect(actualContext).toEqual(context);
+    expect(actualContext.state.currentUser).toEqual({ id: 99, nickname: 'Resuming operator' });
+    expect((await rows()).some((row) => row.title === 'configured')).toBe(true);
+  });
+
   it('does not add the old tenant filter to a selected execution', async () => {
     collection.options.tenancy = 'tenantScoped';
     await run(() => async (request) => {

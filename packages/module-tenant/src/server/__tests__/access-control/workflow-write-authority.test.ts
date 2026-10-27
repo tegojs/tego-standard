@@ -1,7 +1,9 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
-import { ACL, Transaction } from '@tego/server';
+import { ACL, Transaction, type Context } from '@tego/server';
 
-import { EXECUTION_STATUS } from '../../../../../module-workflow/src/server/constants';
+import { retry as retryExecution } from '../../../../../module-workflow/src/server/actions/executions';
+import { EXECUTION_STATUS, JOB_STATUS } from '../../../../../module-workflow/src/server/constants';
+import type DelayInstruction from '../../../../../module-workflow/src/server/features/delay/DelayInstruction';
 import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -857,5 +859,120 @@ describe('configured workflow scalar writes with tenant ownership', () => {
         updatedById: null,
       });
     });
+    it.each([
+      { kind: 'create' as const, human: true },
+      { kind: 'update' as const, human: true },
+      { kind: 'create' as const, human: false },
+      { kind: 'update' as const, human: false },
+    ])(
+      'uses the persisted actor for an audited $kind after another user resumes the execution: human=$human',
+      async ({ kind, human }) => {
+        const delay = await workflow.createNode({
+          type: 'delay',
+          config: { duration: 60000, endStatus: JOB_STATUS.RESOLVED },
+        });
+        const last = await workflow.createNode({
+          type: kind,
+          upstreamId: delay.id,
+          config: {
+            collection: source.collectionName,
+            params: { ...(kind === 'update' ? { filterByTk: 1 } : {}), values: { name: 'Resumed audit' } },
+          },
+        });
+        await delay.update({ downstreamId: last.id });
+        await plugin.trigger(workflow, {}, { context: { state: human ? state() : { currentTenantId: 'B' } } });
+        (plugin.instructions.get('delay') as DelayInstruction).unload();
+        const [execution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+        expect(execution.status).toBe(EXECUTION_STATUS.STARTED);
+        const [pending] = await execution.getJobs();
+        expect(pending.status).toBe(JOB_STATUS.PENDING);
+        const transient = await app.db.getCollection('users').model.create({ nickname: 'Resuming operator' });
+        const context = {
+          state: { currentTenantId: 'C', currentRole: 'operator', currentUser: { id: transient.get('id') } },
+        };
+        const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+        try {
+          const processor = plugin.createProcessor(execution, { context, transaction });
+          await processor.resume(pending);
+          expect(execution.status, JSON.stringify(processor.lastSavedJob?.result)).toBe(EXECUTION_STATUS.RESOLVED);
+          await transaction.commit();
+          const result = processor.lastSavedJob!.result;
+          const actual = await get(kind === 'create' ? result.id : 1);
+          expect(actual).toMatchObject({ name: 'Resumed audit', tenantId: 'B' });
+          const expectedUser = human ? userId : null;
+          expect(String(actual.updatedById)).toBe(String(expectedUser));
+          expect(String(kind === 'create' ? result.updatedById : result.data[0].updatedById)).toBe(
+            String(expectedUser),
+          );
+          expect(String(actual.createdById)).toBe(String(kind === 'create' ? expectedUser : null));
+          expect(context.state.currentUser.id).toBe(transient.get('id'));
+        } finally {
+          if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+        }
+      },
+    );
+    it.each(['create', 'update'] as const)(
+      'uses the retrying actor for a new audited %s execution without changing the original tenant',
+      async (kind) => {
+        const original = await execute(
+          kind,
+          { ...(kind === 'update' ? { filterByTk: 1 } : {}), values: { name: 'Retry audit' } },
+          state(),
+        );
+        expect(original.status).toBe(EXECUTION_STATUS.RESOLVED);
+        const [originalExecution] = await workflow.getExecutions({ order: [['id', 'DESC']] });
+        const operator = await app.db.getCollection('users').model.create({ nickname: 'Retrying operator' });
+        const config = baseConfig();
+        config.rules = [
+          {
+            ...config.rules[0],
+            subject: {
+              type: 'compare',
+              operator: 'eq',
+              left: { type: 'context', path: 'user.id' },
+              right: { type: 'literal', value: String(operator.get('id')) },
+            },
+          },
+        ];
+        await saveConfig(config);
+        const transaction = await app.db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+        try {
+          const ctx = {
+            app,
+            db: app.db,
+            tego: { pm: { get: () => plugin }, logger: app.logger },
+            transaction,
+            state: {
+              currentTenantId: 'H',
+              currentTenancyMode: 'tenantInherited',
+              currentTenantDescendantIds: ['B', 'C'],
+              currentRole: 'operator',
+              currentUser: { id: operator.get('id') },
+            },
+            action: { resourceName: 'executions', actionName: 'retry', params: { filterByTk: originalExecution.id } },
+            t: (message: string) => message,
+            throw(status: number, message?: string) {
+              throw Object.assign(new Error(message ?? String(status)), { status });
+            },
+          } as unknown as Context;
+          await retryExecution(ctx, async () => {});
+          const [execution] = await workflow.getExecutions({ transaction, order: [['id', 'DESC']] });
+          const [job] = await execution.getJobs({ transaction });
+          expect(execution.status, JSON.stringify(job.result)).toBe(EXECUTION_STATUS.RESOLVED);
+          expect(execution.id).not.toBe(originalExecution.id);
+          expect(execution.get('tenantContext')).toMatchObject({ currentTenantId: 'B' });
+          expect(execution.get('authContext')).toMatchObject({ currentUserId: operator.get('id') });
+          await transaction.commit();
+          const actual = await get(kind === 'create' ? job.result.id : 1);
+          expect(actual).toMatchObject({ name: 'Retry audit', tenantId: 'B' });
+          expect(String(actual.updatedById)).toBe(String(operator.get('id')));
+          expect(String(actual.createdById)).toBe(String(kind === 'create' ? operator.get('id') : null));
+          await originalExecution.reload();
+          expect(originalExecution.get('authContext')).toMatchObject({ currentUserId: userId });
+        } finally {
+          if (!(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
+        }
+      },
+    );
   });
 });

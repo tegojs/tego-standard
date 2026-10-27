@@ -34,6 +34,25 @@ export interface WorkflowUpdateResult {
 }
 export type WorkflowCreateExecutor = (request: WorkflowCreateRequest) => Promise<WorkflowCreateResult>;
 export type WorkflowUpdateExecutor = (request: WorkflowUpdateRequest) => Promise<WorkflowUpdateResult>;
+
+/**
+ * Resolver-backed writes use the identity persisted with the execution. A resumed
+ * execution may run under another request user, so do not let that transient user
+ * become the framework's createdBy/updatedBy value. The default resolver path keeps
+ * the original repository context unchanged for backwards compatibility.
+ */
+function projectPersistedExecutionUser(context: WorkflowWriteRequest['context']) {
+  const state = context?.state;
+  if (!record(context) || !record(state)) return context;
+  const currentUserId = state.currentUserId;
+  const currentUser = state.currentUser;
+  if (currentUserId == null ? currentUser == null : record(currentUser) && currentUser.id === currentUserId)
+    return context;
+  const nextState = { ...state };
+  if (currentUserId === undefined || currentUserId === null) delete nextState.currentUser;
+  else nextState.currentUser = { id: currentUserId };
+  return { ...context, state: nextState };
+}
 /** Server-only synchronous selection; executors own the full write, response projection and authorization. */
 export type WorkflowCreateResolver = (request: WorkflowCreateRequest) => WorkflowCreateExecutor | undefined;
 export type WorkflowUpdateResolver = (request: WorkflowUpdateRequest) => WorkflowUpdateExecutor | undefined;
@@ -127,7 +146,11 @@ export async function runWorkflowWriteResolver(
     async (transaction) => {
       assertPlanningInputsCurrent?.();
       if (!resolve) return runDefault(transaction);
-      const request: WorkflowWriteRequest = Object.freeze({ ...target, transaction });
+      const request: WorkflowWriteRequest = Object.freeze({
+        ...target,
+        context: projectPersistedExecutionUser(target.context),
+        transaction,
+      });
       bindWorkflowDataOperationRequest(request, action, processor, node);
       const execute = resolve(request);
       if (execute === undefined) return runDefault(transaction);

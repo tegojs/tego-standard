@@ -99,6 +99,30 @@ describe('finalized source attachment field permission', () => {
     ).toThrow();
   });
 
+  it.each([{ fields: [] }, { fields: ['title'] }])(
+    'respects a final middleware fields restriction %j',
+    async ({ fields }) => {
+      const ctx = await context('update', { whitelist: ['file'] });
+      // A later ACL middleware can retain fields alongside the core whitelist.
+      (ctx.permission as { parsedParams: { fields?: string[] } }).parsedParams.fields = fields;
+      expect(() =>
+        attachments.captureAttachmentFieldPermission(db, ctx, 'editor', source.getField('file'), files),
+      ).toThrow();
+    },
+  );
+
+  it('allows the intersection of final fields and whitelist and detects a later fields revocation', async () => {
+    const ctx = await context('update', { whitelist: ['file', 'files'] });
+    const params = (ctx.permission as { parsedParams: { fields?: string[] } }).parsedParams;
+    params.fields = ['file'];
+    const captured = attachments.captureAttachmentFieldPermission(db, ctx, 'editor', source.getField('file'), files);
+    const selected = await resolveStagedAttachmentStorage(files, captured.field);
+    expect(selected.values.name).toBe('receipts');
+    captured.assertCurrent();
+    params.fields.length = 0;
+    expect(() => captured.assertCurrent()).toThrow();
+  });
+
   it.each(['title', 'wrong'])('rejects a field that is not an attachment relation: %s', async (name) => {
     const ctx = await context();
     expect(() =>

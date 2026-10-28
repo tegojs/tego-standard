@@ -85,7 +85,8 @@ export function captureAttachmentFieldPermission(
   const final = ctx.permission;
   const permission = captureFinalActionPermission(final, binding);
   if (!permission.allowed) invalid('Attachment source write operation is not authorized');
-  const params = permission.params as { whitelist?: unknown; blacklist?: unknown };
+  const params = permission.params as { fields?: unknown; whitelist?: unknown; blacklist?: unknown };
+  const fields = names(params.fields);
   const whitelist = names(params.whitelist);
   const blacklist = names(params.blacklist);
   const name = field.name;
@@ -98,6 +99,7 @@ export function captureAttachmentFieldPermission(
   const foreignKey = (relation as typeof relation & { foreignKey?: string })?.foreignKey;
   const tables = JSON.stringify([sourceModel.getTableName(), targetModel?.getTableName()]);
   if (
+    (fields !== undefined && !fields.includes(name)) ||
     (whitelist !== undefined && !whitelist.includes(name)) ||
     blacklist?.includes(name) ||
     (type === 'belongsTo' && foreignKey !== undefined && blacklist?.includes(foreignKey))

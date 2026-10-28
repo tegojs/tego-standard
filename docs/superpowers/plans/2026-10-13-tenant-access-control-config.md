@@ -2194,3 +2194,21 @@ Ruling: 按既定设计，在文件模板表的已保存规则和迁移预览抽
 两个新组件场景在原界面实际失败，保留 file-visibility-notice-red.log；缺少说明导致找不到提示，其余三十八项仅因定向筛选未运行。最小实现后，已保存规则、迁移预览和草案编辑三文件完整客户端回归五十五项通过、无跳过，保留 file-visibility-notice-green.log；原配置读取、丢弃/刷新、错误及角色/表切换行为均通过。这是实际 DOM 组件验证，不冒称已在真实业务页面或浏览器验收。
 
 租户包客户端、服务端及声明构建退出 0，保留 file-visibility-notice-build.log；五份 TSX oxlint 零警告/错误，格式、双语 JSON 解析及键顺序一致、源/快照 SHA256、diff 和作者自审通过。Prettier 仍打印原配置中导入排序选项的既有 JSON parser 提示，不改依赖或格式配置。整分支独立复核仍未完成。本批没有启动数据库、改业务配置或正式运行时，也没有读写生产；不把提示当成受控下载已完成，默认签名原子提交，不推送。
+
+§143 已核对为有效默认签名提交 b4a5bb65c，未推送。
+
+## 144. 附件字段存储的真实上传组合及最终 fields 限制
+
+Ruling: 不增加正式入口或另一套上传权限。复用实际 HTTP 夹具，以服务端固定的来源字段和真实独立来源 create/update ACL 中间件，组合文件 create/upload 最终 ACL、字段存储选择、可信租户目录、SERIALIZABLE 文件自有事务和公共 G 新增。来源字段决策在选择后、存储复核及复制后检查；源表数据及连接仍不写入。此测试组合只验证上传阶段，不代表来源记录 G/行条件、正式 attachmentField 参数解析、关联保存或受控下载已完成。
+
+核查发现 §142 的窄字段检查只处理 whitelist/blacklist，忽略最终中间件仍可能保留的 fields；同模块文件新增已采用两种限制取交集。先在实际 ACL 后保留 fields=[] / fields=['title']，两项正确输入均复现应拒绝却通过，保留 attachment-source-fields-red.log。最小修正应让 fields、whitelist 同时允许且 blacklist 不禁止，不能以其中一份覆盖另一份，不更改全局 ACL 或原默认上传。
+
+- [x] 真实 HTTP RED 验证来源 whitelist 允许但最终 fields 不允许时，旧组合仍成功。
+- [x] 最小 fields 交集修正；实际 PG/HTTP 验证单值/多值、来源 create/update、独立文件权限/G、字段拒绝、存储变化及复制后撤权的回滚与字节清理。
+- [x] 聚焦回归、相关包构建、lint/格式和作者自审；专用库清理及默认签名提交状态另记。
+
+真实 HTTP 的最终 fields 拒绝场景在原实现返回 200 而非预期 400，保留 attachment-source-http-red.log；最小修正后初步两文件四十六项通过。补充正向交集和等待后撤权，最终三文件串行一百三十九项通过、无跳过，保留 attachment-source-final.log：真实 PostgreSQL/HTTP 二十八项，字段 ACL SQLite 十九项，以及存储选择 SQLite/PostgreSQL 各四十六项。两份不同数据库组均实际执行，不以分组跳过代替验证。来源权限与文件权限独立，V 不能代替新增 G；复制后撤权清理本次字节并回滚文件行，来源数据和连接表均未写入。
+
+租户包及文件包客户端、服务端、声明构建顺序完成、退出 0，日志为 attachment-source-tenant-build.log 和 attachment-source-file-build.log。三份 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 和作者自审结果在提交前核对；整分支独立复核仍未完成。未改主/核心检出、正式依赖、业务数据或线上，未注册正式入口、保存或启用规则。完整来源记录写入、正式 attachmentField 请求适配、受控下载及最终整合仍待完成，不把此测试组合称为整体功能完成。
+
+已核实三个 TypeScript 源/快照 SHA256 一致、diff 无空白错误，作者自审未发现本批待修问题。核实实际实例目录及零其他客户端后，仅删除可重建专用库 tego_tenant_access_test_144a2c4e6f，确认 pg_database 中计数为 0，停止临时服务，保留集群目录和日志。默认签名原子提交，不推送。

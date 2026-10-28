@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import type { Collection, Context } from '@tego/server';
+import { Resourcer, type Collection, type Context } from '@tego/server';
 
 import FilePlugin, {
   captureStagedAttachmentResponse,
@@ -21,6 +21,7 @@ import {
 import { isolatedPostgresDatabase } from '../../../../module-tenant/src/server/__tests__/access-control/database';
 import { configFor, ownerCondition } from '../../../../module-tenant/src/server/__tests__/access-control/fixtures';
 import { AccessAclScopeAdapter } from '../../../../module-tenant/src/server/access-control/acl-scope';
+import { captureAttachmentFieldPermission } from '../../../../module-tenant/src/server/access-control/attachment-creation-entry';
 import { accessCollectionKey } from '../../../../module-tenant/src/server/access-control/config-store';
 import { AccessQueryService } from '../../../../module-tenant/src/server/access-control/query';
 import { AccessRootMutationHandler } from '../../../../module-tenant/src/server/access-control/root-mutation-handler';
@@ -32,6 +33,7 @@ const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreSQL', () => {
   let app: MockServer;
   let docs: Collection;
+  let source: Collection;
   let adapter: AccessAclScopeAdapter;
   let configs: ReturnType<typeof configStore>;
   let directory: string;
@@ -41,10 +43,20 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
   let parsed: boolean;
   let copied: boolean;
   let databaseVerified: boolean;
+  let sourceField: string | undefined;
+  let sourceOperation: 'create' | 'update';
+  let sourceFinalFields: string[] | undefined;
+  let afterCopy: (() => void) | undefined;
+  let sourceContext: { permission: unknown } | undefined;
   const bytes = Buffer.from('Actual HTTP attachment bytes');
 
   beforeEach(async () => {
     databaseVerified = false;
+    sourceField = undefined;
+    sourceOperation = 'update';
+    sourceFinalFields = undefined;
+    afterCopy = undefined;
+    sourceContext = undefined;
     directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-file-http-create-'));
     root = path.join(directory, 'root');
     staging = path.join(directory, 'staging');
@@ -88,7 +100,39 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       name: 'file-manager',
       attachmentResolver: () => async (ctx: Context & { permission: unknown }) => {
         const entry = handler.captureAttachment(ctx, ctx.state.testActor);
-        const selection = await resolveStagedAttachmentStorage(docs);
+        let fieldPermission: ReturnType<typeof captureAttachmentFieldPermission> | undefined;
+        if (sourceField !== undefined) {
+          // Server-selected fixture field, not a client attachmentField or a delegated file decision.
+          const resources = new Resourcer();
+          resources.define({ name: 'sources', actions: { [sourceOperation]: {} } });
+          const action = resources.getAction('sources', sourceOperation).clone();
+          Object.assign(action, { resourceName: 'sources', actionName: sourceOperation });
+          action.mergeParams({ resourceName: 'sources', actionName: sourceOperation });
+          const finalized = {
+            db,
+            action,
+            state: ctx.state,
+            logger: ctx.logger,
+            get: ctx.get.bind(ctx),
+            throw: ctx.throw.bind(ctx),
+            permission: undefined as unknown,
+          };
+          await app.acl.middleware()(finalized as never, async () => {
+            if (sourceFinalFields !== undefined)
+              (finalized.permission as { parsedParams: { fields?: string[] } }).parsedParams.fields = sourceFinalFields;
+            fieldPermission = captureAttachmentFieldPermission(
+              db,
+              finalized,
+              roleName,
+              source.getField(sourceField),
+              docs,
+            );
+          });
+          if (!fieldPermission) throw new Error('Source field ACL did not finish');
+          sourceContext = finalized;
+        }
+        const selection = await resolveStagedAttachmentStorage(docs, fieldPermission?.field);
+        fieldPermission?.assertCurrent();
         const storage = renderStagedAttachmentStorage(
           selection,
           (raw) => app.environment.renderJsonTemplate(raw),
@@ -105,11 +149,19 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
               await entry.create({
                 transaction,
                 metadata: values,
-                storage: { key: values.storageId, assertCurrent: selection.assertCurrent },
+                storage: {
+                  key: values.storageId,
+                  async assertCurrent(transaction) {
+                    fieldPermission?.assertCurrent();
+                    await selection.assertCurrent(transaction);
+                    fieldPermission?.assertCurrent();
+                  },
+                },
                 afterPersist: async () => {
                   await store();
                   copied = true;
                   expect(await fs.readFile(path.join(root, values.path, values.filename))).toEqual(bytes);
+                  afterCopy?.();
                 },
                 verifyRecord: async (key, transaction) => {
                   response = await readResponse(key, transaction);
@@ -140,6 +192,15 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
         { name: 'storage', type: 'belongsTo', target: 'storages', foreignKey: 'storageId' },
       ],
     });
+    source = db.collection({
+      name: 'sources',
+      timestamps: false,
+      fields: [
+        { name: 'title', type: 'string' },
+        { name: 'file', type: 'belongsTo', target: 'documents', storage: 'receipts' },
+        { name: 'files', type: 'belongsToMany', target: 'documents', through: 'source_files', storage: 'receipts' },
+      ],
+    });
     db.collection({
       name: 'tenants',
       autoGenId: false,
@@ -162,6 +223,16 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
         options: { documentRoot: root },
       },
     });
+    await db.getRepository('storages').create({
+      values: {
+        id: 18,
+        name: 'receipts',
+        type: 'local',
+        path: 'field-receipts',
+        baseUrl: '/field-files',
+        options: { documentRoot: root, secret: 'never-in-a-file-response' },
+      },
+    });
     configs = configStore(db);
     await configs.save(mainIdentity, { ...configFor(ownerCondition), revision: 0 }, { userId: 28 });
     adapter = new AccessAclScopeAdapter(app.acl, 'main', configs, db);
@@ -175,7 +246,10 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     const uploader = app.acl.define({ role: 'uploader' });
     uploader.grantAction('documents:upload', {});
     uploader.grantAction('documents:create', {});
+    uploader.grantAction('sources:create', { whitelist: ['file', 'files'] });
+    uploader.grantAction('sources:update', { whitelist: ['file', 'files'] });
     app.acl.define({ role: 'creator' }).grantAction('documents:create', {});
+    app.acl.define({ role: 'field-editor' }).grantAction('sources:update', { whitelist: ['file', 'files'] });
     roleName = 'uploader';
     app.resourcer.use(
       async (ctx, next) => {
@@ -366,5 +440,106 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     expect(row.get('tenantId')).toBe('B');
     expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
     expect(await fs.readdir(staging)).toEqual([]);
+  });
+
+  it.each([
+    ['create', 'file'],
+    ['update', 'file'],
+    ['create', 'files'],
+    ['update', 'files'],
+  ] as const)('uses the independent source %s field %s grant with file ACL and G', async (operation, field) => {
+    sourceField = field;
+    sourceOperation = operation;
+    sourceFinalFields = [field];
+    const client = supertest(app.callback());
+    expect((await client.get('/api/storages:list')).status).toBe(403);
+    expect((await client.get('/api/storages:get?filterByTk=18')).status).toBe(403);
+    const response = await upload();
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.data.path).toBe('field-receipts/tenants/B');
+    expect(response.body.data.url).toMatch(/^\/field-files\/field-receipts\/tenants\/B\/[a-f0-9]{32}\.txt$/);
+    expect(String(response.body.data.storageId)).toBe('18');
+    expect(JSON.stringify(response.body)).not.toContain('never-in-a-file-response');
+    const row = await docs.repository.findOne({ appends: ['storage'] });
+    expect(row.get('tenantId')).toBe('B');
+    expect(row.get('storage').get('id')).toBe(18);
+    expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
+    expect(await source.model.count()).toBe(0);
+    expect(await app.db.getCollection('source_files').model.count()).toBe(0);
+    expect(await fs.readdir(staging)).toEqual([]);
+  });
+
+  it.each([{ whitelist: ['title'] }, { blacklist: ['file'] }])(
+    'rejects source field restrictions %j before multipart parsing or storage writes',
+    async (params) => {
+      sourceField = 'file';
+      sourceFinalFields = ['file'];
+      app.acl.getRole('uploader').grantAction('sources:update', params);
+      const response = await upload();
+      expect(response.status, response.text).toBe(400);
+      expect(parsed).toBe(false);
+      expect(copied).toBe(false);
+      await empty();
+    },
+  );
+
+  it('enforces final source fields even when its whitelist allows the attachment', async () => {
+    sourceField = 'file';
+    sourceFinalFields = ['title'];
+    const response = await upload();
+    expect(response.status, response.text).toBe(400);
+    expect(parsed).toBe(false);
+    expect(copied).toBe(false);
+    await empty();
+  });
+
+  it('does not borrow the file create grant for an ungranted source write', async () => {
+    sourceField = 'file';
+    roleName = 'creator';
+    expect((await upload('create')).status).toBe(403);
+    expect(parsed).toBe(false);
+    await empty();
+  });
+
+  it('does not borrow a source field grant for an ungranted file upload', async () => {
+    sourceField = 'file';
+    roleName = 'field-editor';
+    expect((await upload()).status).toBe(403);
+    expect(parsed).toBe(false);
+    await empty();
+  });
+
+  it('still rolls back selected-field bytes when file G denies the new record', async () => {
+    sourceField = 'file';
+    const previous = await configs.read(mainIdentity);
+    await configs.save(
+      mainIdentity,
+      { ...configFor(ownerCondition, 'visibility'), revision: previous.revision },
+      { userId: 28 },
+    );
+    expect((await upload()).status).toBe(403);
+    expect(copied).toBe(true);
+    await empty();
+  });
+
+  it('rechecks a source field revocation after copying and rolls back the row and all bytes', async () => {
+    sourceField = 'file';
+    afterCopy = () => {
+      (sourceContext!.permission as { parsedParams: { fields?: string[] } }).parsedParams.fields = [];
+    };
+    expect((await upload()).status).toBe(400);
+    expect(copied).toBe(true);
+    await empty();
+  });
+
+  it('rejects changed field storage selection before copying and rolls back the inserted row', async () => {
+    sourceField = 'file';
+    app.db.on('documents.beforeCreate', () => {
+      source.getField('file').options.storage = 'local';
+    });
+    expect((await upload()).status).toBe(500);
+    expect(parsed).toBe(true);
+    expect(copied).toBe(false);
+    await empty();
   });
 });

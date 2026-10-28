@@ -7,16 +7,11 @@ import multer from 'multer';
 import { AttachmentModel } from '.';
 import { STORAGE_TYPE_LOCAL } from '../constants';
 import { getFilename } from '../utils';
-
-function getDocumentRoot(storage): string {
-  const { documentRoot = process.env.LOCAL_STORAGE_DEST || 'storage/uploads' } = storage.options || {};
-  // TODO(feature): 后面考虑以字符串模板的方式使用，可注入 req/action 相关变量，以便于区分文件夹
-  return path.resolve(
-    path.isAbsolute(documentRoot) ? documentRoot : path.join(process.env.TEGO_RUNTIME_HOME, documentRoot),
-  );
-}
+import { getLocalStorageRoot as getDocumentRoot } from './local-root';
+import { prepareLocalStagedUpload } from './local-upload';
 
 export default {
+  prepareStagedUpload: prepareLocalStagedUpload,
   make(storage) {
     return multer.diskStorage({
       destination: function (req, file, cb) {

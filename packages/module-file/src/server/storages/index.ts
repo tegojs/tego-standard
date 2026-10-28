@@ -1,10 +1,13 @@
 import { Application, Registry } from '@tego/server';
+
 import { StorageEngine } from 'multer';
 
+import type { StagedAttachmentUpload } from '../actions/staged-upload';
 import { STORAGE_TYPE_ALI_OSS, STORAGE_TYPE_LOCAL, STORAGE_TYPE_S3, STORAGE_TYPE_TX_COS } from '../constants';
 import oss from './ali-oss';
 import local from './local';
 import s3 from './s3';
+import type { StagedAttachmentStorage, StagedAttachmentStoragePlan } from './staged-upload';
 import cos from './tx-cos';
 
 export interface StorageModel {
@@ -23,6 +26,10 @@ export interface AttachmentModel {
 }
 
 export interface IStorage {
+  prepareStagedUpload?(
+    storage: StagedAttachmentStorage,
+    file: StagedAttachmentUpload,
+  ): StagedAttachmentStoragePlan | Promise<StagedAttachmentStoragePlan>;
   filenameKey?: string;
   middleware?(app: Application): void;
   getFileData?(file: { [key: string]: any }): { [key: string]: any };

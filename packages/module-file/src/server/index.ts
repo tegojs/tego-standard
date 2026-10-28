@@ -5,3 +5,9 @@ export { createAttachmentActionEntry } from './actions/attachment-entry';
 export type { AttachmentActionExecutor, AttachmentActionResolver } from './actions/attachment-entry';
 export { withStagedAttachmentUpload } from './actions/staged-upload';
 export type { StagedAttachmentOptions, StagedAttachmentUpload } from './actions/staged-upload';
+export { prepareStagedAttachmentStorage } from './storages/staged-upload';
+export type {
+  StagedAttachmentStorage,
+  StagedAttachmentStoragePlan,
+  StagedAttachmentStorageValues,
+} from './storages/staged-upload';

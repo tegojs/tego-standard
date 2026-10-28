@@ -1859,3 +1859,18 @@ Ruling: 先在文件模块提供未登记的 withStagedAttachmentTransaction(db,
 完整协调文件两数据库共 36 项实际通过、无跳过，其中 PostgreSQL 18 项全部执行，保留 staged-transaction-postgres.log。初次重用已停临时实例无法确认其超级用户，未改任何角色；停回该实例后建立本节独立临时实例，只监听 127.0.0.1:25466。启动后的首次 CREATE DATABASE 与 SELECT 在同一次命令中被 PostgreSQL 拒绝，改为独立命令后创建专用库；这些是测试环境准备失败，不计为产品 RED 或更改产品逻辑。
 
 逐例 PostgreSQL 本表删除、连接关闭；最后确认独立实例数据目录、专用库零连接和无其他客户端后删除 tego_tenant_access_test_124a8c97d2，复查库不存在，再停止本节临时实例。仅删除可由夹具重建的测试数据，日志和实例目录保留。测试文件格式变化源于参数化 describe 的缩进，忽略空白差异核查只有连接分组及本表清理，断言和生产源码未变。沿用 §123 文件包构建，不重复无关构建。恢复期间继续作者自审，独立复核仍待补齐；没有因此启用正式运行时或访问业务库。
+
+§124 已核对为有效默认签名提交 b33330942，未推送。
+
+## 125. 文件事务与公共新增服务的实际组合
+
+在独立 SQLite 用实际 AccessCreationService、配置主库快照、租户表和本地文件组合验证：有 G 的记录正确归属；只有 V、角色 where 不满足或钩子篡改归属时，写后最终校验回滚记录并清理文件。夹具使用文件模板的普通物理元数据，不包含 storageId 关系；因此只证明已有公共新增与事务/文件阶段可组合，不声称完成 storage 目标授权、真实 upload 操作 ACL 或正式上传入口。
+
+- [x] 新增 staged-access-creation.test.ts，先观察真实组合失败，确定是适配契约或夹具问题；不得为通过组合放松 G、归属或 INSERT 收据验证。
+- [x] 在事务所有者层做最小修复，保持 PostgreSQL SERIALIZABLE；运行组合和原协调回归及文件包构建，记录限制并默认签名提交，提交状态见节末。
+
+Ruling: 四个真实组合初次全部因事务不是 IMMEDIATE 而被既有公共新增服务拒绝，尚未走到 G 或文件持久化阶段。SQLite 的 SERIALIZABLE 标记不等于写事务锁类型；在文件事务所有者创建处仅对 SQLite 增加 Transaction.TYPES.IMMEDIATE，保留 PostgreSQL SERIALIZABLE，不改任何公共授权守卫、INSERT 收据或归属检查。组合四项及原协调十八项共 22 项实际通过。两个拒绝场景明确见证文件已实际写入，随后公共最终授权失败、记录为零且该文件不存在；不能把提前拒绝误算成写后回滚验证。后续独立 PostgreSQL 回归与最终构建结果另记。
+
+最终组合、事务协调和公共新增三个文件共 118 项实际通过，无跳过；事务协调和公共新增同时执行 SQLite 与独立 PostgreSQL，组合四项仅 SQLite。保留 staged-access-creation-final.log；文件包客户端、服务端及声明构建退出 0，保留 staged-access-creation-build.log。修改的两个 TypeScript 文件 oxlint、格式及快照 SHA256 检查通过，自审确认唯一产品行为变化是 SQLite 事务锁类型；恢复期间继续单会话自审，独立复核待补齐。
+
+确认临时实例目录、专用库及其他客户端均零连接后删除可重建的 tego_tenant_access_test_125b7e39a4，复查库不存在并停止本任务实例；日志和实例目录保留。没有访问业务库或启用默认上传。本节仍不覆盖实际 storage 关系、upload 操作 ACL、物理元数据最终一致性、持久化补偿及受控下载，不能作为完整上传放行证据。

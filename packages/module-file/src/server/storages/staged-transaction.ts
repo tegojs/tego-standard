@@ -46,6 +46,7 @@ export async function withStagedAttachmentTransaction<T>(
   // Sequelize exposes finished at runtime but omits it from its public Transaction declaration.
   const transaction = (await db.sequelize.transaction({
     isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
+    ...(db.sequelize.getDialect() === 'sqlite' ? { type: Transaction.TYPES.IMMEDIATE } : {}),
   })) as Transaction & { finished?: string };
   let active = true;
   let writing: Promise<void> | undefined;

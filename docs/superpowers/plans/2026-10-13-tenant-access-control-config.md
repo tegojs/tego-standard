@@ -2074,3 +2074,19 @@ Ruling: 先增加显式可选 storeForRecovery(capture) 能力，不让旧引擎
 缺少 storeForRecovery 时五项实际失败，保留 local-receipt-red.log；最小实现后五项通过，保留 local-receipt-green.log。独立 Node 子进程从 JSON 回执读取路径，另取原生 bigint 文件/目录身份，确认回调时文件为零字节、确认后同一文件具有完整内容。回调阻塞、拒绝、无效回调及单次消费均使用实际文件验证。新回执、原存储、事务协调、multipart 暂存及原 action 五文件串行共 90 项通过、无跳过，保留 local-receipt-final.log；本批只运行 SQLite，不将其表述为 PostgreSQL 恢复验证。
 
 文件包客户端、服务端及声明构建退出 0，保留 local-receipt-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/快照 SHA256 及作者自审通过。按单会话串行约定未派独立审查，整分支独立复核仍待补齐。新方法不会自动保存回执或清理文件；普通上传/事务协调没有调用新能力，实际恢复仍待后续实施。未启 PostgreSQL、未改正式入口或依赖、业务库、线上；保留默认签名，不推送。
+
+§136 已核对为有效默认签名提交 e352fbb87，未推送。
+
+## 137. 恢复前只读核对本地文件和逐级目录身份
+
+Ruling: 先交付不含删除副作用的 verifyLocalStagedAttachment(expected, receipt)。expected 来自可信操作日志的位置及计划值，不能从回执自己推导；先严格捕获 JSON 回执，校验版本、路径及完整目录链，再从可信根目录逐层 lstat 原生 bigint 身份。文件缺失仅在父目录身份全部吻合时报告 missing；任何目录/文件替换、软链接、身份或计划不符均拒绝。返回当前大小，仅证明所见对象身份，未完成复制允许 0 至计划大小；不推断事务结果，不授予删除或读取权限，不取得独占清理租约。
+
+这一批不实现物理清理，不将检查与删除间隔误报为原子安全，也不接正式入口。持久化回执、日志取消和多个恢复者的独占协调随后衔接；沿用服务端稳定独占目录约束。
+
+- [x] 实际文件 RED：正常及零字节文件、缺失文件、同名替换、目录替换、路径/身份篡改及不可信回执；均检查无写入/删除副作用。
+- [x] 最小只读实现，入口要求可信独立 expected，不消费回执内任意路径。
+- [x] 串行相关回归、文件包构建、lint/格式、自审；默认签名原子提交状态见后续记录。
+
+缺少只读检查入口时实际十七项失败，保留 local-recovery-red.log；最小实现后十七项通过，保留 local-recovery-green.log。恢复检查、复制前回执、原存储和事务协调四文件串行 59 项通过、无跳过，保留 local-recovery-final.log。作者自审补核根目录替换但保留全部子目录/文件身份，以及 junction 指向原目录，两项均拒绝且原内容保留；最终十九项通过，保留 local-recovery-paths.log。均为真实本地文件、无 FS mock；本批仅 SQLite/本地文件检查，不冒称 PostgreSQL 持久化恢复已完成。
+
+文件包客户端、服务端及声明构建退出 0，保留 local-recovery-build.log；三份 TypeScript 的 oxlint 零警告/错误，格式、diff、源/快照 SHA256 及作者自审通过。按串行约定未派审查者，整分支独立复核仍待补齐。未启动数据库服务，未改正式注册/规则保存或启用、依赖、业务数据库或线上；新入口仅执行 realpath/lstat，不执行 mkdir、unlink 或其他文件写入。默认签名提交不推送。

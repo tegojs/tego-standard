@@ -1,10 +1,18 @@
 import { ACL, Resourcer, Transaction, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
+import { AccessBelongsToService } from '../../access-control/belongs-to';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessHasManyService } from '../../access-control/has-many';
+import { AccessTargetForeignKeyMutationHandler } from '../../access-control/has-many-mutation-handler';
+import { AccessHasOneService } from '../../access-control/has-one';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
+import { AccessMutationService, type ExistingAccessWritePlan } from '../../access-control/mutation';
 import { AccessQueryService } from '../../access-control/query';
+import { AccessReferenceMutationHandler } from '../../access-control/reference-mutation-handler';
+import { AccessReferenceService } from '../../access-control/references';
 import { AccessRootMutationHandler } from '../../access-control/root-mutation-handler';
+import { AccessTargetForeignKeyReadService } from '../../access-control/target-foreign-key-reads';
 import type { AccessConfig } from '../../access-control/types';
 import { seedAclScopes } from './acl-database';
 import { mainIdentity, seedConfigStore } from './config-database';
@@ -1254,5 +1262,512 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     );
     await currentHandler.handle(ctx, authenticated);
     expect(await read()).toMatchObject({ name: 'Changed', tenantId: 'B' });
+  });
+
+  describe('managed attachment metadata', () => {
+    const original = {
+      title: 'Original file',
+      filename: 'original.pdf',
+      extname: '.pdf',
+      path: 'tenant-B',
+      url: '/controlled/original',
+      mimetype: 'application/pdf',
+      size: 12,
+      meta: { original: true },
+      storageId: 'B',
+    };
+    const prepareFile = async (file = true) => {
+      if (file) docs.options.template = 'file';
+      for (const name of ['title', 'filename', 'extname', 'path', 'url', 'mimetype', 'storageId'])
+        docs.setField(name, { type: 'string' });
+      docs.setField('size', { type: 'integer' });
+      docs.setField('meta', { type: 'json' });
+      await docs.model.sync({ alter: true });
+      await docs.model.update(original, { where: { id: 3 }, hooks: false });
+    };
+    it.each([
+      ['filename', 'different.pdf'],
+      ['extname', '.exe'],
+      ['path', '../outside'],
+      ['url', '/uncontrolled/different'],
+      ['mimetype', 'application/octet-stream'],
+      ['size', 999],
+      ['meta', { replaced: true }],
+      ['storageId', 'C'],
+    ])('does not change managed file %s through an ordinary update', async (field, value) => {
+      await prepareFile();
+      const before = await read();
+      const ctx = await context('update', { values: { [field as string]: value } });
+      await expect(handler.handle(ctx, auth())).rejects.toThrow(/protected|attachment|adapter/i);
+      expect(await read()).toEqual(before);
+      expect(ctx.body).toBe('unchanged');
+    });
+    it('still edits a file title without changing managed storage metadata', async () => {
+      await prepareFile();
+      const ctx = await context('update', { values: { title: 'Renamed file' } });
+      await handler.handle(ctx, auth());
+      expect(await read()).toMatchObject({ ...original, title: 'Renamed file' });
+    });
+    it('does not reserve these field names on an ordinary non-file collection', async () => {
+      await prepareFile(false);
+      const ctx = await context('update', { values: { filename: 'Business value' } });
+      await handler.handle(ctx, auth());
+      expect((await read()).filename).toBe('Business value');
+    });
+    it('rolls back if a title-edit hook rewrites the stored filename', async () => {
+      await prepareFile();
+      const before = await read();
+      let wrongValuePersisted = false;
+      docs.model.addHook('beforeUpdate', 'fileMetadataForgery', (record) => {
+        record.set('filename', 'different.pdf');
+      });
+      docs.model.addHook('afterUpdate', 'fileMetadataObserve', async (record, options) => {
+        const actual = await docs.model.findByPk(record.get('id'), { transaction: options.transaction, hooks: false });
+        wrongValuePersisted = actual.get('filename') === 'different.pdf';
+      });
+      try {
+        const ctx = await context('update', { values: { title: 'Do not commit' } });
+        await expect(handler.handle(ctx, auth())).rejects.toThrow(/protected|attachment|adapter/i);
+        expect(wrongValuePersisted).toBe(true);
+        expect(await read()).toEqual(before);
+        expect(ctx.body).toBe('unchanged');
+      } finally {
+        docs.model.removeHook('beforeUpdate', 'fileMetadataForgery');
+        docs.model.removeHook('afterUpdate', 'fileMetadataObserve');
+      }
+    });
+    it.each([true, false])('rejects file-template drift during an edit: initiallyFile=%s', async (initiallyFile) => {
+      await prepareFile(initiallyFile);
+      const template = docs.options.template;
+      const before = await read();
+      docs.model.addHook('beforeUpdate', 'fileTemplateDrift', () => {
+        docs.options.template = initiallyFile ? undefined : 'file';
+      });
+      try {
+        const ctx = await context('update', { values: { title: 'Do not commit' } });
+        await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+        expect(await read()).toEqual(before);
+      } finally {
+        docs.options.template = template;
+        docs.model.removeHook('beforeUpdate', 'fileTemplateDrift');
+      }
+    });
+    it.each(['root', 'explicit', 'matching', ...(dialect === 'postgres' ? ['hasMany', 'hasOne'] : [])])(
+      'checks file column mappings before a verification read can restore them: %s',
+      async (entry) => {
+        const relation = ['hasMany', 'hasOne'].includes(entry)
+          ? await prepareFileRelation(entry, 'businessReferenceId')
+          : undefined;
+        if (!relation) await prepareFile();
+        await docs.model.update({ url: original.filename }, { where: { id: 3 }, hooks: false });
+        const before = await read();
+        const attribute = docs.model.rawAttributes.filename;
+        const field = attribute.field;
+        let restored = false;
+        let wrongValuePersisted = false;
+        docs.model.addHook('beforeUpdate', 'fileMappingForgery', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+        docs.model.addHook('afterUpdate', 'fileMappingChange', async (record, options) => {
+          const actual = await docs.model.findByPk(record.get('id'), {
+            transaction: options.transaction,
+            hooks: false,
+          });
+          wrongValuePersisted = actual.get('filename') === 'different.pdf';
+          attribute.field = 'url';
+        });
+        db.sequelize.addHook('afterQuery', 'fileMappingRestore', (options) => {
+          if ((options as { model?: typeof docs.model }).model?.name === docs.model.name && attribute.field === 'url') {
+            attribute.field = field;
+            restored = true;
+          }
+        });
+        try {
+          const ctx = await context('update', { values: { title: 'Do not commit' } });
+          const queries = new AccessQueryService(db, adapter, (collection) =>
+            accessCollectionKey(identity(collection)),
+          );
+          const mutations = new AccessMutationService(db, adapter, queries);
+          const writer = async (plan: ExistingAccessWritePlan) => {
+            for (const record of plan.records)
+              await docs.repository.update({
+                filterByTk: record.get('id'),
+                values: plan.valuesFor(record),
+                transaction: plan.transaction,
+                context: ctx,
+              });
+          };
+          const operation = relation
+            ? entry === 'hasMany'
+              ? new AccessHasManyService(
+                  db,
+                  adapter,
+                  relation.queries,
+                  mutations,
+                  new AccessReferenceService(db, adapter, relation.queries),
+                ).withChildren(relation.ctx, relation.tenantIdentity, mainIdentity, auth(), {
+                  association: 'relatedFiles',
+                  sourceKey: 'C',
+                  operation: 'set',
+                  targetKeys: [3],
+                })
+              : new AccessHasOneService(
+                  db,
+                  adapter,
+                  relation.queries,
+                  mutations,
+                  new AccessReferenceService(db, adapter, relation.queries),
+                ).withTarget(relation.ctx, relation.tenantIdentity, mainIdentity, auth(), {
+                  association: 'relatedFiles',
+                  sourceKey: 'C',
+                  targetKey: 3,
+                })
+            : entry === 'root'
+              ? handler.handle(ctx, auth())
+              : entry === 'explicit'
+                ? mutations.withExistingRecords(
+                    ctx,
+                    mainIdentity,
+                    auth(),
+                    { operation: 'update', keys: [3], values: { title: 'Do not commit' } },
+                    writer,
+                  )
+                : mutations.withMatchingRecords(
+                    ctx,
+                    mainIdentity,
+                    auth(),
+                    { operation: 'update', where: { id: 3 }, values: { title: 'Do not commit' } },
+                    writer,
+                  );
+          await expect(operation).rejects.toThrow(/protected|metadata|file/i);
+          expect(wrongValuePersisted).toBe(true);
+          expect(restored).toBe(false);
+        } finally {
+          attribute.field = field;
+          docs.model.removeHook('beforeUpdate', 'fileMappingForgery');
+          docs.model.removeHook('afterUpdate', 'fileMappingChange');
+          db.sequelize.removeHook('afterQuery', 'fileMappingRestore');
+        }
+        expect(await read()).toEqual(before);
+      },
+    );
+    it.each(['root', 'explicit', 'matching'])(
+      'rejects losing the file template while authorization is in progress: %s',
+      async (entry) => {
+        await prepareFile();
+        const before = await read();
+        let changed = false;
+        db.sequelize.addHook('afterQuery', 'fileTemplateDuringAuthorization', (options) => {
+          if (!changed && (options as { model?: typeof docs.model }).model?.name === docs.model.name) {
+            docs.options.template = undefined;
+            changed = true;
+          }
+        });
+        docs.model.addHook('beforeUpdate', 'fileTemplateHiddenWrite', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+        try {
+          const ctx = await context('update', { values: { title: 'Do not commit' } });
+          const queries = new AccessQueryService(db, adapter, (collection) =>
+            accessCollectionKey(identity(collection)),
+          );
+          const mutations = new AccessMutationService(db, adapter, queries);
+          const writer = async (plan: ExistingAccessWritePlan) => {
+            for (const record of plan.records)
+              await docs.repository.update({
+                filterByTk: record.get('id'),
+                values: plan.valuesFor(record),
+                transaction: plan.transaction,
+                context: ctx,
+              });
+          };
+          const values = { title: 'Do not commit' };
+          const operation =
+            entry === 'root'
+              ? handler.handle(ctx, auth())
+              : entry === 'explicit'
+                ? mutations.withExistingRecords(
+                    ctx,
+                    mainIdentity,
+                    auth(),
+                    { operation: 'update', keys: [3], values },
+                    writer,
+                  )
+                : mutations.withMatchingRecords(
+                    ctx,
+                    mainIdentity,
+                    auth(),
+                    { operation: 'update', where: { id: 3 }, values },
+                    writer,
+                  );
+          await expect(operation).rejects.toThrow(/protected|metadata|file|template|identity|phase/i);
+          expect(changed).toBe(true);
+          expect(await read()).toEqual(before);
+        } finally {
+          docs.options.template = 'file';
+          docs.model.removeHook('beforeUpdate', 'fileTemplateHiddenWrite');
+          db.sequelize.removeHook('afterQuery', 'fileTemplateDuringAuthorization');
+        }
+      },
+    );
+    const prepareFileRelation = async (kind: string, foreignKey = 'filename') => {
+      await prepareFile();
+      await docs.model.update({ filename: 'B' }, { where: { id: 3 }, hooks: false });
+      const tenants = db.getCollection('tenants');
+      if (kind === 'belongsTo') docs.setField('fileTenantReference', { type: kind, target: tenants.name, foreignKey });
+      else tenants.setField('relatedFiles', { type: kind, target: docs.name, foreignKey });
+      await docs.model.sync({ alter: true });
+      const tenantIdentity = identity(tenants);
+      await db.getRepository('collections').create({
+        values: { name: tenants.name, key: tenantIdentity.collectionKey },
+      });
+      await store.save(
+        tenantIdentity,
+        { ...configFor({ type: 'constant', value: true }), ownership: { enabled: false }, revision: 0 },
+        { userId: 28 },
+      );
+      const ctx = await context('update', { values: { title: 'No storage change' } }, {}, docs.name, [
+        mainIdentity,
+        tenantIdentity,
+      ]);
+      const queries = new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection)));
+      return { tenantIdentity, ctx, queries };
+    };
+    it('rejects losing the file template during collection identity resolution', async () => {
+      await prepareFile();
+      const before = await read();
+      const ctx = await context('update', { values: { filename: 'different.pdf' } });
+      const active = new AccessRootMutationHandler(
+        db,
+        adapter,
+        new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection))),
+        (collection) => {
+          docs.options.template = undefined;
+          return identity(collection);
+        },
+      );
+      try {
+        await expect(active.handle(ctx, auth())).rejects.toThrow(/metadata|template|identity|phase/i);
+        expect(await read()).toEqual(before);
+        expect(ctx.body).toBe('unchanged');
+      } finally {
+        docs.options.template = 'file';
+      }
+    });
+    it
+      .skipIf(dialect !== 'postgres')
+      .each(
+        [
+          { kind: 'belongsTo', side: 'source' },
+          ...['hasMany', 'hasOne'].flatMap((kind) => ['source', 'target'].map((side) => ({ kind, side }))),
+        ].flatMap((entry) => [false, true].map((drift) => ({ ...entry, drift }))),
+      )('protects $kind form $side before its first identity callback: drift=$drift', async ({ kind, side, drift }) => {
+      const { tenantIdentity, queries } = await prepareFileRelation(kind, 'businessReferenceId');
+      const tenants = db.getCollection('tenants');
+      const source = kind === 'belongsTo' ? docs : tenants;
+      const file = side === 'source' ? source : docs;
+      if (file === tenants) {
+        docs.options.template = undefined;
+        tenants.options.template = 'file';
+        tenants.setField('filename', { type: 'string' });
+        await tenants.model.sync({ alter: true });
+        await tenants.model.update({ filename: 'original.pdf' }, { where: { id: 'C' }, hooks: false });
+      }
+      const before = await read();
+      const sourceBefore = (await tenants.model.findByPk('C')).get();
+      const sources = [mainIdentity, tenantIdentity];
+      const values =
+        kind === 'belongsTo'
+          ? { title: 'Changed title', fileTenantReference: 'C' }
+          : { enabled: false, relatedFiles: kind === 'hasMany' ? [3] : 3 };
+      const ctx = await context('update', { filterByTk: source === docs ? 3 : 'C', values }, {}, source.name, sources);
+      let changed = false;
+      const resolve = (collection: Collection) => {
+        if (drift && !changed) {
+          file.options.template = undefined;
+          changed = true;
+        }
+        return identity(collection);
+      };
+      const authorize = (collection: Collection, action: string) =>
+        context(action, { filterByTk: undefined }, {}, collection.name, sources);
+      if (drift)
+        file.model.addHook('beforeUpdate', 'fileFirstIdentityForgery', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+      try {
+        const operation =
+          kind === 'belongsTo'
+            ? new AccessReferenceMutationHandler(db, adapter, queries, resolve).handle(ctx, auth(), (collection) =>
+                authorize(collection, 'list'),
+              )
+            : new AccessTargetForeignKeyMutationHandler(
+                db,
+                adapter,
+                queries,
+                resolve,
+                kind === 'hasMany' ? 'HasMany' : 'HasOne',
+              ).handleRoot(
+                ctx,
+                auth(),
+                (collection) => authorize(collection, 'update'),
+                (collection) => authorize(collection, 'list'),
+              );
+        if (drift) {
+          await expect(operation).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+          expect(changed).toBe(true);
+          expect(await read()).toEqual(before);
+          expect((await tenants.model.findByPk('C')).get()).toEqual(sourceBefore);
+          expect(ctx.body).toBe('unchanged');
+        } else {
+          await operation;
+          expect(ctx.body).toEqual({ keys: [source === docs ? 3 : 'C'], affected: 1 });
+          expect(await read()).toMatchObject(
+            kind === 'belongsTo'
+              ? { title: 'Changed title', businessReferenceId: 'C', filename: 'B' }
+              : { businessReferenceId: 'C', filename: 'B' },
+          );
+          if (source === tenants) expect((await tenants.model.findByPk('C')).get('enabled')).toBe(false);
+        }
+      } finally {
+        file.options.template = 'file';
+        file.model.removeHook('beforeUpdate', 'fileFirstIdentityForgery');
+      }
+    });
+    it
+      .skipIf(dialect !== 'postgres')
+      .each(['hasMany', 'hasOne'].flatMap((kind) => ['source', 'target'].map((side) => ({ kind, side }))))(
+      'rejects $kind $side file-template drift before protected values are captured',
+      async ({ kind, side }) => {
+        const { tenantIdentity, ctx, queries } = await prepareFileRelation(kind, 'businessReferenceId');
+        const tenants = db.getCollection('tenants');
+        const file = side === 'source' ? tenants : docs;
+        if (side === 'source') {
+          docs.options.template = undefined;
+          tenants.options.template = 'file';
+          tenants.setField('filename', { type: 'string' });
+          await tenants.model.sync({ alter: true });
+          await tenants.model.update({ filename: 'original.pdf' }, { where: { id: 'C' }, hooks: false });
+        }
+        const before = await read();
+        const sourceBefore = (await tenants.model.findByPk('C')).get();
+        let changed = false;
+        db.sequelize.addHook('afterQuery', 'childFileTemplateDrift', (options) => {
+          if (!changed && (options as { model?: typeof docs.model }).model?.name === docs.model.name) {
+            file.options.template = undefined;
+            changed = true;
+          }
+        });
+        file.model.addHook('beforeUpdate', 'childFileMetadataForgery', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+        try {
+          const mutations = new AccessMutationService(db, adapter, queries);
+          const references = new AccessReferenceService(db, adapter, queries);
+          const request = {
+            association: 'relatedFiles',
+            sourceKey: 'C',
+            ...(side === 'source' ? { sourceValues: { enabled: false } } : {}),
+          };
+          const operation =
+            kind === 'hasMany'
+              ? new AccessHasManyService(db, adapter, queries, mutations, references).withChildren(
+                  ctx,
+                  tenantIdentity,
+                  mainIdentity,
+                  auth(),
+                  { ...request, operation: 'set', targetKeys: [3] },
+                )
+              : new AccessHasOneService(db, adapter, queries, mutations, references).withTarget(
+                  ctx,
+                  tenantIdentity,
+                  mainIdentity,
+                  auth(),
+                  { ...request, targetKey: 3 },
+                );
+          await expect(operation).rejects.toThrow(/protected|metadata|template|identity|phase/i);
+          expect(changed).toBe(true);
+          expect(await read()).toEqual(before);
+          expect((await tenants.model.findByPk('C')).get()).toEqual(sourceBefore);
+        } finally {
+          file.options.template = 'file';
+          file.model.removeHook('beforeUpdate', 'childFileMetadataForgery');
+          db.sequelize.removeHook('afterQuery', 'childFileTemplateDrift');
+        }
+      },
+    );
+    it
+      .skipIf(dialect !== 'postgres')
+      .each(
+        ['filename', 'storageId'].flatMap((field) =>
+          ['belongsTo', 'hasMany', 'hasOne'].map((kind) => ({ field, kind })),
+        ),
+      )('does not reuse managed file $field as a writable $kind foreign key', async ({ kind, field }) => {
+      const { tenantIdentity, ctx, queries } = await prepareFileRelation(kind, field);
+      const mutations = new AccessMutationService(db, adapter, queries);
+      const references = new AccessReferenceService(db, adapter, queries);
+      const before = await read();
+      const operation =
+        kind === 'belongsTo'
+          ? new AccessBelongsToService(db, adapter, queries, mutations, references).withReference(
+              ctx,
+              mainIdentity,
+              tenantIdentity,
+              auth(),
+              { association: 'fileTenantReference', sourceKeys: [3], targetKey: 'C' },
+              async (plan) => {
+                for (const record of plan.records)
+                  await docs.repository.update({
+                    filterByTk: record.get('id'),
+                    values: plan.valuesFor(record),
+                    transaction: plan.transaction,
+                    context: ctx,
+                  });
+              },
+            )
+          : kind === 'hasMany'
+            ? new AccessHasManyService(db, adapter, queries, mutations, references).withChildren(
+                ctx,
+                tenantIdentity,
+                mainIdentity,
+                auth(),
+                { association: 'relatedFiles', sourceKey: 'C', operation: 'set', targetKeys: [3] },
+              )
+            : new AccessHasOneService(db, adapter, queries, mutations, references).withTarget(
+                ctx,
+                tenantIdentity,
+                mainIdentity,
+                auth(),
+                { association: 'relatedFiles', sourceKey: 'C', targetKey: 3 },
+              );
+      await expect(operation).rejects.toThrow(/protected|metadata|file|adapter/i);
+      expect(await read()).toEqual(before);
+    });
+    it.skipIf(dialect !== 'postgres').each(['belongsTo', 'hasMany', 'hasOne'])(
+      'preserves an existing file metadata reference for %s reads',
+      async (kind) => {
+        const { tenantIdentity, ctx, queries } = await prepareFileRelation(kind);
+        const scoped =
+          kind === 'belongsTo'
+            ? await new AccessReferenceService(db, adapter, queries).scopeBelongsToTarget(
+                ctx,
+                mainIdentity,
+                tenantIdentity,
+                auth(),
+                { association: 'fileTenantReference', sourceKey: 3 },
+              )
+            : await new AccessTargetForeignKeyReadService(db, adapter, queries).scopeTargets(
+                ctx,
+                tenantIdentity,
+                mainIdentity,
+                auth(),
+                { association: 'relatedFiles', sourceKey: 'B' },
+              );
+        const model = kind === 'belongsTo' ? db.getCollection('tenants').model : docs.model;
+        const rows = await model.findAll(scoped.query);
+        expect(rows.map((row) => row.getDataValue('id'))).toEqual(kind === 'belongsTo' ? ['B'] : [3]);
+        expect((await read()).filename).toBe('B');
+      },
+    );
   });
 });

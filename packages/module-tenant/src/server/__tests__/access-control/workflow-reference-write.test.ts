@@ -358,6 +358,161 @@ describe.runIf(!!postgresUrl)('configured workflow existing reference writes', (
     }
   }
 
+  it.each([false, true])('protects a file before the first workflow identity callback: drift=%s', async (drift) => {
+    const originalHandler = handler;
+    const template = documents.options.template;
+    documents.options.template = 'file';
+    documents.setField('filename', { type: 'string' });
+    await documents.model.sync({ alter: { drop: false } });
+    await documents.model.update({ filename: 'original.pdf' }, { where: { id: 1 }, hooks: false });
+    const before = await get();
+    let changed = false;
+    handler = new AccessWorkflowRootHandler(
+      app.db,
+      adapter,
+      new AccessQueryService(app.db, adapter, (collection) => accessCollectionKey(identity(collection)!)),
+      (collection) => {
+        if (drift && !changed) {
+          documents.options.template = undefined;
+          changed = true;
+        }
+        return identity(collection);
+      },
+      (input) => plugin.captureDataOperationAuthority(input),
+    );
+    if (drift)
+      documents.model.addHook('beforeUpdate', 'fileFirstWorkflowIdentityForgery', (record) => {
+        record.set('filename', 'different.pdf');
+      });
+    try {
+      const result = await execute('update', { filter: { id: 1 }, values: { name: 'Changed file title' } });
+      expect(result.status).toBe(drift ? EXECUTION_STATUS.ERROR : EXECUTION_STATUS.RESOLVED);
+      expect(await get()).toEqual(
+        drift ? before : { ...before, name: 'Changed file title', updatedAt: expect.any(Date) },
+      );
+      expect(changed).toBe(drift);
+    } finally {
+      handler = originalHandler;
+      documents.options.template = template;
+      documents.model.removeHook('beforeUpdate', 'fileFirstWorkflowIdentityForgery');
+      documents.removeField('filename');
+    }
+  });
+
+  it.each(
+    [1, 'after policy loading'].flatMap((identityCall) => [false, true].map((drift) => ({ identityCall, drift }))),
+  )(
+    'protects a file at transaction planner identity callback $identityCall: drift=$drift',
+    async ({ identityCall, drift }) => {
+      const originalHandler = handler;
+      const originalPlanner = planner;
+      const template = documents.options.template;
+      documents.options.template = 'file';
+      documents.setField('filename', { type: 'string' });
+      await documents.model.sync({ alter: { drop: false } });
+      await documents.model.update({ filename: 'original.pdf' }, { where: { id: 1 }, hooks: false });
+      const before = await get();
+      let changed = false;
+      let calls = 0;
+      let loaded = false;
+      const read = store.read.bind(store);
+      vi.spyOn(store, 'read').mockImplementation(async (source) => {
+        const config = await read(source);
+        loaded = true;
+        return config;
+      });
+      const resolve = (collection) => {
+        calls++;
+        if (drift && !changed && (identityCall === 'after policy loading' ? loaded : calls === identityCall)) {
+          documents.options.template = undefined;
+          changed = true;
+        }
+        return identity(collection);
+      };
+      planner = new AccessWorkflowWriteTransactionPlanner(app.db, store, resolve);
+      handler = new AccessWorkflowRootHandler(
+        app.db,
+        adapter,
+        new AccessQueryService(app.db, adapter, (collection) => accessCollectionKey(identity(collection)!)),
+        resolve,
+        (input) => plugin.captureDataOperationAuthority(input),
+      );
+      if (drift)
+        documents.model.addHook('beforeUpdate', 'filePlannerIdentityForgery', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+      try {
+        const result = await execute('update', { filter: { id: 1 }, values: { name: 'Changed file title' } }, null);
+        expect(result.status).toBe(drift ? EXECUTION_STATUS.ERROR : EXECUTION_STATUS.RESOLVED);
+        expect(await get()).toEqual(
+          drift ? before : { ...before, name: 'Changed file title', updatedAt: expect.any(Date) },
+        );
+        expect(changed).toBe(drift);
+      } finally {
+        handler = originalHandler;
+        planner = originalPlanner;
+        documents.options.template = template;
+        documents.model.removeHook('beforeUpdate', 'filePlannerIdentityForgery');
+        documents.removeField('filename');
+      }
+    },
+  );
+
+  it.each(
+    ['children', 'profile'].flatMap((name) =>
+      [1, 2].flatMap((identityCall) => [false, true].map((drift) => ({ name, identityCall, drift }))),
+    ),
+  )(
+    'protects a child file at workflow target identity callback $identityCall: $name drift=$drift',
+    async ({ name, identityCall, drift }) => {
+      const originalHandler = handler;
+      const dependent = dependents.get(name);
+      const template = dependent.options.template;
+      dependent.options.template = 'file';
+      dependent.setField('filename', { type: 'string' });
+      await dependent.model.sync({ alter: { drop: false } });
+      await dependent.model.update({ filename: 'original.pdf' }, { where: { id: 201 }, hooks: false });
+      const before = await get();
+      const childBefore = (await dependent.model.findByPk(201)).get({ plain: true });
+      let changed = false;
+      let calls = 0;
+      handler = new AccessWorkflowRootHandler(
+        app.db,
+        adapter,
+        new AccessQueryService(app.db, adapter, (collection) => accessCollectionKey(identity(collection)!)),
+        (collection) => {
+          if (drift && collection === dependent && ++calls === identityCall) {
+            dependent.options.template = undefined;
+            changed = true;
+          }
+          return identity(collection);
+        },
+        (input) => plugin.captureDataOperationAuthority(input),
+      );
+      if (drift)
+        dependent.model.addHook('beforeUpdate', 'childFileFirstIdentityForgery', (record) => {
+          record.set('filename', 'different.pdf');
+        });
+      try {
+        const result = await execute('update', {
+          filterByTk: 1,
+          values: { [name]: name === 'children' ? [201] : 201 },
+        });
+        expect(result.status).toBe(drift ? EXECUTION_STATUS.ERROR : EXECUTION_STATUS.RESOLVED);
+        expect(await get()).toEqual(before);
+        expect((await dependent.model.findByPk(201)).get({ plain: true })).toEqual(
+          drift ? childBefore : { ...childBefore, documentId: 1 },
+        );
+        expect(changed).toBe(drift);
+      } finally {
+        handler = originalHandler;
+        dependent.options.template = template;
+        dependent.model.removeHook('beforeUpdate', 'childFileFirstIdentityForgery');
+        dependent.removeField('filename');
+      }
+    },
+  );
+
   describe.runIf(supportsDeferredAssociationEvents)('new core serialization failures', () => {
     it.each([
       { inherited: false, stage: 'afterWrite' },

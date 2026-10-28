@@ -29,6 +29,11 @@ export function captureWorkflowWriteReferences(
     const original = Object.getOwnPropertyDescriptor(input, name)!.value;
     if (Array.isArray(original)) assertCreationKeyArray(original);
   }
+  const metadata = accessMetadataGuard(
+    db,
+    [],
+    names.map((name) => ({ model: collection.model, path: [name] })),
+  );
   const source = cloneDeep(resolveIdentity(collection));
   const checks: Array<() => void> = [];
   const targets: AccessCollectionIdentity[] = [];
@@ -105,11 +110,6 @@ export function captureWorkflowWriteReferences(
   }
   if (children.length && names.length !== 1)
     invalid('Workflow child replacements require one relationship field without mixed references');
-  const metadata = accessMetadataGuard(
-    db,
-    [],
-    names.map((name) => ({ model: collection.model, path: [name] })),
-  );
   const assertCurrent = () => {
     metadata();
     for (const check of checks) check();

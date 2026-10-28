@@ -4,7 +4,7 @@ import type { Database } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessQueryService } from './query';
-import { cloneDeep, invalid } from './write-support';
+import { cloneDeep, invalid, managedFileFields } from './write-support';
 
 /** HasMany and HasOne store the relationship on the target, which is actually edited. */
 export function resolveTargetForeignKey(
@@ -26,6 +26,8 @@ export function resolveTargetForeignKey(
   const source = db.getCollection(sourceIdentity.collectionName);
   const target = db.getCollection(targetIdentity.collectionName);
   if (!source || !target) invalid('Association collection is unavailable');
+  const sourceTemplate = source.options.template;
+  const targetTemplate = target.options.template;
   const sourceModel = source.model;
   const targetModel = target.model;
   const association = sourceModel.associations[name] as (typeof sourceModel.associations)[string] & {
@@ -55,9 +57,13 @@ export function resolveTargetForeignKey(
   const sourceKey = association.sourceKey;
   const scope = cloneDeep(association.scope);
   const current = () => {
+    if (writing && managedFileFields(target).includes(foreignKey))
+      invalid('Managed file metadata requires its own storage adapter');
     if (
       prepared.configuration(ctx, sourceIdentity) !== sourceConfig ||
       prepared.configuration(ctx, targetIdentity) !== targetConfig ||
+      source.options.template !== sourceTemplate ||
+      target.options.template !== targetTemplate ||
       !queries.isCurrentCollection(sourceIdentity, source, sourceModel) ||
       !queries.isCurrentCollection(targetIdentity, target, targetModel) ||
       sourceModel.associations[name] !== association ||

@@ -127,6 +127,24 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
         },
       );
 
+    it('does not let a native user audit field rewrite managed file metadata', async () => {
+      docs.options.template = 'file';
+      docs.setField('size', { type: 'context', dataType: 'bigInt', dataIndex: 'state.currentUser.id' });
+      docs.setField('fileSizeAudit', { type: 'belongsTo', target: 'users', foreignKey: 'size' });
+      await docs.model.sync({ alter: true });
+      const record = await seed();
+      const before = (await docs.model.findByPk(record.get('id')))!.get();
+      expect(String(before.size)).toBe('29');
+      let wrongValuePersisted = false;
+      docs.model.addHook('afterUpdate', 'observeManagedAudit', async (row, options) => {
+        const actual = await docs.model.findByPk(row.get('id'), { transaction: options.transaction, hooks: false });
+        wrongValuePersisted = String(actual.get('size')) === '28';
+      });
+      await expect(update(record.get('id'))).rejects.toThrow(/protected|metadata|adapter/i);
+      expect(wrongValuePersisted).toBe(true);
+      expect((await docs.model.findByPk(record.get('id')))!.get()).toEqual(before);
+    });
+
     it('keeps framework-created audit identities when an authorized source is inserted', async () => {
       const result = await new AccessCreationService(app.db, adapter, queries).withCreatedRecords(
         ctx,

@@ -190,10 +190,22 @@ export async function validateWriteTransaction(
   } else throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Mutation dialect has not been validated', 400);
 }
 
+/** Storage-managed fields are not ordinary edits, even when configured as relationship keys. */
+export function managedFileFields(collection: Collection): string[] {
+  return collection.options.template === 'file'
+    ? ['filename', 'extname', 'path', 'url', 'mimetype', 'size', 'meta', 'storageId'].filter((name) =>
+        Object.hasOwn(collection.model.rawAttributes, name),
+      )
+    : [];
+}
+
 /** Only root fields are supported until relationship write adapters validate their actual write locations. */
 export function rootWriteBlockedFields(db: Database, collection: Collection, operation: 'update' | 'create') {
   const model = collection.model;
   const protectedFields = new Set(operation === 'update' ? model.primaryKeyAttributes : []);
+  // These are maintained by the file storage adapter, not ordinary edits.
+  // Keep title and custom fields editable and do not reserve names on other templates.
+  if (operation === 'update') for (const name of managedFileFields(collection)) protectedFields.add(name);
   const protectKey = (key: string | undefined) => {
     if (key && !(operation === 'create' && model.primaryKeyAttributes.includes(key))) protectedFields.add(key);
   };

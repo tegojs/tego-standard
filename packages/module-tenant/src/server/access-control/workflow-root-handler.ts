@@ -97,6 +97,7 @@ export class AccessWorkflowRootHandler {
     )
       invalid('Workflow root target does not match its database');
     const model = collection.model;
+    const template = collection.options.template;
     const identity = this.resolveIdentity(collection);
     if (
       !plain(identity) ||
@@ -115,6 +116,7 @@ export class AccessWorkflowRootHandler {
         accessCollectionKey(current) !== key ||
         this.db.getCollection(source.collectionName) !== collection ||
         collection.model !== model ||
+        collection.options.template !== template ||
         this.db.modelCollection.get(model) !== collection
       )
         invalid('Workflow root target changed during execution');

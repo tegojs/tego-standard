@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { Collection, Database } from '@tego/server';
 
 import type { AccessIdentity } from './context';
-import { invalid, normalizeKeys } from './write-support';
+import { invalid, managedFileFields, normalizeKeys } from './write-support';
 
 /** Server context FKs only; this never permits submitting these fields in request values. */
 export function captureUserAuditFields(db: Database, collection: Collection, actor: AccessIdentity) {
@@ -27,11 +27,13 @@ export function captureUserAuditFields(db: Database, collection: Collection, act
       }
     >();
     if (!userModel || userModel.primaryKeyAttributes.length !== 1) return fields;
+    const managed = new Set(managedFileFields(collection));
     for (const [name, attribute] of Object.entries(model.rawAttributes)) {
       const field = collection.getField(name);
       if (
         field?.type !== 'context' ||
         model.primaryKeyAttributes.includes(name) ||
+        managed.has(name) ||
         field.options.dataIndex !== 'state.currentUser.id' ||
         (field.options.createOnly !== undefined && typeof field.options.createOnly !== 'boolean') ||
         !['BIGINT', 'INTEGER', 'STRING', 'TEXT', 'UUID'].includes((attribute.type as { key?: string }).key)

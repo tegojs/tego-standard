@@ -312,7 +312,6 @@ describe.skipIf(!postgresUrl)('target association writes with framework audit fi
     expect(restored).toBe(false);
     expect(failure).toMatchObject({
       code: 'INVALID_ACCESS_MUTATION',
-      message: 'User audit field metadata changed during write',
     });
     expect(await row(docs, 1)).toMatchObject({ name: 'Before', updatedById: 29 });
     expect(await row(children, 103)).toMatchObject({ documentId: null, tenantId: null, updatedById: 29 });

@@ -42,12 +42,14 @@ export function accessMetadataGuard(
     if (!collection || collection.db !== db || model.sequelize !== db.sequelize)
       invalid('Access rule model is not registered in this database');
     const snapshot = modelSnapshot(model);
+    const template = collection.options.template;
     models.add(model);
     checks.push(
       () =>
         db.getCollection(collection.name) === collection &&
         collection.model === model &&
         db.modelCollection.get(model) === collection &&
+        collection.options.template === template &&
         isDeepStrictEqual(snapshot, modelSnapshot(model)),
     );
   };

@@ -73,16 +73,6 @@ export class AccessWorkflowWriteTransactionPlanner {
       collection.model.sequelize !== this.db.sequelize
     )
       invalid('Workflow transaction target does not match its database');
-    const identity = this.resolveIdentity(collection);
-    if (!plain(identity) || identity.dataSourceKey !== dataSourceName || identity.collectionName !== collectionName)
-      invalid('Workflow transaction identity does not match its target');
-    const source = Object.freeze(cloneDeep(identity));
-    const key = accessCollectionKey(source);
-    // Inspect the captured selection only for transaction requirements. This grants no read or write access.
-    const selection =
-      filter === undefined
-        ? undefined
-        : new AccessRoleFilterCompiler(this.db, this.resolveIdentity).compile(source, filter);
     const input = target.valueFields;
     if (
       input !== undefined &&
@@ -105,10 +95,21 @@ export class AccessWorkflowWriteTransactionPlanner {
         ...associations.map((field) => ({ model: collection.model, path: [field] })),
       ],
     );
+    const identity = this.resolveIdentity(collection);
+    if (!plain(identity) || identity.dataSourceKey !== dataSourceName || identity.collectionName !== collectionName)
+      invalid('Workflow transaction identity does not match its target');
+    const source = Object.freeze(cloneDeep(identity));
+    const key = accessCollectionKey(source);
+    // Inspect the captured selection only for transaction requirements. This grants no read or write access.
+    const selection =
+      filter === undefined
+        ? undefined
+        : new AccessRoleFilterCompiler(this.db, this.resolveIdentity).compile(source, filter);
     const assertCurrent = () => {
       metadata();
       selection?.assertCurrent();
       const current = this.resolveIdentity(collection);
+      metadata();
       if (!current || current.collectionName !== source.collectionName || accessCollectionKey(current) !== key)
         invalid('Workflow transaction identity changed during planning');
     };

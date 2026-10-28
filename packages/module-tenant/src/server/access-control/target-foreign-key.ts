@@ -134,19 +134,17 @@ export abstract class AccessTargetForeignKeyService {
       request.association,
       this.associationType,
     );
-    const stageMetadata = afterPersist
-      ? accessMetadataGuard(
-          this.db,
-          [
-            { model: relation.sourceModel, config: relation.sourceConfig },
-            { model: relation.targetModel, config: relation.targetConfig },
-          ],
-          [{ model: relation.sourceModel, path: [request.association] }],
-        )
-      : undefined;
+    const metadata = accessMetadataGuard(
+      this.db,
+      [
+        { model: relation.sourceModel, config: relation.sourceConfig },
+        { model: relation.targetModel, config: relation.targetConfig },
+      ],
+      [{ model: relation.sourceModel, path: [request.association] }],
+    );
     const current = () => {
       relation.current();
-      stageMetadata?.();
+      metadata();
       entry?.assertCurrent();
     };
     current();

@@ -210,6 +210,11 @@ export class AccessReferenceMutationHandler {
     const selectedReferences = (input.references ?? [{ name, value, originalValue: input.originalValue }]).map(
       (reference) => ({ ...reference, type: source.model.associations[reference.name]?.associationType }),
     );
+    const entryMetadata = accessMetadataGuard(
+      this.db,
+      [],
+      selectedReferences.map(({ name }) => ({ model: source.model, path: [name] })),
+    );
     const multiple = selectedReferences.some(({ type }) => type === 'BelongsToMany');
     const firstMultiple = association.associationType === 'BelongsToMany';
     const sourceIdentity = cloneDeep(this.resolveIdentity(source));
@@ -340,6 +345,7 @@ export class AccessReferenceMutationHandler {
         );
     let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
     let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
+    entryMetadata();
     const metadata = accessMetadataGuard(
       this.db,
       [

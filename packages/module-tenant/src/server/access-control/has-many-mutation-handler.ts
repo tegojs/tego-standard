@@ -204,6 +204,7 @@ export class AccessTargetForeignKeyMutationHandler {
       association.associationType !== this.associationType
     )
       invalid('Child mutations require a registered foreign-key association field');
+    const entryMetadata = accessMetadataGuard(this.db, [], [{ model: source.model, path: [name] }]);
     const sourceIdentity = cloneDeep(this.resolveIdentity(source));
     const targetIdentity = cloneDeep(this.resolveIdentity(target));
     if (
@@ -242,6 +243,7 @@ export class AccessTargetForeignKeyMutationHandler {
     const inverseFields = aliases.map((alias) => target.getField(alias));
     if (inverseFields.some((entry) => !entry || entry.target !== source.name))
       invalid('Child inverse field is unavailable');
+    entryMetadata();
     const metadata = accessMetadataGuard(
       this.db,
       [

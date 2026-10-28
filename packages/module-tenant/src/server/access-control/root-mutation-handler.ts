@@ -175,6 +175,7 @@ export class AccessRootMutationHandler {
     const collection = this.db.getCollection(resourceName);
     if (!collection || collection.db !== this.db || this.db.modelCollection.get(collection.model) !== collection)
       invalid('Mutation collection is unavailable');
+    const template = collection.options.template;
     const identity = cloneDeep(this.resolveIdentity(collection));
     if (!identity || identity.collectionName !== resourceName) invalid('Mutation collection identity is unavailable');
     const key = accessCollectionKey(identity);
@@ -268,6 +269,7 @@ export class AccessRootMutationHandler {
         !current ||
         current.collectionName !== resourceName ||
         accessCollectionKey(current) !== key ||
+        collection.options.template !== template ||
         (operation !== 'create' && collection.filterTargetKey !== model.primaryKeyAttribute) ||
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)

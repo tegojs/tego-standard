@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import {
@@ -53,7 +54,7 @@ export class AccessMutationService {
     if (!config) invalid('Collection has not migrated to access control');
     const collection = this.db.getCollection(identity.collectionName);
     if (!collection || collection.db !== this.db) invalid('Mutation collection identity is unavailable');
-    return { config, collection };
+    return { config, collection, template: collection.options.template };
   }
 
   private validateValues(
@@ -123,11 +124,12 @@ export class AccessMutationService {
     identity = { ...identity };
     authenticated = { ...authenticated };
     request = cloneDeep(request);
-    const { config, collection } = this.configuration(ctx, identity);
+    const { config, collection, template } = this.configuration(ctx, identity);
     const model = collection.model;
     const current = () => {
       if (
         this.prepared.configuration(ctx, identity) !== config ||
+        collection.options.template !== template ||
         !this.queries.isCurrentCollection(identity, collection, model)
       )
         invalid('Mutation collection identity changed');
@@ -288,11 +290,13 @@ export class AccessMutationService {
     identity = { ...identity };
     authenticated = { ...authenticated };
     request = cloneDeep(request);
-    const { config, collection } = this.configuration(ctx, identity);
+    const { config, collection, template } = this.configuration(ctx, identity);
     const model = collection.model;
     const serializable = selection !== undefined || requiresSerializable(config, request, collection);
+    const metadata = accessMetadataGuard(this.db, [{ model, config }]);
     try {
       const execute = async (transaction: Transaction) => {
+        metadata();
         assertEntryCurrent?.();
         if (selection) {
           this.validateValues(request, collection, config.ownership.enabled);
@@ -317,7 +321,12 @@ export class AccessMutationService {
             'ownership',
           );
           assertEntryCurrent?.();
-          if (!scoped || scoped.config !== config || !this.queries.isCurrentCollection(identity, collection, model))
+          if (
+            !scoped ||
+            scoped.config !== config ||
+            collection.options.template !== template ||
+            !this.queries.isCurrentCollection(identity, collection, model)
+          )
             invalid('Mutation access phase changed during selection');
           const records = await model.findAll(
             internalQuery({
@@ -331,6 +340,7 @@ export class AccessMutationService {
           assertEntryCurrent?.();
           if (
             this.prepared.configuration(ctx, identity) !== config ||
+            collection.options.template !== template ||
             !this.queries.isCurrentCollection(identity, collection, model)
           )
             invalid('Mutation access phase changed during selection');
@@ -340,6 +350,7 @@ export class AccessMutationService {
             assertEntryCurrent?.();
             if (
               this.prepared.configuration(ctx, identity) !== config ||
+              collection.options.template !== template ||
               !this.queries.isCurrentCollection(identity, collection, model)
             )
               invalid('Mutation access phase changed during selection');
@@ -354,6 +365,7 @@ export class AccessMutationService {
           };
         }
         const plan = await this.authorizeExisting(ctx, identity, authenticated, selected, transaction);
+        metadata();
         assertEntryCurrent?.();
         const primary = model.primaryKeyAttribute;
         const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
@@ -376,9 +388,11 @@ export class AccessMutationService {
         await validateWriteTransaction(this.db, transaction, serializable);
         if (
           this.prepared.configuration(ctx, identity) !== config ||
+          collection.options.template !== template ||
           !this.queries.isCurrentCollection(identity, collection, model)
         )
           invalid('Mutation access phase changed during write');
+        metadata();
         audit?.assertCurrent();
         const after = await model.unscoped().findAll(
           internalQuery({
@@ -393,8 +407,10 @@ export class AccessMutationService {
             ],
           }),
         );
+        metadata();
         if (
           this.prepared.configuration(ctx, identity) !== config ||
+          collection.options.template !== template ||
           !this.queries.isCurrentCollection(identity, collection, model)
         )
           invalid('Mutation collection identity changed');

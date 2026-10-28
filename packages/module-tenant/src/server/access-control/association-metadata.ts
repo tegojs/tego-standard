@@ -4,7 +4,7 @@ import type { Database } from '@tego/server';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessQueryService } from './query';
-import { cloneDeep, invalid } from './write-support';
+import { cloneDeep, invalid, managedFileFields } from './write-support';
 
 /** Capture the registered relation, never infer a foreign key from a client-supplied path. */
 export function resolveBelongsTo(
@@ -53,6 +53,8 @@ export function resolveBelongsTo(
   const scope = cloneDeep(association.scope);
   const targetKey = association.targetKey;
   const current = () => {
+    if (writing && managedFileFields(source).includes(foreignKey))
+      invalid('Managed file metadata requires its own storage adapter');
     if (
       prepared.configuration(ctx, sourceIdentity) !== sourceConfig ||
       prepared.configuration(ctx, targetIdentity) !== targetConfig ||

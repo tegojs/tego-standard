@@ -1949,3 +1949,22 @@ Ruling: 在现有根写入口提供同步 captureAttachment，将最终 ACL 捕�
 最新租户包客户端、服务端及声明构建退出 0，保留 attachment-entry-create-build.log；文件包仅改测试，未重复无关构建。三个 TypeScript 的 oxlint 零警告/错误，格式、diff、作者自审及与独立快照逐文件 SHA256 核查通过后提交；独立复核按恢复约定仍待补齐。真实组合经过 ACL.middleware，但尚未把本入口、multipart、文件插件选路及 PostgreSQL 写入连成一次真实 HTTP 请求；这是下一项验证，不把本批误报为完整页面上传验收。
 
 核对临时实例目录及零其他客户端后，删除可重建的专用库 tego_tenant_access_test_129b8d2c4e，复查不存在并停止本任务临时实例；日志与集群目录保留，主/核心检出、正式依赖、业务数据库、线上及正式运行时/保存/启用保持不变。持久化补偿、受控下载、存储使用策略和最终放行仍未完成。
+
+§129 已核对为有效默认签名提交 68333a54d，未推送。
+
+## 130. 实际 HTTP multipart 上传与最终权限、G、存储组合
+
+Ruling: 用真实 FilePlugin 可选选路、完整 ACL.middleware、multipart、PostgreSQL 文件表/storage 关系及实际本地字节连成一次请求。fixture 的用户、角色和租户由服务端测试中间件固定，数据库 URL 先经既有独立测试库白名单校验，再核对 Application 实际保留的连接选项；不使用业务库或正式认证。响应暂为内部主键/影响数，不声称已适配页面上传响应、storage 使用策略、字段级引擎覆盖或持久化恢复。
+
+初版夹具直接向 mockServer 传 Database 实例，Application 深合并循环引用而未进入产品路径；改传经过校验的普通连接选项，不修改核心。之后实际 HTTP 新增均在参数校验处返回 400，记录 staged-creation-http-corrected-fixture.log。边界诊断确认核心 rawParams 自带不可见于 JSON 的 filterByTk: undefined；附件入口白名单漏掉它。沿普通根新增既有协议只接受未提供或 undefined 的 filterByTk，并逐项要求定位值仍为空；客户端实际传编号继续在暂存前拒绝，没有放松 G、操作 ACL 或托管字段校验。临时诊断已移除，证据见 staged-creation-http-boundary-keys.log。
+
+- [x] 真实 HTTP create/upload 正常提交，核对归属、storage 关联及实际字节；两种动作带真实定位编号均在解析前拒绝。
+- [x] 只有 create 授权不能 upload；V-only、最终角色条件不符、INSERT 钩子改物理文件名均回滚，明确验证字节曾复制后被清理，而非提前拒绝。
+- [x] 伪造 storageId 在暂存前拒绝；最终标题字段权限应用于实际请求普通值，未授权金额保留模型默认值，可信托管元数据独立写入。
+- [x] 相关回归、最终租户包构建、lint/格式、自审及测试资源清理；默认签名提交状态见后续记录。
+
+新 HTTP 文件 10 项在独立 PostgreSQL 实际通过，无跳过，保留 staged-creation-http-fixed-shape.log。随后 HTTP、新增权限组合和可选选路三个实际匹配文件 69 项通过、22 项按数据库能力分组跳过；误写 actions.test.ts 没匹配旧默认 action.test.ts，已另行执行正确文件，不能把未匹配文件算作通过。保留 staged-creation-http-regression.log，旧 action 及构建结果另记。
+
+正确的旧默认 action 文件另外 10 项通过，保留 staged-creation-http-legacy.log，累计四文件 79 项通过、22 项数据库分组跳过；新 HTTP 的全部 PostgreSQL 场景实际执行。租户包客户端、服务端及声明构建退出 0，保留 staged-creation-http-build.log；文件包没有产品源码改动。格式化后两份 TypeScript 源/快照 SHA256 一致，oxlint 零警告/错误，Prettier、diff 与作者自审通过；按恢复约定单会话串行，独立复核仍待补齐。
+
+确认实例实际 data_directory、专用库名及零其他客户端后，删除可重建的 tego_tenant_access_test_130c9e6a7b，复查库不存在并停止本任务临时实例；日志和实例目录保留。没有业务库或正式依赖变更，没有正式路由接线、规则保存/启用或生产修改。下一项继续现有上传响应协议适配，之后仍有存储使用策略、持久化补偿和受控下载等放行条件。

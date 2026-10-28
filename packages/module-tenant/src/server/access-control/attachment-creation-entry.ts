@@ -89,13 +89,22 @@ export function captureAttachmentCreation(
   if (!permission.allowed) invalid('Attachment creation action is not authorized');
   if (!plain(final)) invalid('Final attachment context is unavailable');
   const raw = data(final, 'rawParams');
-  shape(raw, ['resourceName', 'actionName', 'associatedName', 'associatedIndex', 'resourceIndex', 'values']);
+  shape(raw, [
+    'resourceName',
+    'actionName',
+    'associatedName',
+    'associatedIndex',
+    'resourceIndex',
+    'filterByTk',
+    'values',
+  ]);
   for (const [key, expected] of [
     ['resourceName', resourceName],
     ['actionName', actionName],
     ['associatedName', undefined],
     ['associatedIndex', undefined],
     ['resourceIndex', undefined],
+    ['filterByTk', undefined],
   ] as const)
     if (Object.hasOwn(raw, key) && raw[key] !== expected) invalid('Attachment transport metadata does not match');
   const collection = db.getCollection(resourceName);

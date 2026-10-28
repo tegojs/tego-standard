@@ -1,4 +1,5 @@
-import type { Collection, Database, Transaction } from '@tego/server';
+import { isDeepStrictEqual } from 'node:util';
+import type { Collection, Database, Field, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
@@ -55,6 +56,94 @@ function names(input: unknown): string[] | undefined {
   if (!Array.isArray(value) || value.some((name) => typeof name !== 'string') || new Set(value).size !== value.length)
     invalid('Attachment field grants must be distinct names');
   return value as string[];
+}
+
+/** Source-field ACL only, never source-row G or permission to create a file.
+ * Combine with the actual storage selection, file entry and subsequent full source write.
+ */
+export function captureAttachmentFieldPermission(
+  db: Database,
+  ctx: AttachmentCreationContext,
+  roleName: string,
+  field: Field,
+  target: Collection,
+) {
+  const source = field?.collection;
+  if (!source || ctx.db !== db || !ctx.action || typeof ctx.action !== 'object')
+    invalid('Attachment field permission requires its registered source context');
+  const action = ctx.action;
+  const resourceName = data(action, 'resourceName');
+  const actionName = data(action, 'actionName');
+  if (
+    resourceName !== source.name ||
+    !['create', 'update'].includes(actionName as string) ||
+    data(action, 'sourceId') !== undefined ||
+    data(action, 'resourceOf') !== undefined
+  )
+    invalid('Attachment field permission requires its source write operation');
+  const binding = { resourceName: source.name, actionName: actionName as string, roleName };
+  const final = ctx.permission;
+  const permission = captureFinalActionPermission(final, binding);
+  if (!permission.allowed) invalid('Attachment source write operation is not authorized');
+  const params = permission.params as { whitelist?: unknown; blacklist?: unknown };
+  const whitelist = names(params.whitelist);
+  const blacklist = names(params.blacklist);
+  const name = field.name;
+  const sourceModel = source.model;
+  const targetModel = target?.model;
+  const sourceName = source.name;
+  const targetName = target?.name;
+  const relation = sourceModel.associations[name];
+  const type = field.type;
+  const foreignKey = (relation as typeof relation & { foreignKey?: string })?.foreignKey;
+  const tables = JSON.stringify([sourceModel.getTableName(), targetModel?.getTableName()]);
+  if (
+    (whitelist !== undefined && !whitelist.includes(name)) ||
+    blacklist?.includes(name) ||
+    (type === 'belongsTo' && foreignKey !== undefined && blacklist?.includes(foreignKey))
+  )
+    invalid('Attachment source field is not authorized');
+  const current = () => {
+    if (
+      ctx.db !== db ||
+      ctx.action !== action ||
+      ctx.permission !== final ||
+      data(action, 'resourceName') !== resourceName ||
+      data(action, 'actionName') !== actionName ||
+      data(action, 'sourceId') !== undefined ||
+      data(action, 'resourceOf') !== undefined ||
+      source.db !== db ||
+      source.name !== sourceName ||
+      db.getCollection(sourceName) !== source ||
+      source.model !== sourceModel ||
+      db.modelCollection.get(sourceModel) !== source ||
+      field.collection !== source ||
+      field.database !== db ||
+      source.getField(name) !== field ||
+      field.name !== name ||
+      field.type !== type ||
+      !['belongsTo', 'belongsToMany'].includes(type) ||
+      !target ||
+      target.db !== db ||
+      target.name !== targetName ||
+      db.getCollection(targetName) !== target ||
+      target.model !== targetModel ||
+      db.modelCollection.get(targetModel) !== target ||
+      target.options.template !== 'file' ||
+      field.options.target !== targetName ||
+      !relation ||
+      sourceModel.associations[name] !== relation ||
+      relation.source !== sourceModel ||
+      relation.target !== targetModel ||
+      relation.associationType !== (type === 'belongsTo' ? 'BelongsTo' : 'BelongsToMany') ||
+      (relation as typeof relation & { foreignKey?: string }).foreignKey !== foreignKey ||
+      JSON.stringify([sourceModel.getTableName(), targetModel.getTableName()]) !== tables ||
+      !isDeepStrictEqual(captureFinalActionPermission(ctx.permission, binding), permission)
+    )
+      invalid('Attachment source field permission changed or is unavailable');
+  };
+  current();
+  return Object.freeze({ field, assertCurrent: current });
 }
 
 /** Capture only after the complete ACL chain, before staging or storage I/O. No runtime routes are registered. */

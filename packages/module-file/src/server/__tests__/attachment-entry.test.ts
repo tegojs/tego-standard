@@ -128,6 +128,23 @@ describe('server-selected attachment storage entry', () => {
     expect(await records()).toBe(0);
     expect(await stored()).toEqual([]);
   });
+  it.each(['upload', 'create'])(
+    'permits configured storage use for %s without storage management reads',
+    async (action) => {
+      await register();
+      const storage = await app.db.getRepository('storages').findOne();
+      await storage.update({ options: { documentRoot: directory, secret: 'not-for-the-uploader' } });
+      const client = supertest(app.callback());
+      expect((await client.get('/api/storages:list')).status).toBe(403);
+      expect((await client.get(`/api/storages:get?filterByTk=${storage.get('id')}`)).status).toBe(403);
+      const response = await upload(action);
+      expect(response.status).toBe(200);
+      expect(await fs.readFile(path.join(directory, response.body.data.filename))).toEqual(bytes);
+      expect(JSON.stringify(response.body)).not.toContain('not-for-the-uploader');
+      expect(response.body.data.storage).toBeUndefined();
+      expect(await records()).toBe(1);
+    },
+  );
   it('preserves storage rules finalized while the legacy upload engine is constructed', async () => {
     await register();
     const local = getStorageConfig('local');

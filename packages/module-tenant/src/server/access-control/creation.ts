@@ -6,6 +6,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureUserAuditFields } from './audit-fields';
 import type { AccessCollectionIdentity } from './config-store';
 import { resolveActiveAccessTenant, type AccessIdentity } from './context';
+import { prepareAttachmentCreationStorage, type AccessAttachmentCreationStorage } from './creation-attachment-storage';
 import { prepareCreationLinkRows, prepareCreationLinks, type AccessCreationLink } from './creation-links';
 import { prepareCreationReferenceRows } from './creation-reference-rows';
 import { AccessMutationError } from './mutation-errors';
@@ -96,6 +97,39 @@ export class AccessCreationService {
     return this.create(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction, afterPersist);
   }
 
+  /**
+   * Trusted file entry only: one record, no client storage FK or other relationships.
+   * The entry owns finalized operation/field ACL, storage-use authority, metadata and file compensation.
+   * The caller owns the transaction and must roll it back after any rejection.
+   */
+  async withCreatedAttachmentInTransaction(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessCreationRequest,
+    transaction: Transaction,
+    storage: AccessAttachmentCreationStorage,
+    writer: (plan: AccessCreationPlan) => Promise<readonly Model[]>,
+    assertEntryCurrent?: () => void,
+    afterPersist?: () => Promise<void>,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!plain(storage)) invalid('Attachment creation requires a trusted storage selection');
+    if (!(transaction instanceof Transaction)) invalid('An active root write transaction is required');
+    if (afterPersist !== undefined && typeof afterPersist !== 'function')
+      invalid('A persistence stage must be a function');
+    return this.create(
+      ctx,
+      identity,
+      authenticated,
+      request,
+      writer,
+      assertEntryCurrent,
+      transaction,
+      afterPersist,
+      storage,
+    );
+  }
+
   private async create(
     ctx: object,
     identity: AccessCollectionIdentity,
@@ -105,6 +139,7 @@ export class AccessCreationService {
     assertEntryCurrent?: () => void,
     inheritedTransaction?: Transaction,
     afterPersist?: () => Promise<void>,
+    attachmentStorage?: AccessAttachmentCreationStorage,
   ): Promise<{ keys: Array<string | number>; affected: number }> {
     identity = { ...identity };
     authenticated = { ...authenticated };
@@ -124,6 +159,18 @@ export class AccessCreationService {
     const audit = captureUserAuditFields(this.db, collection, authenticated);
     if (!Array.isArray(request.values) || !request.values.length || request.values.length > 1000)
       invalid('Create between 1 and 1000 explicit records');
+    if (
+      attachmentStorage !== undefined &&
+      (request.values.length !== 1 ||
+        [request.reference, request.references, request.rowReferences, request.links, request.rowLinks].some(
+          (value) => value !== undefined,
+        ))
+    )
+      invalid('Attachment creation supports one record and only its managed storage relationship');
+    const attachment =
+      attachmentStorage === undefined
+        ? undefined
+        : prepareAttachmentCreationStorage(this.db, collection, config, attachmentStorage);
     const references = prepareCreationReferenceRows(
       this.db,
       this.prepared,
@@ -183,6 +230,7 @@ export class AccessCreationService {
       audit.assertCurrent();
       references.assertCurrent();
       linkPlan?.current();
+      attachment?.current();
       if (
         this.prepared.configuration(ctx, identity) !== config ||
         !this.queries.isCurrentCollection(identity, collection, model)
@@ -199,7 +247,7 @@ export class AccessCreationService {
     };
     current();
     if (model.primaryKeyAttributes.length !== 1) invalid('Creation requires a single primary key');
-    const related = references.count > 0 || (linkPlan?.count ?? 0) > 0;
+    const related = references.count > 0 || (linkPlan?.count ?? 0) > 0 || attachment !== undefined;
     if (
       related &&
       ((!references.batched && !linkPlan?.batched && request.values.length !== 1) ||
@@ -237,9 +285,14 @@ export class AccessCreationService {
               row.tenantId = tenant;
             }
             for (const { reference, relation } of references.forRow(index)) row[relation.foreignKey] = reference.key;
+            if (attachment) row.storageId = attachment.value;
             return row;
           });
           current();
+          if (attachment) {
+            await attachment.verify(transaction);
+            current();
+          }
           await references.authorize(authenticated, transaction, current);
           if (linkPlan) {
             await linkPlan.authorize(authenticated, transaction);
@@ -325,6 +378,10 @@ export class AccessCreationService {
               current();
             }
             if (afterPersist) {
+              if (attachment) {
+                await attachment.verify(transaction);
+                current();
+              }
               await afterPersist();
               await validateWriteTransaction(this.db, transaction, serializable);
               current();
@@ -351,6 +408,7 @@ export class AccessCreationService {
                 blocked.some((field) => {
                   const value = record.getDataValue(field);
                   if (audit.has(field)) return !audit.acceptsCreate(field, value);
+                  if (attachment && field === 'storageId') return !attachment.accepts(value);
                   const expected = expectedReferences.get(String(record.getDataValue(primary)))?.get(field);
                   return expected
                     ? expected.key === null
@@ -384,6 +442,11 @@ export class AccessCreationService {
             }
             if (unexpectedInserts || receipts.size !== records.length)
               invalid('Creation results must match the actual INSERT receipts');
+            if (attachment) {
+              await attachment.verify(transaction);
+              await validateWriteTransaction(this.db, transaction, serializable);
+              current();
+            }
             return { keys, affected: keys.length };
           } finally {
             this.db.sequelize.removeHook('afterQuery', hookName);

@@ -1,10 +1,42 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { Database } from '@tego/server';
+import type { Database, Model, ModelStatic } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessQueryService } from './query';
 import { cloneDeep, invalid, managedFileFields } from './write-support';
+
+/** A managed adapter and ordinary reference writes must reject the same overlapping relationships. */
+export function assertForeignKeyWriteIsolation(
+  db: Database,
+  sourceModel: ModelStatic<Model>,
+  targetModel: ModelStatic<Model>,
+  association: ModelStatic<Model>['associations'][string],
+  foreignKey: string,
+  targetKey: string,
+) {
+  for (const collection of db.collections.values())
+    for (const entry of Object.values(collection.model.associations)) {
+      const other = entry as typeof entry & {
+        foreignKey?: string;
+        otherKey?: string;
+        sourceKey?: string;
+        targetKey?: string;
+        through?: { model?: typeof sourceModel };
+      };
+      if (other === association) continue;
+      if (
+        (other.source === sourceModel &&
+          (other.associationType === 'BelongsTo' ? other.foreignKey === foreignKey : other.sourceKey === foreignKey)) ||
+        (other.target === sourceModel &&
+          (other.associationType === 'BelongsTo' || other.associationType === 'BelongsToMany'
+            ? other.targetKey === foreignKey
+            : other.foreignKey === foreignKey && (other.source !== targetModel || other.sourceKey !== targetKey))) ||
+        (other.through?.model === sourceModel && [other.foreignKey, other.otherKey].includes(foreignKey))
+      )
+        invalid('Foreign key also changes an unsupported relationship');
+    }
+}
 
 /** Capture the registered relation, never infer a foreign key from a client-supplied path. */
 export function resolveBelongsTo(
@@ -72,32 +104,7 @@ export function resolveBelongsTo(
       invalid('Association identity changed during authorization');
     if (writing) {
       // One FK must not silently alter a second relation or act as somebody else's referenced key.
-      for (const collection of db.collections.values())
-        for (const entry of Object.values(collection.model.associations)) {
-          const other = entry as typeof entry & {
-            foreignKey?: string;
-            otherKey?: string;
-            sourceKey?: string;
-            targetKey?: string;
-            through?: { model?: typeof sourceModel };
-          };
-          if (other === association) continue;
-          if (
-            (other.source === sourceModel &&
-              (other.associationType === 'BelongsTo'
-                ? other.foreignKey === foreignKey
-                : other.sourceKey === foreignKey)) ||
-            (other.target === sourceModel &&
-              (other.associationType === 'BelongsTo'
-                ? other.targetKey === foreignKey
-                : other.associationType === 'BelongsToMany'
-                  ? other.targetKey === foreignKey
-                  : other.foreignKey === foreignKey &&
-                    (other.source !== targetModel || other.sourceKey !== targetKey))) ||
-            (other.through?.model === sourceModel && [other.foreignKey, other.otherKey].includes(foreignKey))
-          )
-            invalid('Foreign key also changes an unsupported relationship');
-        }
+      assertForeignKeyWriteIsolation(db, sourceModel, targetModel, association, foreignKey, targetKey);
     }
   };
   current();

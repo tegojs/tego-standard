@@ -179,3 +179,19 @@ export async function verifyLocalStagedAttachment(
     throw new TypeError('Local recovery object was replaced or changed');
   return Object.freeze({ state: 'present', size: Number(objectStat.size) });
 }
+
+/** Only for an already cancelled operation under the caller's exclusive recovery lock.
+ * Stable server-owned paths remain mandatory; Node does not provide inode-conditional unlink.
+ * Not exported from the package entry and never accepts a client-selected deletion path.
+ */
+export async function removeLocalStagedAttachment(
+  expected: Parameters<typeof verifyLocalStagedAttachment>[0],
+  receipt: unknown,
+): Promise<'removed' | 'missing'> {
+  const captured = captureLocalStagedAttachment(expected, receipt);
+  const location = { root: captured.location.root, values: captured.location };
+  const object = await verifyLocalStagedAttachment(location, captured.receipt);
+  if (object.state === 'missing') return 'missing';
+  await fs.unlink(path.join(captured.receipt.root, captured.receipt.path, captured.receipt.filename));
+  return 'removed';
+}

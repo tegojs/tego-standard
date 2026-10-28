@@ -179,4 +179,28 @@ export class StagedAttachmentJournal {
       },
     );
   }
+
+  /** Persist cancellation first, then serialize an awaited trusted recovery under its operation lock.
+   * A failed callback never rolls the cancellation fence back to pending. It receives no transaction.
+   */
+  async withCancelledRecovery<T>(id: string, execute: (payload: AttachmentJournalPayload) => Promise<T>) {
+    if (typeof execute !== 'function') throw new TypeError('Attachment recovery requires an awaited server executor');
+    const claim = await this.claimRecovery(id);
+    if (claim.state === 'committed') return Object.freeze({ state: 'committed' as const });
+    const expected = structuredClone(claim.payload);
+    return this.database.sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (transaction) => {
+        const assertCancelled = async () => {
+          const row = await this.read(id, transaction);
+          if (row.getDataValue('state') !== 'cancelled' || !isDeepStrictEqual(row.getDataValue('payload'), expected))
+            throw new TypeError('Cancelled attachment recovery operation changed');
+        };
+        await assertCancelled();
+        const result = await execute(structuredClone(expected));
+        await assertCancelled();
+        return Object.freeze({ state: 'cancelled' as const, result });
+      },
+    );
+  }
 }

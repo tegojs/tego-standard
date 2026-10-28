@@ -47,24 +47,9 @@ export async function withStagedAttachmentTransaction<T>(
   if (journal !== undefined && (!(journal instanceof StagedAttachmentJournal) || journal.database !== db))
     throw new TypeError('Attachment journal must belong to the owned transaction database');
   if (receipts !== undefined) {
-    if (
-      !(receipts instanceof StagedAttachmentReceiptJournal) ||
-      !journal ||
-      receipts.database === db ||
-      receipts.database.sequelize === db.sequelize ||
-      db.sequelize.getDialect() !== 'postgres' ||
-      receipts.database.sequelize.getDialect() !== 'postgres' ||
-      typeof db.options.database !== 'string' ||
-      !db.options.database ||
-      typeof db.options.host !== 'string' ||
-      !db.options.host ||
-      receipts.database.options.database !== db.options.database ||
-      receipts.database.options.host !== db.options.host ||
-      Number(receipts.database.options.port || 5432) !== Number(db.options.port || 5432)
-    )
-      throw new TypeError(
-        'Attachment identity receipts require an operation journal and an independent pool for the same database',
-      );
+    if (!(receipts instanceof StagedAttachmentReceiptJournal) || !journal)
+      throw new TypeError('Attachment identity receipts require an operation journal');
+    receipts.assertIndependentPoolFor(db);
   }
   // Construct privately so a failed second use cannot discard an earlier committed upload's plan.
   const selectedStorage = journal ? structuredClone(storage) : storage;

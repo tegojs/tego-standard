@@ -59,6 +59,24 @@ export class StagedAttachmentReceiptJournal {
       throw new TypeError('Attachment receipt requires an operation identifier');
   }
 
+  /** Explicitly supplied pool, never an implicit extra connection from the owned business pool. */
+  assertIndependentPoolFor(database: Database): void {
+    this.assertCurrent();
+    if (
+      this.database === database ||
+      this.database.sequelize === database.sequelize ||
+      database.sequelize.getDialect() !== 'postgres' ||
+      typeof database.options.database !== 'string' ||
+      !database.options.database ||
+      typeof database.options.host !== 'string' ||
+      !database.options.host ||
+      this.database.options.database !== database.options.database ||
+      this.database.options.host !== database.options.host ||
+      Number(this.database.options.port || 5432) !== Number(database.options.port || 5432)
+    )
+      throw new TypeError('Attachment identity receipts require an independent pool for the same database');
+  }
+
   private async lockStructure(transaction: Transaction) {
     const generator = this.database.sequelize.getQueryInterface().queryGenerator as unknown as {
       quoteTable(table: unknown): string;

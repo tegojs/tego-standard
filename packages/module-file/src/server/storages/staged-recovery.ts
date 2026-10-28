@@ -1,0 +1,23 @@
+import { removeLocalStagedAttachment } from './local-recovery';
+import { StagedAttachmentJournal } from './staged-journal';
+import { StagedAttachmentReceiptJournal } from './staged-receipt-journal';
+
+/**
+ * Explicit internal recovery, not a registered worker or endpoint. Never infer deletion permission
+ * from an absent business row. Requires stable server-owned local paths with no competing host writers.
+ */
+export async function recoverStagedAttachment(
+  journal: StagedAttachmentJournal,
+  receipts: StagedAttachmentReceiptJournal,
+  id: string,
+): Promise<{ readonly state: 'retained' | 'removed' | 'missing' }> {
+  if (!(journal instanceof StagedAttachmentJournal) || !(receipts instanceof StagedAttachmentReceiptJournal))
+    throw new TypeError('Attachment recovery requires operation and identity journals');
+  receipts.assertIndependentPoolFor(journal.database);
+  const recovery = await journal.withCancelledRecovery(id, async (expected) => {
+    receipts.assertIndependentPoolFor(journal.database);
+    const evidence = await receipts.inspect(id, expected);
+    return removeLocalStagedAttachment(expected, evidence.receipt);
+  });
+  return Object.freeze({ state: recovery.state === 'committed' ? 'retained' : recovery.result });
+}

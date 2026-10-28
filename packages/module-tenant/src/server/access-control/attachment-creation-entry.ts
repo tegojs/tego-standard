@@ -172,11 +172,12 @@ export function captureAttachmentCreation(
   const actor = Object.freeze(cloneDeep(authenticated));
   if (typeof actor.roleName !== 'string') invalid('Attachment creation requires an authenticated role');
   const final = ctx.permission;
-  const permission = captureFinalActionPermission(final, {
+  const binding = {
     resourceName,
     actionName: actionName as string,
     roleName: actor.roleName,
-  });
+  };
+  const permission = captureFinalActionPermission(final, binding);
   if (!permission.allowed) invalid('Attachment creation action is not authorized');
   if (!plain(final)) invalid('Final attachment context is unavailable');
   const raw = data(final, 'rawParams');
@@ -254,7 +255,8 @@ export function captureAttachmentCreation(
       accessCollectionKey(latest) !== stableKey ||
       collection.options.template !== 'file' ||
       prepared.configuration(ctx, identity) !== config ||
-      !queries.isCurrentCollection(identity, collection, model)
+      !queries.isCurrentCollection(identity, collection, model) ||
+      !isDeepStrictEqual(captureFinalActionPermission(ctx.permission, binding), permission)
     )
       invalid('Attachment entry identity or preparation phase changed');
     metadataGuard();

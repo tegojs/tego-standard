@@ -48,6 +48,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
   let sourceFinalFields: string[] | undefined;
   let afterCopy: (() => void) | undefined;
   let sourceContext: { permission: unknown } | undefined;
+  let fileContext: { permission: unknown } | undefined;
   const bytes = Buffer.from('Actual HTTP attachment bytes');
 
   beforeEach(async () => {
@@ -57,6 +58,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     sourceFinalFields = undefined;
     afterCopy = undefined;
     sourceContext = undefined;
+    fileContext = undefined;
     directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-file-http-create-'));
     root = path.join(directory, 'root');
     staging = path.join(directory, 'staging');
@@ -100,6 +102,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       name: 'file-manager',
       attachmentResolver: () => async (ctx: Context & { permission: unknown }) => {
         const entry = handler.captureAttachment(ctx, ctx.state.testActor);
+        fileContext = ctx;
         let fieldPermission: ReturnType<typeof captureAttachmentFieldPermission> | undefined;
         if (sourceField !== undefined) {
           // Server-selected fixture field, not a client attachmentField or a delegated file decision.
@@ -528,6 +531,26 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       (sourceContext!.permission as { parsedParams: { fields?: string[] } }).parsedParams.fields = [];
     };
     expect((await upload()).status).toBe(400);
+    expect(copied).toBe(true);
+    await empty();
+  });
+
+  it.each(
+    ['create', 'upload'].flatMap((operation) =>
+      ['decision', 'fields', 'filter'].map((change) => ({ operation, change })),
+    ),
+  )('rolls back $operation when its final file $change changes after copying', async ({ operation, change }) => {
+    afterCopy = () => {
+      const final = fileContext!.permission as { can: unknown; skip: boolean; parsedParams: Record<string, unknown> };
+      if (change === 'decision') {
+        final.can = false;
+        final.skip = false;
+      }
+      if (change === 'fields') final.parsedParams.fields = [];
+      if (change === 'filter') final.parsedParams.filter = { id: { $eq: -1 } };
+    };
+    const response = await upload(operation);
+    expect(response.status, response.text).toBe(400);
     expect(copied).toBe(true);
     await empty();
   });

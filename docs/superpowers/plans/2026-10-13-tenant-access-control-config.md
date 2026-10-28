@@ -2294,3 +2294,17 @@ Ruling: 不把 §149 的显式 Node HTTP 能力直接接到正式 Koa 动作，�
 下一独立工作优先核查附件销毁/替换等尚未完成入口的 G、角色条件与物理副作用协调；已完成上传的取消清理不等于允许删除既有附件。正式入口、公开 URL 改造、整分支独立复核和启用仍未完成。签名仍保留同一次待答人工认证，不借此恢复已撤销的全局关联权限拦截。
 
 撤回试验后，最终实际文件/HTTP 文件完整 SQLite 二十五项通过、无跳过，保留 authorized-read-final-state.log；最终文件包客户端、服务端及声明再次构建退出 0，保留 authorized-read-final-state-build.log。§145–149 十一份 TypeScript 源/快照 SHA256 全部一致，格式、lint 和 diff 通过；无活动失败夹具或该试验执行器导出。没有临时 PG 服务监听。只读查询正式包仓库，@tego/server 和 @tachybase/logger 当前均仍为 1.6.24，不改正式依赖。之前实际 PostgreSQL 的读取/HTTP 及新增边界证据仍有效，不把最后 SQLite 运行冒称为重新执行 PostgreSQL。作者自审未发现本批内部能力待修问题，整分支独立复核依旧未完成。
+
+## 151. 文件新增最终动作决策在复制后仍须一致
+
+Ruling: 检查删除/替换的存储副作用边界时，交叉核对已有新增路径，发现来源字段权限和新读取均比较完整最终决策，但文件新增 current 只比较 ctx.permission 对象身份。原对象内 can、字段或行条件在实际复制期间变化，可能仍按旧快照提交。先用真实 PostgreSQL/HTTP create/upload 复制后改变最终文件决策复现，再复用既有 captureFinalActionPermission 和深比较拒绝漂移，原事务/字节补偿负责回滚。它针对同一请求最终决策被改变，不要求重新加载角色的全局权限或撤销已完成请求；不改正式运行时、旧上传或核心。§144 原索引和本批同文件的工作区增量仍分开提交。
+
+- [x] 真实 PG/HTTP 的 create/upload 在复制后变更操作许可、最终字段或行条件，均拒绝提交并回滚数据库行与本次字节。
+- [x] 最小最终决策复核，保留稳定请求、来源字段检查和当前新增 G 行为。
+- [x] 串行相关回归、包构建、lint/格式、自审及专用资源清理；签名状态如下。
+
+六种真实 PG/HTTP 请求在修正前全部返回 200 而非预期 400，保留 attachment-final-decision-red.log；原二十八项只因定向过滤未运行。最小修正只提取既有服务端绑定，并在 current 中重新捕获/比较完整最终决策，不重新求值或加载全局 ACL。随后三文件串行一百二十三项通过、无跳过，保留 attachment-final-decision-final.log：真实 PG/HTTP 三十四项、来源字段 ACL 十九项、记录读取 SQLite/PostgreSQL 各三十五项。六种变化在实际复制完成后均拒绝，数据库行、本次正式文件字节和 multipart 暂存全部清空；稳定上传和来源独立权限继续通过。
+
+租户包及文件包客户端、服务端和声明顺序构建均退出 0，保留 attachment-final-decision-tenant-build.log、attachment-final-decision-file-build.log。两份变更 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过，整分支独立复核仍未完成。核实集群目录、零其他客户端后，仅删除专用库 tego_tenant_access_test_151f718293、确认 pg_database 计数 0，并停止临时服务，保留目录日志。用户已回复可以认证，原 §144 索引已单独完成有效默认签名 fb25140；后续按行为继续签名提交，不推送。本批拟 fix(tenant): recheck final attachment grants after storage awaits，不合并进 §144 的字段交集修正。
+
+签名恢复后，§144 fb251405b、§145/146 b95d93a03、§147 0ba866168、§148–150 eb047892a 均已逐个核对为有效默认签名。共享源码/文档按实际行为分批暂存，未将后续决策复核混入旧索引；本节与最后两份源码增量单独签名提交。所有批次均未推送。正式 Koa 接口及公开链接保护仍受 §150 约束，附件销毁/替换的 G 与物理清理协调、其他入口、最终整合及整分支独立复核仍需继续，不能将本次提交当作整体完成或放行。

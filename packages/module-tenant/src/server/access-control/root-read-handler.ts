@@ -3,6 +3,7 @@ import type { Collection, Database, Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationReadPreparation, prepareAssociationReadContexts } from './association-read-contexts';
+import { captureAttachmentRead } from './attachment-read-entry';
 import { parseChartQueryParams } from './chart-query-params';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
@@ -44,6 +45,11 @@ export class AccessRootReadHandler {
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
     private readonly resolveRelatedContext?: AccessRelatedReadContextResolver,
   ) {}
+
+  /** Final download ACL and record G/V only; trusted content adapters still own storage and streaming. */
+  captureAttachment(ctx: AccessRootReadContext, authenticated: AccessIdentity) {
+    return captureAttachmentRead(this.db, this.prepared, this.queries, this.resolveIdentity, ctx, authenticated);
+  }
 
   /** Route finalized reads without replacing the target's actual action decision. */
   async handleResourceWithRelatedContexts(

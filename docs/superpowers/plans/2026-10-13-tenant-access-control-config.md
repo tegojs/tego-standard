@@ -2240,3 +2240,19 @@ Ruling: 读取旧附件不能重新执行当前表或字段的上传存储选择
 最后简化测试辅助函数后，两种数据库的新读取场景三十项再次通过，保留 stored-read-final.log；其余九十二项仅因定向过滤未执行，前一百二十二项完整绿的记录仍保留，不将此定向运行当成全套。核实实际实例目录和零其他客户端后，仅删除可重建专用库 tego_tenant_access_test_146b3d5e7f，确认 pg_database 计数 0，再停止临时服务，保留目录及日志。
 
 当前签名交接：HEAD 仍是有效签名 b4a5bb65c；§144 五个文件的原索引保持不变，拟提交 fix(tenant): honor final fields in attachment storage grants。§145/§146 的五份文件源码及计划/规格追加内容仍未暂存，拟随后提交 feat(file): prepare local attachment reads from stored locations。没有正在运行的 Git 签名或测试/构建进程；一次人工认证问题仍待答，不重复触发。恢复后先提交已验证的原索引，再核对并暂存第二批，不推送。下一开发项是按最终读取 ACL 与 G/V 绑定真实附件记录和存储、等待后复核及 HTTP 流生命周期，不可把上述内部文件系统能力当作已有该授权入口。
+
+## 147. 附件内容读取绑定实际下载决策及真实记录
+
+Ruling: 内部 AccessRootReadHandler.captureAttachment 只捕获真实根 download 操作的最终 ACL，不借用 get/list/create 或存储管理权限；不登记 download 操作或路由。输入只支持一个实际 filterByTk（兼容匹配的 REST resourceIndex），不得提供路径、存储编号、展开或投影。角色的最终读取字段必须允许实际主键及 path/filename/storageId/size；角色行条件与 G/V 继续复用既有读取服务，不为取文件元数据绕过字段权限。返回的只读记录证明包含原始位置及真实主键，不运行展示 getter；仅引用历史记录不认领。
+
+捕获同步固定身份、输入、最终决策、配置阶段及参与元数据。单次 withRecord 回调取得记录及 assertCurrent；可信内容适配器必须在后续存储/文件等待后、实际释放字节前调用它，以同一实际键重新核对角色范围、G/V、最终决策与原始位置未变。回调结束后证明失效，不能保留后重放。此批只完成记录授权证明；不把它冒称为强制执行了存储选择/文件发送顺序的完整下载器，后续 HTTP 组合必须实际验证顺序、失败关闭和客户端中断。读取开始后不承诺逐字节撤权或回收已发送内容。
+
+- [x] 真实 ACL 与 SQLite/PostgreSQL：归属与只读可见、角色条件、字段拒绝、错误操作/参数、等待后撤权/位置变化、历史不认领及单次证明生命周期。
+- [x] 共用读取服务的最小内部实现，不增加全局关联拦截或正式入口。
+- [x] 顺序相关回归及租户包构建；最终 lint/格式、作者自审和专用库清理记录如下，签名按既有待答认证恢复。
+
+入口缺失的初始运行十一项失败、十七项通过，保留 attachment-read-red.log；其中负向测试不能因缺少方法而冒称有效 RED。实现后补齐三十五项 SQLite 场景通过。作者自审发现 REST resourceIndex 使用 String 强制转换会调用对象 toString 并接受伪造键，新增真实复现一项失败、一项通过，保留 attachment-read-locator-red.log；改为复用严格 captureReadKey，不执行对象转换。补充实际展示 getter、物理映射/模板漂移、活跃租户撤权、只读事务和结束事务验证。
+
+最终三文件顺序执行一百七十四项全部通过、无跳过，保留 attachment-read-final.log：新读取 SQLite/PostgreSQL 各三十五项、资源读取八十五项及最终权限十九项；真实 PostgreSQL 并非分组跳过。租户包客户端、服务端及声明构建退出 0，保留 attachment-read-build.log。最后加强展示 getter 夹具，先明确断言 ORM 展示值已改变，再验证内容位置仍取原始值；两种数据库定向两项均通过，其余六十八项仅定向过滤，保留 attachment-read-getter-final.log，不重复计入完整回归。
+
+三份 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过，整分支独立复核仍未完成。重新核实集群实际目录、零其他客户端，仅删除专用库 tego_tenant_access_test_147c4e6f80，确认 pg_database 计数 0，再停止临时服务并保留目录日志。§144 原五文件索引保持 224 增/5 删，§145/146 和 §147 未暂存，签名仍等同一次人工认证，不重试或绕过；后续分开英文原子提交，不推送。

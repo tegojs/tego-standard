@@ -2016,3 +2016,19 @@ Ruling: 原共享文件类型过滤器明确删除 size，要求 multipart limit
 暂存器 38 项全部通过，保留 staged-storage-limits-green.log；真实 PostgreSQL HTTP 夹具暂时不传所选 rules 时，两种更小大小/不匹配类型本应拒绝却成功，保留 staged-storage-limits-http-red.log，之后恢复服务端规则传递。最终暂存、完整 HTTP、新旧可选选路和默认 action 四文件 99 项全部通过，无跳过，保留 staged-storage-limits-final.log。只有所选新入口使用该暂存器，旧默认 multipart 大小计算未更改；本批不替代实际 storage 使用授权或持久化恢复。
 
 文件包客户端、服务端及声明构建退出 0，保留 staged-storage-limits-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审及源/快照 SHA256 一致，独立复核仍待补齐。核实实际实例目录和零其他客户端后，删除可重建的专用库 tego_tenant_access_test_133f6b9d1e，复查不存在并停止本任务实例；保留日志及实例目录。未改正式注册/保存/启用、依赖、业务库或线上；保留默认签名且不推送。
+
+§133 已核对为有效默认签名提交 41dbb2bf5，未推送。
+
+## 134. 服务端附件字段的存储覆盖选择
+
+Ruling: 旧上传允许字段 storage 覆盖文件表设置。新内部选择器接收可选的真实 Field 对象，不接收请求路径或 storageId；要求字段在同库登记，且是实际指向本文件表的 BelongsTo/BelongsToMany。字段配置优先于文件表配置，再使用唯一默认存储；明确但无效的配置拒绝，不回退。选择后固定来源表、字段、关系和 storage 设置，在原 assertCurrent 中持续复核，变化整笔回滚。此能力只解析配置，不授予使用该字段/存储的权限，也不把 attachmentField 加入正式 HTTP 白名单；最终 ACL/G 与存储使用策略仍是独立接线门槛。
+
+- [x] 先用真实登记字段验证覆盖、回退、错误目标/非关联/跨库、配置变化与实际文件回滚，运行确认缺失行为。
+- [x] 最小扩展现有选择器，保留无字段调用和旧默认上传路径。
+- [x] 聚焦双库回归、文件包构建、lint/格式、自审和独立测试库清理；默认签名提交状态见后续记录。
+
+SQLite 缺失行为先实际复现十四项失败、三十二项通过，保留 storage-field-selection-red.log；最小实现后四十六项通过，保留 storage-field-selection-green.log。第一次四文件组合忘记传串行参数，共用专用库出现表被其他文件删除/重复建表，三十四项失败；该轮不能用作产品回归结论，保留 storage-field-selection-final.log。确认进程结束及零其他客户端后重建同一可重建专用测试库，以 --no-file-parallelism --maxWorkers=1 顺序重跑；未因夹具互扰修改产品代码。
+
+正确串行的选择器、真实 HTTP、公共新增/实际文件组合及原 action 四文件共 142 项通过、22 项数据库能力分组跳过，保留 storage-field-selection-serial.log；选择器全部 92 项在 SQLite/独立 PostgreSQL 实际执行。文件包客户端、服务端及声明构建退出 0，保留 storage-field-selection-build.log。两份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/快照 SHA256 与作者自审通过；独立复核仍待补齐。仅增加服务端配置选择参数，未增加 HTTP attachmentField 支持，未授予来源业务字段或存储使用权。
+
+核实实际实例目录和零其他客户端后，删除可重建的专用库 tego_tenant_access_test_134a7c0e2f、复查不存在并停止本任务实例，保留日志和实例目录。正式注册/规则保存及启用仍关闭；主检出、核心、正式依赖、业务库及线上未修改。持久化恢复、受控下载、存储使用策略和其他入口仍是后续任务，不能据此宣称整个附件隔离完成。

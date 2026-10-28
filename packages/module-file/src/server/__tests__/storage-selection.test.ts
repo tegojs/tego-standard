@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { mockDatabase, Transaction, type Collection, type Database } from '@tego/server';
+import { mockDatabase, Transaction, type Collection, type Database, type Field } from '@tego/server';
 
 import * as files from '..';
 import { isolatedPostgresDatabase } from '../../../../module-tenant/src/server/__tests__/access-control/database';
@@ -14,6 +14,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
   (dialect) => {
     let db: Database;
     let collection: Collection;
+    let source: Collection;
     let transaction: Transaction;
     let directory: string;
     let destination: string;
@@ -34,6 +35,16 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
           ...['title', 'filename', 'extname', 'path', 'url', 'mimetype'].map((name) => ({ name, type: 'string' })),
           { name: 'size', type: 'integer' },
           { name: 'meta', type: 'json' },
+        ],
+      });
+      source = db.collection({
+        name: 'sources',
+        timestamps: false,
+        fields: [
+          { name: 'file', type: 'belongsTo', target: 'files', storage: 'receipts' },
+          { name: 'files', type: 'belongsToMany', target: 'files', through: 'source_files', storage: 'receipts' },
+          { name: 'wrong', type: 'string', storage: 'receipts' },
+          { name: 'storage', type: 'belongsTo', target: 'storages', storage: 'receipts' },
         ],
       });
       await db.sync();
@@ -69,7 +80,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
     afterEach(async () => {
       try {
         if (transaction && !(transaction as Transaction & { finished?: string }).finished) await transaction.rollback();
-        if (dialect === 'postgres') await db.sequelize.query('DROP TABLE IF EXISTS "files", "storages"');
+        if (dialect === 'postgres')
+          await db.sequelize.query('DROP TABLE IF EXISTS "source_files", "sources", "files", "storages"');
       } finally {
         await db?.close();
         if (directory) await fs.rm(directory, { recursive: true, force: true });
@@ -83,14 +95,17 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
     }
 
     // This composition proves config/bytes/metadata coordination, not operation ACL or G.
-    async function persist(change?: (transaction: Transaction) => Promise<void>) {
+    async function persist(change?: (transaction: Transaction) => Promise<void>, attachmentField?: Field) {
       directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-selected-storage-'));
       const root = path.join(directory, 'root');
       const staged = path.join(directory, 'staged');
       const bytes = Buffer.from('Selected storage bytes');
       await fs.writeFile(staged, bytes);
-      await db.getRepository('storages').update({ filterByTk: 17, values: { options: { documentRoot: root } } });
-      const selected = await files.resolveStagedAttachmentStorage(collection);
+      await db.getRepository('storages').update({
+        filter: { id: { $in: [17, 18] } },
+        values: { options: { documentRoot: root } },
+      });
+      const selected = await files.resolveStagedAttachmentStorage(collection, attachmentField);
       return files.withStagedAttachmentTransaction(
         db,
         selected.values as unknown as files.StagedAttachmentStorage,
@@ -122,6 +137,86 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
     it('uses the sole default only when the file table has no configured storage', async () => {
       const selected = await select();
       expect(selected.values).toMatchObject({ id: 17, name: 'local' });
+    });
+
+    it.each(['file', 'files'])(
+      'uses the registered %s field storage before file-table/default storage',
+      async (name) => {
+        collection.options.storage = 'local';
+        const selected = await files.resolveStagedAttachmentStorage(collection, source.getField(name));
+        transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+        expect(selected.values).toMatchObject({ id: 18, name: 'receipts', rules: { size: 1024 } });
+        await expect(selected.assertCurrent(transaction)).resolves.toBeUndefined();
+      },
+    );
+
+    it('falls back to the file-table setting then the unique default only when the field has no override', async () => {
+      delete source.getField('file').options.storage;
+      collection.options.storage = 'receipts';
+      expect((await files.resolveStagedAttachmentStorage(collection, source.getField('file'))).values.id).toBe(18);
+      delete collection.options.storage;
+      expect((await files.resolveStagedAttachmentStorage(collection, source.getField('file'))).values.id).toBe(17);
+    });
+
+    it.each(['missing', '', null, 17])(
+      'rejects an invalid explicit field storage %s rather than falling back',
+      async (value) => {
+        source.getField('file').options.storage = value;
+        await expect(files.resolveStagedAttachmentStorage(collection, source.getField('file'))).rejects.toThrow();
+      },
+    );
+
+    it.each(['wrong', 'storage'])(
+      'rejects field %s which is not an actual relation to this file table',
+      async (name) => {
+        await expect(files.resolveStagedAttachmentStorage(collection, source.getField(name))).rejects.toThrow();
+      },
+    );
+
+    it('rejects a same-named attachment field from another database', async () => {
+      const other = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+      try {
+        other.collection({ name: 'files' });
+        const foreign = other.collection({
+          name: 'sources',
+          fields: [{ name: 'file', type: 'belongsTo', target: 'files', storage: 'receipts' }],
+        });
+        await expect(files.resolveStagedAttachmentStorage(collection, foreign.getField('file'))).rejects.toThrow();
+      } finally {
+        await other.close();
+      }
+    });
+
+    it.each(['storage', 'target'])('rejects changed attachment field %s after capture', async (key) => {
+      const field = source.getField('file');
+      const selected = await files.resolveStagedAttachmentStorage(collection, field);
+      transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+      field.options[key] = key === 'storage' ? 'local' : 'storages';
+      await expect(selected.assertCurrent(transaction)).rejects.toThrow();
+    });
+
+    it('rejects removal of the selected attachment relationship', async () => {
+      const selected = await files.resolveStagedAttachmentStorage(collection, source.getField('file'));
+      transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+      delete source.model.associations.file;
+      await expect(selected.assertCurrent(transaction)).rejects.toThrow();
+    });
+
+    it('commits actual bytes with the field-selected storage rather than the default', async () => {
+      const key = await persist(undefined, source.getField('file'));
+      expect((await collection.model.findByPk(key)).getDataValue('storageId')).toBe(18);
+      expect(await fs.readFile(destination, 'utf8')).toBe('Selected storage bytes');
+    });
+
+    it('rolls back the actual row and bytes if the field override changes after copy', async () => {
+      await expect(
+        persist(async () => {
+          source.getField('file').options.storage = 'local';
+        }, source.getField('file')),
+      ).rejects.toThrow();
+      expect(stored).toBe(true);
+      expect(await collection.repository.count()).toBe(0);
+      await expect(fs.stat(destination)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('renders server configuration once and adds the trusted tenant directory', async () => {

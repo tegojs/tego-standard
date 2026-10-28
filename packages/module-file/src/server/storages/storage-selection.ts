@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import { Transaction, type Collection } from '@tego/server';
+import { Transaction, type Collection, type Field } from '@tego/server';
 
 import { getTenantStoragePath } from '../utils';
 import type { StagedAttachmentStorage } from './staged-upload';
@@ -58,11 +58,21 @@ export function renderStagedAttachmentStorage(
 /** Internal configuration selection, not operation, field or target access authorization. No runtime registration. */
 export async function resolveStagedAttachmentStorage(
   collection: Collection,
+  attachmentField?: Field,
 ): Promise<StagedAttachmentStorageSelection> {
   const db = collection.db;
   const model = collection.model;
   const name = collection.name;
-  const configured = collection.options.storage;
+  // A trusted caller must separately authorize field/storage use; never resolve a request path here.
+  const source = attachmentField?.collection;
+  const sourceName = source?.name;
+  const sourceModel = source?.model;
+  const fieldName = attachmentField?.name;
+  const fieldType = attachmentField?.type;
+  const fieldStorage = attachmentField?.options.storage;
+  const fieldRelation = sourceModel?.associations[fieldName];
+  const collectionStorage = collection.options.storage;
+  const configured = fieldStorage === undefined ? collectionStorage : fieldStorage;
   if (configured !== undefined && (typeof configured !== 'string' || !configured.length || configured.length > 255))
     throw new TypeError('Attachment storage configuration is invalid');
   const storage = db.getCollection('storages');
@@ -91,7 +101,27 @@ export async function resolveStagedAttachmentStorage(
       collection.model !== model ||
       db.modelCollection.get(model) !== collection ||
       collection.options.template !== 'file' ||
-      collection.options.storage !== configured ||
+      collection.options.storage !== collectionStorage ||
+      (attachmentField !== undefined &&
+        (!source ||
+          attachmentField.collection !== source ||
+          attachmentField.database !== db ||
+          source.db !== db ||
+          source.name !== sourceName ||
+          db.getCollection(sourceName) !== source ||
+          source.model !== sourceModel ||
+          db.modelCollection.get(sourceModel) !== source ||
+          source.getField(fieldName) !== attachmentField ||
+          attachmentField.name !== fieldName ||
+          attachmentField.type !== fieldType ||
+          !['belongsTo', 'belongsToMany'].includes(fieldType) ||
+          attachmentField.options.target !== name ||
+          attachmentField.options.storage !== fieldStorage ||
+          !fieldRelation ||
+          sourceModel.associations[fieldName] !== fieldRelation ||
+          fieldRelation.source !== sourceModel ||
+          fieldRelation.target !== model ||
+          fieldRelation.associationType !== (fieldType === 'belongsTo' ? 'BelongsTo' : 'BelongsToMany'))) ||
       !storage ||
       storage.db !== db ||
       db.getCollection('storages') !== storage ||

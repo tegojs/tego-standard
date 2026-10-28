@@ -391,7 +391,7 @@
 
 新增附件的内部 captureStagedAttachmentRecord 在持久化前固定文件表身份、物理映射和存储计划，供可信执行器在公共新增完成后、同一文件自有事务提交前用实际 INSERT 主键复核。查询保留数据库类型解码，以 getDataValue 而非展示 getter 读取托管值，忽略默认 scope 及查询钩子；标题不在存储一致性比较中。记录缺失、托管值或表身份变化均拒绝，交由事务协调回滚记录和文件。它不是授权入口或 INSERT 来源证明，storage 目标及操作 ACL 仍须独立适配；默认路由不登记，持久化恢复及受控下载未完成前不能启用，见配置计划 §126。
 
-内部 resolveStagedAttachmentStorage 只从实际文件表的服务端 storage 设置或唯一默认配置选择存储；指定不存在、多默认或不支持的 storage 关系不回退。它固定真实 BelongsTo 及物理映射，提供原始持久化配置的独立副本；环境渲染、租户目录及权限由后续可信入口处理。实际存储前及提交前，在充分隔离的文件自有事务内锁定并复核选择与配置；变化拒绝。本层不读请求中的 storageId/attachmentField，不授权操作、业务字段或目标，不支持字段级引擎覆盖，也不登记默认路由，见配置计划 §127。
+内部 resolveStagedAttachmentStorage 从实际文件表的服务端 storage 设置或唯一默认配置选择存储；也可显式传入同库登记且实际关联该文件表的 BelongsTo/BelongsToMany 字段，用其 storage 覆盖表设置。字段缺省才回退，明确无效配置、错误目标或跨库同名字段均拒绝。它固定来源字段/关系、文件表 storage 的真实 BelongsTo 及物理映射，提供原始持久化配置的独立副本；环境渲染、租户目录及权限由后续可信入口处理。实际存储前及提交前，在充分隔离的文件自有事务内锁定并复核选择与配置；变化拒绝。本层不读请求中的 storageId/attachmentField，不授权操作、字段、存储使用或目标，也不登记默认路由；正式 HTTP 的 attachmentField 仍未适配，不因提供 Field 对象就开放，见配置计划 §127、§134。
 
 内部 renderStagedAttachmentStorage 接收该原始选择、核心环境渲染器和调用方提供的可信租户编号，固定渲染结果并沿既有 getTenantStoragePath 生成目录；无租户的共享场景保留基础目录。渲染不得替换所选存储的 id/type/name，也不从请求头猜测租户；目录不是访问控制授权，仍须实际操作 ACL/G 和存储使用策略。原始持久化配置复核继续由 selection 承担，不把渲染后的目录写回配置。实际环境变量/HTTP 验证见配置计划 §132。
 

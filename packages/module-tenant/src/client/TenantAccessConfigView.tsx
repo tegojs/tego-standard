@@ -6,6 +6,7 @@ import { Alert, Button, Card, Descriptions, Drawer, Space, Spin, Tag, Typography
 import type { AccessCondition, AccessConfig, AccessOperand, ContextPath } from '../server/access-control/types';
 import { useTenantTranslation } from './locale';
 import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
+import { TenantFileAccessNotice } from './TenantFileAccessNotice';
 
 interface SavedConfig {
   identity: { dataSourceKey: string; collectionName: string; collectionKey: string };
@@ -108,7 +109,7 @@ export function TenantAccessConfigView({
   collection,
   onClose,
 }: {
-  collection: { name: string; title?: string };
+  collection: { name: string; title?: string; template?: string };
   onClose: () => void;
 }) {
   const api = useAPIClient();
@@ -176,6 +177,7 @@ export function TenantAccessConfigView({
             'Saved rules are shown for inspection only. This view does not enable them or verify their use in business requests.',
           )}
         />
+        <TenantFileAccessNotice template={collection.template} />
         <Button disabled={loading} onClick={() => setRefresh((value) => value + 1)}>
           {t('Refresh saved rules')}
         </Button>

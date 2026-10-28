@@ -160,6 +160,7 @@
   "The selected sort field is unavailable. Refresh the page or contact an administrator.": "所选排序字段不可用。请刷新页面；如问题仍存在，请联系管理员。",
   "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.": "所选租户不存在或已停用。请选择其他租户，或联系管理员。",
   "The tenant hierarchy is too deep. Select a higher-level parent tenant.": "租户层级过深。请选择层级更高的上级租户。",
+  "These rules restrict attachment records, not public file links. File-content isolation also requires controlled downloads.": "这些规则只限制附件记录，不能阻止通过公开文件链接直接访问。文件内容隔离还需要受控下载支持。",
   "This association cannot be sorted. Enable sorting for it and try again.": "当前关联未启用排序。请启用排序后重试。",
   "This is a migration draft. No new rules have been saved or enabled.": "此处仅展示迁移草案，尚未保存或启用新规则。",
   "This record is unassigned legacy data and cannot be deleted directly. Edit it first to assign it to the current tenant, then try deleting it again.": "该记录属于未归属租户的历史数据，不能直接删除。请先编辑该记录，将其归属到当前租户后再删除。",

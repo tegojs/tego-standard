@@ -39,6 +39,17 @@ function fixture(request = vi.fn().mockResolvedValue(report())) {
 }
 
 describe('saved tenant access rules', () => {
+  it('shows file-content boundaries for file tables and clears the notice for other tables', async () => {
+    const { view } = fixture();
+    const selected = { ...collection, template: 'file' };
+    const { findByText, queryByText, rerender } = render(view(selected));
+    const notice =
+      'These rules restrict attachment records, not public file links. File-content isolation also requires controlled downloads.';
+    await findByText(notice);
+    rerender(view(collection));
+    expect(queryByText(notice)).not.toBeInTheDocument();
+  });
+
   it('starts an unconfigured collection with a disposable empty draft at revision zero', async () => {
     const request = vi
       .fn()

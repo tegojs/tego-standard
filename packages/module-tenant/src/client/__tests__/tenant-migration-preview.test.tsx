@@ -64,6 +64,17 @@ function fixture(request = vi.fn().mockResolvedValue({ data: { data: report() } 
 }
 
 describe('tenant migration preview drawer', () => {
+  it('shows file-content boundaries for file tables and clears the notice for other tables', async () => {
+    const { view } = fixture();
+    const selected = { ...collection, template: 'file' };
+    const { findByText, queryByText, rerender } = render(view(selected));
+    const notice =
+      'These rules restrict attachment records, not public file links. File-content isolation also requires controlled downloads.';
+    await findByText(notice);
+    rerender(view(collection));
+    expect(queryByText(notice)).not.toBeInTheDocument();
+  });
+
   it.each(['shared', 'tenantScoped', 'tenantInherited'])(
     'edits and validates a disposable %s migration draft',
     async (mode) => {

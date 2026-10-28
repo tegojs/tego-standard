@@ -7,9 +7,10 @@ import type { AccessMigrationPreview } from '../server/access-control/migration-
 import { useTenantTranslation } from './locale';
 import type { TenantRecord } from './tenant-tree';
 import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
+import { TenantFileAccessNotice } from './TenantFileAccessNotice';
 
 interface TenantMigrationPreviewProps {
-  collection: { name: string; title?: string };
+  collection: { name: string; title?: string; template?: string };
   tenants: TenantRecord[];
   onClose: () => void;
 }
@@ -108,6 +109,7 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
           showIcon
           message={t('This is a migration draft. No new rules have been saved or enabled.')}
         />
+        <TenantFileAccessNotice template={collection.template} />
         <Button disabled={loading} onClick={() => setRefresh((value) => value + 1)}>
           {t('Refresh preview')}
         </Button>

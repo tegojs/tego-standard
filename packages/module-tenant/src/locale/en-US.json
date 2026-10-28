@@ -160,6 +160,7 @@
   "The selected sort field is unavailable. Refresh the page or contact an administrator.": "The selected sort field is unavailable. Refresh the page or contact an administrator.",
   "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.": "The selected tenant is unavailable or disabled. Select another tenant or contact an administrator.",
   "The tenant hierarchy is too deep. Select a higher-level parent tenant.": "The tenant hierarchy is too deep. Select a higher-level parent tenant.",
+  "These rules restrict attachment records, not public file links. File-content isolation also requires controlled downloads.": "These rules restrict attachment records, not public file links. File-content isolation also requires controlled downloads.",
   "This association cannot be sorted. Enable sorting for it and try again.": "This association cannot be sorted. Enable sorting for it and try again.",
   "This is a migration draft. No new rules have been saved or enabled.": "This is a migration draft. No new rules have been saved or enabled.",
   "This record is unassigned legacy data and cannot be deleted directly. Edit it first to assign it to the current tenant, then try deleting it again.": "This record is unassigned legacy data and cannot be deleted directly. Edit it first to assign it to the current tenant, then try deleting it again.",

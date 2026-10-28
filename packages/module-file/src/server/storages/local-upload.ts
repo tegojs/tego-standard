@@ -116,12 +116,12 @@ export function prepareLocalStagedUpload(
       await input?.close();
     }
   };
-  return Object.freeze({
-    values,
-    store() {
-      if (started || discarded) return Promise.reject(new TypeError('Attachment storage plan has already been used'));
-      started = true;
-      writing = write().catch(async (error) => {
+  const start = (cleanupOnFailure: boolean) => {
+    if (started || discarded) return Promise.reject(new TypeError('Attachment storage plan has already been used'));
+    started = true;
+    writing = write();
+    if (cleanupOnFailure)
+      writing = writing.catch(async (error) => {
         try {
           await remove();
         } catch (cleanupError) {
@@ -129,7 +129,15 @@ export function prepareLocalStagedUpload(
         }
         throw error;
       });
-      return writing;
+    return writing;
+  };
+  return Object.freeze({
+    values,
+    store() {
+      return start(true);
+    },
+    storeForTransaction() {
+      return start(false);
     },
     discard() {
       discarded = true;

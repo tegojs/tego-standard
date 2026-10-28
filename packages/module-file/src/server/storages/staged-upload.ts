@@ -22,6 +22,8 @@ export interface StagedAttachmentStoragePlan {
   readonly values: StagedAttachmentStorageValues;
   /** Copy once while the staged upload still exists. This does not authorize or persist a database row. */
   store(): Promise<void>;
+  /** Optional transaction-owned copy. Failure must leave cleanup to discard after a confirmed database rollback. */
+  storeForTransaction?(): Promise<void>;
   /** Remove this new object in server-owned, stable storage directories. Safe to repeat after completion. */
   discard(): Promise<void>;
 }

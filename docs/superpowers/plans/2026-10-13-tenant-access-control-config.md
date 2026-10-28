@@ -1931,3 +1931,21 @@ Ruling: 普通根字段及关联新增继续拒绝 storageId。只在内部 Acce
 最终新组合、真实 reference 及调用方事务三个文件共 127 项通过、34 项按数据库分组跳过，保留 storage-creation-reviewed-regression.log；新组合中的 10 项 PostgreSQL 专项均实际执行，SQLite 专门验证安全拒绝。上述跳过还包含原 reference 文件的数据库能力分组，不作为同一数据库支持声明。最新租户包客户端、服务端及声明构建退出 0，保留 storage-creation-final-build.log；文件包产品源码未改，前述成功构建仍适用。四个 TypeScript 的 oxlint 零警告/错误，格式、diff、自审及逐文件源/快照 SHA256 核查后提交。
 
 已核对测试实例目录与零其他客户端，删除可重建的专用库 tego_tenant_access_test_128a9c7e3b、复查不存在并停止本任务临时实例；没有业务库或正式环境变更，日志与集群目录保留。后续独立完成实际 create/upload 最终操作及字段权限组合，仍不得把本批 G/存储组合误报为整个上传或功能已放行。
+
+§128 已核对为有效默认签名提交 42162cc32，未推送。第一次 GPG 认证超时后保留原暂存区；用户回复正在确认后重新触发交互终端签名成功，未绕过签名或操作认证窗口。
+
+## 129. 专用附件新增绑定最终 create/upload 操作及字段权限
+
+Ruling: 在现有根写入口提供同步 captureAttachment，将最终 ACL 捕获与之后的文件事务写入分开；在暂存或存储 I/O 前固定操作、角色条件和用户普通字段，创建阶段只能消费一次。可信文件执行器另外提供存储计划元数据、绑定的选择复核、实际复制与物理元数据复核回调。本层拥有最终操作/字段授权、实际 Repository 新增、公共 G 与 INSERT 收据组合，文件层继续拥有文件与数据库事务的提交、回滚及补偿，不复制其职责，也不引入新的包依赖。完整默认上传选择器与正式路由仍待接线，storage 使用策略不能借 storages:list 管理权限草率代替。
+
+普通 create 使用本次 create 最终决策，upload 使用本次 upload 最终决策；分别核对真实资源/操作/角色绑定，不从合并后的 action.params 取授权。沿既有协议兼容 fields 或 whitelist，若同时存在则都限制用户输入；blacklist 继续生效。托管 filename/extname/path/url/mimetype/size/meta/storageId 及 tenantId 不从用户普通 values 接收，即使字段不在白名单也先拒绝而非静默绕过。生成的存储元数据独立输入，标题仍是可授权编辑的普通字段；其他引用、attachmentField 覆盖、嵌套/批量入口不在本批范围。键与元数据不一致、阶段结束、模型/动作/身份变化或重复消费均拒绝。
+
+- [x] 先通过实际 ACL.middleware 形成两种最终决策，与 §128 的真实存储/G/字节组合；专用捕获能力缺失时 7 项实际失败，原 13 项通过，保留 attachment-entry-create-red.log。
+- [x] 实现最小捕获及事务入口；首轮完整组合 20 项通过、18 项数据库能力分组跳过，保留 attachment-entry-create-green.log。均为内存 SQLite 安全拒绝与独立 PostgreSQL 专项，不是正式业务环境验收。
+- [x] 补充请求快照、阶段失效及不支持覆盖的验证，原根新增/修改删除和文件默认路径回归、租户包构建、lint/格式及作者自审后默认签名提交，提交状态见后续记录。
+
+原根修改删除和根新增两个文件实际 482 项通过、30 项数据库分组跳过；同轮新组合只有“阶段失效”的错误码预期不符，系统沿用既有 INVALID_ACCESS_CONFIG_WRITE，未改变原守卫，仅修正测试预期，保留 attachment-entry-create-regression.log。自审再用非枚举 raw values getter 复现本入口只检查可枚举键的遗漏，专项确实执行了 getter 而未按参数错误拒绝；改为检查全部自有字符串键，保留 attachment-entry-accessor-red.log。随后新组合及原文件选路/默认上传三个文件 69 项通过、22 项数据库分组跳过，保留 attachment-entry-create-final.log；新组合 21 项 PostgreSQL 专项均实际执行，SQLite 仍只证明明确拒绝关系写入，不能据此声明 SQLite 支持上传。
+
+最新租户包客户端、服务端及声明构建退出 0，保留 attachment-entry-create-build.log；文件包仅改测试，未重复无关构建。三个 TypeScript 的 oxlint 零警告/错误，格式、diff、作者自审及与独立快照逐文件 SHA256 核查通过后提交；独立复核按恢复约定仍待补齐。真实组合经过 ACL.middleware，但尚未把本入口、multipart、文件插件选路及 PostgreSQL 写入连成一次真实 HTTP 请求；这是下一项验证，不把本批误报为完整页面上传验收。
+
+核对临时实例目录及零其他客户端后，删除可重建的专用库 tego_tenant_access_test_129b8d2c4e，复查不存在并停止本任务临时实例；日志与集群目录保留，主/核心检出、正式依赖、业务数据库、线上及正式运行时/保存/启用保持不变。持久化补偿、受控下载、存储使用策略和最终放行仍未完成。

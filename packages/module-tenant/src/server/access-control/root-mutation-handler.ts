@@ -1,6 +1,7 @@
 import { Op, type Collection, type Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureAttachmentCreation } from './attachment-creation-entry';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessCreationService } from './creation';
@@ -43,6 +44,11 @@ export class AccessRootMutationHandler {
     private readonly queries: AccessQueryService,
     private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
   ) {}
+
+  /** Trusted selected file executor: capture final ACL before any staging, then use its owned transaction. */
+  captureAttachment(ctx: AccessRootMutationContext, authenticated: AccessIdentity) {
+    return captureAttachmentCreation(this.db, this.prepared, this.queries, this.resolveIdentity, ctx, authenticated);
+  }
 
   async handle(
     ctx: AccessRootMutationContext,

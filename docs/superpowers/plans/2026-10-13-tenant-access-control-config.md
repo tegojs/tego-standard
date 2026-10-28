@@ -2032,3 +2032,27 @@ SQLite 缺失行为先实际复现十四项失败、三十二项通过，保留 
 正确串行的选择器、真实 HTTP、公共新增/实际文件组合及原 action 四文件共 142 项通过、22 项数据库能力分组跳过，保留 storage-field-selection-serial.log；选择器全部 92 项在 SQLite/独立 PostgreSQL 实际执行。文件包客户端、服务端及声明构建退出 0，保留 storage-field-selection-build.log。两份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/快照 SHA256 与作者自审通过；独立复核仍待补齐。仅增加服务端配置选择参数，未增加 HTTP attachmentField 支持，未授予来源业务字段或存储使用权。
 
 核实实际实例目录和零其他客户端后，删除可重建的专用库 tego_tenant_access_test_134a7c0e2f、复查不存在并停止本任务实例，保留日志和实例目录。正式注册/规则保存及启用仍关闭；主检出、核心、正式依赖、业务库及线上未修改。持久化恢复、受控下载、存储使用策略和其他入口仍是后续任务，不能据此宣称整个附件隔离完成。
+
+§134 已核对为有效默认签名提交 f6c47ec5a，未推送。
+
+## 135. 上传操作的持久化提交标记与恢复排他
+
+Ruling: 先做 PostgreSQL 内部日志及自有事务的可选组合，不登记表、路由或后台任务。可信调用方显式登记独立日志集合（字符串主键 id、state 和 JSON payload）；上传在文件副作用前持久化 pending，原文件事务先锁该行，并在调用业务执行器之前于原事务内改为 committed。它记录整笔事务是否提交，不是上传成功标志；实际文件写入、最终校验与标记随同一笔事务提交或回滚，避免违规提前 COMMIT 留下错误的 pending。恢复方用新的主库 READ COMMITTED 事务锁日志行，必须等上传事务结束；committed 只保留，pending 原子改为 cancelled，阻止尚未开始的原上传继续。不得用“文件记录暂时查不到”判断可删除。
+
+日志只保存本地存储根目录与实际计划元数据，不保存整份引擎配置/凭据；提交不确定的内部错误携带操作编号，便于后续恢复。该批恢复只返回持久化状态和已固定位置，绝不删除文件：跨进程对象身份证据、进程崩溃后的物理清理及扫描/重试仍需后续独立完成。若仅完成此标记就启用自动清理，会有删错对象风险，因此正式启用门槛保持不变。
+
+文件为 storages/staged-journal.ts（日志和持久化决策）、storages/staged-transaction.ts（可选组合及错误操作编号）、server/index.ts（内部导出）及 __tests__/staged-journal.test.ts（两个数据库实例、真实字节和事务）。取消操作可重复，返回 cancelled 不是独占物理清理租约；后续执行删除前仍须处理多个恢复者及实际对象身份，不能从方法名推断已取得删文件权限。
+
+- [x] 实际 PostgreSQL 先验证持久化标记缺失、成功提交/回滚、COMMIT 后通知失败、取消抢先及两个实例的行锁等待。
+- [x] 最小日志实现与自有事务可选组合，默认旧协调路径保持不变，不接自动清理。
+- [x] 串行相关回归、文件包构建、lint/格式、自审和独立测试资源清理；签名提交状态见后续记录。
+
+缺少日志能力时七项实际失败，保留 staged-journal-red.log；最小实现七项通过，保留 staged-journal-green.log。自审用实际提前 COMMIT 复现“业务行和字节已存在，恢复却返回 cancelled”，保留 staged-journal-early-commit-red.log；提交标记改在事务取得锁后、业务回调前写入并在返回前复核。之后四文件串行 86 项通过、22 项数据库分组跳过，保留 staged-journal-final.log；继续补充日志被同事务改写及配置捕获的一致性检查，不把这次通过当作最终验收。
+
+再用调用方在 await 间修改 storage.options.documentRoot 复现日志根目录与实际文件计划不同，十二项中一项实际失败，保留 staged-journal-storage-snapshot-red.log。可选日志和实际计划改用同一份先行捕获的存储配置；不使用日志时不增加该复制或额外异步阶段。修复后的日志、事务协调、完整 HTTP 及专用新增/文件组合四文件共 88 项通过、22 项数据库分组跳过，保留 staged-journal-reviewed.log；新日志十二项均在独立 PostgreSQL 实际执行，其中两个实例的等待通过 pg_stat_activity 的实际 Lock 状态确认，不靠定时猜测。
+
+最终旧路径无多余异步阶段的日志/协调两文件 48 项通过，无跳过，保留 staged-journal-final-coordination.log。首轮声明构建因 Sequelize 查询选项的公开声明缺少 hooks 属性失败，保留 staged-journal-build.log；沿既有 storage-selection 的普通选项变量写法表达同一运行时参数，没有改依赖、禁用 hooks 的行为或断言类型。重建结果另记。
+
+最终文件包客户端、服务端及声明构建退出 0，保留 staged-journal-build-verified.log。四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/独立快照 SHA256 及作者自审通过；独立复核仍待补齐。日志判断只返回状态和位置；未实现跨进程文件身份验证、删除租约/物理清理或生产恢复任务，不将数据库标记当作完整恢复。
+
+核实实例实际目录及零其他客户端后，删除可重建的专用库 tego_tenant_access_test_135b8d1f3a，复查不存在并停止本任务实例；日志和实例目录保留。未登记生产日志表或改正式路由、规则保存/启用、主/核心检出、依赖、业务数据库或线上。默认签名原子提交，不推送；后续从跨进程对象身份证据及受控恢复接续。

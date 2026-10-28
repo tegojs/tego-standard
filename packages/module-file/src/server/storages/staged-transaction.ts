@@ -1,6 +1,7 @@
 import { Transaction, type Database } from '@tego/server';
 
 import type { StagedAttachmentUpload } from '../actions/staged-upload';
+import { StagedAttachmentJournal } from './staged-journal';
 import {
   prepareStagedAttachmentStorage,
   type StagedAttachmentStorage,
@@ -21,6 +22,7 @@ export class StagedAttachmentTransactionError extends AggregateError {
   constructor(
     readonly phase: 'transaction' | 'commit' | 'rollback' | 'discard',
     errors: unknown[],
+    readonly operationId?: string,
   ) {
     super(errors, 'Attachment persistence requires recovery');
   }
@@ -36,13 +38,18 @@ export async function withStagedAttachmentTransaction<T>(
   storage: StagedAttachmentStorage,
   file: StagedAttachmentUpload,
   execute: (input: StagedAttachmentPersistence) => Promise<T>,
+  journal?: StagedAttachmentJournal,
 ): Promise<T> {
   if (typeof execute !== 'function') throw new TypeError('Attachment persistence requires a server executor');
+  if (journal !== undefined && (!(journal instanceof StagedAttachmentJournal) || journal.database !== db))
+    throw new TypeError('Attachment journal must belong to the owned transaction database');
   // Construct privately so a failed second use cannot discard an earlier committed upload's plan.
-  const plan = await prepareStagedAttachmentStorage(storage, file);
+  const selectedStorage = journal ? structuredClone(storage) : storage;
+  const plan = await prepareStagedAttachmentStorage(selectedStorage, file);
   if (typeof plan.storeForTransaction !== 'function')
     throw new TypeError('Storage does not support transaction-owned attachment cleanup');
   const store = plan.storeForTransaction.bind(plan);
+  const operation = journal ? await journal.prepare(selectedStorage, plan.values) : undefined;
   // Sequelize exposes finished at runtime but omits it from its public Transaction declaration.
   const transaction = (await db.sequelize.transaction({
     isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
@@ -64,24 +71,26 @@ export async function withStagedAttachmentTransaction<T>(
     },
   });
   try {
+    if (operation) await operation.lock(transaction);
     result = await execute(input);
     active = false;
     if (!writing) throw new TypeError('Attachment persistence did not store its file');
     await writing;
     if (transaction.finished) throw new TypeError('Attachment executor ended its owned transaction');
+    if (operation) await operation.complete(transaction);
   } catch (error) {
     active = false;
     await writing?.catch(() => {});
-    if (transaction.finished) throw new StagedAttachmentTransactionError('transaction', [error]);
+    if (transaction.finished) throw new StagedAttachmentTransactionError('transaction', [error], operation?.id);
     try {
       await transaction.rollback();
     } catch (rollbackError) {
-      throw new StagedAttachmentTransactionError('rollback', [error, rollbackError]);
+      throw new StagedAttachmentTransactionError('rollback', [error, rollbackError], operation?.id);
     }
     try {
       await plan.discard();
     } catch (cleanupError) {
-      throw new StagedAttachmentTransactionError('discard', [error, cleanupError]);
+      throw new StagedAttachmentTransactionError('discard', [error, cleanupError], operation?.id);
     }
     throw error;
   }
@@ -89,7 +98,7 @@ export async function withStagedAttachmentTransaction<T>(
     await transaction.commit();
   } catch (error) {
     // Includes an afterCommit hook failure: the row may already be durably committed.
-    throw new StagedAttachmentTransactionError('commit', [error]);
+    throw new StagedAttachmentTransactionError('commit', [error], operation?.id);
   }
   return result;
 }

@@ -13,6 +13,13 @@ export interface StagedAttachmentStorageSelection {
   assertCurrent(transaction: Transaction): Promise<void>;
 }
 
+export interface AttachmentReadStorageSelection {
+  /** Server-only configuration for the actual stored key, never a new upload location or authorization. */
+  readonly values: Record<string, unknown>;
+  /** Recheck before consuming content; does not acquire a storage write lock. */
+  assertCurrent(transaction?: Transaction): Promise<void>;
+}
+
 /** Server rendering and directory namespacing only, not storage-use authorization. Never pass request tenant values. */
 export function renderStagedAttachmentStorage(
   selection: StagedAttachmentStorageSelection,
@@ -60,6 +67,30 @@ export async function resolveStagedAttachmentStorage(
   collection: Collection,
   attachmentField?: Field,
 ): Promise<StagedAttachmentStorageSelection> {
+  return resolveStorageSelection(collection, { kind: 'upload', attachmentField });
+}
+
+/** Trusted stored key only. Authorize the actual file record separately; never select by request storageId. */
+export async function resolveAttachmentReadStorage(
+  collection: Collection,
+  storageId: string | number,
+): Promise<AttachmentReadStorageSelection> {
+  if (
+    !(
+      (typeof storageId === 'string' && storageId.length > 0 && storageId.length <= 255) ||
+      (typeof storageId === 'number' && Number.isSafeInteger(storageId))
+    )
+  )
+    throw new TypeError('Attachment reading requires its stored storage key');
+  return resolveStorageSelection(collection, { kind: 'read', storageId });
+}
+
+async function resolveStorageSelection(
+  collection: Collection,
+  selection: { kind: 'upload'; attachmentField?: Field } | { kind: 'read'; storageId: string | number },
+): Promise<AttachmentReadStorageSelection> {
+  const reading = selection.kind === 'read';
+  const attachmentField = selection.kind === 'upload' ? selection.attachmentField : undefined;
   const db = collection.db;
   const model = collection.model;
   const name = collection.name;
@@ -72,7 +103,7 @@ export async function resolveStagedAttachmentStorage(
   const fieldStorage = attachmentField?.options.storage;
   const fieldRelation = sourceModel?.associations[fieldName];
   const collectionStorage = collection.options.storage;
-  const configured = fieldStorage === undefined ? collectionStorage : fieldStorage;
+  const configured = reading ? undefined : fieldStorage === undefined ? collectionStorage : fieldStorage;
   if (configured !== undefined && (typeof configured !== 'string' || !configured.length || configured.length > 255))
     throw new TypeError('Attachment storage configuration is invalid');
   const storage = db.getCollection('storages');
@@ -101,7 +132,7 @@ export async function resolveStagedAttachmentStorage(
       collection.model !== model ||
       db.modelCollection.get(model) !== collection ||
       collection.options.template !== 'file' ||
-      collection.options.storage !== collectionStorage ||
+      (!reading && collection.options.storage !== collectionStorage) ||
       (attachmentField !== undefined &&
         (!source ||
           attachmentField.collection !== source ||
@@ -158,12 +189,17 @@ export async function resolveStagedAttachmentStorage(
   current();
   const read = async (transaction?: Transaction) => {
     const options = {
-      where: configured === undefined ? { default: true } : { name: configured },
+      where:
+        selection.kind === 'read'
+          ? { id: selection.storageId }
+          : configured === undefined
+            ? { default: true }
+            : { name: configured },
       attributes: storageFields,
       limit: 2,
       hooks: false,
       useMaster: true,
-      ...(transaction ? { transaction, lock: transaction.LOCK.UPDATE } : {}),
+      ...(transaction ? { transaction, ...(reading ? {} : { lock: transaction.LOCK.UPDATE }) } : {}),
     };
     const records = await target.unscoped().findAll(options);
     current();
@@ -176,17 +212,21 @@ export async function resolveStagedAttachmentStorage(
     get values() {
       return structuredClone(captured);
     },
-    async assertCurrent(transaction: Transaction) {
+    async assertCurrent(transaction?: Transaction) {
       const state = transaction as Transaction & {
         sequelize?: typeof db.sequelize;
         finished?: string;
         parent?: Transaction;
       };
-      if (!(transaction instanceof Transaction) || state.sequelize !== db.sequelize || state.finished || state.parent)
+      if (
+        (transaction === undefined && !reading) ||
+        (transaction !== undefined &&
+          (!(transaction instanceof Transaction) || state.sequelize !== db.sequelize || state.finished || state.parent))
+      )
         throw new TypeError('Attachment requires an active storage selection transaction');
       current();
       const latest = await read(transaction);
-      if (state.finished) throw new TypeError('Attachment requires an active storage selection transaction');
+      if (state?.finished) throw new TypeError('Attachment requires an active storage selection transaction');
       if (latest.length !== 1 || !isDeepStrictEqual(latest[0], captured))
         throw new TypeError('Selected attachment storage changed');
     },

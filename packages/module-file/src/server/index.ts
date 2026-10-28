@@ -12,10 +12,16 @@ export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journa
 export { recoverStagedAttachment, recoverCancelledAttachments } from './storages/staged-recovery';
 export type { StagedAttachmentRecoveryBatchItem } from './storages/staged-recovery';
 export { verifyLocalStagedAttachment } from './storages/local-recovery';
+export { withLocalAttachmentRead } from './storages/local-read';
+export type { LocalAttachmentReadRecord } from './storages/local-read';
 export type { StagedAttachmentRecoveryClaim } from './storages/staged-journal';
 export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';
-export { resolveStagedAttachmentStorage, renderStagedAttachmentStorage } from './storages/storage-selection';
-export type { StagedAttachmentStorageSelection } from './storages/storage-selection';
+export {
+  resolveStagedAttachmentStorage,
+  resolveAttachmentReadStorage,
+  renderStagedAttachmentStorage,
+} from './storages/storage-selection';
+export type { StagedAttachmentStorageSelection, AttachmentReadStorageSelection } from './storages/storage-selection';
 export { prepareStagedAttachmentStorage } from './storages/staged-upload';
 export type {
   StagedAttachmentLocalReceipt,

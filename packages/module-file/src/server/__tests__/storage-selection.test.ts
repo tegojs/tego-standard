@@ -416,5 +416,79 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       expect(await collection.repository.count()).toBe(0);
       await expect(fs.stat(destination)).rejects.toMatchObject({ code: 'ENOENT' });
     });
+
+    describe('stored attachment read configuration', () => {
+      async function storedSelection(key: unknown) {
+        return files.resolveAttachmentReadStorage(collection, key as string | number);
+      }
+
+      it('uses the stored key independently of current table, field and default upload choices', async () => {
+        collection.options.storage = 'missing-upload-storage';
+        source.getField('file').options.storage = 'also-missing';
+        const selected = await storedSelection('18');
+        expect(selected.values).toMatchObject({ id: 18, name: 'receipts', path: 'receipts' });
+        await selected.assertCurrent();
+        collection.options.storage = 'local';
+        await selected.assertCurrent();
+      });
+
+      it('does not fall back to the valid default when the stored key is missing', async () => {
+        await expect(storedSelection(999)).rejects.toBeInstanceOf(TypeError);
+      });
+
+      it.each([undefined, null, '', [], {}, Number.NaN, 1.5, 'x'.repeat(256)])(
+        'rejects invalid stored keys %j without choosing another storage',
+        async (key) => {
+          await expect(storedSelection(key)).rejects.toBeInstanceOf(TypeError);
+        },
+      );
+
+      it('detects changed persisted storage configuration on a fresh master read', async () => {
+        const selected = await storedSelection(18);
+        await db.getRepository('storages').update({ filterByTk: 18, values: { path: 'new-upload-path' } });
+        await expect(selected.assertCurrent()).rejects.toBeInstanceOf(TypeError);
+      });
+
+      it('does not let a consumer mutate the configuration snapshot used by the guard', async () => {
+        const selected = await storedSelection(18);
+        (selected.values.options as Record<string, unknown>).documentRoot = 'different';
+        expect(selected.values.options).toEqual({ documentRoot: 'storage/receipts' });
+        await selected.assertCurrent();
+      });
+
+      it('rejects replaced storage relation metadata before returning the configuration', async () => {
+        const selected = await storedSelection(18);
+        collection.model.associations.storage = source.model.associations.file;
+        await expect(selected.assertCurrent()).rejects.toBeInstanceOf(TypeError);
+      });
+
+      it('uses an active read-only PostgreSQL transaction without taking an update lock', async () => {
+        const selected = await storedSelection(18);
+        transaction = await db.sequelize.transaction();
+        if (dialect === 'postgres') await db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
+        await selected.assertCurrent(transaction);
+        await transaction.commit();
+        await expect(selected.assertCurrent(transaction)).rejects.toBeInstanceOf(TypeError);
+      });
+
+      it('reads the historical stored path, never the new upload path or a viewer tenant directory', async () => {
+        directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-stored-read-'));
+        const root = path.join(directory, 'root');
+        await fs.mkdir(path.join(root, 'old/tenants/H'), { recursive: true });
+        await fs.writeFile(path.join(root, 'old/tenants/H/receipt.txt'), 'Stored under H');
+        await db.getRepository('storages').update({ filterByTk: 18, values: { options: { documentRoot: root } } });
+        const selected = await storedSelection(18);
+        const result = await files.withLocalAttachmentRead(
+          selected.values as unknown as files.StagedAttachmentStorage,
+          { storageId: 18, path: 'old/tenants/H', filename: 'receipt.txt', size: 14 },
+          async (handle) => {
+            await selected.assertCurrent();
+            return handle.readFile('utf8');
+          },
+        );
+        expect(result).toBe('Stored under H');
+        expect(await fs.readdir(root)).toEqual(['old']);
+      });
+    });
   },
 );

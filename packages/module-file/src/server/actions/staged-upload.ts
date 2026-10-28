@@ -9,6 +9,7 @@ import { createUploadFileFilter } from './upload-rules';
 export interface StagedAttachmentOptions {
   /** Existing, server-owned temporary parent directory. Never supplied by request parameters. */
   directory: string;
+  /** Hard server cap; configured storage rules.size may further restrict it. */
   maxFileSize: number;
   rules?: Record<string, unknown>;
 }
@@ -41,6 +42,15 @@ export async function withStagedAttachmentUpload<T>(
   if (ctx.file !== undefined || request.file !== undefined || ctx.req['file'] !== undefined)
     ctx.throw(400, 'Upload has already been parsed');
   const rules = structuredClone(options.rules === undefined ? {} : options.rules);
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules))
+    throw new TypeError('Storage file rules must be an object');
+  const configuredSize = rules.size;
+  if (
+    configuredSize != null &&
+    (typeof configuredSize !== 'number' || !Number.isSafeInteger(configuredSize) || configuredSize < 0)
+  )
+    throw new TypeError('Storage file size must be a nonnegative integer');
+  const fileSizeLimit = typeof configuredSize === 'number' ? Math.min(maxFileSize, configuredSize) : maxFileSize;
   const fileFilter = createUploadFileFilter(() => rules);
   const parent = await fs.realpath(directory);
   const temporary = await fs.mkdtemp(path.join(parent, 'tego-file-upload-'));
@@ -74,7 +84,7 @@ export async function withStagedAttachmentUpload<T>(
     if (ctx.req.aborted || ctx.req.destroyed) throw new Error('Upload request was aborted');
     const upload = multer({
       fileFilter,
-      limits: { fileSize: maxFileSize, files: LIMIT_FILES },
+      limits: { fileSize: fileSizeLimit, files: LIMIT_FILES },
       storage: {
         _handleFile(_request, file, cb) {
           const output = createWriteStream(uploadPath, { flags: 'wx', mode: 0o600 });

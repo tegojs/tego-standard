@@ -136,6 +136,41 @@ describe('isolated attachment upload staging', () => {
     expect(await leftovers()).toEqual([]);
     expect(await fs.readdir(destination)).toEqual([]);
   });
+  it('also enforces a smaller configured storage size before calling the consumer', async () => {
+    options.rules = { size: bytes.length - 1 };
+    expect((await upload()).status).toBe(400);
+    expect(seen).toBeUndefined();
+    expect(await leftovers()).toEqual([]);
+  });
+  it('does not let configured storage size enlarge the explicit server limit', async () => {
+    options.maxFileSize = bytes.length - 1;
+    options.rules = { size: 1024 };
+    expect((await upload()).status).toBe(400);
+    expect(seen).toBeUndefined();
+    expect(await leftovers()).toEqual([]);
+  });
+  it.each([{}, { size: null }, { size: bytes.length + 1 }])('keeps accepted storage size rules %j', async (rules) => {
+    options.rules = rules;
+    expect((await upload()).status).toBe(200);
+    expect(seen?.size).toBe(bytes.length);
+    expect(await leftovers()).toEqual([]);
+  });
+  it.each([-1, NaN, Infinity, 1.5, '1024'])(
+    'rejects invalid configured storage size %s before consuming a file',
+    async (size) => {
+      options.rules = { size };
+      expect((await upload()).status).toBe(500);
+      expect(observed).toBeInstanceOf(TypeError);
+      expect(seen).toBeUndefined();
+      expect(await leftovers()).toEqual([]);
+    },
+  );
+  it('keeps zero storage size restrictive rather than silently treating it as unlimited', async () => {
+    options.rules = { size: 0 };
+    expect((await upload()).status).toBe(400);
+    expect(seen).toBeUndefined();
+    expect(await leftovers()).toEqual([]);
+  });
   it('closes real output handles before cleanup when the multipart file is truncated', async () => {
     const create = streamFs.createWriteStream.bind(streamFs);
     vi.spyOn(streamFs, 'createWriteStream').mockImplementation((...args) => {

@@ -2002,3 +2002,17 @@ Ruling: 存储选择固定数据库原始配置；调用方仍需沿既有 Envir
 加入 INSERT 钩子中改变环境变量的实际快照对照后，选择、HTTP、原计划存储和旧 action 四文件 102 项全部通过，保留 storage-render-final.log。自审又复现误传异步渲染器时抛出泛化参数错误但遗留未处理拒绝；storage-render-async-red.log 有实际未处理异常。明确只接受同步渲染并观察返回 Promise 的拒绝后，最终选择和 HTTP 两文件 75 项全部通过、无跳过，保留 storage-render-reviewed.log；原计划存储/旧默认路径源码未再改，不重复无关验证。
 
 文件包客户端、服务端及声明构建退出 0，保留 storage-render-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审及源/快照 SHA256 一致，独立复核仍待补齐。核对实例目录及零其他客户端后，删除可重建的 tego_tenant_access_test_132e5a8c0d、复查不存在并停止本任务实例，日志和实例目录保留。正式注册/保存/启用、依赖、业务数据库和线上均未改，签名提交不推送。
+
+§132 已核对为有效默认签名提交 bc488ac27，未推送。
+
+## 133. 暂存上传同时执行存储配置的大小与类型规则
+
+Ruling: 原共享文件类型过滤器明确删除 size，要求 multipart limits 执行大小限制；新暂存器却只使用外部 maxFileSize，传入 rules.size 也被忽略。先用实际 multipart 复现：更小的配置限制、零限制和非法配置均错误接受，共七项失败、三十一项通过，保留 staged-storage-limits-red.log。将实际解析上限取可信 maxFileSize 与有效存储 size 的较小值；null/缺省沿原缺省语义，零保持限制，非法负数/非整数/非数值明确拒绝，不增加新的无限制语义。
+
+- [x] 真实失败复现，包含较小限制被忽略、较大配置不得扩大外部上限、缺省/null/正常接受及配置错误对照。
+- [x] 最小修复暂存器，并在实际 HTTP 组合传递已渲染的服务端存储 rules；验证失败不落行、不留字节。
+- [x] 聚焦回归、文件包构建、lint/格式、自审和测试资源清理；默认签名提交状态见后续记录。
+
+暂存器 38 项全部通过，保留 staged-storage-limits-green.log；真实 PostgreSQL HTTP 夹具暂时不传所选 rules 时，两种更小大小/不匹配类型本应拒绝却成功，保留 staged-storage-limits-http-red.log，之后恢复服务端规则传递。最终暂存、完整 HTTP、新旧可选选路和默认 action 四文件 99 项全部通过，无跳过，保留 staged-storage-limits-final.log。只有所选新入口使用该暂存器，旧默认 multipart 大小计算未更改；本批不替代实际 storage 使用授权或持久化恢复。
+
+文件包客户端、服务端及声明构建退出 0，保留 staged-storage-limits-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审及源/快照 SHA256 一致，独立复核仍待补齐。核实实际实例目录和零其他客户端后，删除可重建的专用库 tego_tenant_access_test_133f6b9d1e，复查不存在并停止本任务实例；保留日志及实例目录。未改正式注册/保存/启用、依赖、业务库或线上；保留默认签名且不推送。

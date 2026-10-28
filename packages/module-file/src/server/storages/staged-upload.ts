@@ -4,6 +4,7 @@ import type { StagedAttachmentUpload } from '../actions/staged-upload';
 export interface StagedAttachmentStorage extends StorageModel {
   id: string | number;
   path: string;
+  rules?: Record<string, unknown>;
 }
 
 export interface StagedAttachmentStorageValues {

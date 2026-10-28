@@ -95,25 +95,28 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
           ctx.state.testActor.tenantId,
         );
         parsed = true;
-        ctx.body = await withStagedAttachmentUpload(ctx, { directory: staging, maxFileSize: 1024 }, (file) =>
-          withStagedAttachmentTransaction(db, storage, file, async ({ transaction, values, store }) => {
-            const readResponse = captureStagedAttachmentResponse(docs, values, storage);
-            let response: Record<string, unknown>;
-            await entry.create({
-              transaction,
-              metadata: values,
-              storage: { key: values.storageId, assertCurrent: selection.assertCurrent },
-              afterPersist: async () => {
-                await store();
-                copied = true;
-                expect(await fs.readFile(path.join(root, values.path, values.filename))).toEqual(bytes);
-              },
-              verifyRecord: async (key, transaction) => {
-                response = await readResponse(key, transaction);
-              },
-            });
-            return response;
-          }),
+        ctx.body = await withStagedAttachmentUpload(
+          ctx,
+          { directory: staging, maxFileSize: 1024, rules: storage.rules },
+          (file) =>
+            withStagedAttachmentTransaction(db, storage, file, async ({ transaction, values, store }) => {
+              const readResponse = captureStagedAttachmentResponse(docs, values, storage);
+              let response: Record<string, unknown>;
+              await entry.create({
+                transaction,
+                metadata: values,
+                storage: { key: values.storageId, assertCurrent: selection.assertCurrent },
+                afterPersist: async () => {
+                  await store();
+                  copied = true;
+                  expect(await fs.readFile(path.join(root, values.path, values.filename))).toEqual(bytes);
+                },
+                verifyRecord: async (key, transaction) => {
+                  response = await readResponse(key, transaction);
+                },
+              });
+              return response;
+            }),
         );
       },
     });
@@ -338,6 +341,30 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     const row = await docs.repository.findOne();
     expect(row.get('tenantId')).toBe('B');
     expect(await fs.readFile(path.join(root, 'receipts', 'tenants', 'B', row.get('filename')))).toEqual(bytes);
+    expect(await fs.readdir(staging)).toEqual([]);
+  });
+  it.each([{ size: bytes.length - 1 }, { mimetype: 'image/*' }])(
+    'enforces actual selected storage rules %j before database or final file writes',
+    async (rules) => {
+      await app.db.getRepository('storages').update({ filterByTk: 17, values: { rules } });
+      const response = await upload();
+      expect(response.status, response.text).toBe(400);
+      expect(parsed).toBe(true);
+      expect(copied).toBe(false);
+      await empty();
+    },
+  );
+  it('accepts actual selected storage rules when size and type both permit the multipart file', async () => {
+    await app.db.getRepository('storages').update({
+      filterByTk: 17,
+      values: { rules: { size: bytes.length + 1, mimetype: 'text/*' } },
+    });
+    const response = await upload();
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.data.size).toBe(bytes.length);
+    const row = await docs.repository.findOne();
+    expect(row.get('tenantId')).toBe('B');
+    expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
     expect(await fs.readdir(staging)).toEqual([]);
   });
 });

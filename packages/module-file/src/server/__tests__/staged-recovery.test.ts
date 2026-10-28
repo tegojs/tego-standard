@@ -271,4 +271,133 @@ describe.skipIf(!postgresUrl)('controlled recovery of local staged objects', () 
     expect(await pending).toEqual({ state: rollback ? 'removed' : 'retained' });
     if (!rollback) expect(await fs.readFile(destination())).toEqual(bytes);
   });
+
+  async function seedCancelled(ids: string[]) {
+    for (const id of ids) {
+      await operations.repository.create({
+        values: { id, state: 'cancelled', payload: { root, values: plan.values } },
+      });
+    }
+  }
+
+  it('discovers only cancelled operations in stable keyset pages without changing any state', async () => {
+    const ids = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+      '00000000-0000-0000-0000-000000000003',
+    ];
+    await seedCancelled([ids[2], ids[0], ids[1]]);
+    await operations.repository.create({
+      values: {
+        id: '00000000-0000-0000-0000-000000000000',
+        state: 'committed',
+        payload: { root, values: plan.values },
+      },
+    });
+    expect(await journal.listCancelled({ limit: 2 })).toEqual(ids.slice(0, 2));
+    expect(await journal.listCancelled({ after: ids[1], limit: 2 })).toEqual([ids[2]]);
+    expect(await journal.listCancelled({ after: ids[2] })).toEqual([]);
+    expect((await operations.repository.findOne({ filterByTk: operation.id })).get('state')).toBe('pending');
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  it('skips a genuinely locked cancelled operation and discovers it in a later fresh scan', async () => {
+    const id = '00000000-0000-0000-0000-000000000001';
+    await seedCancelled([id]);
+    transaction = await other.sequelize.transaction();
+    await other.getCollection('recovery_operations').model.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    try {
+      expect(await journal.listCancelled()).toEqual([]);
+    } finally {
+      await transaction.rollback();
+    }
+    expect(await journal.listCancelled()).toEqual([id]);
+  });
+
+  it.each([{ limit: 0 }, { limit: 101 }, { limit: 1.5 }, { after: 'bad-id' }, { after: '' }, { unknown: true }])(
+    'rejects invalid recovery scan options %j without changing operations',
+    async (options) => {
+      await expect(journal.listCancelled(options)).rejects.toBeInstanceOf(TypeError);
+      expect((await operations.repository.findOne({ filterByTk: operation.id })).get('state')).toBe('pending');
+      expect(await fs.readdir(root)).toEqual([]);
+    },
+  );
+
+  it('rejects changed journal metadata before discovering any operation', async () => {
+    const original = operations.model.rawAttributes.id;
+    operations.model.rawAttributes.id = { ...original };
+    try {
+      await expect(journal.listCancelled()).rejects.toBeInstanceOf(TypeError);
+    } finally {
+      operations.model.rawAttributes.id = original;
+    }
+    expect((await operations.repository.findOne({ filterByTk: operation.id })).get('state')).toBe('pending');
+  });
+
+  async function cancelledObject() {
+    const created = await files.prepareStagedAttachmentStorage(storage, {
+      path: path.join(directory, 'staged'),
+      originalname: 'recover.pdf',
+      mimetype: 'application/pdf',
+      size: bytes.length,
+    });
+    const marker = await journal.prepare(storage, created.values);
+    const writer = await db.sequelize.transaction();
+    try {
+      await marker.lock(writer);
+      await created.storeForRecovery(async (receipt) => {
+        await receipts.persist(marker.id, { root, values: created.values }, receipt);
+      });
+    } finally {
+      await writer.rollback();
+    }
+    await journal.claimRecovery(marker.id);
+    return { id: marker.id, filename: path.join(root, created.values.path, created.values.filename) };
+  }
+
+  it('reports missing evidence and still recovers later items without touching pending or committed uploads', async () => {
+    const bad = '00000000-0000-0000-0000-000000000000';
+    await seedCancelled([bad]);
+    const good = await cancelledObject();
+    const pendingId = operation.id;
+    await write();
+    await transaction.commit();
+    const pending = await journal.prepare(storage, plan.values);
+    const result = await files.recoverCancelledAttachments(journal, receipts);
+    expect(result.items.map(({ id, state }) => ({ id, state }))).toEqual([
+      { id: bad, state: 'failed' },
+      { id: good.id, state: 'removed' },
+    ]);
+    expect(result.items[0].error).toBeInstanceOf(TypeError);
+    expect(result.nextAfter).toBe(good.id);
+    expect((await operations.repository.findOne({ filterByTk: pendingId })).get('state')).toBe('committed');
+    expect((await operations.repository.findOne({ filterByTk: pending.id })).get('state')).toBe('pending');
+    expect(await fs.readFile(destination())).toEqual(bytes);
+    await expect(fs.stat(good.filename)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('bounds a retry call to its captured page and permits advancing past a failed item', async () => {
+    const bad = '00000000-0000-0000-0000-000000000000';
+    await seedCancelled([bad]);
+    const good = await cancelledObject();
+    const options = { limit: 1 };
+    const running = files.recoverCancelledAttachments(journal, receipts, options);
+    options.limit = 100;
+    const first = await running;
+    expect(first.items.map(({ id, state }) => ({ id, state }))).toEqual([{ id: bad, state: 'failed' }]);
+    expect(first.nextAfter).toBe(bad);
+    expect(await fs.readFile(good.filename)).toEqual(bytes);
+    const next = await files.recoverCancelledAttachments(journal, receipts, { after: first.nextAfter, limit: 1 });
+    expect(next.items).toEqual([{ id: good.id, state: 'removed' }]);
+    expect(await files.recoverCancelledAttachments(journal, receipts, { after: next.nextAfter })).toEqual({
+      items: [],
+      nextAfter: undefined,
+    });
+  });
+
+  it('rejects a shared retry pool before discovering or cancelling any operation', async () => {
+    await expect(files.recoverCancelledAttachments(journal, localReceipts)).rejects.toBeInstanceOf(TypeError);
+    expect((await operations.repository.findOne({ filterByTk: operation.id })).get('state')).toBe('pending');
+    expect(await fs.readdir(root)).toEqual([]);
+  });
 });

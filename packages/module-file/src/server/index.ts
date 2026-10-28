@@ -9,7 +9,8 @@ export { withStagedAttachmentTransaction, StagedAttachmentTransactionError } fro
 export type { StagedAttachmentPersistence } from './storages/staged-transaction';
 export { StagedAttachmentJournal } from './storages/staged-journal';
 export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journal';
-export { recoverStagedAttachment } from './storages/staged-recovery';
+export { recoverStagedAttachment, recoverCancelledAttachments } from './storages/staged-recovery';
+export type { StagedAttachmentRecoveryBatchItem } from './storages/staged-recovery';
 export { verifyLocalStagedAttachment } from './storages/local-recovery';
 export type { StagedAttachmentRecoveryClaim } from './storages/staged-journal';
 export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';

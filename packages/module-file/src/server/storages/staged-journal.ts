@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { Transaction, type Collection, type Database } from '@tego/server';
+import { Op, Transaction, type Collection, type Database } from '@tego/server';
 
 import { getLocalStorageRoot } from './local-root';
 import type { StagedAttachmentStorage, StagedAttachmentStorageValues } from './staged-upload';
@@ -202,5 +202,60 @@ export class StagedAttachmentJournal {
         return Object.freeze({ state: 'cancelled' as const, result });
       },
     );
+  }
+
+  /** One discovery page, never a cleanup lease or a claim that all work is complete.
+   * Pending operations are deliberately excluded. Skipped locks require a later fresh sweep.
+   */
+  async listCancelled(options: { after?: string; limit?: number } = {}): Promise<readonly string[]> {
+    this.assertCurrent();
+    if (
+      !options ||
+      typeof options !== 'object' ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(options)) ||
+      Reflect.ownKeys(options).some((key) => typeof key !== 'string' || !['after', 'limit'].includes(key))
+    )
+      throw new TypeError('Attachment recovery scan options are invalid');
+    const fields = Object.getOwnPropertyDescriptors(options);
+    if (Object.values(fields).some((field) => !field.enumerable || !Object.hasOwn(field, 'value')))
+      throw new TypeError('Attachment recovery scan options must be plain values');
+    const after = fields.after?.value;
+    const limit = fields.limit?.value === undefined ? 20 : fields.limit.value;
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 100 ||
+      (after !== undefined && (typeof after !== 'string' || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/.test(after)))
+    )
+      throw new TypeError('Attachment recovery requires a bounded page and valid operation cursor');
+    const ids = await this.database.sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (transaction) => {
+        this.assertTransaction(transaction);
+        const query = {
+          attributes: ['id'],
+          hooks: false,
+          useMaster: true,
+          where: { state: 'cancelled', ...(after ? { id: { [Op.gt]: after } } : {}) },
+          order: [['id', 'ASC'] as [string, 'ASC']],
+          limit,
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+          skipLocked: true,
+        };
+        const rows = await this.model.unscoped().findAll(query);
+        this.assertTransaction(transaction);
+        return Object.freeze(
+          rows.map((row) => {
+            const id = row.getDataValue('id');
+            if (typeof id !== 'string' || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/.test(id))
+              throw new TypeError('Cancelled attachment operation has an invalid identifier');
+            return id;
+          }),
+        );
+      },
+    );
+    this.assertCurrent();
+    return ids;
   }
 }

@@ -8,6 +8,8 @@ export type { StagedAttachmentOptions, StagedAttachmentUpload } from './actions/
 export { withStagedAttachmentTransaction, StagedAttachmentTransactionError } from './storages/staged-transaction';
 export type { StagedAttachmentPersistence } from './storages/staged-transaction';
 export { captureStagedAttachmentRecord } from './storages/staged-record';
+export { resolveStagedAttachmentStorage } from './storages/storage-selection';
+export type { StagedAttachmentStorageSelection } from './storages/storage-selection';
 export { prepareStagedAttachmentStorage } from './storages/staged-upload';
 export type {
   StagedAttachmentStorage,

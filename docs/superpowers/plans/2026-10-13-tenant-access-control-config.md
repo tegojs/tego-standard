@@ -1889,3 +1889,26 @@ Ruling: 在文件模块增加未登记的 captureStagedAttachmentRecord，写入
 最终两组新检查与旧协调在 SQLite 和专用 PostgreSQL 共 82 项通过；连同原暂存、存储、入口和默认 action 对照，7 个文件 173 项通过，无跳过，保留 staged-record-final.log。首次声明构建发现 Sequelize 联合类型的 toString 签名及 hooks 选项声明差异；只调整字符串转换及选项变量表达，未改运行时校验，之后两文件 SQLite 23 项重跑通过，文件包客户端、服务端和声明构建退出 0，保留 staged-record-type-fix.log、staged-record-build-verified.log。
 
 四个 TypeScript 文件 oxlint 零警告/错误，格式、diff、自审及源文件/独立快照 SHA256 检查通过；按恢复约定单会话串行，独立复核仍待补齐。专用库 tego_tenant_access_test_126a7b83c9 经零连接核对后删除、复查不存在，随后停止本任务临时实例，日志和实例目录保留。普通 storageId 物理列夹具不等于真实 storage 关系；后者、storage 目标授权、最终 upload ACL、持久化恢复和受控下载仍待完成，注册/保存/启用继续关闭。
+
+§126 已核对为有效默认签名提交 3497d7b8a，未推送。首次认证超时后保留暂存区并继续独立工作；用户确认可认证后，普通终端返回未提供口令，改用交互终端签名成功，未绕过签名或操作认证窗口。
+
+## 127. 从服务端文件表配置选择并复核存储
+
+Ruling: 文件模块提供未登记的 resolveStagedAttachmentStorage(collection)，仅从实际文件表的 storage 配置选择对应引擎，未配置才查唯一 default。缺失或重复明确拒绝，不因指定引擎不存在而退回默认。固定文件表、真实 storage BelongsTo、storages 模型及字段映射；返回本次原始持久化配置的独立副本，供可信入口另行渲染环境和拼接租户目录。存储副作用前在文件自有事务中锁定并复查同一选择和全部托管配置，变化拒绝；不读取请求中的 storageId 或 attachmentField。
+
+此选择器不授权 upload 操作、业务附件字段或存储目标，不支持字段级引擎覆盖及持久化补偿，也不自行创建目录或复制文件；只借用文件协调器的自有事务复核，不创建或结束事务。后续完整入口须在最终 ACL/G 通过后调用、复核存储授权并使用充分隔离的自有事务，不能把内部配置读取当作目标读取权限。正式路由继续未接线。
+
+- [x] 在 storage-selection.test.ts 用实际 storages 表及文件 BelongsTo 先验证缺少能力失败；覆盖具名/默认、指定缺失不回退、多默认、配置副本、实际变更/删除、表及关系身份和事务变化。
+- [x] 最小实现选择与事务内复核；实际 SQLite/PostgreSQL、相关文件回归、包构建、lint、格式和自审后单独签名提交，提交状态见节末。没有把前批暂存区混入本批提交。
+
+选择器缺失时 16 项真实失败；实现后，正常 Repository 修改 radio/default 会自动切换其他默认值，初版“重复默认”夹具因此并未真正制造歧义，改在专用测试库直接构造两默认值后通过，未因此修改产品规则。自审再补出外键物理映射及 scoped storage 关系两项实际错误成功，分别固定外键映射和拒绝未适配的额外关系筛选后转绿，保留 storage-selection-mapping-red.log、storage-selection-scope-red.log。
+
+完整文件选择、元数据、事务、旧暂存/存储/入口和默认 action 对照在两数据库累计 8 个文件 215 项通过、无跳过，保留 storage-selection-final.log。随后加入真实文件字节与实际 storage BelongsTo 的正常提交、复制后配置改变的整笔回滚，以及钩子改真实 storageId 后记录/文件撤回三种组合；更新后的完整选择文件在 SQLite 与 PostgreSQL 共 48 项通过、无跳过，保留 storage-selection-composition-postgres.log。组合使用直接 Repository 和文件元数据复核，不声称已组合实际 upload ACL 或公共新增 G。
+
+文件包客户端、服务端及声明构建退出 0，保留 storage-selection-build.log；构建后的改动仅为测试组合与文档，产品源码未再改变。三个 TypeScript 文件 oxlint、格式、diff 和功能源/独立快照 SHA256 检查通过；继续单会话自审，独立复核待补齐。测试库及实例清理结果见后续记录。
+
+§126 的六文件暂存区保持原样直至签名完成，§127 新代码和记录未混入前批提交；现单独暂存本批五文件并保留默认签名提交。所有正式接线、规则保存/启用、正式依赖、主/核心检出及业务库/线上保持不变。
+
+接续项：真实文件表/storage 关系与最终 create/upload 操作 ACL、公共新增 G 的专用组合；现有普通关系写入仍应拒绝托管 storageId，不能为这一入口全局放松。此后继续持久化补偿、受控下载及其他未适配入口；上述结果不是完整附件或整体功能的放行证据。
+
+§127 两次独立测试库 tego_tenant_access_test_127c5a9b2d、tego_tenant_access_test_127d6b8c3e 均在确认实例目录及零连接后删除、复查不存在，并停止本任务临时实例；只删除可重建的测试夹具，日志和实例目录保留，没有测试服务或数据库遗留待清理。代码、测试与包构建已验证，不重复运行这些已通过验证。

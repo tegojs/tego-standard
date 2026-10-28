@@ -6,7 +6,11 @@ import { pipeline } from 'node:stream/promises';
 
 import type { StagedAttachmentUpload } from '../actions/staged-upload';
 import { getLocalStorageRoot } from './local-root';
-import type { StagedAttachmentStorage, StagedAttachmentStoragePlan } from './staged-upload';
+import type {
+  StagedAttachmentLocalReceipt,
+  StagedAttachmentStorage,
+  StagedAttachmentStoragePlan,
+} from './staged-upload';
 
 const invalidSegment = (segment: string) =>
   !segment ||
@@ -14,6 +18,12 @@ const invalidSegment = (segment: string) =>
   segment === '..' ||
   /[<>:"\\|?*]|[. ]$/.test(segment) ||
   [...segment].some((character) => character.charCodeAt(0) < 32);
+
+const identity = (stat: BigIntStats) => {
+  if (stat.dev < 0n || stat.ino <= 0n || stat.birthtimeNs <= 0n)
+    throw new TypeError('Local storage does not provide durable object identities');
+  return Object.freeze({ dev: String(stat.dev), ino: String(stat.ino), birthtimeNs: String(stat.birthtimeNs) });
+};
 
 /** Server-owned directories only; filesystem writers must not rename/replace paths during a plan.
  * Database commit, G and durable compensation remain the caller's responsibility.
@@ -76,7 +86,7 @@ export function prepareLocalStagedUpload(
       owned = false;
     }
   };
-  const write = async () => {
+  const write = async (capture?: (receipt: StagedAttachmentLocalReceipt) => Promise<void>) => {
     let input: FileHandle | undefined;
     let output: FileHandle | undefined;
     try {
@@ -87,6 +97,14 @@ export function prepareLocalStagedUpload(
         throw new TypeError('Staged attachment is unavailable or changed');
       await fs.mkdir(root, { recursive: true });
       let parent = await fs.realpath(root);
+      const canonicalRoot = parent;
+      const directories: StagedAttachmentLocalReceipt['directories'][number][] = [];
+      if (capture) {
+        const directory = await fs.lstat(parent, { bigint: true });
+        if (!directory.isDirectory()) throw new TypeError('Attachment storage root must be a directory');
+        directories.push(Object.freeze({ path: '', ...identity(directory) }));
+      }
+      const segments: string[] = [];
       for (const segment of values.path ? values.path.split('/') : []) {
         parent = path.join(parent, segment);
         try {
@@ -94,14 +112,35 @@ export function prepareLocalStagedUpload(
         } catch (error) {
           if (error.code !== 'EEXIST') throw error;
         }
-        const directory = await fs.lstat(parent);
+        const directory = await fs.lstat(parent, { bigint: true });
         if (!directory.isDirectory() || directory.isSymbolicLink())
           throw new TypeError('Attachment storage path must not traverse symbolic links');
+        if (capture) {
+          segments.push(segment);
+          directories.push(Object.freeze({ path: segments.join('/'), ...identity(directory) }));
+        }
       }
       destination = path.join(parent, filename);
       output = await fs.open(destination, 'wx', 0o600);
       owned = true;
-      object = await output.stat({ bigint: true });
+      const created = await output.stat({ bigint: true });
+      object = created;
+      if (capture) {
+        if (!created.isFile()) throw new TypeError('Attachment storage object must be a regular file');
+        await capture(
+          Object.freeze({
+            version: 1,
+            kind: 'local',
+            root: canonicalRoot,
+            path: values.path,
+            filename,
+            storageId: values.storageId,
+            size: values.size,
+            directories: Object.freeze(directories),
+            object: identity(created),
+          }),
+        );
+      }
       await pipeline(input.createReadStream(), output.createWriteStream());
       const actual = await fs.lstat(destination, { bigint: true });
       if (
@@ -116,10 +155,10 @@ export function prepareLocalStagedUpload(
       await input?.close();
     }
   };
-  const start = (cleanupOnFailure: boolean) => {
+  const start = (cleanupOnFailure: boolean, capture?: (receipt: StagedAttachmentLocalReceipt) => Promise<void>) => {
     if (started || discarded) return Promise.reject(new TypeError('Attachment storage plan has already been used'));
     started = true;
-    writing = write();
+    writing = write(capture);
     if (cleanupOnFailure)
       writing = writing.catch(async (error) => {
         try {
@@ -138,6 +177,10 @@ export function prepareLocalStagedUpload(
     },
     storeForTransaction() {
       return start(false);
+    },
+    storeForRecovery(capture) {
+      if (typeof capture !== 'function') return Promise.reject(new TypeError('Upload receipt persistence is required'));
+      return start(false, capture);
     },
     discard() {
       discarded = true;

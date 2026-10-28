@@ -2056,3 +2056,21 @@ Ruling: 先做 PostgreSQL 内部日志及自有事务的可选组合，不登记
 最终文件包客户端、服务端及声明构建退出 0，保留 staged-journal-build-verified.log。四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/独立快照 SHA256 及作者自审通过；独立复核仍待补齐。日志判断只返回状态和位置；未实现跨进程文件身份验证、删除租约/物理清理或生产恢复任务，不将数据库标记当作完整恢复。
 
 核实实例实际目录及零其他客户端后，删除可重建的专用库 tego_tenant_access_test_135b8d1f3a，复查不存在并停止本任务实例；日志和实例目录保留。未登记生产日志表或改正式路由、规则保存/启用、主/核心检出、依赖、业务数据库或线上。默认签名原子提交，不推送；后续从跨进程对象身份证据及受控恢复接续。
+
+§135 已核对为有效默认签名提交 a7e216b6a，未推送。
+
+## 136. 在复制字节前提供可持久化的本地对象身份
+
+Ruling: 先增加显式可选 storeForRecovery(capture) 能力，不让旧引擎忽略一个新增回调后误报支持恢复。local 在独占创建并取得文件及目录的 bigint 身份后、写入内容前，等待可信 capture 回调确认；身份使用十进制字符串，包含 dev/ino/birthtimeNs，避免 Windows 文件号精度丢失及 JSON 无法保存 bigint。回执固定实际 canonical root、逐级目录、计划文件名、存储编号及预期大小；不是客户端数据，也不是删除许可。
+
+本批只交付存储原语，不把回执写进持锁的同一日志行（跨连接会自锁），也不接自动物理清理。后续须用独立持久化对象回执行协调日志、两个恢复者和身份验证；独占创建至身份回执确认之间崩溃仍必须报告人工恢复，不能猜测对象归属。沿用 §122 的服务端稳定独占目录前提，不宣称消除了宿主文件系统替换竞争。
+
+文件：storages/staged-upload.ts（可选能力及序列化回执类型）、storages/local-upload.ts（复制前捕获及等待）、server/index.ts（内部类型导出）、__tests__/local-upload-receipt.test.ts（实际文件及独立 Node 进程核对）。
+
+- [x] 先复现能力缺失：复制前零字节、等待回执确认、JSON 往返及独立进程身份一致，回调失败延后清理、无效回调不写入和单次消费。
+- [x] 最小本地实现，不更改旧 store/storeForTransaction、默认路由或日志配置。
+- [x] 串行相关回归、文件包构建、lint/格式、自审；默认签名原子提交状态见后续记录，本批不启动 PostgreSQL 服务。
+
+缺少 storeForRecovery 时五项实际失败，保留 local-receipt-red.log；最小实现后五项通过，保留 local-receipt-green.log。独立 Node 子进程从 JSON 回执读取路径，另取原生 bigint 文件/目录身份，确认回调时文件为零字节、确认后同一文件具有完整内容。回调阻塞、拒绝、无效回调及单次消费均使用实际文件验证。新回执、原存储、事务协调、multipart 暂存及原 action 五文件串行共 90 项通过、无跳过，保留 local-receipt-final.log；本批只运行 SQLite，不将其表述为 PostgreSQL 恢复验证。
+
+文件包客户端、服务端及声明构建退出 0，保留 local-receipt-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、源/快照 SHA256 及作者自审通过。按单会话串行约定未派独立审查，整分支独立复核仍待补齐。新方法不会自动保存回执或清理文件；普通上传/事务协调没有调用新能力，实际恢复仍待后续实施。未启 PostgreSQL、未改正式入口或依赖、业务库、线上；保留默认签名，不推送。

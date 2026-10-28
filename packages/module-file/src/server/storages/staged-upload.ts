@@ -19,12 +19,33 @@ export interface StagedAttachmentStorageValues {
   readonly meta: Readonly<Record<string, unknown>>;
 }
 
+export interface StagedAttachmentObjectIdentity {
+  readonly dev: string;
+  readonly ino: string;
+  readonly birthtimeNs: string;
+}
+
+/** Server-captured evidence only. This receipt does not authorize recovery or deletion. */
+export interface StagedAttachmentLocalReceipt {
+  readonly version: 1;
+  readonly kind: 'local';
+  readonly root: string;
+  readonly path: string;
+  readonly filename: string;
+  readonly storageId: string | number;
+  readonly size: number;
+  readonly directories: readonly (StagedAttachmentObjectIdentity & { readonly path: string })[];
+  readonly object: StagedAttachmentObjectIdentity;
+}
+
 export interface StagedAttachmentStoragePlan {
   readonly values: StagedAttachmentStorageValues;
   /** Copy once while the staged upload still exists. This does not authorize or persist a database row. */
   store(): Promise<void>;
   /** Optional transaction-owned copy. Failure must leave cleanup to discard after a confirmed database rollback. */
   storeForTransaction?(): Promise<void>;
+  /** Persist exact local identities before copying bytes. Failures leave cleanup to the transaction owner. */
+  storeForRecovery?(capture: (receipt: StagedAttachmentLocalReceipt) => Promise<void>): Promise<void>;
   /** Remove this new object in server-owned, stable storage directories. Safe to repeat after completion. */
   discard(): Promise<void>;
 }

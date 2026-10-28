@@ -14,6 +14,8 @@ export { resolveStagedAttachmentStorage, renderStagedAttachmentStorage } from '.
 export type { StagedAttachmentStorageSelection } from './storages/storage-selection';
 export { prepareStagedAttachmentStorage } from './storages/staged-upload';
 export type {
+  StagedAttachmentLocalReceipt,
+  StagedAttachmentObjectIdentity,
   StagedAttachmentStorage,
   StagedAttachmentStoragePlan,
   StagedAttachmentStorageValues,

@@ -7,7 +7,7 @@ export { withStagedAttachmentUpload } from './actions/staged-upload';
 export type { StagedAttachmentOptions, StagedAttachmentUpload } from './actions/staged-upload';
 export { withStagedAttachmentTransaction, StagedAttachmentTransactionError } from './storages/staged-transaction';
 export type { StagedAttachmentPersistence } from './storages/staged-transaction';
-export { captureStagedAttachmentRecord } from './storages/staged-record';
+export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';
 export { resolveStagedAttachmentStorage } from './storages/storage-selection';
 export type { StagedAttachmentStorageSelection } from './storages/storage-selection';
 export { prepareStagedAttachmentStorage } from './storages/staged-upload';

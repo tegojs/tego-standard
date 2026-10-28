@@ -1968,3 +1968,21 @@ Ruling: 用真实 FilePlugin 可选选路、完整 ACL.middleware、multipart、
 正确的旧默认 action 文件另外 10 项通过，保留 staged-creation-http-legacy.log，累计四文件 79 项通过、22 项数据库分组跳过；新 HTTP 的全部 PostgreSQL 场景实际执行。租户包客户端、服务端及声明构建退出 0，保留 staged-creation-http-build.log；文件包没有产品源码改动。格式化后两份 TypeScript 源/快照 SHA256 一致，oxlint 零警告/错误，Prettier、diff 与作者自审通过；按恢复约定单会话串行，独立复核仍待补齐。
 
 确认实例实际 data_directory、专用库名及零其他客户端后，删除可重建的 tego_tenant_access_test_130c9e6a7b，复查库不存在并停止本任务临时实例；日志和实例目录保留。没有业务库或正式依赖变更，没有正式路由接线、规则保存/启用或生产修改。下一项继续现有上传响应协议适配，之后仍有存储使用策略、持久化补偿和受控下载等放行条件。
+
+§130 已核对为有效默认签名提交 54ba775c5，未推送。
+
+## 131. 上传成功响应的有限投影与提交边界
+
+Ruling: 现有上传组件读取 response.data 中的文件编号、标题、url 等，不能把公共新增服务的 keys/affected 直接当成文件。文件层增加未登记的 captureStagedAttachmentResponse，复用原物理元数据复核，在同一次事务查询内只读取实际 INSERT 主键、实际保存的标题和八个托管字段。不调用任意展示 getter、不展开关系、不返回租户归属、自定义业务字段或存储凭据。它是已经授权的新增结果，不是对任意现有键的读取授权；可信入口必须使用公共新增的实际 INSERT 回执，且只能在文件自有事务成功提交后发布。
+
+为保留原组件展示行为，将 FileModel 已有的本地 APP_PUBLIC_PATH 前缀、缩略图配置及 OSS 缺省缩略图规则提为同一展示函数；旧 toJSON 的条件与行为不变。新有限投影仅从同一个可信 storage 选择捕获展示所需的 type/thumbnailRule 和服务端前缀，不捕获完整凭据配置；之后变更调用方对象不改变已固定响应。未传 storage 时仅输出原始物理字段，不猜测引擎或偷偷查 storages。错误 storage 键和标题物理映射漂移明确拒绝。此能力不允许新存储引擎上传，也不代表公开 URL 已有内容级隔离。
+
+- [x] 响应能力缺失时六项实际失败，原十一项通过，保留 staged-response-contract-red.log；最小实现后 SQLite 十七项通过，保留 staged-response-green.log。
+- [x] 真实 HTTP 夹具改用事务内复核生成有限响应，事务所有者成功返回后才设置 ctx.body；保存标题经 INSERT 钩子规范化也准确返回，私有字段与关联不泄漏。
+- [x] 实际 afterCommit 钩子抛错时响应为错误、没有成功 data；已提交记录及真实字节保留，暂存清理，避免将不确定提交误当回滚而删文件。
+- [x] FileModel 与新响应分别对本地前缀、OSS 缺省/自定义缩略图规则做字面结果断言；未改变旧展示，也不把 OSS 展示测试当作 OSS 暂存上传支持。
+- [x] 文件包构建、最终 lint/格式/哈希、自审及独立测试资源清理；签名提交状态见后续记录。
+
+首轮响应记录与 HTTP 两文件在 SQLite/独立 PostgreSQL 共 46 项通过，无跳过，保留 staged-response-http.log。加入旧展示表征后，响应记录、HTTP、实际公共新增/文件回滚组合及旧 action 四文件 86 项全部通过，无跳过，保留 staged-response-final-regression.log。未运行真实页面登录或正式运行时接线；storage 使用策略、字段级引擎覆盖、持久化恢复及受控下载仍待后续完成。
+
+文件包客户端、服务端及声明构建退出 0，保留 staged-response-build.log；五处 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审和源/快照逐文件 SHA256 一致。独立复核仍按恢复约定待补齐。核对实例目录及零其他客户端后，删除可重建的 tego_tenant_access_test_131d4f7b9c、复查不存在并停止本任务实例；日志及实例目录保留，没有业务库、依赖或正式运行时变更。仅默认签名提交，不推送。

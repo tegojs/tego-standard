@@ -5,7 +5,7 @@ import { mockServer, supertest, type MockServer } from '@tachybase/test';
 import type { Collection, Context } from '@tego/server';
 
 import FilePlugin, {
-  captureStagedAttachmentRecord,
+  captureStagedAttachmentResponse,
   resolveStagedAttachmentStorage,
   withStagedAttachmentTransaction,
   withStagedAttachmentUpload,
@@ -92,8 +92,10 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
         const storage = selection.values as unknown as StagedAttachmentStorage;
         parsed = true;
         ctx.body = await withStagedAttachmentUpload(ctx, { directory: staging, maxFileSize: 1024 }, (file) =>
-          withStagedAttachmentTransaction(db, storage, file, ({ transaction, values, store }) =>
-            entry.create({
+          withStagedAttachmentTransaction(db, storage, file, async ({ transaction, values, store }) => {
+            const readResponse = captureStagedAttachmentResponse(docs, values, storage);
+            let response: Record<string, unknown>;
+            await entry.create({
               transaction,
               metadata: values,
               storage: { key: values.storageId, assertCurrent: selection.assertCurrent },
@@ -102,9 +104,12 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
                 copied = true;
                 expect(await fs.readFile(path.join(root, values.path, values.filename))).toEqual(bytes);
               },
-              verifyRecord: captureStagedAttachmentRecord(docs, values),
-            }),
-          ),
+              verifyRecord: async (key, transaction) => {
+                response = await readResponse(key, transaction);
+              },
+            });
+            return response;
+          }),
         );
       },
     });
@@ -121,6 +126,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
         { name: 'tenantId', type: 'string', field: 'tenant_id' },
         { name: 'name', type: 'string' },
         { name: 'amount', type: 'integer', defaultValue: 10 },
+        { name: 'internalToken', type: 'string', defaultValue: 'private-value' },
         ...['title', 'filename', 'extname', 'path', 'url', 'mimetype'].map((name) => ({ name, type: 'string' })),
         { name: 'size', type: 'integer' },
         { name: 'meta', type: 'jsonb' },
@@ -207,7 +213,19 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     async (operation) => {
       const response = await upload(operation);
       expect(response.status, response.text).toBe(200);
-      expect(response.body.data).toEqual({ keys: [1], affected: 1 });
+      expect(response.body.data).toEqual({
+        id: 1,
+        title: 'receipt',
+        filename: expect.stringMatching(/^[a-f0-9]{32}\.txt$/),
+        extname: '.txt',
+        mimetype: 'text/plain',
+        size: bytes.length,
+        path: '',
+        url: expect.stringMatching(/^\/test-files\/[a-f0-9]{32}\.txt$/),
+        storageId: expect.anything(),
+        meta: {},
+      });
+      expect(String(response.body.data.storageId)).toBe('17');
       const row = await docs.repository.findOne({ appends: ['storage'] });
       expect(row.get('tenantId')).toBe('B');
       expect(row.get('storage').get('id')).toBe(17);
@@ -264,6 +282,30 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     expect(row.get('amount')).toBe(10);
     expect(row.get('tenantId')).toBe('B');
     expect(row.get('storageId')).toBe(17);
+    expect(await fs.readFile(path.join(root, row.get('filename')))).toEqual(bytes);
+    expect(await fs.readdir(staging)).toEqual([]);
+  });
+  it('returns the saved title without custom private columns or association expansion', async () => {
+    app.db.on('documents.beforeCreate', (row) => row.setDataValue('title', 'Normalized receipt'));
+    const response = await upload();
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.data.title).toBe('Normalized receipt');
+    expect(response.body.data).not.toHaveProperty('internalToken');
+    expect(response.body.data).not.toHaveProperty('tenantId');
+    expect(response.body.data).not.toHaveProperty('storage');
+    expect(response.body.data).not.toHaveProperty('options');
+  });
+  it('never publishes a success receipt when commit hooks fail after the row is committed', async () => {
+    app.db.on('documents.afterCreate', (_row, options) => {
+      options.transaction.afterCommit(() => {
+        throw new Error('after commit failed');
+      });
+    });
+    const response = await upload();
+    expect(response.status, response.text).toBe(500);
+    expect(response.body).not.toHaveProperty('data');
+    const row = await docs.repository.findOne();
+    expect(row).toBeTruthy();
     expect(await fs.readFile(path.join(root, row.get('filename')))).toEqual(bytes);
     expect(await fs.readdir(staging)).toEqual([]);
   });

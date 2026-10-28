@@ -1,6 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 import { Transaction, type Collection } from '@tego/server';
 
+import { getTenantStoragePath } from '../utils';
+import type { StagedAttachmentStorage } from './staged-upload';
+
 const storageFields = ['id', 'title', 'name', 'type', 'baseUrl', 'path', 'options', 'rules', 'default', 'paranoid'];
 
 export interface StagedAttachmentStorageSelection {
@@ -8,6 +11,48 @@ export interface StagedAttachmentStorageSelection {
   readonly values: Record<string, unknown>;
   /** Call before file side effects and again before commit, in the sufficiently isolated owned write transaction. */
   assertCurrent(transaction: Transaction): Promise<void>;
+}
+
+/** Server rendering and directory namespacing only, not storage-use authorization. Never pass request tenant values. */
+export function renderStagedAttachmentStorage(
+  selection: StagedAttachmentStorageSelection,
+  render: (values: Record<string, unknown>) => unknown,
+  tenantId?: string | number,
+): StagedAttachmentStorage {
+  if (
+    typeof render !== 'function' ||
+    (tenantId !== undefined &&
+      !(
+        (typeof tenantId === 'string' && tenantId.length > 0 && tenantId.length <= 255) ||
+        (typeof tenantId === 'number' && Number.isSafeInteger(tenantId))
+      ))
+  )
+    throw new TypeError('Attachment storage rendering requires a server renderer and trusted tenant identity');
+  const raw = selection.values;
+  const identity = { id: raw.id, type: raw.type, name: raw.name };
+  const rendered = render(raw);
+  if (rendered instanceof Promise) {
+    void rendered.catch(() => {});
+    throw new TypeError('Attachment storage renderer must be synchronous');
+  }
+  if (
+    !rendered ||
+    typeof rendered !== 'object' ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(rendered)) ||
+    Object.entries(identity).some(([key, value]) => rendered[key] !== value)
+  )
+    throw new TypeError('Rendered attachment storage identity changed');
+  const captured = structuredClone(rendered) as StagedAttachmentStorage;
+  if (
+    typeof captured.path !== 'string' ||
+    typeof captured.baseUrl !== 'string' ||
+    !captured.options ||
+    typeof captured.options !== 'object' ||
+    Array.isArray(captured.options)
+  )
+    throw new TypeError('Rendered attachment storage configuration is invalid');
+  captured.path = getTenantStoragePath(captured.path, tenantId);
+  return captured;
 }
 
 /** Internal configuration selection, not operation, field or target access authorization. No runtime registration. */

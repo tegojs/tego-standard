@@ -1986,3 +1986,19 @@ Ruling: 现有上传组件读取 response.data 中的文件编号、标题、url
 首轮响应记录与 HTTP 两文件在 SQLite/独立 PostgreSQL 共 46 项通过，无跳过，保留 staged-response-http.log。加入旧展示表征后，响应记录、HTTP、实际公共新增/文件回滚组合及旧 action 四文件 86 项全部通过，无跳过，保留 staged-response-final-regression.log。未运行真实页面登录或正式运行时接线；storage 使用策略、字段级引擎覆盖、持久化恢复及受控下载仍待后续完成。
 
 文件包客户端、服务端及声明构建退出 0，保留 staged-response-build.log；五处 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审和源/快照逐文件 SHA256 一致。独立复核仍按恢复约定待补齐。核对实例目录及零其他客户端后，删除可重建的 tego_tenant_access_test_131d4f7b9c、复查不存在并停止本任务实例；日志及实例目录保留，没有业务库、依赖或正式运行时变更。仅默认签名提交，不推送。
+
+§131 已核对为有效默认签名提交 6e94971a1，未推送。
+
+## 132. 服务端环境渲染与可信租户目录
+
+Ruling: 存储选择固定数据库原始配置；调用方仍需沿既有 Environment.renderJsonTemplate 渲染变量，并沿 getTenantStoragePath 计算当前可信租户目录。增加内部同步 renderStagedAttachmentStorage，将这两步与固定选择绑定，禁止渲染替换引擎 id/type/name，返回独立的渲染结果。租户参数只由已认证调用方提供，不读取请求头；无租户的共享场景保留基础目录。此步骤不授予存储使用权，也不把目录当作内容级访问控制，不修改原默认上传行为或注册业务入口。
+
+- [x] 在真实存储配置夹具先验证渲染能力缺失：六项失败、原二十四项通过，保留 storage-render-red.log。
+- [x] 最小实现；真实 HTTP 使用核心 Environment 渲染，验证正确目录、伪造请求头无效；额外补充 INSERT 钩子改变服务端变量后的本次快照保持。
+- [x] 聚焦回归、文件包构建、lint/格式、自审和测试资源清理；签名提交状态见后续记录。
+
+最小实现后 SQLite 存储选择三十项全部通过，保留 storage-render-green.log；加入真实核心环境渲染、可信 B 租户目录及伪造头对照后，实际 PostgreSQL/SQLite 选择和完整 HTTP 两文件共 73 项全部通过，无跳过，保留 storage-render-http.log。暂存/最终文件夹具按实际 path 读取，并明确只要求回滚后无文件，允许可重建的空目录保留，避免将目录残留误报为文件泄漏；各测试结束仍移除本次私有临时根目录。
+
+加入 INSERT 钩子中改变环境变量的实际快照对照后，选择、HTTP、原计划存储和旧 action 四文件 102 项全部通过，保留 storage-render-final.log。自审又复现误传异步渲染器时抛出泛化参数错误但遗留未处理拒绝；storage-render-async-red.log 有实际未处理异常。明确只接受同步渲染并观察返回 Promise 的拒绝后，最终选择和 HTTP 两文件 75 项全部通过、无跳过，保留 storage-render-reviewed.log；原计划存储/旧默认路径源码未再改，不重复无关验证。
+
+文件包客户端、服务端及声明构建退出 0，保留 storage-render-build.log；四份 TypeScript 的 oxlint 零警告/错误，Prettier、diff、自审及源/快照 SHA256 一致，独立复核仍待补齐。核对实例目录及零其他客户端后，删除可重建的 tego_tenant_access_test_132e5a8c0d、复查不存在并停止本任务实例，日志和实例目录保留。正式注册/保存/启用、依赖、业务数据库和线上均未改，签名提交不推送。

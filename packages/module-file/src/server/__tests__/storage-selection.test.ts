@@ -124,6 +124,70 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       expect(selected.values).toMatchObject({ id: 17, name: 'local' });
     });
 
+    it('renders server configuration once and adds the trusted tenant directory', async () => {
+      const selected = await select();
+      const rendered = files.renderStagedAttachmentStorage(
+        selected,
+        (raw) => ({
+          ...raw,
+          path: 'receipts',
+          baseUrl: '/rendered',
+          options: { documentRoot: 'private-root' },
+        }),
+        'B',
+      );
+      expect(rendered).toMatchObject({
+        id: 17,
+        type: 'local',
+        path: 'receipts/tenants/B',
+        baseUrl: '/rendered',
+        options: { documentRoot: 'private-root' },
+      });
+      expect(selected.values.path).toBe('default');
+      await expect(selected.assertCurrent(transaction)).resolves.toBeUndefined();
+    });
+
+    it('keeps a shared storage path when the trusted caller has no tenant', async () => {
+      const selected = await select();
+      expect(files.renderStagedAttachmentStorage(selected, (raw) => raw).path).toBe('default');
+    });
+
+    it.each(['id', 'type', 'name'])('rejects rendering that replaces selected storage %s', async (field) => {
+      const selected = await select();
+      expect(() =>
+        files.renderStagedAttachmentStorage(
+          selected,
+          (raw) => {
+            raw[field] = field === 'id' ? 18 : 'different';
+            return raw;
+          },
+          'B',
+        ),
+      ).toThrow('Rendered attachment storage identity changed');
+    });
+
+    it('does not retain mutable rendered options supplied by the server callback', async () => {
+      const selected = await select();
+      const options = { documentRoot: 'original' };
+      const rendered = files.renderStagedAttachmentStorage(selected, (raw) => ({ ...raw, options }), 'B');
+      options.documentRoot = 'changed';
+      expect(rendered.options.documentRoot).toBe('original');
+    });
+
+    it('requires synchronous server rendering and observes an accidentally rejected promise', async () => {
+      const selected = await select();
+      expect(() =>
+        files.renderStagedAttachmentStorage(
+          selected,
+          async () => {
+            throw new Error('asynchronous renderer failed');
+          },
+          'B',
+        ),
+      ).toThrow('Attachment storage renderer must be synchronous');
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    });
+
     it('does not fall back to default when the explicitly configured storage is missing', async () => {
       collection.options.storage = 'missing';
       await expect(select()).rejects.toThrow('unique configured storage');

@@ -6,10 +6,10 @@ import type { Collection, Context } from '@tego/server';
 
 import FilePlugin, {
   captureStagedAttachmentResponse,
+  renderStagedAttachmentStorage,
   resolveStagedAttachmentStorage,
   withStagedAttachmentTransaction,
   withStagedAttachmentUpload,
-  type StagedAttachmentStorage,
 } from '..';
 import ErrorPlugin from '../../../../module-error-handler/src/server';
 import { seedAclScopes } from '../../../../module-tenant/src/server/__tests__/access-control/acl-database';
@@ -89,7 +89,11 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       attachmentResolver: () => async (ctx: Context & { permission: unknown }) => {
         const entry = handler.captureAttachment(ctx, ctx.state.testActor);
         const selection = await resolveStagedAttachmentStorage(docs);
-        const storage = selection.values as unknown as StagedAttachmentStorage;
+        const storage = renderStagedAttachmentStorage(
+          selection,
+          (raw) => app.environment.renderJsonTemplate(raw),
+          ctx.state.testActor.tenantId,
+        );
         parsed = true;
         ctx.body = await withStagedAttachmentUpload(ctx, { directory: staging, maxFileSize: 1024 }, (file) =>
           withStagedAttachmentTransaction(db, storage, file, async ({ transaction, values, store }) => {
@@ -204,7 +208,9 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       .attach('file', bytes, { filename: 'receipt.txt' });
   async function empty() {
     expect(await docs.repository.count()).toBe(0);
-    expect(await fs.readdir(root)).toEqual([]);
+    expect(
+      (await fs.readdir(root, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()),
+    ).toEqual([]);
     expect(await fs.readdir(staging)).toEqual([]);
   }
 
@@ -220,8 +226,8 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
         extname: '.txt',
         mimetype: 'text/plain',
         size: bytes.length,
-        path: '',
-        url: expect.stringMatching(/^\/test-files\/[a-f0-9]{32}\.txt$/),
+        path: 'tenants/B',
+        url: expect.stringMatching(/^\/test-files\/tenants\/B\/[a-f0-9]{32}\.txt$/),
         storageId: expect.anything(),
         meta: {},
       });
@@ -229,7 +235,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
       const row = await docs.repository.findOne({ appends: ['storage'] });
       expect(row.get('tenantId')).toBe('B');
       expect(row.get('storage').get('id')).toBe(17);
-      expect(await fs.readFile(path.join(root, row.get('filename')))).toEqual(bytes);
+      expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
       expect(await fs.readdir(staging)).toEqual([]);
     },
   );
@@ -282,7 +288,7 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     expect(row.get('amount')).toBe(10);
     expect(row.get('tenantId')).toBe('B');
     expect(row.get('storageId')).toBe(17);
-    expect(await fs.readFile(path.join(root, row.get('filename')))).toEqual(bytes);
+    expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
     expect(await fs.readdir(staging)).toEqual([]);
   });
   it('returns the saved title without custom private columns or association expansion', async () => {
@@ -306,7 +312,32 @@ describe.skipIf(!postgresUrl)('staged attachment creation over HTTP and PostgreS
     expect(response.body).not.toHaveProperty('data');
     const row = await docs.repository.findOne();
     expect(row).toBeTruthy();
-    expect(await fs.readFile(path.join(root, row.get('filename')))).toEqual(bytes);
+    expect(await fs.readFile(path.join(root, row.get('path'), row.get('filename')))).toEqual(bytes);
+    expect(await fs.readdir(staging)).toEqual([]);
+  });
+  it('renders actual server environment values before storing in the authenticated tenant directory', async () => {
+    app.environment.setVariable('uploadRoot', root);
+    app.environment.setVariable('uploadPath', 'receipts');
+    app.environment.setVariable('uploadBase', '/rendered-files');
+    await app.db.getRepository('storages').update({
+      filterByTk: 17,
+      values: {
+        path: '{{ $env.uploadPath }}',
+        baseUrl: '{{ $env.uploadBase }}',
+        options: { documentRoot: '{{ $env.uploadRoot }}' },
+      },
+    });
+    app.db.on('documents.beforeCreate', () => {
+      app.environment.setVariable('uploadRoot', path.join(directory, 'changed-root'));
+      app.environment.setVariable('uploadPath', 'changed-path');
+    });
+    const response = await upload().set('x-tenant-id', 'forged');
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.data.path).toBe('receipts/tenants/B');
+    expect(response.body.data.url).toMatch(/^\/rendered-files\/receipts\/tenants\/B\/[a-f0-9]{32}\.txt$/);
+    const row = await docs.repository.findOne();
+    expect(row.get('tenantId')).toBe('B');
+    expect(await fs.readFile(path.join(root, 'receipts', 'tenants', 'B', row.get('filename')))).toEqual(bytes);
     expect(await fs.readdir(staging)).toEqual([]);
   });
 });

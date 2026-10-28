@@ -47,18 +47,14 @@ const unsafeSegment = (segment: string) =>
   /[<>:"\\|?*]|[. ]$/.test(segment) ||
   [...segment].some((character) => character.charCodeAt(0) < 32);
 
-/**
- * Read-only evidence check against an independently trusted operation location, never a request.
- * Requires stable server-owned directories. Does not authorize access/deletion, decide transaction
- * outcome, or lock the filesystem against replacement after checking.
- */
-export async function verifyLocalStagedAttachment(
+/** Synchronously detach the exact JSON evidence before any filesystem or persistence await. */
+export function captureLocalStagedAttachment(
   expected: {
     readonly root: string;
     readonly values: Pick<StagedAttachmentStorageValues, 'path' | 'filename' | 'storageId' | 'size'>;
   },
   receipt: unknown,
-): Promise<{ readonly state: 'present'; readonly size: number } | { readonly state: 'missing' }> {
+) {
   const location = {
     root: expected.root,
     path: expected.values.path,
@@ -118,16 +114,49 @@ export async function verifyLocalStagedAttachment(
       throw new TypeError('Local recovery receipt directory is unavailable');
     const directory = record(descriptor.value, ['path', 'dev', 'ino', 'birthtimeNs']);
     if (directory.path !== relative) throw new TypeError('Local recovery receipt directory chain changed');
-    return identity({ dev: directory.dev, ino: directory.ino, birthtimeNs: directory.birthtimeNs });
+    return Object.freeze({
+      path: relative,
+      ...identity({ dev: directory.dev, ino: directory.ino, birthtimeNs: directory.birthtimeNs }),
+    });
   });
   const object = identity(captured.object);
+  return Object.freeze({
+    location: Object.freeze(location),
+    receipt: Object.freeze({
+      version: 1 as const,
+      kind: 'local' as const,
+      root: captured.root,
+      path: location.path,
+      filename: location.filename,
+      storageId: location.storageId,
+      size: location.size,
+      directories: Object.freeze(capturedDirectories),
+      object: Object.freeze(object),
+    }),
+  });
+}
+
+/**
+ * Read-only evidence check against an independently trusted operation location, never a request.
+ * Requires stable server-owned directories. Does not authorize access/deletion, decide transaction
+ * outcome, or lock the filesystem against replacement after checking.
+ */
+export async function verifyLocalStagedAttachment(
+  expected: {
+    readonly root: string;
+    readonly values: Pick<StagedAttachmentStorageValues, 'path' | 'filename' | 'storageId' | 'size'>;
+  },
+  receipt: unknown,
+): Promise<{ readonly state: 'present'; readonly size: number } | { readonly state: 'missing' }> {
+  const { location, receipt: captured } = captureLocalStagedAttachment(expected, receipt);
+  const directoryPaths = captured.directories.map((directory) => directory.path);
   let root: string;
   try {
     root = await fs.realpath(location.root);
     if (root !== captured.root) throw new TypeError('Local recovery storage root changed');
     for (let index = 0; index < directoryPaths.length; index++) {
       const directory = await fs.lstat(path.join(root, directoryPaths[index]), { bigint: true });
-      if (!directory.isDirectory() || directory.isSymbolicLink() || !matches(directory, capturedDirectories[index]))
+      if (!directory.isDirectory() || directory.isSymbolicLink() || !matches(directory, captured.directories[index]))
         throw new TypeError('Local recovery storage directory was replaced');
     }
   } catch (error) {
@@ -143,7 +172,7 @@ export async function verifyLocalStagedAttachment(
   }
   if (
     !objectStat.isFile() ||
-    !matches(objectStat, object) ||
+    !matches(objectStat, captured.object) ||
     objectStat.size < 0n ||
     objectStat.size > BigInt(location.size)
   )

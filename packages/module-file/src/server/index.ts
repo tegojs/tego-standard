@@ -8,6 +8,7 @@ export type { StagedAttachmentOptions, StagedAttachmentUpload } from './actions/
 export { withStagedAttachmentTransaction, StagedAttachmentTransactionError } from './storages/staged-transaction';
 export type { StagedAttachmentPersistence } from './storages/staged-transaction';
 export { StagedAttachmentJournal } from './storages/staged-journal';
+export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journal';
 export { verifyLocalStagedAttachment } from './storages/local-recovery';
 export type { StagedAttachmentRecoveryClaim } from './storages/staged-journal';
 export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';

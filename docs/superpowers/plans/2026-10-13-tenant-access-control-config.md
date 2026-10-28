@@ -2090,3 +2090,23 @@ Ruling: 先交付不含删除副作用的 verifyLocalStagedAttachment(expected, 
 缺少只读检查入口时实际十七项失败，保留 local-recovery-red.log；最小实现后十七项通过，保留 local-recovery-green.log。恢复检查、复制前回执、原存储和事务协调四文件串行 59 项通过、无跳过，保留 local-recovery-final.log。作者自审补核根目录替换但保留全部子目录/文件身份，以及 junction 指向原目录，两项均拒绝且原内容保留；最终十九项通过，保留 local-recovery-paths.log。均为真实本地文件、无 FS mock；本批仅 SQLite/本地文件检查，不冒称 PostgreSQL 持久化恢复已完成。
 
 文件包客户端、服务端及声明构建退出 0，保留 local-recovery-build.log；三份 TypeScript 的 oxlint 零警告/错误，格式、diff、源/快照 SHA256 及作者自审通过。按串行约定未派审查者，整分支独立复核仍待补齐。未启动数据库服务，未改正式注册/规则保存或启用、依赖、业务数据库或线上；新入口仅执行 realpath/lstat，不执行 mkdir、unlink 或其他文件写入。默认签名提交不推送。
+
+§137 已核对为有效默认签名提交 9eb6ddd96，未推送。
+
+## 138. 独立持久化复制前的文件身份回执
+
+Ruling: 使用显式登记、无外键的独立 PostgreSQL 回执集合（字符串主键 id、JSON payload），不将回执写进原事务已锁住的操作日志行。内部 StagedAttachmentReceiptJournal 只在可信操作编号、独立 expected 位置、完整 JSON 身份及实际零字节文件均吻合时，以独立事务 INSERT 一次并完成提交；不得覆盖旧回执。读取时重新取主库、与可信 expected 及实际路径核对，回执缺失或篡改保持错误，不能退化成可清理。保存不依赖原业务事务提交，回滚后另一数据库实例仍能读取。
+
+本批不接正式表、路由、worker 或原协调器；不授予清理权，不把回执集合的存在当作取消标记或独占租约。后续将复制回调与操作日志实际接线，再以数据库行锁串行受控恢复者。
+
+Ruling: 单看 ORM references 不能发现实际数据库中的额外 FK。自审先用真实 ALTER TABLE 加入未建模 FK，复现应拒绝却保存成功的一项失败；新增独立回执事务中的 ROW EXCLUSIVE 表锁，在同笔事务内核对 PostgreSQL 物理列、实际单列主键及零 FK，再 INSERT，锁保持到提交，防止检查后被 ALTER 加入 FK。它不锁操作日志行，也不假设 ORM 元数据等于物理表。正式组合还必须给回执写入保留独立连接池/明确容量，避免所有上传占住原事务连接后嵌套保存无可用连接；当前不自动创建连接或修改正式池配置。
+
+复用先前已停集群时无法确认其既有数据库角色，未修改角色；停回该集群后，为本批初始化独立临时集群 C:/Users/TomyJan/AppData/Local/Temp/tego-tenant-receipt-138c9e2d4f/data，显式用户 tenant_test，仅监听 127.0.0.1:25466。SHOW data_directory 已核实，只创建可重建专用库 tego_tenant_access_test_138c9e2d4f；这些准备失败不是产品 RED。
+
+- [x] 实际 PostgreSQL RED：事务持锁期间独立保存、原事务回滚后的跨实例读取、重复保存/非法回执/非零文件及元数据变化拒绝。
+- [x] 最小持久化实现，共用同步严格回执捕获，避免 await 期间调用方篡改实际保存内容。
+- [x] 串行相关回归、文件包构建、lint/格式、自审和清理专用数据库；默认签名提交状态见后续记录。
+
+缺少类时七项实际失败，保留 staged-receipt-red.log；最小实现七项通过，保留 staged-receipt-green.log。未建模 FK 的实际失败保留 staged-receipt-hidden-fk-red.log；修正后八项通过，保留 staged-receipt-fk-green.log。进一步覆盖实际主键被移除、物理多出操作状态列及调用方在 await 期间改写原回执；最终回执日志、原提交日志、对象检查、复制回执和事务协调五文件串行共 83 项通过、无跳过，保留 staged-receipt-final.log。其中回执十一项及原日志十二项均在真实独立 PostgreSQL 执行；原事务协调 SQLite/PostgreSQL 两组均实际执行。业务事务实际 FOR UPDATE 持锁期间仍可独立保存，回滚后跨实例仍查到正确身份与字节。
+
+文件包客户端、服务端及声明构建退出 0，保留 staged-receipt-build.log；四份 TypeScript 的 oxlint 零警告/错误，格式、diff、源/快照 SHA256 与作者自审通过。独立复核仍按串行约定留待整分支完成后，不冒称已有第二位审查者。核实实际实例目录及零其他客户端后，删除可重建专用测试库、确认不存在并停本批实例；保留实例目录及日志。未改主/核心检出、依赖、业务数据库或线上，未注册正式表/路由/worker，原上传协调器尚未消费回执服务。取消与独占恢复、真实物理清理仍待后续接线；默认签名原子提交，不推送。

@@ -2256,3 +2256,41 @@ Ruling: 内部 AccessRootReadHandler.captureAttachment 只捕获真实根 downlo
 最终三文件顺序执行一百七十四项全部通过、无跳过，保留 attachment-read-final.log：新读取 SQLite/PostgreSQL 各三十五项、资源读取八十五项及最终权限十九项；真实 PostgreSQL 并非分组跳过。租户包客户端、服务端及声明构建退出 0，保留 attachment-read-build.log。最后加强展示 getter 夹具，先明确断言 ORM 展示值已改变，再验证内容位置仍取原始值；两种数据库定向两项均通过，其余六十八项仅定向过滤，保留 attachment-read-getter-final.log，不重复计入完整回归。
 
 三份 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过，整分支独立复核仍未完成。重新核实集群实际目录、零其他客户端，仅删除专用库 tego_tenant_access_test_147c4e6f80，确认 pg_database 计数 0，再停止临时服务并保留目录日志。§144 原五文件索引保持 224 增/5 删，§145/146 和 §147 未暂存，签名仍等同一次人工认证，不重试或绕过；后续分开英文原子提交，不推送。
+
+## 148. 授权附件记录到实际本地文件的强制组合
+
+Ruling: 按既定受控下载设计，增加未接正式路由的 withAuthorizedLocalAttachmentRead 内部组合。记录证明携带其服务端实际 Collection 对象，文件模块结构化消费证明，不引入租户模块运行时依赖，也不接受第二份表、路径、存储编号或查看者租户目录。先验证记录，再按记录的 storageId 选择配置、服务端同步渲染，复核后打开既有只读句柄；句柄打开后再次等待配置与记录复核，全部成功才进入实际字节消费。消费者必须在回调内等待完成，异常和撤权均关闭句柄。它仍依赖稳定服务端独占目录；不承诺逐字节撤权、HTTP 断开处理、公开 URL 保护或已开放正式下载。
+
+- [x] 真实 ACL、文件和 SQLite/PostgreSQL RED→GREEN：G/V、角色限制、原目录、配置及记录在等待或打开时变化，拒绝前不释放字节且关闭句柄。
+- [x] 最小结构化组合与服务端实际表绑定，不新增正式入口、依赖或另一个权限体系。
+- [x] 串行聚焦回归、文件及租户包构建、lint/格式、作者自审及专用库清理；签名仍按同一次待答认证恢复。
+
+缺少组合入口/实际表证明时新文件十四项失败，保留 authorized-local-read-red.log。其中负向拒绝不冒称为缺失授权的有效复现；正向字节、实际表、打开期间变化及句柄生命周期均有独立断言。首轮实现十三项通过、一项夹具失败：字段权限在捕获时同步抛错，原测试辅助函数未归一化为异步拒绝；只改测试辅助函数为 async，未为此改生产拒绝行为。最终四文件串行二百五十五项通过、无跳过，保留 authorized-local-read-final.log：本组合 SQLite/PostgreSQL 各十四项、记录授权各三十五项、存储选择各六十一项、本地只读句柄三十五项。真实打开期间分别撤销最终角色字段/可见性、变更记录位置/存储配置/模板，均未消费任何字节，实际句柄关闭且原文件仍完整；两兆分块读取成功且结束后关闭。
+
+文件包及租户包客户端、服务端、声明顺序构建均退出 0，保留 authorized-local-read-file-build.log 和 authorized-local-read-tenant-build.log。四份变更 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过，整分支独立复核仍未完成。核实实例目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_148d5f7091、确认 pg_database 计数 0，停止服务并保留目录日志。§144 索引仍保持独立；本批新增 Collection 证明是 §147 之上的结构化组合，恢复签名后在记录授权提交之后单独提交 feat(file): combine authorized attachment records with local reads，不推送、不启用。
+
+## 149. 受控附件发送的 HTTP 生命周期
+
+Ruling: 在上述服务端能力上提供显式、未登记路由的 Node HTTP 发送原语，实际授权和打开后的最终复核完成前不设置成功头、不释放字节。仅支持完整 GET，不处理范围/条件缓存、HEAD 或公开链接改造；固定二进制下载和私有不缓存头，不从请求/存储 URL 推断文件或响应头。响应关闭/请求中断联动 AbortController，使用同一只读句柄的流和原生 pipeline 等待完成与背压；连接中断、流错误及成功均结束回调并关闭句柄。不得把未消费流赋给框架后提前退出回调。它不代替正式 Koa 错误/路由适配或启用放行，不承诺回收已经发出的字节。
+
+- [x] 真实回环 HTTP、实际 ACL/文件与两种数据库：成功字节/头、拒绝无私密字节、打开时撤权、中断前后、句柄关闭及大文件背压。
+- [x] 最小内部发送原语，不注册正式动作、URL 或运行时。
+- [x] 串行回归、包构建、lint/格式、作者自审及专用测试资源清理，签名状态如下。
+
+实际回环 HTTP 的正向 RED 收到 403 而不是预期 200（缺少发送原语被夹具错误处理），保留 authorized-http-read-red.log；其余二十二项只因定向过滤未执行。最小发送实现后，同文件完整 SQLite 二十三项通过、无跳过，保留 authorized-http-read-green.log，含九项真实 HTTP 场景。角色/可见性拒绝只返回夹具 denied，不发送私密字节；打开期间撤权也不设置下载成功头。两个真实客户端分别在打开期间、收到第一块之后断开，实际只读句柄最终关闭；八兆完整下载在客户端暂停/恢复下保持内容哈希一致。此证据验证内部 Node HTTP 生命周期，不等于正式应用路由、浏览器页面或公开链接已适配。
+
+三文件串行一百五十一项通过、无跳过，保留 authorized-http-read-final.log：实际文件/HTTP 组合 SQLite/PostgreSQL 各二十三项、记录授权各三十五项、本地句柄三十五项。文件包客户端、服务端和声明构建退出 0，保留 authorized-http-read-build.log；租户包在 §148 最后生产源码版本构建通过，此后未改该包生产源码。作者自审再补充旧 Content-Length/压缩/缓存头和空文件两种边界，两种数据库定向四项通过，其余四十六项仅过滤，不当成新的全文件回归，保留 authorized-http-read-boundaries.log。
+
+五份相关 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过；整分支独立复核仍未完成。核实实例实际目录、零其他客户端后，仅删除专用库 tego_tenant_access_test_149e607182，确认 pg_database 计数 0，停止临时服务并保留目录日志。本批和 §148 是一个“从授权附件记录安全发送本地内容”的内部行为，认证恢复后可合为 feat(file): stream authorized local attachments safely；先提交 §144 原索引、§145/146 位置读取、§147 记录授权，再提交此组合，不能把共享源码/文档整份混进较早索引。HEAD 仍为有效签名 b4a5bb65c，没有签名进程，仍等同一次人工认证，不重复询问或绕过，不推送、不注册正式运行时。
+
+## 150. 实际框架接入核查发现请求日志的响应头阻塞
+
+Ruling: 不把 §149 的显式 Node HTTP 能力直接接到正式 Koa 动作，也不返回提前退出授权回调的未消费流。实际应用 callback 的试验发现：当前安装 @tachybase/logger 1.6.24 的 requestLogger 在 await next() 完成后无条件执行 ctx.res.setHeader('X-Request-Id', reqId)。同一句柄必须等待实际发送完成才关闭，此时请求日志再设置响应头会报 Cannot set headers after they are sent to the client。已经设置 ctx.respond=false 也不能跳过该日志中间件；dataWrapping 同样不能被视为已经适配手动响应。
+
+实际框架试验初始正向失败收到 403，日志 authorized-framework-read-red.log；临时显式执行器加入后，真实文件字节确已发送，但同组仍有三项失败，日志 authorized-framework-read-green.log 名称不代表通过。其中框架夹具还包含无登记资源提示、标准 data 包装与客户端收到字节早于中间件完全退出的观察时序问题，不能将它们都归为产品 Bug，也不能据此宣称错误链/响应所有权验证完成。请求日志的无条件 setHeader 已从当前已安装核心/logger 源码独立核实，并在同次实际 HTTP 运行中出现了对应异常。
+
+撤回本次尚未通过的 Koa 执行器、导出及其临时夹具，恢复 §149 已验证的内部边界；只删除本批新建文件，未动既有业务代码、默认上传/下载、正式依赖或其他索引内容。没有保留活动的失败用例或以 skip 冒称通过，没有更改核心检出/依赖、禁用日志或改写 ServerResponse 方法绕过问题。该集成仍未完成，须在获得核心修改授权/正式兼容能力后，重新用实际资源、最终 ACL、标准错误链和完整中间件退出验证，不能开放正式下载或业务规则。
+
+下一独立工作优先核查附件销毁/替换等尚未完成入口的 G、角色条件与物理副作用协调；已完成上传的取消清理不等于允许删除既有附件。正式入口、公开 URL 改造、整分支独立复核和启用仍未完成。签名仍保留同一次待答人工认证，不借此恢复已撤销的全局关联权限拦截。
+
+撤回试验后，最终实际文件/HTTP 文件完整 SQLite 二十五项通过、无跳过，保留 authorized-read-final-state.log；最终文件包客户端、服务端及声明再次构建退出 0，保留 authorized-read-final-state-build.log。§145–149 十一份 TypeScript 源/快照 SHA256 全部一致，格式、lint 和 diff 通过；无活动失败夹具或该试验执行器导出。没有临时 PG 服务监听。只读查询正式包仓库，@tego/server 和 @tachybase/logger 当前均仍为 1.6.24，不改正式依赖。之前实际 PostgreSQL 的读取/HTTP 及新增边界证据仍有效，不把最后 SQLite 运行冒称为重新执行 PostgreSQL。作者自审未发现本批内部能力待修问题，整分支独立复核依旧未完成。

@@ -14,6 +14,9 @@ export type { StagedAttachmentRecoveryBatchItem } from './storages/staged-recove
 export { verifyLocalStagedAttachment } from './storages/local-recovery';
 export { withLocalAttachmentRead } from './storages/local-read';
 export type { LocalAttachmentReadRecord } from './storages/local-read';
+export { withAuthorizedLocalAttachmentRead } from './storages/authorized-local-read';
+export type { AuthorizedAttachmentReadEntry } from './storages/authorized-local-read';
+export { sendAuthorizedLocalAttachment } from './actions/send-authorized-local';
 export type { StagedAttachmentRecoveryClaim } from './storages/staged-journal';
 export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';
 export {

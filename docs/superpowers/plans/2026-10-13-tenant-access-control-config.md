@@ -1874,3 +1874,18 @@ Ruling: 四个真实组合初次全部因事务不是 IMMEDIATE 而被既有公�
 最终组合、事务协调和公共新增三个文件共 118 项实际通过，无跳过；事务协调和公共新增同时执行 SQLite 与独立 PostgreSQL，组合四项仅 SQLite。保留 staged-access-creation-final.log；文件包客户端、服务端及声明构建退出 0，保留 staged-access-creation-build.log。修改的两个 TypeScript 文件 oxlint、格式及快照 SHA256 检查通过，自审确认唯一产品行为变化是 SQLite 事务锁类型；恢复期间继续单会话自审，独立复核待补齐。
 
 确认临时实例目录、专用库及其他客户端均零连接后删除可重建的 tego_tenant_access_test_125b7e39a4，复查库不存在并停止本任务实例；日志和实例目录保留。没有访问业务库或启用默认上传。本节仍不覆盖实际 storage 关系、upload 操作 ACL、物理元数据最终一致性、持久化补偿及受控下载，不能作为完整上传放行证据。
+
+§125 已核对为有效默认签名提交 c4a0f4ade，未推送。
+
+## 126. 附件新增的物理元数据最终一致性
+
+Ruling: 在文件模块增加未登记的 captureStagedAttachmentRecord，写入前固定文件模板表、模型、物理字段映射及本次存储计划的托管值；可信新增调用方在同一自有事务内，使用公共新增服务返回的真实 INSERT 主键进行最终复核。复核直接读取实际物理字段，不相信返回 Model 的展示 getter、默认 scope 或钩子；除可编辑标题外，所有托管字段均须与计划一致。数据库钩子换文件名、存储编号或 meta 等时，复核抛错，由已有文件事务协调回滚并清理。此校验不授权、不证明传入键的 INSERT 来源，也不替代 storage 目标、upload 操作 ACL 或持久化恢复；这些继续由专用入口组合，不能据此放行。
+
+- [x] 先在真实数据库及文件组合中复现托管字段被改写却成功；覆盖正常落库、展示 getter、可编辑标题、缺行及事务/元数据变化，确认拒绝时记录与文件均撤回。
+- [x] 最小实现固定与最终复核；相关测试、包构建、lint、格式及自审后默认签名原子提交，提交状态见节末。不修改默认路由、正式依赖、业务库或运行时启用状态。
+
+8 项实际 INSERT 钩子篡改初次全部错误地成功提交，原 4 项授权组合仍通过，保留 staged-record-red.log。加入最终复核后，8 项均见证已存储字节随后被删除、数据库记录为零。初版 raw 查询会绕过 SQLite 的 JSON 类型解码，导致合法 meta 被误拒；改沿已有公共新增服务的方式保留 ORM 解码并使用 getDataValue，而非放宽比较。正常保存、标题修改、getter/default scope/查询钩子绕过、期待值独立、缺行、字段映射/模板变化及跨库或结束事务均有实际验证。
+
+最终两组新检查与旧协调在 SQLite 和专用 PostgreSQL 共 82 项通过；连同原暂存、存储、入口和默认 action 对照，7 个文件 173 项通过，无跳过，保留 staged-record-final.log。首次声明构建发现 Sequelize 联合类型的 toString 签名及 hooks 选项声明差异；只调整字符串转换及选项变量表达，未改运行时校验，之后两文件 SQLite 23 项重跑通过，文件包客户端、服务端和声明构建退出 0，保留 staged-record-type-fix.log、staged-record-build-verified.log。
+
+四个 TypeScript 文件 oxlint 零警告/错误，格式、diff、自审及源文件/独立快照 SHA256 检查通过；按恢复约定单会话串行，独立复核仍待补齐。专用库 tego_tenant_access_test_126a7b83c9 经零连接核对后删除、复查不存在，随后停止本任务临时实例，日志和实例目录保留。普通 storageId 物理列夹具不等于真实 storage 关系；后者、storage 目标授权、最终 upload ACL、持久化恢复和受控下载仍待完成，注册/保存/启用继续关闭。

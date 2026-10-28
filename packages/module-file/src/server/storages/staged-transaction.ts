@@ -1,7 +1,9 @@
 import { Transaction, type Database } from '@tego/server';
 
 import type { StagedAttachmentUpload } from '../actions/staged-upload';
+import { getLocalStorageRoot } from './local-root';
 import { StagedAttachmentJournal } from './staged-journal';
+import { StagedAttachmentReceiptJournal } from './staged-receipt-journal';
 import {
   prepareStagedAttachmentStorage,
   type StagedAttachmentStorage,
@@ -39,17 +41,45 @@ export async function withStagedAttachmentTransaction<T>(
   file: StagedAttachmentUpload,
   execute: (input: StagedAttachmentPersistence) => Promise<T>,
   journal?: StagedAttachmentJournal,
+  receipts?: StagedAttachmentReceiptJournal,
 ): Promise<T> {
   if (typeof execute !== 'function') throw new TypeError('Attachment persistence requires a server executor');
   if (journal !== undefined && (!(journal instanceof StagedAttachmentJournal) || journal.database !== db))
     throw new TypeError('Attachment journal must belong to the owned transaction database');
+  if (receipts !== undefined) {
+    if (
+      !(receipts instanceof StagedAttachmentReceiptJournal) ||
+      !journal ||
+      receipts.database === db ||
+      receipts.database.sequelize === db.sequelize ||
+      db.sequelize.getDialect() !== 'postgres' ||
+      receipts.database.sequelize.getDialect() !== 'postgres' ||
+      typeof db.options.database !== 'string' ||
+      !db.options.database ||
+      typeof db.options.host !== 'string' ||
+      !db.options.host ||
+      receipts.database.options.database !== db.options.database ||
+      receipts.database.options.host !== db.options.host ||
+      Number(receipts.database.options.port || 5432) !== Number(db.options.port || 5432)
+    )
+      throw new TypeError(
+        'Attachment identity receipts require an operation journal and an independent pool for the same database',
+      );
+  }
   // Construct privately so a failed second use cannot discard an earlier committed upload's plan.
   const selectedStorage = journal ? structuredClone(storage) : storage;
   const plan = await prepareStagedAttachmentStorage(selectedStorage, file);
   if (typeof plan.storeForTransaction !== 'function')
     throw new TypeError('Storage does not support transaction-owned attachment cleanup');
-  const store = plan.storeForTransaction.bind(plan);
+  if (receipts && typeof plan.storeForRecovery !== 'function')
+    throw new TypeError('Storage does not support pre-copy identity receipts');
+  const transactionStore = plan.storeForTransaction.bind(plan);
+  const recoveryStore = receipts ? plan.storeForRecovery.bind(plan) : undefined;
+  const location = receipts ? { root: getLocalStorageRoot(selectedStorage), values: plan.values } : undefined;
   const operation = journal ? await journal.prepare(selectedStorage, plan.values) : undefined;
+  const store = receipts
+    ? () => recoveryStore((receipt) => receipts.persist(operation.id, location, receipt))
+    : transactionStore;
   // Sequelize exposes finished at runtime but omits it from its public Transaction declaration.
   const transaction = (await db.sequelize.transaction({
     isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,

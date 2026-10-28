@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Collection, Database } from '@tego/server';
+import { Database, type Collection, type Transaction } from '@tego/server';
 
 import * as files from '..';
 import { isolatedPostgresDatabase } from '../../../../module-tenant/src/server/__tests__/access-control/database';
@@ -19,6 +19,8 @@ describe.skipIf(!postgresUrl)('independent PostgreSQL upload identity receipts',
   let expected: { root: string; values: files.StagedAttachmentStorageValues };
   let captured: files.StagedAttachmentLocalReceipt;
   let directory: string;
+  let storage: files.StagedAttachmentStorage;
+  let file: files.StagedAttachmentUpload;
   const bytes = Buffer.from('Persistent identity');
   const define = (database: Database) =>
     database.collection({
@@ -44,7 +46,13 @@ describe.skipIf(!postgresUrl)('independent PostgreSQL upload identity receipts',
       fields: [
         { name: 'id', type: 'string', primaryKey: true },
         { name: 'state', type: 'string' },
+        { name: 'payload', type: 'jsonb' },
       ],
+    });
+    db.collection({
+      name: 'integrated_receipt_files',
+      timestamps: false,
+      fields: [{ name: 'filename', type: 'string' }],
     });
     await db.sync();
     directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-persistent-receipt-'));
@@ -52,18 +60,17 @@ describe.skipIf(!postgresUrl)('independent PostgreSQL upload identity receipts',
     await fs.mkdir(root);
     const staged = path.join(directory, 'staged');
     await fs.writeFile(staged, bytes);
-    plan = await files.prepareStagedAttachmentStorage(
-      {
-        id: 17,
-        name: 'local',
-        title: 'Local',
-        type: 'local',
-        baseUrl: '/files',
-        path: 'tenants/B',
-        options: { documentRoot: root },
-      },
-      { path: staged, originalname: 'receipt.pdf', mimetype: 'application/pdf', size: bytes.length },
-    );
+    storage = {
+      id: 17,
+      name: 'local',
+      title: 'Local',
+      type: 'local',
+      baseUrl: '/files',
+      path: 'tenants/B',
+      options: { documentRoot: root },
+    };
+    file = { path: staged, originalname: 'receipt.pdf', mimetype: 'application/pdf', size: bytes.length };
+    plan = await files.prepareStagedAttachmentStorage(storage, file);
     expected = { root, values: plan.values };
     receipts = new files.StagedAttachmentReceiptJournal(collection);
     reader = new files.StagedAttachmentReceiptJournal(second);
@@ -73,7 +80,9 @@ describe.skipIf(!postgresUrl)('independent PostgreSQL upload identity receipts',
     try {
       await plan?.discard();
     } finally {
-      await db?.sequelize.query('DROP TABLE IF EXISTS "attachment_object_receipts", "receipt_operations"');
+      await db?.sequelize.query(
+        'DROP TABLE IF EXISTS "attachment_object_receipts", "receipt_operations", "integrated_receipt_files"',
+      );
       await other?.close();
       await db?.close();
       if (directory) await fs.rm(directory, { recursive: true, force: true });
@@ -216,5 +225,159 @@ describe.skipIf(!postgresUrl)('independent PostgreSQL upload identity receipts',
     });
     expect((await reader.inspect(id, expected)).receipt).toEqual(captured);
     expect(await fs.readFile(destination())).toEqual(bytes);
+  });
+
+  async function persistIntegrated(change?: (transaction: Transaction) => Promise<void>) {
+    // The only original-pool connection remains held until COMMIT/ROLLBACK. Receipt persistence
+    // must use the explicitly supplied independent pool, not wait for a second original connection.
+    const single = new Database({ ...db.options, pool: { max: 1, acquire: 2500 } });
+    try {
+      const operations = single.collection({
+        name: 'receipt_operations',
+        autoGenId: false,
+        timestamps: false,
+        fields: [
+          { name: 'id', type: 'string', primaryKey: true },
+          { name: 'state', type: 'string' },
+          { name: 'payload', type: 'jsonb' },
+        ],
+      });
+      single.collection({
+        name: 'integrated_receipt_files',
+        timestamps: false,
+        fields: [{ name: 'filename', type: 'string' }],
+      });
+      return await files.withStagedAttachmentTransaction(
+        single,
+        storage,
+        file,
+        async ({ transaction, values, store }) => {
+          await single
+            .getRepository('integrated_receipt_files')
+            .create({ values: { filename: values.filename }, transaction });
+          await store();
+          await change?.(transaction);
+          return values.filename;
+        },
+        new files.StagedAttachmentJournal(operations),
+        reader,
+      );
+    } finally {
+      await single.close();
+    }
+  }
+
+  it('coordinates a committed upload with an independent pool while its original pool has one connection', async () => {
+    const filename = await persistIntegrated();
+    const marker = await db.getRepository('receipt_operations').findOne();
+    const evidence = await reader.inspect(marker.get('id'), marker.get('payload'));
+    expect(marker.get('state')).toBe('committed');
+    expect(evidence.object).toEqual({ state: 'present', size: bytes.length });
+    expect(evidence.receipt.filename).toBe(filename);
+    expect(await fs.readFile(path.join(storage.options.documentRoot, storage.path, filename))).toEqual(bytes);
+  });
+
+  it('retains durable identity evidence after actual business rollback and ordinary file cleanup', async () => {
+    await expect(
+      persistIntegrated(async () => {
+        throw new Error('Denied after file copy');
+      }),
+    ).rejects.toThrow('Denied after file copy');
+    const marker = await db.getRepository('receipt_operations').findOne();
+    const evidence = await reader.inspect(marker.get('id'), marker.get('payload'));
+    expect(marker.get('state')).toBe('pending');
+    expect(evidence.object).toEqual({ state: 'missing' });
+    expect(await db.getRepository('integrated_receipt_files').count()).toBe(0);
+  });
+
+  it('preserves a committed file and its receipt after a real afterCommit error', async () => {
+    await expect(
+      persistIntegrated(async (transaction) => {
+        transaction.afterCommit(() => {
+          throw new Error('Notification failed');
+        });
+      }),
+    ).rejects.toMatchObject({ phase: 'commit', recoveryRequired: true });
+    const marker = await db.getRepository('receipt_operations').findOne();
+    expect(marker.get('state')).toBe('committed');
+    expect((await reader.inspect(marker.get('id'), marker.get('payload'))).object).toEqual({
+      state: 'present',
+      size: bytes.length,
+    });
+    expect(await db.getRepository('integrated_receipt_files').count()).toBe(1);
+  });
+
+  it('rejects the original pool as its receipt pool before starting any operation or file', async () => {
+    const journal = new files.StagedAttachmentJournal(db.getCollection('receipt_operations'));
+    await expect(
+      files.withStagedAttachmentTransaction(
+        db,
+        storage,
+        file,
+        async ({ store }) => {
+          await store();
+        },
+        journal,
+        receipts,
+      ),
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(await db.getRepository('receipt_operations').count()).toBe(0);
+    expect(await collection.repository.count()).toBe(0);
+    expect(await fs.readdir(expected.root)).toEqual([]);
+  });
+
+  it('rejects a receipt service without its operation journal before any side effects', async () => {
+    await expect(
+      files.withStagedAttachmentTransaction(
+        db,
+        storage,
+        file,
+        async ({ store }) => {
+          await store();
+        },
+        undefined,
+        reader,
+      ),
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(await collection.repository.count()).toBe(0);
+    expect(await fs.readdir(expected.root)).toEqual([]);
+  });
+
+  it('rejects a receipt pool whose configured database no longer matches before any side effects', async () => {
+    const previous = other.options.database;
+    other.options.database = 'different_receipt_database';
+    try {
+      const journal = new files.StagedAttachmentJournal(db.getCollection('receipt_operations'));
+      await expect(
+        files.withStagedAttachmentTransaction(
+          db,
+          storage,
+          file,
+          async ({ store }) => {
+            await store();
+          },
+          journal,
+          reader,
+        ),
+      ).rejects.toBeInstanceOf(TypeError);
+    } finally {
+      other.options.database = previous;
+    }
+    expect(await db.getRepository('receipt_operations').count()).toBe(0);
+    expect(await collection.repository.count()).toBe(0);
+    expect(await fs.readdir(expected.root)).toEqual([]);
+  });
+
+  it('rolls back the actual business row and cleans its file when independent receipt persistence is refused', async () => {
+    await db.sequelize.query('ALTER TABLE "attachment_object_receipts" ADD COLUMN state text');
+    await expect(persistIntegrated()).rejects.toBeInstanceOf(TypeError);
+    const marker = await db.getRepository('receipt_operations').findOne();
+    expect(marker.get('state')).toBe('pending');
+    expect(await collection.repository.count()).toBe(0);
+    expect(await db.getRepository('integrated_receipt_files').count()).toBe(0);
+    const payload = marker.get('payload');
+    await expect(fs.stat(path.join(payload.root, payload.values.path, payload.values.filename))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
 });

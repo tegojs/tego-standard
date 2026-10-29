@@ -28,6 +28,8 @@ export interface AttachmentRemovalReferenceScope {
  * Covers this instance's explicit registered file models, not arbitrary unregistered SQL tables,
  * external sources or filesystem writers. Does not read business rows, inspect files, certify no
  * references or authorize cleanup. The caller must not mutate these facts in its own transaction.
+ * A caller with earlier MVCC reads retains its older PostgreSQL snapshot. A fresh owned coordinator
+ * must acquire this scope before any SELECT when it needs to include writers that commit while waiting.
  */
 export async function lockAttachmentRemovalReferenceScope(
   database: Database,
@@ -182,6 +184,11 @@ export async function lockAttachmentRemovalReferenceScope(
       throw new TypeError('Removal reference scope has unsupported physical tables');
     return actual;
   };
+  // LOCK is intentionally the first SQL statement: catalog/settings SELECTs would already establish
+  // a SERIALIZABLE snapshot and could hide a writer whose commit we wait for here.
+  const lockedTables = [...new Set(mapped.map(({ table }) => table))].sort();
+  await database.sequelize.query(`LOCK TABLE ${lockedTables.join(', ')} IN SHARE MODE`, { transaction });
+  assertMetadata();
   const [settings] = await database.sequelize.query(
     `SELECT current_setting('transaction_isolation') AS isolation, current_setting('transaction_read_only') AS readonly`,
     { transaction },
@@ -196,10 +203,6 @@ export async function lockAttachmentRemovalReferenceScope(
   for (const entry of mapped) initial.push(await physical(entry));
   if (new Set(initial.map(({ oid }) => oid)).size !== mapped.length)
     throw new TypeError('Removal reference scope has unsupported physical tables');
-  const lockedTables = initial
-    .map(({ schema, tableName }) => `${generator.quoteIdentifier(schema)}.${generator.quoteIdentifier(tableName)}`)
-    .sort();
-  await database.sequelize.query(`LOCK TABLE ${lockedTables.join(', ')} IN SHARE MODE`, { transaction });
   const assertCurrent = async () => {
     assertMetadata();
     for (let index = 0; index < mapped.length; index++) {

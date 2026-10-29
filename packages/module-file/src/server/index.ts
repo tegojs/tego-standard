@@ -20,7 +20,9 @@ export type { AttachmentRemovalReferenceObservation } from './storages/removal-r
 export type {
   AttachmentRemovalCompletionObservation,
   AttachmentRemovalObjectObservation,
+  AttachmentRemovalCommittedReferenceObservation,
 } from './storages/removal-completion-inspector';
+export type { AttachmentRemovalReferenceMappings } from './storages/removal-reference-mappings';
 export { AttachmentRemovalNativeCapture } from './storages/native-removal-capture';
 export { createAttachmentRemovalEvidenceAdapter } from './storages/removal-execution-evidence';
 export { executeRecordedAttachmentRemoval, AttachmentRemovalOutcomeError } from './storages/recorded-removal';

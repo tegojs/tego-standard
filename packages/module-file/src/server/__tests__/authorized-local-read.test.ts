@@ -1179,6 +1179,233 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                         });
                       }
 
+                      describe('independent committed reference inspection', () => {
+                        const mappedFiles = () =>
+                          [...db.collections.values()].filter((value) => value.options.template === 'file');
+                        const references = () => observer(objects, mappedFiles());
+                        const addSource = async () => {
+                          const another = db.collection({
+                            ...docs.options,
+                            name: 'reference_documents',
+                            tableName: 'reference_documents',
+                          });
+                          await another.model.sync();
+                          return another;
+                        };
+
+                        it('includes a reference committed while the observer waits for its scope lock', async () => {
+                          const result = await runBound();
+                          const other = await references();
+                          const writer = await db.sequelize.transaction();
+                          let pending: Promise<unknown> | undefined;
+                          try {
+                            const [pids] = await db.sequelize.query('SELECT pg_backend_pid() AS pid', {
+                              transaction: writer,
+                            });
+                            const pid = (pids as { pid: number }[])[0].pid;
+                            await docs.repository.create({
+                              values: {
+                                id: 4,
+                                tenantId: 'H',
+                                path: 'old/tenants/H',
+                                filename: 'receipt.txt',
+                                storageId: 18,
+                                size: bytes.length,
+                              },
+                              transaction: writer,
+                            });
+                            pending = other.inspector.inspectLocalReferences(result.operationId);
+                            void pending.catch(() => {});
+                            let blocked = false;
+                            for (let attempt = 0; attempt < 100; attempt++) {
+                              const [rows] = await db.sequelize.query(
+                                `SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                                WHERE datname=current_database() AND wait_event_type='Lock'
+                                  AND $pid=ANY(pg_blocking_pids(pid))) AS blocked`,
+                                { bind: { pid } },
+                              );
+                              if ((rows as { blocked: boolean }[])[0].blocked) {
+                                blocked = true;
+                                break;
+                              }
+                              await new Promise((resolve) => setTimeout(resolve, 20));
+                            }
+                            expect(blocked).toBe(true);
+                            await writer.commit();
+                            expect(await pending).toMatchObject({
+                              state: 'committed-reference-observed',
+                              references: 3,
+                            });
+                          } finally {
+                            if (!writer.finished) await writer.rollback();
+                            await pending?.catch(() => {});
+                            await other.db.close();
+                          }
+                        });
+
+                        it('combines committed full OLD, object binding and current references in one owned observation', async () => {
+                          const result = await runBound();
+                          const other = await references();
+                          try {
+                            const seen = await other.inspector.inspectLocalReferences(result.operationId);
+                            expect(seen).toEqual({
+                              state: 'committed-reference-observed',
+                              operationId: result.operationId,
+                              transactionId: (await intents.model.findByPk(result.operationId)).getDataValue('payload')
+                                .transactionId,
+                              references: 2,
+                            });
+                            expect(Object.isFrozen(seen)).toBe(true);
+                            expect(await fs.readFile(location())).toEqual(bytes);
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('observes zero mapped references after real Repository removal of the remaining rows, retaining bytes', async () => {
+                          const result = await runBound();
+                          await docs.repository.destroy({ filter: { id: { $in: [2, 3] } } });
+                          const other = await references();
+                          try {
+                            expect(await other.inspector.inspectLocalReferences(result.operationId)).toMatchObject({
+                              state: 'committed-reference-observed',
+                              references: 0,
+                            });
+                            expect(await fs.readFile(location())).toEqual(bytes);
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('includes another registered file collection which an actor model scope hides', async () => {
+                          const another = await addSource();
+                          await another.repository.create({
+                            values: {
+                              id: 9,
+                              tenantId: 'H',
+                              path: 'old/tenants/H',
+                              filename: 'receipt.txt',
+                              storageId: 18,
+                              size: bytes.length,
+                            },
+                          });
+                          const result = await runBound();
+                          const other = await references();
+                          try {
+                            other.db
+                              .getCollection(another.name)
+                              .model.addScope('defaultScope', { where: { id: -1 } }, { override: true });
+                            expect(await other.inspector.inspectLocalReferences(result.operationId)).toMatchObject({
+                              state: 'committed-reference-observed',
+                              references: 3,
+                            });
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('requires explicit complete independent reference mappings', async () => {
+                          const result = await runBound();
+                          const other = await observer(objects);
+                          try {
+                            await expect(other.inspector.inspectLocalReferences(result.operationId)).rejects.toThrow(
+                              'Reference inspection requires explicit complete independent mappings',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('rejects an observer pool omitting a file source registered by the business instance', async () => {
+                          await addSource();
+                          let opened: Awaited<ReturnType<typeof observer>> | undefined;
+                          try {
+                            await expect(
+                              observer(objects, [docs]).then((value) => {
+                                opened = value;
+                                return 'unexpectedly-created-inspector';
+                              }),
+                            ).rejects.toThrow('Removal reference mappings do not cover the business instance');
+                          } finally {
+                            await opened?.db.close();
+                          }
+                        });
+
+                        it('rejects a new business mapping registered after constructing the independent inspector', async () => {
+                          const result = await runBound();
+                          const other = await references();
+                          try {
+                            await addSource();
+                            await expect(other.inspector.inspectLocalReferences(result.operationId)).rejects.toThrow(
+                              'Removal reference mappings changed',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('rejects business-side reference field drift even when observer metadata remains unchanged', async () => {
+                          const result = await runBound();
+                          const other = await references();
+                          const attribute = docs.model.rawAttributes.path;
+                          const original = attribute.field;
+                          try {
+                            attribute.field = 'changed_path';
+                            await expect(other.inspector.inspectLocalReferences(result.operationId)).rejects.toThrow(
+                              'Removal reference mappings changed',
+                            );
+                          } finally {
+                            attribute.field = original;
+                            await other.db.close();
+                          }
+                        });
+
+                        it('keeps absent optional object evidence unknown despite a valid SQL completion', async () => {
+                          const { entry } = await execution();
+                          const result = await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                          const other = await references();
+                          try {
+                            expect(await other.inspector.inspectLocalReferences(result.operationId)).toEqual({
+                              state: 'unknown',
+                            });
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('rejects a mismatched actual original intent in the bound object journal', async () => {
+                          const result = await runBound();
+                          const row = await objects.model.findByPk(result.operationId);
+                          const payload = structuredClone(row.getDataValue('payload'));
+                          payload.intent.payload.transactionId = '1';
+                          await row.update({ payload });
+                          const other = await references();
+                          try {
+                            await expect(other.inspector.inspectLocalReferences(result.operationId)).rejects.toThrow(
+                              'Removal object binding is invalid or inconsistent',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('keeps historical object inspection distinct from a missing current filesystem object', async () => {
+                          const result = await runBound();
+                          await fs.unlink(location());
+                          const other = await references();
+                          try {
+                            expect(await other.inspector.inspectLocalObject(result.operationId)).toMatchObject({
+                              state: 'committed-object-binding-observed',
+                            });
+                            await expect(other.inspector.inspectLocalReferences(result.operationId)).rejects.toThrow(
+                              'Removal reference object changed or is unavailable',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+                      });
+
                       describe('independent bound object inspection', () => {
                         it('reads the committed binding from fresh mappings and returns a detached frozen historical snapshot', async () => {
                           const stat = await fs.lstat(location(), { bigint: true });
@@ -1611,7 +1838,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                     });
                   });
 
-                  async function observer(objects?: Collection) {
+                  async function observer(objects?: Collection, references?: readonly Collection[]) {
                     const other = isolatedPostgresDatabase(postgresUrl!);
                     try {
                       other.collection(storageDefinition);
@@ -1619,9 +1846,24 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                       const intent = other.collection({ ...intents.options });
                       const event = other.collection({ ...events.options });
                       const object = objects ? other.collection({ ...objects.options }) : undefined;
+                      const referenceMappings = references
+                        ? {
+                            sources: references.map((value) =>
+                              value === docs ? source : other.collection({ ...value.options }),
+                            ),
+                            storages: other.getCollection('storages'),
+                          }
+                        : undefined;
                       return {
                         db: other,
-                        inspector: new files.AttachmentRemovalCompletionInspector(db, source, intent, event, object),
+                        inspector: new files.AttachmentRemovalCompletionInspector(
+                          db,
+                          source,
+                          intent,
+                          event,
+                          object,
+                          referenceMappings,
+                        ),
                       };
                     } catch (error) {
                       await other.close();

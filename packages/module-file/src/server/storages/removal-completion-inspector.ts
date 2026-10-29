@@ -6,6 +6,8 @@ import type { LocalAttachmentRemovalObject } from './local-removal-object';
 import { AttachmentRemovalNativeCapture } from './native-removal-capture';
 import { AttachmentRemovalIntentJournal } from './removal-intent-journal';
 import { validateLocalAttachmentRemovalObject } from './removal-object-validation';
+import { captureRemovalReferenceMappings, type AttachmentRemovalReferenceMappings } from './removal-reference-mappings';
+import { lockAttachmentRemovalReferenceScope, type AttachmentRemovalReferenceScope } from './removal-reference-scope';
 
 export type AttachmentRemovalCompletionObservation =
   | Readonly<{ state: 'unknown' }>
@@ -20,10 +22,15 @@ export type AttachmentRemovalObjectObservation =
       object: LocalAttachmentRemovalObject;
     }>;
 
+export type AttachmentRemovalCommittedReferenceObservation =
+  | Readonly<{ state: 'unknown' }>
+  | Readonly<{ state: 'committed-reference-observed'; operationId: string; transactionId: string; references: number }>;
+
 /**
  * Trusted-server outcome observation, from explicitly independent mappings/pool on the same primary.
- * Owns its transaction and only reads/locks SQL evidence; no schema installation, file I/O, lease,
- * row deletion or operation-state update. A missing/prepared outcome remains unknown, never rollback.
+ * Owns its transaction and reads/locks SQL evidence; explicit reference inspection also reads current
+ * filesystem metadata. No schema installation, lease, row/byte deletion or operation-state update.
+ * A missing/prepared outcome remains unknown, never rollback.
  * inspect reports SQL only; explicit inspectLocalObject adds a historical persisted object snapshot.
  * Neither proves current absence, fresh ACL, causal unforgeability, references or current file identity.
  * Do not expose this internal journal reader as an unauthenticated action.
@@ -34,6 +41,7 @@ export class AttachmentRemovalCompletionInspector {
   private readonly native: AttachmentRemovalNativeCapture;
   private readonly endpoint: { host: string; port: number; database: string };
   private readonly objectJournal?: AttachmentRemovalIntentJournal;
+  private readonly references?: ReturnType<typeof captureRemovalReferenceMappings>;
 
   constructor(
     private readonly businessDatabase: Database,
@@ -41,6 +49,7 @@ export class AttachmentRemovalCompletionInspector {
     private readonly intents: Collection,
     private readonly events: Collection,
     private readonly objects?: Collection,
+    referenceMappings?: AttachmentRemovalReferenceMappings,
   ) {
     this.database = source.db;
     this.endpoint = this.connection(this.database);
@@ -57,6 +66,10 @@ export class AttachmentRemovalCompletionInspector {
       if (objects.db !== this.database || [source, intents, events].includes(objects))
         throw new TypeError('Object inspection requires an explicit independent object mapping');
       this.objectJournal = new AttachmentRemovalIntentJournal(objects);
+    }
+    if (referenceMappings !== undefined) {
+      if (!objects) throw new TypeError('Reference inspection requires explicit complete independent mappings');
+      this.references = captureRemovalReferenceMappings(businessDatabase, this.database, referenceMappings);
     }
   }
 
@@ -91,11 +104,19 @@ export class AttachmentRemovalCompletionInspector {
     return generator.quoteTable(model.getTableName());
   }
 
-  private async assertCurrent(transaction: Transaction, withObject = false) {
+  private async assertCurrent(transaction: Transaction, withObject = false, scope?: AttachmentRemovalReferenceScope) {
     this.assertIndependentPool();
+    if (scope) {
+      this.references!.assertCurrent();
+      await scope.assertCurrent();
+    }
     await this.native.assertFullRowInstalled(this.source, transaction);
     await this.journal.assertCompletionJournal(this.source, transaction);
     if (withObject) await this.objectJournal!.assertCompletionJournal(this.source, transaction);
+    if (scope) {
+      await scope.assertCurrent();
+      this.references!.assertCurrent();
+    }
     this.assertIndependentPool();
   }
 
@@ -255,27 +276,55 @@ export class AttachmentRemovalCompletionInspector {
 
   /** Explicit operation id from a trusted server source, not a deletion/recovery/cleanup token. */
   async inspect(operationId: string): Promise<AttachmentRemovalCompletionObservation> {
-    return this.inspectEvidence(operationId, false);
+    return this.inspectEvidence(operationId, 'sql');
   }
 
   /** Historical SQL/object evidence only. No live filesystem checks, current ACL, references or cleanup right. */
   async inspectLocalObject(operationId: string): Promise<AttachmentRemovalObjectObservation> {
     if (!this.objects || !this.objectJournal)
       throw new TypeError('Object inspection requires an explicit independent object mapping');
-    return this.inspectEvidence(operationId, true);
+    return this.inspectEvidence(operationId, 'object');
   }
 
-  private inspectEvidence(operationId: string, withObject: false): Promise<AttachmentRemovalCompletionObservation>;
-  private inspectEvidence(operationId: string, withObject: true): Promise<AttachmentRemovalObjectObservation>;
+  /** Committed binding plus mapped current reference observation, never permission to unlink. */
+  async inspectLocalReferences(operationId: string): Promise<AttachmentRemovalCommittedReferenceObservation> {
+    if (!this.references || !this.objects || !this.objectJournal)
+      throw new TypeError('Reference inspection requires explicit complete independent mappings');
+    this.references.assertCurrent();
+    return this.inspectEvidence(operationId, 'references');
+  }
+
+  private inspectEvidence(operationId: string, mode: 'sql'): Promise<AttachmentRemovalCompletionObservation>;
+  private inspectEvidence(operationId: string, mode: 'object'): Promise<AttachmentRemovalObjectObservation>;
+  private inspectEvidence(
+    operationId: string,
+    mode: 'references',
+  ): Promise<AttachmentRemovalCommittedReferenceObservation>;
   private async inspectEvidence(
     operationId: string,
-    withObject: boolean,
-  ): Promise<AttachmentRemovalCompletionObservation | AttachmentRemovalObjectObservation> {
+    mode: 'sql' | 'object' | 'references',
+  ): Promise<
+    | AttachmentRemovalCompletionObservation
+    | AttachmentRemovalObjectObservation
+    | AttachmentRemovalCommittedReferenceObservation
+  > {
     if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))
       throw new TypeError('Completion inspection requires an operation identifier');
     this.assertIndependentPool();
+    const withObject = mode !== 'sql';
     const options = { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, transaction: null };
     return this.database.sequelize.transaction(options, async (transaction) => {
+      let scope: AttachmentRemovalReferenceScope | undefined;
+      if (mode === 'references') {
+        this.references!.assertCurrent();
+        scope = await lockAttachmentRemovalReferenceScope(
+          this.database,
+          this.references!.sources,
+          this.references!.storages,
+          transaction,
+        );
+        this.references!.assertCurrent();
+      }
       const [connections] = await this.database.sequelize.query(
         'SELECT pg_catalog.current_database() AS database, NOT pg_catalog.pg_is_in_recovery() AS primary',
         { transaction },
@@ -283,7 +332,7 @@ export class AttachmentRemovalCompletionInspector {
       const connection = (connections as { database: string; primary: boolean }[])[0];
       if (connection?.database !== this.endpoint.database || connection.primary !== true)
         throw new TypeError('Completion inspection requires the original database primary');
-      await this.assertCurrent(transaction, withObject);
+      await this.assertCurrent(transaction, withObject, scope);
       const read = { hooks: false, useMaster: true, transaction, lock: transaction.LOCK.UPDATE };
       const row = await this.intents.model.unscoped().findByPk(operationId, read);
       if (row && row.getDataValue('id') !== operationId)
@@ -295,14 +344,24 @@ export class AttachmentRemovalCompletionInspector {
           payload?.kind === 'attachment-removal-intent' &&
           payload?.state === 'prepared')
       ) {
-        await this.assertCurrent(transaction, withObject);
+        await this.assertCurrent(transaction, withObject, scope);
         return Object.freeze({ state: 'unknown' as const });
       }
       const expected = await this.expectedHeader(payload, transaction);
       await this.native.assertCommittedFullRowMatches(this.source, transaction, operationId, expected);
       if (withObject) {
         const object = await this.readObject(operationId, payload, transaction);
-        await this.assertCurrent(transaction, true);
+        await this.assertCurrent(transaction, true, scope);
+        if (object && scope) {
+          const observed = await scope.observeLocalObject(object);
+          await this.assertCurrent(transaction, true, scope);
+          return Object.freeze({
+            state: 'committed-reference-observed' as const,
+            operationId,
+            transactionId: expected.transactionId,
+            references: observed.references,
+          });
+        }
         return object
           ? Object.freeze({
               state: 'committed-object-binding-observed' as const,

@@ -2414,3 +2414,16 @@ Ruling: 保持 Repository 的完整钩子，不改核心或 Sequelize SQL。先�
 三份 TypeScript 的源/快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff 与作者自审通过；整分支独立复核仍未完成。核实实际集群目录及零其他客户端后，仅删除专用库 tego_tenant_access_test_f15829a605，确认 pg_database 计数 0，并停止临时 PG，保留目录日志；仅清理了可重建测试数据。本批按可选 SQL 事件记录独立签名提交，不推送。
 
 下一阶段必须先核查安装/函数/触发器及事件完整性，严格匹配原事务 prepared 意图与实际删除前位置和归属；它仍不能代替最终 G/角色条件、引用与对象身份复核或确定提交。尤其是涉及其他业务字段/关系的 G，不能仅比较 tenantId 或文件位置就推断删除授权成立。原 withRecord 准备契约不变，单独的受控删除执行契约尚未实现；正式入口、物理删除和启用均保持关闭。
+
+## 159. 原生捕获安装的实际目录复核
+
+Ruling: 先完成可单独验证的安装完整性边界。新增 assertInstalled，只接受同库有效顶层写事务，不隐式安装或修复 schema，不删除记录或文件。复用原有物理来源、证据表和元数据检查；在原事务持有来源 ROW EXCLUSIVE 锁，阻止并发来源表/触发器 DDL，同时保留正常 DML 的兼容性。实际读取 pg_proc、pg_language、pg_trigger，逐字比较预期函数体，并检查语言、触发器返回类型、非提权、固定 search_path、函数执行属性、正确函数绑定、普通逐行 AFTER DELETE、启用模式、无条件/参数/延迟/转换表等属性。当前 session_replication_role 必须为 origin，不能在实际绕过触发器的事务中通过。
+
+这只是查询时点的安装证明，不是事件可信性或清理许可。表锁不保护函数所有者的并发 CREATE OR REPLACE FUNCTION；后续执行契约仍须在受控 schema 管理边界内前后复核，不能把本次 void 校验当作长期有效回执。证据日志内容、原事务 prepared 意图严格匹配、最终 G/角色条件与所有授权事实、引用、对象身份及确定提交仍未完成。本批不安装正式触发器、不接入口，不削弱 withRecord 原行仍在的准备契约。
+
+- [x] 缺少 assertInstalled 的实际 PG RED：十二个新场景失败，既有十五项通过，保留 native-capture-verification-red.log。
+- [x] 最小实现后本文件二十七项真实 PG 通过，保留 native-capture-verification-green.log；继续补不同函数绑定、实际复制模式拒绝及真实 DDL 锁等待。
+- [x] 三文件顺序回归一百一十四项通过、十二项 SQLite 的 PG 日志专项分组跳过，对应实际 PG 分组已执行，保留 native-capture-verification-final.log。本捕获文件三十项、Repository 依赖表征四项均实际 PG 执行；pg_stat_activity 实际观察外部停用触发器的 ALTER TABLE 等待原事务锁，原事务结束后才完成，下一事务校验明确拒绝。
+- [x] 文件包客户端、服务端和声明构建退出 0，保留 native-capture-verification-build.log；独立快照既有 UnkVer 警告不涉及正式版本修改。
+
+两份 TypeScript 的 Prettier、oxlint 零错误/警告、源/快照 SHA256、diff 及作者自审通过；未做整分支独立复核。核实实际临时集群目录及零其他客户端后，仅删除专用库 tego_tenant_access_test_a15929b606，确认 pg_database 计数 0，停止临时 PG 并保留日志；被清理的测试数据可重建，未涉及业务数据。本批按安装复核独立默认签名提交，不推送。下一项继续事件日志完整性与原 prepared 意图/事务的严格组合，仍不得以事件存在或安装通过授权实际物理删除。

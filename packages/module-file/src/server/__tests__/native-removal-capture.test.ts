@@ -80,6 +80,125 @@ describe.skipIf(!postgresUrl)('explicit PostgreSQL attachment delete capture', (
   const remove = (transaction: Transaction) =>
     source.repository.destroy({ filterByTk: '9007199254740993', transaction });
 
+  it('verifies a committed installation from a fresh instance without deleting or logging anything', async () => {
+    await install();
+    const verifier = new files.AttachmentRemovalNativeCapture(source, evidence);
+    await db.sequelize.transaction((transaction) => verifier.assertInstalled(transaction));
+    expect(await source.model.count()).toBe(1);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('rejects missing installation without installing it implicitly', async () => {
+    capture = new files.AttachmentRemovalNativeCapture(source, evidence);
+    await expect(db.sequelize.transaction((transaction) => capture.assertInstalled(transaction))).rejects.toThrow(
+      'Native removal capture installation is unavailable or changed',
+    );
+    const [found] = await db.sequelize.query('SELECT to_regprocedure($function) AS value', {
+      bind: { function: `${capture.functionName}()` },
+    });
+    expect(found).toEqual([{ value: null }]);
+    expect(await rows()).toEqual([]);
+  });
+
+  it.each([
+    ['disabled trigger', 'ALTER TABLE native_capture_files DISABLE TRIGGER tac_remove_capture'],
+    ['renamed trigger', 'ALTER TRIGGER tac_remove_capture ON native_capture_files RENAME TO renamed_capture'],
+    ['privileged function', (name: string) => `ALTER FUNCTION ${name}() SECURITY DEFINER`],
+    ['unsafe search path', (name: string) => `ALTER FUNCTION ${name}() SET search_path = public, pg_catalog`],
+    ['strict function', (name: string) => `ALTER FUNCTION ${name}() STRICT`],
+    [
+      'different trigger function',
+      `CREATE FUNCTION cancel_native_capture() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN OLD; END';
+        DROP TRIGGER tac_remove_capture ON native_capture_files;
+        CREATE TRIGGER tac_remove_capture AFTER DELETE ON native_capture_files
+        FOR EACH ROW EXECUTE FUNCTION cancel_native_capture()`,
+    ],
+    [
+      'replaced function body',
+      (name: string) =>
+        `CREATE OR REPLACE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS 'BEGIN RETURN OLD; END'`,
+    ],
+    [
+      'conditional trigger',
+      (name: string) => `DROP TRIGGER tac_remove_capture ON native_capture_files;
+        CREATE TRIGGER tac_remove_capture AFTER DELETE ON native_capture_files
+        FOR EACH ROW WHEN (OLD.size < 0) EXECUTE FUNCTION ${name}()`,
+    ],
+    [
+      'statement trigger',
+      (name: string) => `DROP TRIGGER tac_remove_capture ON native_capture_files;
+        CREATE TRIGGER tac_remove_capture AFTER DELETE ON native_capture_files
+        FOR EACH STATEMENT EXECUTE FUNCTION ${name}()`,
+    ],
+    [
+      'trigger arguments',
+      (name: string) => `DROP TRIGGER tac_remove_capture ON native_capture_files;
+        CREATE TRIGGER tac_remove_capture AFTER DELETE ON native_capture_files
+        FOR EACH ROW EXECUTE FUNCTION ${name}('unexpected')`,
+    ],
+  ])('refuses %s in the actual PostgreSQL catalogs', async (_label, change) => {
+    await install();
+    await db.sequelize.query(typeof change === 'function' ? change(capture.functionName) : change);
+    await expect(db.sequelize.transaction((transaction) => capture.assertInstalled(transaction))).rejects.toThrow(
+      'Native removal capture installation is unavailable or changed',
+    );
+    expect(await source.model.count()).toBe(1);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('requires the original active root write transaction for verification', async () => {
+    await install();
+    const transaction = await db.sequelize.transaction();
+    await transaction.rollback();
+    await expect(capture.assertInstalled(transaction)).rejects.toThrow('active same-database root write transaction');
+    await expect(
+      db.sequelize.transaction((root) =>
+        db.sequelize.transaction({ transaction: root }, (child) => capture.assertInstalled(child)),
+      ),
+    ).rejects.toThrow('active same-database root write transaction');
+    expect(await source.model.count()).toBe(1);
+  });
+
+  it('refuses a transaction replication mode that would bypass the installed trigger', async () => {
+    await install();
+    await expect(
+      db.sequelize.transaction(async (transaction) => {
+        await db.sequelize.query("SET LOCAL session_replication_role = 'replica'", { transaction });
+        await capture.assertInstalled(transaction);
+      }),
+    ).rejects.toThrow('Native removal capture installation is unavailable or changed');
+    expect(await source.model.count()).toBe(1);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('holds the source table against concurrent trigger DDL until the caller transaction ends', async () => {
+    await install();
+    let contender: Promise<unknown> | undefined;
+    try {
+      await db.sequelize.transaction(async (transaction) => {
+        await capture.assertInstalled(transaction);
+        contender = db.sequelize.query('ALTER TABLE native_capture_files DISABLE TRIGGER tac_remove_capture');
+        void contender.catch(() => {});
+        await vi.waitFor(
+          async () => {
+            const [waiting] = await db.sequelize.query(
+              "SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query='ALTER TABLE native_capture_files DISABLE TRIGGER tac_remove_capture'",
+            );
+            expect(waiting).toHaveLength(1);
+          },
+          { timeout: 3000, interval: 25 },
+        );
+        await capture.assertInstalled(transaction);
+      });
+    } finally {
+      await contender;
+    }
+    await expect(db.sequelize.transaction((transaction) => capture.assertInstalled(transaction))).rejects.toThrow(
+      'Native removal capture installation is unavailable or changed',
+    );
+    expect(await source.model.count()).toBe(1);
+  });
+
   it('records the actual removed tuple without losing bigint keys or replacing repository hooks', async () => {
     await install();
     let after = false;

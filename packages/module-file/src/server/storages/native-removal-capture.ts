@@ -132,8 +132,7 @@ export class AttachmentRemovalNativeCapture {
       throw new TypeError('Native removal capture metadata is unavailable or changed');
   }
 
-  /** Explicit schema installation in the supplied same-database top-level write transaction. */
-  async install(transaction: Transaction): Promise<void> {
+  private async lockStructures(transaction: Transaction, mode: 'ROW EXCLUSIVE' | 'SHARE ROW EXCLUSIVE') {
     this.assertCurrent();
     const state = transaction as Transaction & {
       sequelize?: Database['sequelize'];
@@ -148,7 +147,7 @@ export class AttachmentRemovalNativeCapture {
       state.parent ||
       state.options?.readOnly
     )
-      throw new TypeError('Native capture installation requires an active same-database root write transaction');
+      throw new TypeError('Native capture requires an active same-database root write transaction');
     await lockAttachmentJournalStructure(
       this.database,
       this.evidenceModel,
@@ -157,8 +156,7 @@ export class AttachmentRemovalNativeCapture {
       'Native capture evidence requires an independent primary key and no references or extra columns',
     );
     const source = this.table(this.sourceTable);
-    const evidence = this.table(this.evidenceTable);
-    await this.database.sequelize.query(`LOCK TABLE ${source} IN SHARE ROW EXCLUSIVE MODE`, { transaction });
+    await this.database.sequelize.query(`LOCK TABLE ${source} IN ${mode} MODE`, { transaction });
     const [rows] = await this.database.sequelize.query(
       `SELECT
       c.relkind::text AS kind,
@@ -181,12 +179,16 @@ export class AttachmentRemovalNativeCapture {
       throw new TypeError(
         'Native removal capture requires an ordinary physical source with its expected primary key and fields',
       );
+  }
+
+  private functionBody() {
+    const evidence = this.table(this.evidenceTable);
     const literal = (value: string) => this.generator().escape(value);
     const original = (key: string) => {
       const field = this.fields.find((field) => field.key === key);
       return field ? `pg_catalog.to_jsonb(OLD)->>${literal(field.column)}` : 'NULL::text';
     };
-    const body = `DECLARE operation_id text;
+    return `DECLARE operation_id text;
       BEGIN
         operation_id := pg_catalog.current_setting(${literal(this.setting)}, true);
         IF operation_id IS NULL OR operation_id = '' THEN RETURN OLD; END IF;
@@ -202,15 +204,56 @@ export class AttachmentRemovalNativeCapture {
             'filename', ${original('filename')}, 'storageId', ${original('storageId')}, 'size', ${original('size')}, 'tenantId', ${original('tenantId')})));
         RETURN OLD;
       END`;
+  }
+
+  /** Explicit schema installation in the supplied same-database top-level write transaction. */
+  async install(transaction: Transaction): Promise<void> {
+    await this.lockStructures(transaction, 'SHARE ROW EXCLUSIVE');
+    const literal = (value: string) => this.generator().escape(value);
     // No OR REPLACE: installation may never silently replace another function or trigger.
     await this.database.sequelize.query(
-      `CREATE FUNCTION ${this.functionName}() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog AS ${literal(body)}`,
+      `CREATE FUNCTION ${this.functionName}() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog AS ${literal(this.functionBody())}`,
       { transaction },
     );
     await this.database.sequelize.query(
-      `CREATE TRIGGER ${this.quote('tac_remove_capture')} AFTER DELETE ON ${source} FOR EACH ROW EXECUTE FUNCTION ${this.functionName}()`,
+      `CREATE TRIGGER ${this.quote('tac_remove_capture')} AFTER DELETE ON ${this.table(this.sourceTable)} FOR EACH ROW EXECUTE FUNCTION ${this.functionName}()`,
       { transaction },
     );
     this.assertCurrent();
+  }
+
+  /**
+   * Point-in-time catalog verification only; never installs, deletes or blesses an event.
+   * Table locks prevent concurrent table/trigger DDL, not replacement of a function by its owner.
+   * A later consumer must recheck and separately validate intent, authorization and actual events.
+   */
+  async assertInstalled(transaction: Transaction): Promise<void> {
+    await this.lockStructures(transaction, 'ROW EXCLUSIVE');
+    const [rows] = await this.database.sequelize.query(
+      `SELECT p.prosrc AS body,
+        (l.lanname='plpgsql' AND p.prokind='f' AND p.pronargs=0 AND p.pronargdefaults=0
+          AND p.prorettype='pg_catalog.trigger'::pg_catalog.regtype AND NOT p.proretset
+          AND NOT p.prosecdef AND NOT p.proisstrict AND NOT p.proleakproof
+          AND p.provolatile='v' AND p.proparallel='u'
+          AND p.proconfig=ARRAY['search_path=pg_catalog']::text[]
+          AND pg_catalog.current_setting('session_replication_role')='origin'
+          AND t.tgfoid=p.oid AND t.tgtype=9 AND t.tgenabled='O'
+          AND NOT t.tgisinternal AND t.tgparentid=0 AND t.tgconstraint=0
+          AND NOT t.tgdeferrable AND NOT t.tginitdeferred
+          AND t.tgnargs=0 AND pg_catalog.octet_length(t.tgargs)=0
+          AND t.tgqual IS NULL AND t.tgattr::text=''
+          AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL) AS valid
+      FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_language l ON l.oid=p.prolang
+      LEFT JOIN pg_catalog.pg_trigger t ON t.tgrelid=pg_catalog.to_regclass($source) AND t.tgname='tac_remove_capture'
+      WHERE p.oid=pg_catalog.to_regprocedure($function)`,
+      {
+        transaction,
+        bind: { source: this.table(this.sourceTable), function: `${this.functionName}()` },
+      },
+    );
+    this.assertCurrent();
+    const result = (rows as { body: string; valid: boolean }[])[0];
+    if (!result || result.valid !== true || result.body !== this.functionBody())
+      throw new TypeError('Native removal capture installation is unavailable or changed');
   }
 }

@@ -2378,3 +2378,18 @@ Ruling: 先完成与真实删除结果相互独立的意图记录，不假设 Re
 首次声明构建发现 Transaction 的公开类型未包含运行时 options、存储 options 为 unknown，以及 findByPk 内联 hooks 选项的超额属性检查；按相邻代码补运行时字段收窄、局部选项对象并显式检查本地根目录类型。复跑时项目 strictNullChecks 关闭导致 unknown 的条件收窄仍不充分，改为正向 typeof string 分支；最终文件包客户端/服务端/声明构建退出 0，保留 removal-intent-build-final.log。没有改依赖或运行时语义来绕过类型问题。
 
 五份 TypeScript 的源/快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff 及作者自审通过。整分支独立复核仍待完成。核实实例实际目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_d15629e603，确认 pg_database 计数 0，并停止临时 PG，保留目录日志；测试数据可重建，未涉及业务数据。意图方法要求调用者在任何错误时回滚，不能捕获错误后继续提交。下一阶段仍须取得真实删除结果证据，再补共享引用、对象身份和确定提交后的受控清理，不能用 prepared 意图或上传取消回执授权物理删除；正式运行时继续关闭。
+
+## 157. 实测 Repository 删除结果与钩子内存的区别
+
+Ruling: 用窄范围依赖表征测试核查尚未确定的删除证据契约，而不是先写一个会误删文件的协调器。独立 PG 夹具中的 AFTER DELETE 触发器只用于记录数据库实际 OLD，与 Repository 的返回值和模型钩子逐项比较；该触发器不进入生产实现、迁移或运行时，不提供正式删除能力。本批是已有依赖行为的实际刻画，不是新增产品实现的 RED/GREEN。
+
+四项实际 PG 表征测试全部通过、无跳过，退出 0，保留 removal-contract-final.log。默认 Repository 的逐行钩子确实执行，返回为受影响数量：
+
+1. beforeDestroy 只改模型内存的 filename，afterDestroy 读到 memory-only.txt，数据库实际 OLD 仍为 original.txt，删除数量为 1。
+2. beforeDestroy 在原事务中更新数据库位置但不改该模型内存，afterDestroy 读到 original.txt，实际 OLD 为 changed-in-database.txt，删除数量同样为 1。
+3. 数据库 BEFORE DELETE 返回 NULL 取消删除，数量为 0、原行保留、原生 OLD 日志为空，但 afterDestroy 仍执行。
+4. afterDestroy 已执行，后续 afterBulkDestroy 抛错；调用者事务整体回滚，原行恢复、原生 OLD 日志也回滚。
+
+因此，affected count、afterDestroy 模型和钩子成功都不能单独成为真实删除前位置或确定提交的证据。尚未断言“所有保持 Repository 钩子的实现都不可行”；后续须实际验证可取得原生删除结果的适配接口或显式数据库证据方案，不能仅凭猜测宣称必须修改核心，也不能跳过钩子、借 prepared 意图或上传取消标记执行物理清理。
+
+本批只添加测试与本实施记录，没有产品逻辑变动，不重复包构建；§156 最终文件包构建仍对应最新产品源码。测试源/快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff 及作者自审通过，整分支独立复核未完成。核实实际集群目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_e15729f604，确认计数 0，停止临时服务，保留日志；可重建的测试数据已清理。§155 ddb570adf 和 §156 217b1ab97 已核实为有效默认签名，均未推送；本批独立签名测试提交。正式入口、保存和启用继续关闭。

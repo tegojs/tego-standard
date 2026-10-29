@@ -11,6 +11,11 @@ export { StagedAttachmentJournal } from './storages/staged-journal';
 export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journal';
 export { AttachmentRemovalIntentJournal } from './storages/removal-intent-journal';
 export { AttachmentRemovalCompletionInspector } from './storages/removal-completion-inspector';
+export { lockAttachmentRemovalReferenceScope } from './storages/removal-reference-scope';
+export type {
+  AttachmentRemovalReferenceScope,
+  AttachmentRemovalReferenceTable,
+} from './storages/removal-reference-scope';
 export type {
   AttachmentRemovalCompletionObservation,
   AttachmentRemovalObjectObservation,

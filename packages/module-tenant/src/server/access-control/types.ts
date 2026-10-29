@@ -45,7 +45,7 @@ export interface AccessConfig {
 export interface FieldMetadata {
   column: string;
   type: FieldType;
-  /** Server-only dialect encoding; values remain bound parameters. */
+  /** Server-only dialect encoding; ordinary queries keep values in bound parameters. */
   formatValue?: (value: Scalar) => Scalar;
 }
 
@@ -77,6 +77,11 @@ export interface CompileOptions {
   /** Values must come from authenticated server state and verified tenant hierarchy. */
   context: Partial<Record<ContextPath, Scalar | Scalar[]>>;
   quoteIdentifier: (identifier: string) => string;
+  /** Trusted synchronous dialect literal encoder for internal native SQL only, never rule/request data.
+   * Omit to preserve the default named bindings. No SQL placeholder text replacement is performed.
+   * Native consumers must omit ORM bind options entirely, even when the returned bindings are empty.
+   */
+  quoteValue?: (value: Scalar) => string;
   rootAlias?: string;
   /** Server-selected namespace when combining separately compiled query predicates. */
   parameterPrefix?: string;

@@ -30,6 +30,9 @@ function join(operator: 'AND' | 'OR', clauses: SqlScope[]): SqlScope {
 /** Produces predicates only; callers must still intersect role ACL and request filters. */
 export function compileAccessScopes(input: unknown, options: CompileOptions): AccessScopes {
   const config = validateAccessConfig(input, options.collection);
+  const quoteValue = options.quoteValue;
+  if (quoteValue !== undefined && typeof quoteValue !== 'function')
+    throw new AccessRuleError('INVALID_ACCESS_RULE', 'Invalid native SQL value renderer');
   const parameterPrefix = options.parameterPrefix === undefined ? 'tac_' : options.parameterPrefix;
   if (typeof parameterPrefix !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(parameterPrefix)) {
     throw new AccessRuleError('INVALID_ACCESS_RULE', 'Invalid SQL parameter prefix');
@@ -48,6 +51,12 @@ export function compileAccessScopes(input: unknown, options: CompileOptions): Ac
     return alias;
   };
   const bindValue = (value: Scalar): SqlScope => {
+    if (quoteValue !== undefined) {
+      const sql = quoteValue(value);
+      if (typeof sql !== 'string' || !sql.trim())
+        throw new AccessRuleError('INVALID_ACCESS_RULE', 'Invalid native SQL value renderer result');
+      return sqlScope(sql);
+    }
     const key = `${parameterPrefix}${parameterIndex++}`;
     return { sql: `$${key}`, bind: { [key]: value } };
   };

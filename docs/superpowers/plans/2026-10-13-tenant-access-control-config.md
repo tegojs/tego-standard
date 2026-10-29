@@ -2743,3 +2743,19 @@ Ruling: 下一最小产品交付只固定引用检查所需的数据库范围，
 - [x] 三份 TS 源码与快照 SHA256 一致，五文件格式、三份 TS 的 oxlint 零错误/警告、diff及作者自审通过。本原语没有接入完成 Inspector、SQL 删除/对象日志、selected executor 或业务动作；整分支独立复核仍未完成。
 
 确认测试/构建均退出、真实目录/端口及零其他客户端后，仅删除本批专用库 tego_tenant_access_test_a18029b624，pg_database 计数核实 0，临时 PG 已停止，日志保留；删除的是可重建测试数据。按锁范围原语作英文默认签名原子提交，不推送。下一项在可信注册范围内组合规范根/实际对象身份与全部保留行的引用观察，再处理受控协调；空观察不能授权清理。原准备后置条件、最终 G/角色、对象与确定提交观察不变，正式入口和物理清理继续关闭。
+
+## 181. 原锁范围内的本地对象引用观察
+
+Ruling: 在原冻结范围另设 observeLocalObject，固定使用本范围的实际物理表/字段及同一原事务；不接查询 SQL、另一事务或业务删除回调。输入必须符合完整本地历史对象规范，但此原语不验证其原 journal/UUID 因果来源、提交或 ACL；后续固定协调器必须严格组合真实完成/对象绑定观察，不能把可复制快照当作能力。返回只含 mapped-local-references-observed 和内部引用数量，不披露其他租户/集合记录身份。
+
+原范围的 SHARE 锁持续协调来源与存储配置的其他数据库写者；直接 SQL 枚举实际保留行，不受模型默认 scope、paranoid 或普通读 ACL 过滤。原生数字 storageId 只转文本关联，不经过 JS 数字。根据每行实际 storageId 的本地存储配置规范化根，检测同根不同配置、嵌套根/不同相对位置及实际文件身份；相同相对名称但不同实际对象不计同一引用。缺存储、非 local 语义、不安全位置或无法解析根失败，不跳过为零。总文件行和配置行各上限 4096，超出即失败，不返回部分计数。
+
+观察前后只读核对原对象的 canonical 根、每级目录身份、文件 dev/ino/birthtimeNs/mtimeNs/ctimeNs/size 和单链接条件，复核用到的存储根及原数据库范围；不写字节/行/DDL。依赖稳定的服务端独占目录，不提供原子检查/unlink 或文件系统互斥；其他根中的缺失非目标文件只表示当前未观察到同一实际对象，不能推断未来不存在引用。其他事务被锁不等于同一事务的调用者无法写入，后续协调器仍须约束全部行为。
+
+- [x] 十二项实际 PG 新场景先因缺方法全部有效 RED，最小实现后十二项通过，十五项仅过滤，退出 0；保留 removal-reference-observation-red.log、removal-reference-observation-green.log。
+- [x] 文件包客户端/服务端/声明构建退出 0，保留 removal-reference-observation-build-file.log；未改正式版本或依赖。
+- [x] 四个完整相关文件顺序三百三十八项通过、一百七十四项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0，保留 removal-reference-observation-regression.log。作者随后对 null/数组 options 借用环境根取得两项实际 PG RED，保留 removal-reference-observation-options-red.log；仅在新观察路径增加配置对象形状检查，不改变既有根解析器或其他运行时语义。
+- [x] 两项修正后最终引用观察/锁范围与依赖表征两文件四十二项通过、三项 SQLite 的 PG 锁专项分组跳过，对应实际 PG 均执行，退出 0，保留 removal-reference-observation-regression-final.log。十四项本批新实际 PG 场景不与定向结果相加；未再改其他包/既有读取执行路径，不重复四文件回归。最终文件包客户端/服务端/声明构建退出 0，保留 removal-reference-observation-build-file-final.log。
+- [x] 四份 TS 源码与快照 SHA256 一致，六文件格式、四份 TS 的 oxlint 零错误/警告、diff和作者自审通过。新观察无日志/业务行/字节写入，未接独立提交 Inspector 或正式运行时；整分支独立复核未完成。
+
+确认测试/构建均退出、实际集群目录/端口和零其他客户端后，仅删除本批专用库 tego_tenant_access_test_b18129c625，pg_database 计数核实 0，临时 PG 已停止，日志保留；删除的是可重建测试数据。按锁范围内引用观察作英文默认签名原子提交，不推送。尚未组合独立已提交 Inspector 或清理协调器，没有证明全部未注册/外部引用不存在；零计数不是清理许可。下一项将严格原意图/完整 OLD/确定提交/对象绑定与本原锁范围观察组合在一个拥有的观察事务内，再处理清理协调。正式 selected executor/路由/自动安装与规则保存启用继续关闭，原文件继续保留。

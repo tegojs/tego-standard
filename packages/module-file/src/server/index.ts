@@ -16,6 +16,7 @@ export type {
   AttachmentRemovalReferenceScope,
   AttachmentRemovalReferenceTable,
 } from './storages/removal-reference-scope';
+export type { AttachmentRemovalReferenceObservation } from './storages/removal-reference-observation';
 export type {
   AttachmentRemovalCompletionObservation,
   AttachmentRemovalObjectObservation,

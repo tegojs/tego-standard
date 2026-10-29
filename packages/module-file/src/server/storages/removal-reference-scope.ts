@@ -1,6 +1,12 @@
 import { isDeepStrictEqual } from 'node:util';
 import { Transaction, type Collection, type Database } from '@tego/server';
 
+import type { LocalAttachmentRemovalObject } from './local-removal-object';
+import {
+  observeMappedLocalRemovalReferences,
+  type AttachmentRemovalReferenceObservation,
+} from './removal-reference-observation';
+
 export interface AttachmentRemovalReferenceTable {
   readonly collectionName: string;
   readonly oid: string;
@@ -13,6 +19,7 @@ export interface AttachmentRemovalReferenceScope {
   readonly sources: readonly AttachmentRemovalReferenceTable[];
   readonly storage: AttachmentRemovalReferenceTable;
   assertCurrent(): Promise<void>;
+  observeLocalObject(object: LocalAttachmentRemovalObject): Promise<AttachmentRemovalReferenceObservation>;
 }
 
 /**
@@ -211,9 +218,21 @@ export async function lockAttachmentRemovalReferenceScope(
       fields: Object.freeze(Object.fromEntries(entry.attributes.map(({ name, field }) => [name, field]))),
     }),
   );
+  const lockedSources = Object.freeze(observed.slice(0, -1));
+  const lockedStorage = observed.at(-1)!;
   return Object.freeze({
-    sources: Object.freeze(observed.slice(0, -1)),
-    storage: observed.at(-1)!,
+    sources: lockedSources,
+    storage: lockedStorage,
     assertCurrent,
+    observeLocalObject(object: LocalAttachmentRemovalObject) {
+      return observeMappedLocalRemovalReferences(
+        database,
+        lockedSources,
+        lockedStorage,
+        transaction,
+        assertCurrent,
+        object,
+      );
+    },
   });
 }

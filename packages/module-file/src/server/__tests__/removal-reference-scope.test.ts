@@ -1,3 +1,6 @@
+import { promises as fs, type BigIntStats } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Transaction, type Collection, type Database } from '@tego/server';
 
@@ -53,6 +56,145 @@ describe.skipIf(!postgresUrl)('explicit PostgreSQL removal reference scope', () 
   const transaction = () => db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE });
   const lock = (tx: Transaction, sources: readonly Collection[] = [source, other]) =>
     files.lockAttachmentRemovalReferenceScope(db, sources, storages, tx);
+
+  describe('local reference observation within the locked scope', () => {
+    let directory: string;
+    let root: string;
+    let target: string;
+    let snapshot: files.LocalAttachmentRemovalObject;
+    const values = { id: 2, path: '', filename: 'keep.txt', storageId: 18 };
+    beforeEach(async () => {
+      directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-locked-reference-'));
+      root = path.join(directory, 'root');
+      target = path.join(root, 'keep.txt');
+      await fs.mkdir(root);
+      await fs.writeFile(target, 'keep');
+      await storages.model.update({ options: { documentRoot: root } }, { where: { id: 18 } });
+      const identity = (stat: BigIntStats) => ({
+        dev: String(stat.dev),
+        ino: String(stat.ino),
+        birthtimeNs: String(stat.birthtimeNs),
+      });
+      const file = await fs.lstat(target, { bigint: true });
+      const folder = await fs.lstat(root, { bigint: true });
+      snapshot = {
+        schemaVersion: 1,
+        kind: 'attachment-removal-local-object',
+        collectionName: source.name,
+        configuredRoot: root,
+        root: await fs.realpath(root),
+        record: { key: 1, path: '', filename: 'keep.txt', storageId: 18, size: 4 },
+        directories: [{ path: '', ...identity(folder) }],
+        object: { ...identity(file), mtimeNs: String(file.mtimeNs), ctimeNs: String(file.ctimeNs), size: '4' },
+      };
+    });
+    afterEach(async () => {
+      if (directory) await fs.rm(directory, { recursive: true, force: true });
+    });
+    const observe = async (sources: readonly Collection[] = [source, other]) => {
+      const tx = await transaction();
+      try {
+        return await (await lock(tx, sources)).observeLocalObject(snapshot);
+      } finally {
+        await tx.rollback();
+      }
+    };
+
+    it('reports zero known mapped references without granting cleanup or modifying bytes', async () => {
+      expect(await observe()).toEqual({ state: 'mapped-local-references-observed', references: 0 });
+      expect(await fs.readFile(target, 'utf8')).toBe('keep');
+    });
+
+    it('counts another collection despite an actor scope hiding its row', async () => {
+      await other.repository.create({ values });
+      other.model.addScope('defaultScope', { where: { id: -1 } }, { override: true });
+      expect(await other.model.count()).toBe(0);
+      expect(await observe()).toEqual({ state: 'mapped-local-references-observed', references: 1 });
+    });
+
+    it('counts another storage configuration with the same actual root', async () => {
+      await storages.repository.create({ values: { id: 19, type: 'local', options: { documentRoot: root } } });
+      await other.repository.create({ values: { ...values, storageId: 19 } });
+      expect(await observe()).toEqual({ state: 'mapped-local-references-observed', references: 1 });
+    });
+
+    it('counts a different relative path and nested root which resolve to the same object', async () => {
+      await storages.model.update({ options: { documentRoot: directory } }, { where: { id: 18 } });
+      await other.repository.create({ values: { ...values, path: 'root' } });
+      expect(await observe()).toEqual({ state: 'mapped-local-references-observed', references: 1 });
+    });
+
+    it('includes retained soft-deleted rows', async () => {
+      const soft = db.collection({
+        ...source.options,
+        name: 'soft_scope_files',
+        tableName: 'soft_scope_files',
+        timestamps: true,
+        paranoid: true,
+      });
+      await soft.model.sync();
+      await soft.repository.create({ values });
+      await soft.repository.destroy({ filterByTk: 2 });
+      expect(await soft.model.unscoped().count()).toBe(0);
+      expect(await observe([source, other, soft])).toEqual({
+        state: 'mapped-local-references-observed',
+        references: 1,
+      });
+    });
+
+    it('does not count a different object with equal relative names in another root', async () => {
+      const separate = path.join(directory, 'separate');
+      await fs.mkdir(separate);
+      await fs.writeFile(path.join(separate, 'keep.txt'), 'keep');
+      await storages.repository.create({ values: { id: 19, type: 'local', options: { documentRoot: separate } } });
+      await other.repository.create({ values: { ...values, storageId: 19 } });
+      expect(await observe()).toEqual({ state: 'mapped-local-references-observed', references: 0 });
+    });
+
+    it.each(['missing', 'unsupported'])('refuses unresolved storage semantics: %s', async (change) => {
+      if (change === 'unsupported') await storages.model.update({ type: 'custom' }, { where: { id: 18 } });
+      await other.repository.create({ values: { ...values, storageId: change === 'missing' ? 99 : 18 } });
+      await expect(observe()).rejects.toThrow('Removal reference storage is unavailable or unsupported');
+    });
+
+    it.each([null, []])(
+      'refuses malformed stored options instead of borrowing an environment root: %j',
+      async (options) => {
+        const original = process.env.LOCAL_STORAGE_DEST;
+        process.env.LOCAL_STORAGE_DEST = root;
+        try {
+          await storages.model.update({ options }, { where: { id: 18 } });
+          await other.repository.create({ values });
+          await expect(observe()).rejects.toThrow('Removal reference storage is unavailable or unsupported');
+        } finally {
+          if (original === undefined) delete process.env.LOCAL_STORAGE_DEST;
+          else process.env.LOCAL_STORAGE_DEST = original;
+        }
+      },
+    );
+
+    it('refuses unsafe stored paths instead of silently skipping their references', async () => {
+      await other.repository.create({ values: { ...values, path: '..' } });
+      await expect(observe()).rejects.toThrow('Removal reference location is unavailable or unsafe');
+    });
+
+    it('refuses a replaced current object even if no mapped rows reference its old location', async () => {
+      await fs.rename(target, path.join(root, 'original.txt'));
+      await fs.writeFile(target, 'keep');
+      await expect(observe()).rejects.toThrow('Removal reference object changed or is unavailable');
+    });
+
+    it('refuses a missing current object rather than reusing its historical snapshot as a live identity', async () => {
+      await fs.unlink(target);
+      await expect(observe()).rejects.toThrow('Removal reference object changed or is unavailable');
+    });
+
+    it('rejects a bounded scan overflow instead of reporting a partial zero', async () => {
+      await db.sequelize.query(`INSERT INTO scope_other_files (id,path,filename,"storageId")
+        SELECT id,'','other.txt',18 FROM generate_series(1,4097) id`);
+      await expect(observe()).rejects.toThrow('Removal reference observation exceeds its supported row limit');
+    });
+  });
 
   it('returns frozen physical source and storage identities and checks the original transaction lifecycle', async () => {
     const tx = await transaction();

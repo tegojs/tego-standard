@@ -23,11 +23,14 @@ export class AttachmentRemovalNativeCapture {
   private readonly evidenceTable: PhysicalTable;
   private readonly fields: { key: string; column: string; attribute: object; type: string }[];
   private readonly evidenceFields: { key: string; column: string; attribute: object; type: string }[];
+  private readonly rowFields: typeof this.fields;
 
   constructor(
     private readonly source: Collection,
     private readonly evidence: Collection,
+    private readonly format: 'location' | 'full-row' = 'location',
   ) {
+    if (format !== 'location' && format !== 'full-row') throw new TypeError('Unsupported native removal event format');
     this.database = source.db;
     this.sourceModel = source.model;
     this.evidenceModel = evidence.model;
@@ -49,18 +52,28 @@ export class AttachmentRemovalNativeCapture {
       ...(this.sourceModel.rawAttributes.tenantId ? ['tenantId'] : []),
     ]);
     this.evidenceFields = capture(this.evidenceModel, ['id', 'payload']);
+    this.rowFields = format === 'full-row' ? capture(this.sourceModel, this.physicalKeys()) : [];
     const hash = createHash('sha256')
       .update(
         JSON.stringify({
           source: this.sourceTable,
           evidence: this.evidenceTable,
           fields: this.fields.map(({ key, column }) => ({ key, column })),
+          ...(format === 'full-row'
+            ? { eventVersion: 2, rowFields: this.rowFields.map(({ key, column, type }) => ({ key, column, type })) }
+            : {}),
         }),
       )
       .digest('hex')
       .slice(0, 20);
     this.functionName = `${this.quote(this.evidenceTable.schema)}.${this.quote(`tac_remove_capture_${hash}`)}`;
     this.assertCurrent();
+  }
+
+  private physicalKeys() {
+    return Object.keys(this.sourceModel.rawAttributes).filter(
+      (key) => (this.sourceModel.rawAttributes[key].type as { key?: string }).key !== 'VIRTUAL',
+    );
   }
 
   private physical(model: Collection['model']): PhysicalTable {
@@ -111,6 +124,9 @@ export class AttachmentRemovalNativeCapture {
       evidenceModel.primaryKeyAttribute !== 'id' ||
       Object.keys(evidenceModel.rawAttributes).length !== 2 ||
       !sameFields(sourceModel, this.fields) ||
+      (this.format === 'full-row' &&
+        (!sameFields(sourceModel, this.rowFields) ||
+          JSON.stringify(this.physicalKeys()) !== JSON.stringify(this.rowFields.map(({ key }) => key)))) ||
       !sameFields(evidenceModel, this.evidenceFields) ||
       JSON.stringify(this.physical(sourceModel)) !== JSON.stringify(this.sourceTable) ||
       JSON.stringify(this.physical(evidenceModel)) !== JSON.stringify(this.evidenceTable) ||
@@ -179,6 +195,13 @@ export class AttachmentRemovalNativeCapture {
       throw new TypeError(
         'Native removal capture requires an ordinary physical source with its expected primary key and fields',
       );
+    if (
+      this.format === 'full-row' &&
+      (physical.columns.length !== this.rowFields.length ||
+        new Set(this.rowFields.map(({ column }) => column)).size !== this.rowFields.length ||
+        this.rowFields.some(({ column }) => !physical.columns.includes(column)))
+    )
+      throw new TypeError('Native removal capture requires a complete physical source row');
   }
 
   private functionBody() {
@@ -197,11 +220,11 @@ export class AttachmentRemovalNativeCapture {
         END IF;
         INSERT INTO ${evidence} (${this.quote(this.evidenceFields[0].column)}, ${this.quote(this.evidenceFields[1].column)})
         VALUES (operation_id, pg_catalog.jsonb_build_object(
-          'schemaVersion', 1, 'kind', 'attachment-native-delete', 'state', 'deleted-in-transaction',
+          'schemaVersion', ${this.format === 'full-row' ? 2 : 1}, 'kind', 'attachment-native-delete', 'state', 'deleted-in-transaction',
           'transactionId', pg_catalog.txid_current()::text,
           'source', pg_catalog.jsonb_build_object('oid', TG_RELID::text, 'schema', TG_TABLE_SCHEMA, 'table', TG_TABLE_NAME, 'primaryField', ${literal(this.fields[0].column)}),
           'record', pg_catalog.jsonb_build_object('key', ${original(this.fields[0].key)}, 'path', ${original('path')},
-            'filename', ${original('filename')}, 'storageId', ${original('storageId')}, 'size', ${original('size')}, 'tenantId', ${original('tenantId')})));
+            'filename', ${original('filename')}, 'storageId', ${original('storageId')}, 'size', ${original('size')}, 'tenantId', ${original('tenantId')})${this.format === 'full-row' ? ", 'row', pg_catalog.to_jsonb(OLD)" : ''}));
         RETURN OLD;
       END`;
   }
@@ -274,6 +297,8 @@ export class AttachmentRemovalNativeCapture {
   /**
    * Locked raw observation for an internal matcher, not proof of authorization or cleanup authority.
    * Trusted schema management must exclude concurrent function replacement throughout the operation.
+   * Full-row v2 stores native JSONB; consumers must evaluate it in SQL, never round-trip parsed
+   * JavaScript numbers back into a typed record. The location-only intent matcher accepts v1 only.
    */
   async readEvent(source: Collection, transaction: Transaction, operationId: string): Promise<unknown> {
     if (source !== this.source || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))

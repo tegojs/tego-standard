@@ -496,6 +496,25 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
             expect(await fs.readFile(location())).toEqual(bytes);
           });
 
+          it('does not silently downgrade a full-row v2 event through the location-only intent matcher', async () => {
+            await db.sequelize.query(`DROP FUNCTION ${native.functionName}() CASCADE`);
+            native = new files.AttachmentRemovalNativeCapture(docs, events, 'full-row');
+            await db.sequelize.transaction((transaction) => native.install(transaction));
+            await expect(
+              exercise(async (handle, transaction) => {
+                expect(await native.readEvent(docs, transaction, handle.id)).toMatchObject({
+                  schemaVersion: 2,
+                  row: { id: 1, tenantId: 'B' },
+                });
+                await journal.assertNativeEventMatches(handle, native, transaction);
+              }),
+            ).rejects.toThrow('Native attachment event does not match its prepared intent');
+            expect(await docs.model.count()).toBe(3);
+            expect(await intents.model.count()).toBe(0);
+            expect(await events.model.count()).toBe(0);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
           it('rejects a real beforeDestroy location change rather than trusting the old model instance', async () => {
             docs.model.addHook('beforeDestroy', async (_row, { transaction }) => {
               await docs.model.update(

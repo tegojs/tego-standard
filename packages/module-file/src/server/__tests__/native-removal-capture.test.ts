@@ -80,6 +80,114 @@ describe.skipIf(!postgresUrl)('explicit PostgreSQL attachment delete capture', (
   const remove = (transaction: Transaction) =>
     source.repository.destroy({ filterByTk: '9007199254740993', transaction });
 
+  describe('full-row native event format', () => {
+    async function installFullRow() {
+      capture = new files.AttachmentRemovalNativeCapture(source, evidence, 'full-row');
+      await db.sequelize.transaction((transaction) => capture.install(transaction));
+    }
+
+    it('retains complete actual business fields and exact SQL bigint values without a JavaScript round trip', async () => {
+      source.setField('approved', { type: 'boolean', field: 'business_approved' });
+      source.setField('details', { type: 'jsonb' });
+      source.setField('amount', { type: 'bigInt' });
+      await db.sequelize.query(`ALTER TABLE native_capture_files
+        ADD COLUMN business_approved boolean DEFAULT TRUE,
+        ADD COLUMN details jsonb DEFAULT '{"flag":true,"n":9007199254740993}',
+        ADD COLUMN amount bigint DEFAULT 9007199254740993`);
+      await installFullRow();
+      let after = false;
+      source.model.addHook('beforeDestroy', async (row, { transaction }) => {
+        row.setDataValue('approved', true);
+        await source.model.update({ approved: false }, { where: {}, transaction, hooks: false });
+      });
+      source.model.addHook('afterDestroy', () => {
+        after = true;
+      });
+      let id: string;
+      await db.sequelize.transaction(async (transaction) => {
+        id = await mark(transaction);
+        expect(await remove(transaction)).toBe(1);
+      });
+      expect(after).toBe(true);
+      const [result] = await db.sequelize.query(
+        `SELECT
+        payload->>'schemaVersion' AS version,
+        payload->'row'->>'id' AS key,
+        payload->'row'->>'amount' AS amount,
+        payload->'row'->'details'->>'n' AS nested,
+        (SELECT r.business_approved FROM jsonb_populate_record(NULL::native_capture_files, payload->'row') r) AS approved,
+        (SELECT r.amount::text FROM jsonb_populate_record(NULL::native_capture_files, payload->'row') r) AS restored
+        FROM native_capture_evidence WHERE id=$id`,
+        { bind: { id: id! } },
+      );
+      expect(result).toEqual([
+        {
+          version: '2',
+          key: '9007199254740993',
+          amount: '9007199254740993',
+          nested: '9007199254740993',
+          approved: false,
+          restored: '9007199254740993',
+        },
+      ]);
+      expect(await source.model.count()).toBe(0);
+    });
+
+    it('verifies full-row installation from a fresh full-row instance but rejects the old format', async () => {
+      await installFullRow();
+      const verifier = new files.AttachmentRemovalNativeCapture(source, evidence, 'full-row');
+      await db.sequelize.transaction((transaction) => verifier.assertInstalled(transaction));
+      const legacy = new files.AttachmentRemovalNativeCapture(source, evidence);
+      await expect(db.sequelize.transaction((transaction) => legacy.assertInstalled(transaction))).rejects.toThrow(
+        'Native removal capture installation is unavailable or changed',
+      );
+      expect(await source.model.count()).toBe(1);
+      expect(await rows()).toEqual([]);
+    });
+
+    it.each(['add', 'remove', 'rename', 'type'])(
+      'rejects %s drift of ordinary business field metadata captured for the full row',
+      async (change) => {
+        source.setField('approved', { type: 'boolean' });
+        await db.sequelize.query('ALTER TABLE native_capture_files ADD COLUMN approved boolean');
+        capture = new files.AttachmentRemovalNativeCapture(source, evidence, 'full-row');
+        if (change === 'add') source.setField('later', { type: 'string' });
+        else if (change === 'remove') delete source.model.rawAttributes.approved;
+        else if (change === 'rename') source.model.rawAttributes.approved.field = 'renamed';
+        else source.model.rawAttributes.approved.type = source.model.rawAttributes.path.type;
+        await expect(db.sequelize.transaction((transaction) => capture.install(transaction))).rejects.toThrow(
+          'Native removal capture metadata is unavailable or changed',
+        );
+        expect(await source.model.count()).toBe(1);
+        expect(await rows()).toEqual([]);
+      },
+    );
+
+    it('rejects unmodeled physical columns instead of silently treating a partial definition as the full row', async () => {
+      capture = new files.AttachmentRemovalNativeCapture(source, evidence, 'full-row');
+      await db.sequelize.query('ALTER TABLE native_capture_files ADD COLUMN unmodeled boolean');
+      await expect(db.sequelize.transaction((transaction) => capture.install(transaction))).rejects.toThrow(
+        'Native removal capture requires a complete physical source row',
+      );
+      expect(await rows()).toEqual([]);
+    });
+
+    it('does not leave a full-row event behind after a later Repository hook rejects', async () => {
+      await installFullRow();
+      source.model.addHook('afterBulkDestroy', () => {
+        throw new Error('full row rollback');
+      });
+      await expect(
+        db.sequelize.transaction(async (transaction) => {
+          await mark(transaction);
+          await remove(transaction);
+        }),
+      ).rejects.toThrow('full row rollback');
+      expect(await source.model.count()).toBe(1);
+      expect(await rows()).toEqual([]);
+    });
+  });
+
   it('verifies a committed installation from a fresh instance without deleting or logging anything', async () => {
     await install();
     const verifier = new files.AttachmentRemovalNativeCapture(source, evidence);

@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { Collection, Database, Transaction } from '@tego/server';
+import { Transaction, type Collection, type Database } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
@@ -13,6 +13,7 @@ import { AccessRoleFilterCompiler } from './role-filter';
 import {
   assertEmptyMutationFilter,
   cloneDeep,
+  internalQuery,
   invalid,
   normalizeKeys,
   plain,
@@ -42,6 +43,16 @@ export interface AccessAttachmentRemovalNativeProof extends AccessAttachmentRemo
   readonly rootAlias: string;
 }
 
+/** Trusted server collaborator, never supplied by action parameters or treated as a transport DTO. */
+export interface AccessAttachmentRemovalEvidenceAdapter {
+  prepare(proof: AccessAttachmentRemovalProof): Promise<{
+    beforeDelete(): Promise<void>;
+    afterDelete(): Promise<void>;
+    assertCurrent(): Promise<void>;
+    testPredicate(predicate: { readonly sql: string; readonly rootAlias: string }): Promise<boolean>;
+  }>;
+}
+
 interface RemovalContext {
   db: Database;
   action: object;
@@ -60,8 +71,8 @@ function shape(input: unknown, keys: readonly string[]): asserts input is Record
   for (const key of Object.getOwnPropertyNames(input)) data(input, key);
 }
 
-/** Preparation only: no row deletion, file I/O, commit receipt or runtime registration.
- * The caller owns the transaction and must roll it back on any error.
+/** Internal preparation and separate explicit SQL execution; never file I/O or runtime registration.
+ * Preparation uses the caller transaction. executeNativeRemoval owns its root transaction.
  */
 export function captureAttachmentRemoval(
   db: Database,
@@ -166,7 +177,7 @@ export function captureAttachmentRemoval(
     invalid('Attachment removal metadata is unavailable');
   current();
   let used = false;
-  const withLockedRecord = async <T>(
+  const withInitialRecord = async <T>(
     consume: (proof: AccessAttachmentRemovalProof, owner: unknown) => Promise<T>,
     transaction: Transaction,
   ): Promise<T> => {
@@ -213,13 +224,59 @@ export function captureAttachmentRemoval(
         if (!isDeepStrictEqual(await read(), before)) invalid('Stored attachment removal location or owner changed');
       };
       const record = before.record;
-      const result = await consume(Object.freeze({ collection, transaction, record, assertCurrent }), before.owner);
-      // This stage prepares only; consumers may not delete, rewrite or commit the source row.
-      await assertCurrent();
-      return result;
+      return await consume(Object.freeze({ collection, transaction, record, assertCurrent }), before.owner);
     } finally {
       active = false;
     }
+  };
+  const withLockedRecord = <T>(
+    consume: (proof: AccessAttachmentRemovalProof, owner: unknown) => Promise<T>,
+    transaction: Transaction,
+  ) =>
+    withInitialRecord(async (proof, owner) => {
+      const result = await consume(proof, owner);
+      // Preparation always retains its original postcondition, even beside the separate executor.
+      await proof.assertCurrent();
+      return result;
+    }, transaction);
+  const nativePolicy = async (proof: AccessAttachmentRemovalProof, owner: unknown) => {
+    current();
+    const nativeRole = new AccessRoleFilterCompiler(db, resolveIdentity).compileNative(
+      identity,
+      captureAccessFilter(grants.filter === undefined ? {} : grants.filter),
+    );
+    const scopes = await queries.resolveNativeScopes(ctx, identity, actor, {
+      rootAlias: nativeRole.rootAlias,
+      transaction: proof.transaction,
+    });
+    current();
+    await validateWriteTransaction(db, proof.transaction, false);
+    nativeRole.assertCurrent();
+    if (!scopes || scopes.config !== config) invalid('Attachment removal native preparation phase changed');
+    const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
+    const generator = db.sequelize.getQueryInterface().queryGenerator as unknown as {
+      escape(value: unknown): string | number;
+    };
+    const expected: Array<[string, unknown]> = [
+      [primary, proof.record.key],
+      ['path', proof.record.path],
+      ['filename', proof.record.filename],
+      ['size', proof.record.size],
+      ['storageId', proof.record.storageId],
+      ...(config.ownership.enabled ? ([['tenantId', owner]] as Array<[string, unknown]>) : []),
+    ];
+    const snapshot = expected.map(
+      ([field, value]) =>
+        `${quote(nativeRole.rootAlias)}.${quote(model.rawAttributes[field].field || field)} = ${generator.escape(value)}`,
+    );
+    return {
+      sql: [scopes.scopes.ownership.sql, nativeRole.sql, ...snapshot].map((part) => `(${part})`).join(' AND '),
+      rootAlias: nativeRole.rootAlias,
+      assertCurrent() {
+        current();
+        nativeRole.assertCurrent();
+      },
+    };
   };
   return Object.freeze({
     async withRecord<T>(consume: (proof: AccessAttachmentRemovalProof) => Promise<T>, transaction: Transaction) {
@@ -232,42 +289,83 @@ export function captureAttachmentRemoval(
     ) {
       if (typeof consume !== 'function') invalid('Attachment removal entry has already been used or is invalid');
       return withLockedRecord(async (proof, owner) => {
-        const nativeRole = new AccessRoleFilterCompiler(db, resolveIdentity).compileNative(
-          identity,
-          captureAccessFilter(grants.filter === undefined ? {} : grants.filter),
-        );
-        const scopes = await queries.resolveNativeScopes(ctx, identity, actor, {
-          rootAlias: nativeRole.rootAlias,
-          transaction,
-        });
-        if (!scopes || scopes.config !== config) invalid('Attachment removal native preparation phase changed');
+        const policy = await nativePolicy(proof, owner);
         const assertCurrent = async () => {
-          nativeRole.assertCurrent();
+          policy.assertCurrent();
           await proof.assertCurrent();
-          nativeRole.assertCurrent();
+          policy.assertCurrent();
         };
         await assertCurrent();
-        const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
-        const generator = db.sequelize.getQueryInterface().queryGenerator as unknown as {
-          escape(value: unknown): string | number;
-        };
-        const expected: Array<[string, unknown]> = [
-          [primary, proof.record.key],
-          ['path', proof.record.path],
-          ['filename', proof.record.filename],
-          ['size', proof.record.size],
-          ['storageId', proof.record.storageId],
-          ...(config.ownership.enabled ? ([['tenantId', owner]] as Array<[string, unknown]>) : []),
-        ];
-        const snapshot = expected.map(
-          ([field, value]) =>
-            `${quote(nativeRole.rootAlias)}.${quote(model.rawAttributes[field].field || field)} = ${generator.escape(value)}`,
+        const result = await consume(
+          Object.freeze({ ...proof, sql: policy.sql, rootAlias: policy.rootAlias, assertCurrent }),
         );
-        const sql = [scopes.scopes.ownership.sql, nativeRole.sql, ...snapshot].map((part) => `(${part})`).join(' AND ');
-        const result = await consume(Object.freeze({ ...proof, sql, rootAlias: nativeRole.rootAlias, assertCurrent }));
-        nativeRole.assertCurrent();
+        policy.assertCurrent();
         return result;
       }, transaction);
+    },
+    /** Explicit SQL deletion only. The injected evidence adapter must be trusted server composition.
+     * Owns commit/rollback; no caller transaction, paths, SQL, deletion callback or cleanup permit.
+     */
+    async executeNativeRemoval(evidence: AccessAttachmentRemovalEvidenceAdapter): Promise<number> {
+      if (db.sequelize.getDialect() !== 'postgres' || !evidence || typeof evidence.prepare !== 'function')
+        invalid('Native attachment removal requires PostgreSQL and a trusted evidence adapter');
+      return db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, (transaction) =>
+        withInitialRecord(async (proof, owner) => {
+          await validateWriteTransaction(db, transaction, true);
+          const initial = await nativePolicy(proof, owner);
+          await proof.assertCurrent();
+          const session = await evidence.prepare(proof);
+          if (
+            !session ||
+            (['beforeDelete', 'afterDelete', 'assertCurrent', 'testPredicate'] as const).some(
+              (key) => typeof session[key] !== 'function',
+            )
+          )
+            invalid('Attachment removal evidence session is unavailable');
+          await session.beforeDelete();
+          await proof.assertCurrent();
+          initial.assertCurrent();
+          const affected = await collection.repository.destroy({ filterByTk: key, transaction });
+          if (affected !== 1) invalid('Attachment removal did not delete exactly one original row');
+          // Deferred constraint triggers must finish before evaluating final authorization.
+          // Keep constraints immediate for the remainder of this owned transaction.
+          await db.sequelize.query('SET CONSTRAINTS ALL IMMEDIATE', { transaction });
+          await session.afterDelete();
+          const assertAbsent = async () => {
+            current();
+            const row = await model.unscoped().findByPk(
+              key,
+              internalQuery({
+                attributes: [primary],
+                transaction,
+                paranoid: false,
+                lock: transaction.LOCK.UPDATE,
+              }),
+            );
+            current();
+            if (row) invalid('Attachment removal source row still exists after deletion');
+          };
+          await assertAbsent();
+          // Resolve again after all Repository hooks, including current tenant/hierarchy facts.
+          const finalPolicy = await nativePolicy(proof, owner);
+          if (
+            (await session.testPredicate(Object.freeze({ sql: finalPolicy.sql, rootAlias: finalPolicy.rootAlias }))) !==
+            true
+          )
+            invalid('Attachment removal final native authorization failed');
+          await session.assertCurrent();
+          const checked = await nativePolicy(proof, owner);
+          if (checked.sql !== finalPolicy.sql || checked.rootAlias !== finalPolicy.rootAlias)
+            invalid('Attachment removal final native authorization changed during verification');
+          initial.assertCurrent();
+          finalPolicy.assertCurrent();
+          checked.assertCurrent();
+          await assertAbsent();
+          await validateWriteTransaction(db, transaction, true);
+          current();
+          return affected;
+        }, transaction),
+      );
     },
   });
 }

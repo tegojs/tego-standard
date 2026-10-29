@@ -280,6 +280,24 @@ export class AttachmentRemovalNativeCapture {
       throw new TypeError('Native removal capture installation is unavailable or changed');
   }
 
+  /** Execution preflight only. No schema installation or permission to delete bytes. */
+  async assertFullRowInstalled(source: Collection, transaction: Transaction): Promise<void> {
+    if (this.format !== 'full-row' || source !== this.source)
+      throw new TypeError('Native removal execution requires the full-row installation for its source');
+    await this.assertInstalled(transaction);
+    const [rows] = await this.database.sequelize.query(
+      `SELECT (NOT c.relrowsecurity AND NOT c.relforcerowsecurity
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_rewrite r WHERE r.ev_class=c.oid)
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_constraint k
+          WHERE k.contype='f' AND k.confrelid=c.oid AND k.confdeltype NOT IN ('a','r'))) AS valid
+      FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($source)`,
+      { transaction, bind: { source: this.table(this.sourceTable) } },
+    );
+    this.assertCurrent();
+    if ((rows as { valid: boolean }[])[0]?.valid !== true)
+      throw new TypeError('Native removal execution has unsupported source database behavior');
+  }
+
   private async assertEvidenceBehavior(transaction: Transaction) {
     const [rows] = await this.database.sequelize.query(
       `SELECT (c.relkind='r' AND NOT c.relrowsecurity AND NOT c.relforcerowsecurity

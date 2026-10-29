@@ -470,7 +470,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
               transaction,
               bind: { setting: native.setting, id },
             });
-            // Test fixture only: the production deletion executor and final G contract remain unimplemented.
+            // Observation fixture only; deliberately bypasses the separate owned deletion executor.
             await docs.repository.destroy({ filterByTk: 1, transaction });
           }
 
@@ -734,6 +734,261 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
               ).rejects.toThrow('Removal intent no longer matches its original preparation');
               expect(await docs.model.count()).toBe(3);
               expect(await intents.model.count()).toBe(0);
+            });
+
+            describe('owned native removal execution', () => {
+              async function execution(key = 1) {
+                journal ??= new files.AttachmentRemovalIntentJournal(intents);
+                const ctx = await context(key, { filter: { facts: { authorized: true } } }, 'destroy');
+                return {
+                  ctx,
+                  entry: mutations.captureAttachmentRemoval(ctx, { tenantId: 'B', roleName: 'reader', userId: 28 }),
+                  evidence: files.createAttachmentRemovalEvidenceAdapter(journal, native),
+                };
+              }
+              async function assertRollback() {
+                expect(await docs.model.count()).toBe(3);
+                expect(await intents.model.count()).toBe(0);
+                expect(await events.model.count()).toBe(0);
+                expect((await facts.model.findOne()).getDataValue('allowed')).toBe(true);
+                expect((await facts.model.findOne()).getDataValue('authorized')).toBe(true);
+                expect(await fs.readFile(location())).toEqual(bytes);
+              }
+
+              it.each([true, false])(
+                'owns the SQL transaction and keeps bytes with storage retention %s',
+                async (retain) => {
+                  await db.getCollection('storages').model.update({ paranoid: retain }, { where: { id: 18 } });
+                  const { entry, evidence } = await execution();
+                  let before = 0;
+                  let after = 0;
+                  docs.model.addHook('beforeDestroy', (row) => {
+                    before++;
+                    row.setDataValue('filename', 'memory-only.txt');
+                  });
+                  docs.model.addHook('afterDestroy', () => {
+                    after++;
+                  });
+                  expect(await entry.executeNativeRemoval(evidence)).toBe(1);
+                  expect(before).toBe(1);
+                  expect(after).toBe(1);
+                  expect(await docs.model.findByPk(1)).toBeNull();
+                  expect(await docs.model.count()).toBe(2);
+                  expect(await intents.model.count()).toBe(1);
+                  expect(await events.model.count()).toBe(1);
+                  expect(await fs.readFile(location())).toEqual(bytes);
+                  await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('already been used');
+                },
+              );
+
+              it('rejects an initially unauthorized actual record without creating an intent', async () => {
+                const { entry, evidence } = await execution(2);
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toMatchObject({
+                  code: 'ACCESS_RECORD_UNAVAILABLE',
+                });
+                await assertRollback();
+              });
+
+              it('rejects a location-only installation before Repository deletion', async () => {
+                await db.sequelize.query(`DROP FUNCTION ${native.functionName}() CASCADE`);
+                native = new files.AttachmentRemovalNativeCapture(docs, events);
+                await db.sequelize.transaction((transaction) => native.install(transaction));
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                  'requires the full-row installation',
+                );
+                await assertRollback();
+              });
+
+              it.each(['cascade', 'rule', 'RLS'])(
+                'rejects unmodeled source %s behavior before deletion',
+                async (behavior) => {
+                  if (behavior === 'cascade')
+                    await db.sequelize.query(`
+                  CREATE TABLE unmodeled_removal_dependent(id integer PRIMARY KEY, file_id integer REFERENCES documents(id) ON DELETE CASCADE);
+                  INSERT INTO unmodeled_removal_dependent VALUES (1, 1)`);
+                  else if (behavior === 'rule')
+                    await db.sequelize.query(`CREATE RULE unmodeled_removal_rule AS ON DELETE TO documents
+                  DO ALSO UPDATE "removalPolicyFacts" SET allowed=TRUE WHERE "documentId"=OLD.id`);
+                  else await db.sequelize.query('ALTER TABLE documents ENABLE ROW LEVEL SECURITY');
+                  try {
+                    const { entry, evidence } = await execution();
+                    await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                      'unsupported source database behavior',
+                    );
+                    await assertRollback();
+                    if (behavior === 'cascade') {
+                      const [rows] = await db.sequelize.query(
+                        'SELECT count(*)::text AS count FROM unmodeled_removal_dependent',
+                      );
+                      expect(rows).toEqual([{ count: '1' }]);
+                    }
+                  } finally {
+                    if (behavior === 'cascade') await db.sequelize.query('DROP TABLE unmodeled_removal_dependent');
+                  }
+                },
+              );
+
+              it('rolls back a SQL-cancelled DELETE rather than accepting an afterDestroy notification', async () => {
+                await db.sequelize
+                  .query(`CREATE FUNCTION tamper_native_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+                  BEGIN RETURN NULL; END $$;
+                  CREATE TRIGGER cancel_execution BEFORE DELETE ON documents FOR EACH ROW EXECUTE FUNCTION tamper_native_evidence()`);
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                  'did not delete exactly one original row',
+                );
+                await assertRollback();
+              });
+
+              it('rolls back a later Repository hook error inside its owned transaction', async () => {
+                docs.model.addHook('afterBulkDestroy', () => {
+                  throw new Error('execution hook refused');
+                });
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('execution hook refused');
+                await assertRollback();
+              });
+
+              it.each([
+                'G scalar',
+                'G beforeDestroy',
+                'role beforeDestroy',
+                'G BEFORE',
+                'role BEFORE',
+                'G AFTER',
+                'role AFTER',
+                'G afterDestroy',
+                'role afterDestroy',
+                'G afterBulkDestroy',
+                'role afterBulkDestroy',
+              ])('forces rollback after final %s revocation', async (change) => {
+                const field = change.startsWith('G') ? 'allowed' : 'authorized';
+                if (change.endsWith('AFTER') || change.endsWith('BEFORE'))
+                  await db.sequelize.query(`
+                    CREATE FUNCTION tamper_native_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+                    BEGIN UPDATE "removalPolicyFacts" SET ${field}=FALSE WHERE "documentId"=OLD.id; RETURN OLD; END $$;
+                    CREATE TRIGGER zz_revoke_execution ${change.endsWith('AFTER') ? 'AFTER' : 'BEFORE'} DELETE ON documents FOR EACH ROW EXECUTE FUNCTION tamper_native_evidence()`);
+                else if (change.endsWith('afterBulkDestroy'))
+                  docs.model.addHook('afterBulkDestroy', async ({ transaction }) => {
+                    await facts.model.update({ [field]: false }, { where: { documentId: 1 }, transaction });
+                  });
+                else
+                  docs.model.addHook(
+                    change.endsWith('afterDestroy') ? 'afterDestroy' : 'beforeDestroy',
+                    async (_row, { transaction }) => {
+                      if (change === 'G scalar')
+                        await docs.model.update({ viewable: true }, { where: { id: 1 }, hooks: false, transaction });
+                      else await facts.model.update({ [field]: false }, { where: { documentId: 1 }, transaction });
+                    },
+                  );
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('final native authorization failed');
+                await assertRollback();
+              });
+
+              it.each(['location', 'owner'])('rolls back actual beforeDestroy %s drift', async (change) => {
+                docs.model.addHook('beforeDestroy', async (_row, { transaction }) => {
+                  await docs.model.update(change === 'location' ? { path: 'changed' } : { tenantId: 'H' }, {
+                    where: { id: 1 },
+                    hooks: false,
+                    transaction,
+                  });
+                });
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                  'Native full-row event does not match its prepared intent',
+                );
+                await assertRollback();
+              });
+
+              it('rejects a same-key row recreated by afterDestroy despite an actual deletion event', async () => {
+                docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                  await docs.model.create(
+                    {
+                      id: 1,
+                      tenantId: 'B',
+                      viewable: false,
+                      path: 'old/tenants/H',
+                      filename: 'receipt.txt',
+                      size: bytes.length,
+                      storageId: 18,
+                    },
+                    { transaction },
+                  );
+                });
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                  'source row still exists after deletion',
+                );
+                await assertRollback();
+              });
+
+              it.each(['decision', 'phase', 'storage'])(
+                'rejects final %s drift after Repository hooks',
+                async (change) => {
+                  const { ctx, entry, evidence } = await execution();
+                  docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                    if (change === 'decision') Object.assign(ctx.permission as object, { can: false, skip: false });
+                    else if (change === 'phase') {
+                      adapter.release(ctx);
+                      await adapter.prepare(ctx, [mainIdentity]);
+                    } else
+                      await db
+                        .getCollection('storages')
+                        .model.update({ paranoid: true }, { where: { id: 18 }, transaction });
+                  });
+                  await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(/changed|phase/);
+                  await assertRollback();
+                },
+              );
+
+              it.each(['G', 'role'])('rolls back %s revoked by a deferred constraint trigger', async (policy) => {
+                const field = policy === 'G' ? 'allowed' : 'authorized';
+                await db.sequelize.query(`
+                  CREATE FUNCTION tamper_native_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+                  BEGIN UPDATE "removalPolicyFacts" SET ${field}=FALSE WHERE "documentId"=OLD.id; RETURN OLD; END $$;
+                  CREATE CONSTRAINT TRIGGER deferred_execution_revoke AFTER DELETE ON documents
+                  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION tamper_native_evidence()`);
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('final native authorization failed');
+                await assertRollback();
+              });
+
+              it('recomputes tenant hierarchy changed by afterDestroy instead of using the preparation SQL', async () => {
+                db.getCollection('tenants').setField('parentId', { type: 'string' });
+                await db.sequelize.query('ALTER TABLE tenants ADD COLUMN "parentId" varchar(255)');
+                await db.getCollection('tenants').model.update({ parentId: 'H' }, { where: { id: 'B' } });
+                await docs.model.update({ tenantId: 'H' }, { where: { id: 1 } });
+                const store = new AccessConfigStore(db, (value) =>
+                  resolveModelMetadata(db.getCollection(value.collectionName), {
+                    resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
+                  }),
+                );
+                const saved = await store.read(mainIdentity);
+                await store.save(
+                  mainIdentity,
+                  {
+                    ...configFor({
+                      type: 'tenantRelation',
+                      tenant: { type: 'field', path: 'tenantId' },
+                      relation: 'descendant',
+                      includeSelf: false,
+                    }),
+                    revision: saved!.revision,
+                  },
+                  { userId: 28 },
+                );
+                docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                  await db
+                    .getCollection('tenants')
+                    .model.update({ parentId: null }, { where: { id: 'B' }, transaction });
+                });
+                const { entry, evidence } = await execution();
+                await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('final native authorization failed');
+                expect((await db.getCollection('tenants').model.findByPk('B')).getDataValue('parentId')).toBe('H');
+                await assertRollback();
+              });
             });
           });
 

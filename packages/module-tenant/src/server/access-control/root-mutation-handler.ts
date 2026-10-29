@@ -52,7 +52,7 @@ export class AccessRootMutationHandler {
     return captureAttachmentCreation(this.db, this.prepared, this.queries, this.resolveIdentity, ctx, authenticated);
   }
 
-  /** Preparation only. Does not delete rows/content or authorize physical cleanup. */
+  /** Internal preparation or explicit owned SQL executor. Never authorizes physical cleanup. */
   captureAttachmentRemoval(ctx: AccessRootMutationContext, authenticated: AccessIdentity) {
     return captureAttachmentRemoval(this.db, this.prepared, this.queries, this.resolveIdentity, ctx, authenticated);
   }

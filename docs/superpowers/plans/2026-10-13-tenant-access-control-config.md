@@ -2574,3 +2574,23 @@ Ruling: 在 AttachmentRemovalIntentJournal 增加显式 testNativeRowPredicate�
 本批新增场景包括真实 Repository beforeDestroy 的标量 G 改动，beforeDestroy、较晚 AFTER 和 afterDestroy 对 G/角色关系的撤销，实际完整行/头被修改、缺失或增加字段、非规范类型、复制句柄/不同事务/意图变更，以及精度/标识符边界。允许的测试观察不会删除文件；拒绝的测试通过调用者显式回滚，原行、日志及事实恢复。专用库 tego_tenant_access_test_b16929c613 只用于本批串行验证，结束后统一清理；不修改业务库或正式 schema。下一项仍是独立删除执行契约和最终操作/动态授权事实的新鲜度组合，再推进引用/对象身份、确定提交及受控清理。
 
 确认所有测试/构建退出、实际临时集群目录及零其他客户端后，仅删除本批专用库 tego_tenant_access_test_b16929c613，pg_database 计数确认 0；临时 PG 已停止，保留目录日志。删除的是可重建测试数据，未涉及业务数据。本批按完整行原生观察独立默认签名提交，不推送。
+
+## 170. 拥有事务的显式附件 SQL 删除执行契约
+
+Ruling: 在原捕获入口另设 executeNativeRemoval，执行器拥有 PostgreSQL SERIALIZABLE 顶层事务，固定调用真实 Collection.repository.destroy，不接受外部事务、SQL、位置或删除回调。原 withRecord / withNativePredicate 仍执行原行存在、同位置/归属且仍有权的后置条件，共用的一次性限制和证明过期语义保留。文件模块通过可信服务端注入的 createAttachmentRemovalEvidenceAdapter 提供同原事务意图、原存储锁及完整行捕获组合，不引入 tenant 包的运行时循环依赖，也不接 selected executor 或正式动作。
+
+执行前绑定最终 destroy 决策、稳定身份/准备阶段及完整 G/角色条件，锁原行和原 storageId 存储，持久化 prepared 意图并设置内部操作标记。原生来源须为 full-row 安装，目录复核之外拒绝 RLS、重写规则及任何实际入向外键非 NO ACTION/RESTRICT 的级联行为，包含 ORM 未建模的外键。Repository 数量必须为一，全部钩子返回后检查原物理键确实不存在；在实际存储的强类型完整 OLD 上重新编译/评估完整 G 与最终角色条件，并重新解析租户层级等上下文。完整行/原意图匹配、存储、元数据、准备阶段、身份和决策均前后复核；最后重新解析谓词，变化则拒绝。任何 false、错误或漂移均从拥有事务的回调抛出，强制回滚，不再依赖调用者记得回滚。
+
+Ruling: 作者自审发现延迟约束触发器可在最后观察之后、COMMIT 时撤权；新增 G/角色两个真实 PG RED 均意外提交成功。执行器现在在 Repository 钩子之后、最终复核之前执行 SET CONSTRAINTS ALL IMMEDIATE，既执行待处理约束触发器，又保持剩余事务约束立即执行。不能仅把普通 AFTER 或 afterDestroy 当成所有数据库行为结束的证明。保留 removal-execution-deferred-red.log；定向二十五项通过保留 removal-execution-green-final.log。
+
+原文件在 paranoid=true/false 下都保留。成功返回数量只说明这次受控 SQL 事务调用成功，不颁发可持久化清理回执；prepared/原生事件也不升级状态。不承诺未知提交可清理、事件不可伪造、无共享路径/其他记录引用或对象身份安全。继续依赖可信服务端、受控 schema 以及尊重事务所有权的钩子；不允许钩子自行提交事务或把独立副作用当成回滚的一部分，也不授权其任意其他业务写入。来源表锁仍不防御函数所有者并发替换函数。正式 schema 安装/运行时/路由、规则保存和启用保持关闭。
+
+- [x] 首批二十项和新增来源行为三项正确因缺少工厂失败，分别保留 removal-execution-corrected-red.log、removal-execution-source-red.log。首轮夹具的 hierarchy includeSelf 缺失已改正，未计为功能 RED。随后实例检查失败根因是新夹具未初始化惰性 journal，不是类身份不一致；补齐夹具初始化，保留生产实例检查。storage 漂移测试原来将默认 false 再写 false，改为实际 true 变化，不修改存储选择器迁就测试。
+- [x] 扩展真实 BEFORE、较晚 AFTER、afterDestroy、afterBulkDestroy 及延迟约束触发器的 G/角色撤权，普通字段 G、实际位置/归属漂移、SQL 取消、钩子错误、同键重建、最终决策/阶段/存储漂移和层级变更。成功用例验证真实 before/afterDestroy 各执行一次，模型内存的假位置不冒充实际 OLD，保留策略两种均不删除字节。
+- [x] 最终删除准备、授权读取/HTTP/意图及原生捕获三个文件顺序三百零六项通过、九十六项数据库分组跳过，对应实际 PG 专项均执行，退出 0；保留 removal-execution-regression-final.log。其中新增二十九项实际 PG 执行场景不与此前定向结果重复计数。首轮完整回归三百零四项通过、两项 afterBulkDestroy 新夹具因使用行钩子参数签名失败，已按实际批量钩子只传 options 的契约修正后完整重跑，未改产品代码绕过；保留 removal-execution-regression.log。
+- [x] 租户包首次声明构建发现安装版 ORM 的 findByPk 类型不支持直接声明 hooks 选项；改用既有 internalQuery 包装，实际选项保持 hooks:false/useMaster:true，未改依赖或响应方法。随后二十九项实际 PG 执行场景定向全部通过，二百零五项仅名称/数据库分组过滤，退出 0；保留 removal-execution-final-query-regression.log。租户包客户端、服务端和声明重新构建退出 0，保留 removal-execution-build-tenant-final.log；失败构建保留 removal-execution-build-tenant.log。
+- [x] 文件包客户端、服务端和声明构建退出 0，保留 removal-execution-build-file.log；两个包仅在独立快照构建，既有 UnkVer/UnkBranch 提示未改变正式版本或依赖。六份涉及源码与快照 SHA256 一致，八个变更文件 Prettier 通过，六份 TS 的 oxlint 零错误/警告、diff 和作者自审通过。自审实际发现并 RED→GREEN 修正延迟约束问题；未恢复全局关联 ACL/eager-loading 拦截，也未注册正式入口。整分支独立复核未完成。
+
+专用库 tego_tenant_access_test_c17029d614 仅供本批串行验证。共享路径/其他引用、对象身份、跨进程确定提交/恢复及物理清理、替换、其他入口和最终整合仍待完成；§150 正式 Koa/logger 响应阻塞未绕过，整分支独立复核仍未完成。
+
+确认所有测试/构建退出、实际临时集群目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_c17029d614，pg_database 计数确认 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按拥有事务的显式 SQL 删除契约作一个默认签名原子提交，不推送。

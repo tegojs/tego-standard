@@ -11,6 +11,7 @@ export { StagedAttachmentJournal } from './storages/staged-journal';
 export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journal';
 export { AttachmentRemovalIntentJournal } from './storages/removal-intent-journal';
 export { AttachmentRemovalNativeCapture } from './storages/native-removal-capture';
+export { createAttachmentRemovalEvidenceAdapter } from './storages/removal-execution-evidence';
 export { recoverStagedAttachment, recoverCancelledAttachments } from './storages/staged-recovery';
 export type { StagedAttachmentRecoveryBatchItem } from './storages/staged-recovery';
 export { verifyLocalStagedAttachment } from './storages/local-recovery';

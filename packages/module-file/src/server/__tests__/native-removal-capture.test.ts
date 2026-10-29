@@ -86,6 +86,113 @@ describe.skipIf(!postgresUrl)('explicit PostgreSQL attachment delete capture', (
       await db.sequelize.transaction((transaction) => capture.install(transaction));
     }
 
+    describe('committed native row observation', () => {
+      async function deleteEvent(transaction: Transaction) {
+        const id = await mark(transaction);
+        await remove(transaction);
+        const [results] = await db.sequelize.query(
+          `SELECT payload-'row' AS header FROM native_capture_evidence WHERE id=$id`,
+          { transaction, bind: { id } },
+        );
+        return { id, header: (results as { header: Record<string, unknown> }[])[0].header };
+      }
+
+      it('validates a committed event from a fresh independent pool without the original instance', async () => {
+        source.setField('amount', { type: 'bigInt' });
+        source.setField('details', { type: 'jsonb' });
+        await db.sequelize.query(`ALTER TABLE native_capture_files
+          ADD COLUMN amount bigint DEFAULT 9007199254740993,
+          ADD COLUMN details jsonb DEFAULT '{"n":9007199254740993}'`);
+        await installFullRow();
+        const { id, header } = await db.sequelize.transaction(deleteEvent);
+        const observer = isolatedPostgresDatabase(postgresUrl!);
+        try {
+          const observedSource = observer.collection({ ...source.options });
+          observedSource.setField('amount', { type: 'bigInt' });
+          observedSource.setField('details', { type: 'jsonb' });
+          const observedEvidence = observer.collection({ ...evidence.options });
+          const verifier = new files.AttachmentRemovalNativeCapture(observedSource, observedEvidence, 'full-row');
+          await observer.sequelize.transaction(async (transaction) => {
+            await expect(
+              verifier.assertCommittedFullRowMatches(observedSource, transaction, id, header),
+            ).resolves.toBeUndefined();
+            await expect(
+              verifier.testFullRowPredicate(observedSource, transaction, id, header, {
+                rootAlias: 'original',
+                sql: 'TRUE',
+              }),
+            ).rejects.toThrow('Native full-row event does not match its prepared intent');
+          });
+          const [exact] = await observer.sequelize.query(`SELECT payload->'row'->>'amount' AS amount,
+            payload->'row'->'details'->>'n' AS nested FROM native_capture_evidence`);
+          expect(exact).toEqual([{ amount: '9007199254740993', nested: '9007199254740993' }]);
+        } finally {
+          await observer.close();
+        }
+      });
+
+      it('rejects the still-active original transaction despite a visible full-row event', async () => {
+        await installFullRow();
+        await db.sequelize.transaction(async (transaction) => {
+          const { id, header } = await deleteEvent(transaction);
+          await expect(capture.assertCommittedFullRowMatches(source, transaction, id, header)).rejects.toThrow(
+            'Native full-row event does not match its prepared intent',
+          );
+        });
+      });
+
+      it('rejects a rolled-back event rather than inferring a committed removal', async () => {
+        await installFullRow();
+        let event: Awaited<ReturnType<typeof deleteEvent>>;
+        await expect(
+          db.sequelize.transaction(async (transaction) => {
+            event = await deleteEvent(transaction);
+            throw new Error('abort original removal');
+          }),
+        ).rejects.toThrow('abort original removal');
+        await expect(
+          db.sequelize.transaction((transaction) =>
+            capture.assertCommittedFullRowMatches(source, transaction, event!.id, event!.header),
+          ),
+        ).rejects.toThrow('Native full-row event does not match its prepared intent');
+        expect(await source.model.count()).toBe(1);
+      });
+
+      it.each(['transaction', 'source', 'ownership', 'row', 'extra header'])(
+        'rejects a committed event with changed %s evidence',
+        async (change) => {
+          await installFullRow();
+          const { id, header } = await db.sequelize.transaction(deleteEvent);
+          const mutations = {
+            transaction: `jsonb_set(payload, '{transactionId}', '"3"')`,
+            source: `jsonb_set(payload, '{source,oid}', '"1"')`,
+            ownership: `jsonb_set(payload, '{record,tenantId}', '"H"')`,
+            row: `jsonb_set(payload, '{row,id}', '9007199254740992')`,
+            'extra header': `payload || '{"unverified":true}'::jsonb`,
+          };
+          await db.sequelize.query(`UPDATE native_capture_evidence SET payload=${mutations[change]}`);
+          await expect(
+            db.sequelize.transaction((transaction) =>
+              capture.assertCommittedFullRowMatches(source, transaction, id, header),
+            ),
+          ).rejects.toThrow('Native full-row event does not match its prepared intent');
+        },
+      );
+
+      it('rejects a matching fabricated transaction id whose commit state cannot be established', async () => {
+        await installFullRow();
+        const { id, header } = await db.sequelize.transaction(deleteEvent);
+        header.transactionId = '18446744073709551615';
+        await db.sequelize.query(`UPDATE native_capture_evidence
+          SET payload=jsonb_set(payload, '{transactionId}', '"18446744073709551615"')`);
+        await expect(
+          db.sequelize.transaction((transaction) =>
+            capture.assertCommittedFullRowMatches(source, transaction, id, header),
+          ),
+        ).rejects.toThrow(/transaction ID .* is in the future/);
+      });
+    });
+
     it('retains complete actual business fields and exact SQL bigint values without a JavaScript round trip', async () => {
       source.setField('approved', { type: 'boolean', field: 'business_approved' });
       source.setField('details', { type: 'jsonb' });

@@ -349,6 +349,43 @@ export class AttachmentRemovalNativeCapture {
     expected: Record<string, unknown>,
     predicate: { readonly sql: string; readonly rootAlias: string },
   ): Promise<boolean> {
+    return this.observeFullRow(source, transaction, operationId, expected, predicate, 'original');
+  }
+
+  /**
+   * Separate persisted-event observation for a later trusted completion inspector. It requires
+   * the recorded transaction to be committed, not the inspector's current transaction. Missing,
+   * unavailable or invalid evidence fails; it never proves rollback, fresh ACL, no references,
+   * completion-marker authority, object identity or permission to clean up existing file bytes.
+   * The expected header must come from independently verified original intent evidence. A caller
+   * supplying a matching header is not proof of event causality or trusted SQL completion.
+   */
+  async assertCommittedFullRowMatches(
+    source: Collection,
+    transaction: Transaction,
+    operationId: string,
+    expected: Record<string, unknown>,
+  ): Promise<void> {
+    if (typeof expected?.transactionId !== 'string' || !/^[1-9]\d{0,19}$/.test(expected.transactionId))
+      throw new TypeError('Committed native removal requires a recorded transaction identifier');
+    await this.observeFullRow(
+      source,
+      transaction,
+      operationId,
+      expected,
+      { rootAlias: 'tac_recorded_original', sql: 'TRUE' },
+      'committed',
+    );
+  }
+
+  private async observeFullRow(
+    source: Collection,
+    transaction: Transaction,
+    operationId: string,
+    expected: Record<string, unknown>,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+    observation: 'original' | 'committed',
+  ): Promise<boolean> {
     if (
       this.format !== 'full-row' ||
       source !== this.source ||
@@ -377,7 +414,12 @@ export class AttachmentRemovalNativeCapture {
     const [rows] = await this.database.sequelize.query(
       `SELECT (
         (${payload} - 'row') = ${literal(JSON.stringify(header))}::jsonb
-        AND ${payload}->>'transactionId'=pg_catalog.txid_current()::text
+        AND ${
+          observation === 'original'
+            ? `${payload}->>'transactionId'=pg_catalog.txid_current()::text`
+            : `(${payload}->>'transactionId')<>pg_catalog.txid_current()::text
+              AND pg_catalog.pg_xact_status((${literal(String(header.transactionId))})::pg_catalog.xid8)='committed'`
+        }
         AND ${payload}->'source'->>'oid'=pg_catalog.to_regclass(${literal(this.table(this.sourceTable))})::oid::text
         AND pg_catalog.jsonb_typeof(${payload}->'row')='object'
         AND (SELECT pg_catalog.jsonb_object_agg(k, TRUE) FROM pg_catalog.jsonb_object_keys(${payload}->'row') AS keys(k))

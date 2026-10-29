@@ -2784,3 +2784,18 @@ Ruling: 在提供清理协调之前，先用真实 Repository 写入及 §180 �
 - [x] 测试源码/独立快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff及作者自审通过。没有产品源码、类型或依赖变更，不重复已完成包构建。整分支独立复核未完成。
 
 这些结果只建立候选协议的依赖边界：不能以普通 SELECT、可选的一次性标记、进程内锁或返回后释放的表锁保护物理删除；写者隔离还须覆盖旧快照、全部实际写入口、存储配置、状态释放及旧路径复用。测试更新式永久行不等于已经交付合法安装/防篡改、对象/原 UUID 绑定、持久清理协调或可释放租约。下一项须在显式且默认关闭的内部协议中落实持久隔离，再组合原提交/对象/引用证明；不能直接按本次原型 unlink。正式入口、业务库、文件字节及既有授权契约均未改变。
+
+## 184. 显式且不自动释放的数据库引用写入隔离
+
+Ruling: 在现有粗粒度引用表锁边界内，先交付可验证的拒绝原语 AttachmentRemovalReferenceWriteFence；不直接设计可释放逐对象租约。其代价明确：预留后全部登记文件/存储配置行的写入（包括无关行）都拒绝，开放期间全部写者也要串行更新永久协调行；这不能作为正式可用性方案或逐对象写者协议默认上线。选择保守边界是因为 §183 已证明释放后旧路径可重引入，当前还没有可靠路径复用/代际协议。构造不做 SQL，显式安装仅在专用测试库，正式自动安装/路由及规则启用继续关闭。
+
+安装/预留/复核要求同实例全部注册文件映射、storages、独立两列 JSONB 日志，以及原活动顶层 PG SERIALIZABLE 写事务；首个原语 SQL 仍取得完整引用锁，再验证实际来源及日志 OID、字段/原生类型、结构和稳定元数据。日志拒绝继承、规则、RLS、触发器、默认表达式及自定义 CHECK/FK 行为；记录固定实际三类物理身份和原 UUID 的拒绝关联。原生 SECURITY INVOKER 函数固定 pg_catalog search_path；各文件/存储表 BEFORE STATEMENT 的 INSERT/UPDATE/DELETE/TRUNCATE 守卫必须 ALWAYS 启用，目录精确复核函数正文/安全属性及每个触发器的实际身份/事件，不能只信名称。每次 SQL 写入（包括影响零行的语句）都先实际更新预先存在的永久日志行，缺行/非法状态拒绝；旧快照不会因看不到后来插入的标记而继续写入。
+
+预留只允许从开放状态关闭一次，既不覆盖已有预留，也不重装重置开放状态；本原语无释放、过期、自动重试或清理 API。返回 reference-writes-fenced-in-transaction 只说明调用者原事务内状态；提交/回滚仍由调用者拥有，未知提交不能猜成已释放。UUID 不验证对应的历史删除/G/对象/原事务，不能变成权限；本原语未组合 Inspector、零引用及对象证明，不授予 unlink。完整注册范围和受控 schema（含函数所有者）仍是前提，不能保护未注册物理表、后来擅自新增的映射、任意 schema 所有者或文件系统写者。
+
+- [x] 首十九项真实 PG 因缺构造器有效 RED，保留 removal-reference-fence-red.log。最小实现首次因夹具未显式指定 journal schema 全部在构造阶段被拒绝；对照既有原生安装接口后只补齐夹具 schema，再十九项通过，保留 removal-reference-fence-green.log、removal-reference-fence-green-qualified.log，不把夹具失败算产品 RED。
+- [x] 扩展独立新池/新映射、ALWAYS 守卫目录安全属性、日志 RLS/CHECK 拒绝及第三种隔离级别后，二十六项实际 PG 定向通过，保留 removal-reference-fence-green-final.log。两个怀疑 UUID 末尾换行的新增边界原已通过，不修改已正确拒绝的产品校验，不伪称 RED→GREEN；保留 removal-reference-fence-uuid-red.log 的实际通过输出。
+- [x] 首次六文件回归三百八十四项通过、一百八十五项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；保留 removal-reference-fence-regression.log。作者随后以真实 `$key`/`$payload` 物理列及美元符号日志表名得到 RED：旧 ORM 将列名改成 `$1`。已核查实际依赖的 formatBindParameters；仅将新原语三处含动态标识符的 DML 改为可信方言值编码且完全省略 bind，不修改 SQL 文本或依赖，保留 removal-reference-fence-identifiers-red.log。
+- [x] 修正后最终隔离/重引入/锁范围三个完整相关文件六十三项通过、无跳过，退出 0；其中二十七项本原语实际 PG，不与定向或此前六文件相加。保留 removal-reference-fence-regression-final.log；其余旧产品路径未再变更，不重复此前六文件回归。文件包客户端、服务端及声明构建退出 0，保留 removal-reference-fence-build-file.log；三份 TS 源/快照 SHA256 一致，五文件 Prettier、三 TS oxlint 零错误/警告、diff和作者自审通过。整分支独立复核未完成。
+
+§183—184 共用专用库 tego_tenant_access_test_d18329e627。确认全部测试/构建退出、真实集群目录/端口及零其他客户端后，仅删除该库并核实 pg_database 计数 0，临时 PG 已停止；目录/日志保留，删除的是可重建测试数据。按显式持久写入隔离作英文默认签名原子提交，不推送。下一项须在同一拥有事务中绑定真实完成/对象/零引用观察与预留，并持久化严格协调状态；不能复制已返回的观察值或任意 UUID 作为清理依据。最终对象互斥、路径复用、崩溃发现及受控字节清理仍未完成，原文件继续保留。

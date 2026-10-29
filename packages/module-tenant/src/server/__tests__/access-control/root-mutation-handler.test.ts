@@ -144,6 +144,16 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     await store.save(mainIdentity, { ...config, revision: previous.revision }, { userId: 28 });
   }
 
+  it('does not delete a file row through the ordinary record executor', async () => {
+    docs.options.template = 'file';
+    const ctx = await context('destroy');
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({
+      code: 'UNSUPPORTED_ACCESS_MUTATION',
+    });
+    expect((await docs.model.findByPk(3)).getDataValue('tenantId')).toBe('B');
+    expect(ctx.body).toBe('unchanged');
+  });
+
   const read = async (id = 3) => (await docs.model.findByPk(id))?.get();
 
   describe('relational root selectors', () => {

@@ -2308,3 +2308,13 @@ Ruling: 检查删除/替换的存储副作用边界时，交叉核对已有新�
 租户包及文件包客户端、服务端和声明顺序构建均退出 0，保留 attachment-final-decision-tenant-build.log、attachment-final-decision-file-build.log。两份变更 TypeScript 的 oxlint 零警告/错误、Prettier、源/快照 SHA256、diff 及作者自审通过，整分支独立复核仍未完成。核实集群目录、零其他客户端后，仅删除专用库 tego_tenant_access_test_151f718293、确认 pg_database 计数 0，并停止临时服务，保留目录日志。用户已回复可以认证，原 §144 索引已单独完成有效默认签名 fb25140；后续按行为继续签名提交，不推送。本批拟 fix(tenant): recheck final attachment grants after storage awaits，不合并进 §144 的字段交集修正。
 
 签名恢复后，§144 fb251405b、§145/146 b95d93a03、§147 0ba866168、§148–150 eb047892a 均已逐个核对为有效默认签名。共享源码/文档按实际行为分批暂存，未将后续决策复核混入旧索引；本节与最后两份源码增量单独签名提交。所有批次均未推送。正式 Koa 接口及公开链接保护仍受 §150 约束，附件销毁/替换的 G 与物理清理协调、其他入口、最终整合及整分支独立复核仍需继续，不能将本次提交当作整体完成或放行。
+
+## 152. 普通记录删除不能代替附件删除协调器
+
+Ruling: 附件销毁必须有独立的最终 destroy 权限、角色范围、G 和存储协调。现有普通根删除虽然校验数据库行，却不登记或协调文件副作用；不能让新入口误选普通执行器后只删除数据库记录。仅在未注册的新 AccessRootMutationHandler 中拒绝 file 模板的 destroy，返回 UNSUPPORTED_ACCESS_MUTATION；普通业务表删除、附件普通字段编辑及原有正式文件入口不变。底层 AccessMutationService 仍供后续专用适配器在自己负责的事务内使用，不是物理删除许可。
+
+实际 SQLite RED 证明原普通执行器成功删除了文件行，未按预期拒绝，保留 attachment-destroy-gate-red.log。最小模板分流拒绝后完整根写入文件一百八十四项通过，二十八项为既有 PostgreSQL 分组跳过。首次进程在测试结果输出后发生 tinypool/ChildProcess 退出异常，不能当作成功退出；相同命令重新执行后退出 0，同样一百八十四项通过，保留 attachment-destroy-gate-final.log；未改依赖或测试运行器。
+
+租户包客户端、服务端和声明构建退出 0，保留 attachment-destroy-gate-build.log。两份变更 TypeScript 的 oxlint 零错误/警告、Prettier、源/快照哈希及 diff 检查通过；作者自审确认在任何删除事务及 Repository 钩子之前拒绝，整分支独立复核仍未完成。本批按普通删除防误用独立默认签名提交，不推送。
+
+下一步只准备受 destroy ACL、角色条件与 G 保护的真实附件位置证明，在调用者的有效写事务内锁定并复核原始记录，回调结束时要求记录仍在且未变；该证明不执行删除，也不提供提交成功或物理清理许可。实际删除仍须同事务持久化意图与删除结果证据，确定提交后独立复核存储保留策略、引用及对象身份；未知提交保留文件，不能复用上传 cancelled 标志充当旧附件删除授权。正式接入和启用仍关闭。

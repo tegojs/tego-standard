@@ -10,6 +10,7 @@ import { prepareCreationReferences, type AccessCreationTargetAuthorizer } from '
 import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { AccessMutationService, type ExistingAccessWritePlan } from './mutation';
+import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import { prepareRelationalMutationFilter } from './relational-mutation-filter';
 import { AccessRoleFilterCompiler } from './role-filter';
@@ -182,6 +183,12 @@ export class AccessRootMutationHandler {
     if (!collection || collection.db !== this.db || this.db.modelCollection.get(collection.model) !== collection)
       invalid('Mutation collection is unavailable');
     const template = collection.options.template;
+    if (operation === 'destroy' && template === 'file')
+      throw new AccessMutationError(
+        'UNSUPPORTED_ACCESS_MUTATION',
+        'Attachment deletion requires its own authorization and storage coordinator',
+        400,
+      );
     const identity = cloneDeep(this.resolveIdentity(collection));
     if (!identity || identity.collectionName !== resourceName) invalid('Mutation collection identity is unavailable');
     const key = accessCollectionKey(identity);

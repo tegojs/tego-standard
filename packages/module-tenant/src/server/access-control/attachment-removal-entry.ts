@@ -50,6 +50,8 @@ export interface AccessAttachmentRemovalEvidenceAdapter {
     afterDelete(): Promise<void>;
     assertCurrent(): Promise<void>;
     testPredicate(predicate: { readonly sql: string; readonly rootAlias: string }): Promise<boolean>;
+    /** Optional same-transaction marker, never a permission for physical cleanup. */
+    complete?(): Promise<void>;
   }>;
 }
 
@@ -319,7 +321,8 @@ export function captureAttachmentRemoval(
             !session ||
             (['beforeDelete', 'afterDelete', 'assertCurrent', 'testPredicate'] as const).some(
               (key) => typeof session[key] !== 'function',
-            )
+            ) ||
+            (session.complete !== undefined && typeof session.complete !== 'function')
           )
             invalid('Attachment removal evidence session is unavailable');
           await session.beforeDelete();
@@ -363,6 +366,31 @@ export function captureAttachmentRemoval(
           await assertAbsent();
           await validateWriteTransaction(db, transaction, true);
           current();
+          if (session.complete) {
+            await session.complete();
+            await session.assertCurrent();
+            const completedPolicy = await nativePolicy(proof, owner);
+            if (completedPolicy.sql !== checked.sql || completedPolicy.rootAlias !== checked.rootAlias)
+              invalid('Attachment removal final native authorization changed during completion');
+            if (
+              (await session.testPredicate(
+                Object.freeze({
+                  sql: completedPolicy.sql,
+                  rootAlias: completedPolicy.rootAlias,
+                }),
+              )) !== true
+            )
+              invalid('Attachment removal final native authorization failed after completion');
+            await session.assertCurrent();
+            const settled = await nativePolicy(proof, owner);
+            if (settled.sql !== completedPolicy.sql || settled.rootAlias !== completedPolicy.rootAlias)
+              invalid('Attachment removal final native authorization changed after completion');
+            settled.assertCurrent();
+            completedPolicy.assertCurrent();
+            await assertAbsent();
+            await validateWriteTransaction(db, transaction, true);
+            current();
+          }
           return affected;
         }, transaction),
       );

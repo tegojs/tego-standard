@@ -737,13 +737,17 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
             });
 
             describe('owned native removal execution', () => {
-              async function execution(key = 1) {
+              async function execution(key = 1, recordCompletion = false) {
                 journal ??= new files.AttachmentRemovalIntentJournal(intents);
                 const ctx = await context(key, { filter: { facts: { authorized: true } } }, 'destroy');
                 return {
                   ctx,
                   entry: mutations.captureAttachmentRemoval(ctx, { tenantId: 'B', roleName: 'reader', userId: 28 }),
-                  evidence: files.createAttachmentRemovalEvidenceAdapter(journal, native),
+                  evidence: files.createAttachmentRemovalEvidenceAdapter(
+                    journal,
+                    native,
+                    recordCompletion ? { recordCompletion: true } : undefined,
+                  ),
                 };
               }
               async function assertRollback() {
@@ -754,6 +758,199 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                 expect((await facts.model.findOne()).getDataValue('authorized')).toBe(true);
                 expect(await fs.readFile(location())).toEqual(bytes);
               }
+
+              describe('optional SQL completion', () => {
+                it('commits a distinct completed format visible from an independent pool while retaining bytes', async () => {
+                  const { entry, evidence } = await execution(1, true);
+                  const other = isolatedPostgresDatabase(postgresUrl!);
+                  try {
+                    const observed = {
+                      async prepare(proof) {
+                        const session = await evidence.prepare(proof);
+                        return {
+                          ...session,
+                          async complete() {
+                            await session.complete();
+                            const [pending] = await other.sequelize.query('SELECT id FROM attachment_removal_intents');
+                            expect(pending).toEqual([]);
+                            const [source] = await other.sequelize.query('SELECT id FROM documents WHERE id=1');
+                            expect(source).toEqual([{ id: 1 }]);
+                          },
+                        };
+                      },
+                    };
+                    expect(await entry.executeNativeRemoval(observed)).toBe(1);
+                    const [rows] = await other.sequelize.query('SELECT id, payload FROM attachment_removal_intents');
+                    expect(rows).toHaveLength(1);
+                    expect(rows[0]).toMatchObject({
+                      payload: {
+                        schemaVersion: 3,
+                        kind: 'attachment-removal-intent',
+                        state: 'verified-deleted-in-transaction',
+                        source: { collectionName: 'documents' },
+                        record: { key: 1, tenantId: 'B', storageId: 18 },
+                        storage: { root, retainContent: false },
+                        completion: {
+                          schemaVersion: 1,
+                          kind: 'attachment-removal-sql-completion',
+                          nativeCapture: native.functionName,
+                        },
+                      },
+                    });
+                    const [matched] = await other.sequelize.query(`SELECT
+                      i.payload->>'transactionId' = e.payload->>'transactionId' AS same_transaction
+                      FROM attachment_removal_intents i JOIN attachment_removal_events e ON i.id=e.id`);
+                    expect(matched).toEqual([{ same_transaction: true }]);
+                    const [source] = await other.sequelize.query('SELECT id FROM documents WHERE id=1');
+                    expect(source).toEqual([]);
+                  } finally {
+                    await other.close();
+                  }
+                  expect(await fs.readFile(location())).toEqual(bytes);
+                });
+
+                it('keeps completed observations on the original handle and rejects prepared-format reuse', async () => {
+                  let recorded: Readonly<{ id: string }>;
+                  await exerciseRow(async (handle, transaction, predicate) => {
+                    recorded = handle;
+                    await journal.completeNativeRemoval(handle, native, transaction, predicate);
+                    expect(await journal.testCompletedNativeRowPredicate(handle, native, transaction, predicate)).toBe(
+                      true,
+                    );
+                    await expect(
+                      journal.testNativeRowPredicate(handle, native, transaction, predicate),
+                    ).rejects.toThrow('Removal intent no longer matches its original preparation');
+                    await expect(
+                      journal.testCompletedNativeRowPredicate({ id: handle.id }, native, transaction, predicate),
+                    ).rejects.toThrow('Original removal intent handle is unavailable');
+                    await db.sequelize.transaction(async (other) => {
+                      await expect(
+                        journal.testCompletedNativeRowPredicate(handle, native, other, predicate),
+                      ).rejects.toThrow('Original removal intent transaction is unavailable');
+                    });
+                  });
+                  await expect(
+                    journal.testCompletedNativeRowPredicate(recorded, native, undefined!, {
+                      sql: 'TRUE',
+                      rootAlias: 'documents',
+                    }),
+                  ).rejects.toThrow('Original removal intent transaction is unavailable');
+                  expect(await fs.readFile(location())).toEqual(bytes);
+                });
+
+                it('leaves the existing prepared format unchanged when completion is not enabled', async () => {
+                  const { entry, evidence } = await execution();
+                  expect(await entry.executeNativeRemoval(evidence)).toBe(1);
+                  expect((await intents.model.findOne()).getDataValue('payload')).toMatchObject({
+                    schemaVersion: 2,
+                    state: 'prepared',
+                  });
+                  expect((await intents.model.findOne()).getDataValue('payload')).not.toHaveProperty('completion');
+                });
+
+                it.each(['revocation', 'hook error'])(
+                  'rolls back without recording completion after %s',
+                  async (failure) => {
+                    docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                      if (failure === 'hook error') throw new Error('completion hook refused');
+                      await facts.model.update({ allowed: false }, { where: { documentId: 1 }, transaction });
+                    });
+                    const { entry, evidence } = await execution(1, true);
+                    await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                      failure === 'hook error' ? 'completion hook refused' : 'final native authorization failed',
+                    );
+                    await assertRollback();
+                  },
+                );
+
+                it.each(['RLS', 'rule', 'trigger'])(
+                  'rejects completion journal %s before deleting the original',
+                  async (behavior) => {
+                    if (behavior === 'RLS')
+                      await db.sequelize.query('ALTER TABLE attachment_removal_intents ENABLE ROW LEVEL SECURITY');
+                    else if (behavior === 'rule')
+                      await db.sequelize.query(
+                        `CREATE RULE completion_journal_rule AS ON UPDATE TO attachment_removal_intents DO INSTEAD NOTHING`,
+                      );
+                    else
+                      await db.sequelize.query(`
+                      CREATE FUNCTION tamper_removal_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+                      CREATE TRIGGER completion_journal_trigger BEFORE UPDATE ON attachment_removal_intents
+                      FOR EACH ROW EXECUTE FUNCTION tamper_removal_intent()`);
+                    let deletes = 0;
+                    docs.model.addHook('beforeDestroy', () => {
+                      deletes++;
+                    });
+                    const { entry, evidence } = await execution(1, true);
+                    await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                      'Completion journal has unsupported database behavior',
+                    );
+                    expect(deletes).toBe(0);
+                    await assertRollback();
+                  },
+                );
+
+                it('rolls back the original deletion when writing completion fails', async () => {
+                  await db.sequelize.query(`ALTER TABLE attachment_removal_intents ADD CONSTRAINT completion_refused
+                    CHECK ((payload->>'schemaVersion')::integer <> 3)`);
+                  const { entry, evidence } = await execution(1, true);
+                  await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow('completion_refused');
+                  await assertRollback();
+                });
+
+                it.each(['G', 'role'])('rolls back %s revoked by a completion CHECK function', async (policy) => {
+                  const field = policy === 'G' ? 'allowed' : 'authorized';
+                  await db.sequelize.query(`
+                    CREATE FUNCTION completion_authority_check(input jsonb) RETURNS boolean LANGUAGE plpgsql VOLATILE AS $$
+                    BEGIN
+                      IF input->>'schemaVersion'='3' THEN
+                        UPDATE "removalPolicyFacts" SET ${field}=FALSE WHERE "documentId"=1;
+                      END IF;
+                      RETURN TRUE;
+                    END $$;
+                    ALTER TABLE attachment_removal_intents ADD CONSTRAINT completion_authority
+                    CHECK (completion_authority_check(payload::jsonb))`);
+                  try {
+                    const { entry, evidence } = await execution(1, true);
+                    await expect(entry.executeNativeRemoval(evidence)).rejects.toThrow(
+                      'final native authorization failed',
+                    );
+                    await assertRollback();
+                  } finally {
+                    await db.sequelize.query('DROP FUNCTION completion_authority_check(jsonb) CASCADE');
+                  }
+                });
+
+                it.each(['decision drift', 'error'])(
+                  'rolls back an already written completion after a final %s',
+                  async (failure) => {
+                    const { ctx, entry, evidence } = await execution(1, true);
+                    const decorated = {
+                      async prepare(proof) {
+                        const session = await evidence.prepare(proof);
+                        return {
+                          ...session,
+                          async complete() {
+                            await session.complete();
+                            expect(
+                              (await intents.model.findOne({ transaction: proof.transaction })).getDataValue('payload'),
+                            ).toMatchObject({
+                              schemaVersion: 3,
+                              state: 'verified-deleted-in-transaction',
+                            });
+                            if (failure === 'error') throw new Error('post completion refused');
+                            Object.assign(ctx.permission as object, { can: false, skip: false });
+                          },
+                        };
+                      },
+                    };
+                    await expect(entry.executeNativeRemoval(decorated)).rejects.toThrow(
+                      failure === 'error' ? 'post completion refused' : 'final decision or preparation phase changed',
+                    );
+                    await assertRollback();
+                  },
+                );
+              });
 
               it.each([true, false])(
                 'owns the SQL transaction and keeps bytes with storage retention %s',

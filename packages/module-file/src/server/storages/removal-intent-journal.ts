@@ -17,7 +17,8 @@ interface SourceProvenance {
 
 /**
  * Explicit internal PostgreSQL collection: independent string id PK and JSON payload only.
- * This records preparation in the caller transaction, never a deletion result or cleanup permit.
+ * Records preparation and optional trusted executor completion in the original transaction.
+ * Neither state is a commit acknowledgement, no-reference proof or cleanup permit.
  * No table, business-row deletion, file I/O, route or worker is installed.
  */
 export class AttachmentRemovalIntentJournal {
@@ -31,6 +32,7 @@ export class AttachmentRemovalIntentJournal {
       collection: Collection;
       transaction: Transaction;
       payload: ReturnType<AttachmentRemovalIntentJournal['capture']>;
+      completed?: Record<string, unknown>;
     }
   >();
 
@@ -218,10 +220,16 @@ export class AttachmentRemovalIntentJournal {
     return handle;
   }
 
-  private async verifiedPreparation(handle: Readonly<{ id: string }>, transaction: Transaction) {
+  private async verifiedPreparation(
+    handle: Readonly<{ id: string }>,
+    transaction: Transaction,
+    state: 'prepared' | 'completed' = 'prepared',
+  ) {
     const original = this.preparations.get(handle);
     if (!original) throw new TypeError('Original removal intent handle is unavailable');
     if (original.transaction !== transaction) throw new TypeError('Original removal intent transaction is unavailable');
+    const expected = state === 'completed' ? original.completed : original.payload;
+    if (!expected) throw new TypeError('Original removal completion handle is unavailable');
     this.assertTransaction(original);
     await this.lockStructure(transaction);
     const options = {
@@ -233,13 +241,91 @@ export class AttachmentRemovalIntentJournal {
     };
     const row = await this.model.unscoped().findByPk(handle.id, options);
     this.assertTransaction(original);
-    if (
-      !row ||
-      row.getDataValue('id') !== handle.id ||
-      !isDeepStrictEqual(row.getDataValue('payload'), original.payload)
-    )
+    if (!row || row.getDataValue('id') !== handle.id || !isDeepStrictEqual(row.getDataValue('payload'), expected))
       throw new TypeError('Removal intent no longer matches its original preparation');
     return original;
+  }
+
+  /** Explicit completion mode only. Holds structure stable; never installs or changes schema. */
+  async assertCompletionJournal(source: Collection, transaction: Transaction): Promise<void> {
+    this.assertTransaction({ collection: source, transaction });
+    const physical = this.model.getTableName();
+    const names = typeof physical === 'string' ? [physical] : [physical.schema, physical.tableName];
+    if (names.some((name) => typeof name !== 'string' || name.includes('"')))
+      throw new TypeError('Completion journal requires losslessly quoted physical identifiers');
+    await this.lockStructure(transaction);
+    const [rows] = await this.database.sequelize.query(
+      `SELECT (c.relkind='r' AND NOT c.relrowsecurity AND NOT c.relforcerowsecurity
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid=c.oid OR i.inhparent=c.oid)
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_trigger t WHERE t.tgrelid=c.oid)
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_rewrite r WHERE r.ev_class=c.oid)) AS valid
+      FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($table)`,
+      { transaction, bind: { table: this.quoteTable(this.model) } },
+    );
+    this.assertTransaction({ collection: source, transaction });
+    if ((rows as { valid: boolean }[])[0]?.valid !== true)
+      throw new TypeError('Completion journal has unsupported database behavior');
+  }
+
+  /**
+   * Trusted executor finalization only, after its final action/G/role checks. Not a public action,
+   * unforgeable authority, commit acknowledgement, no-reference proof or permission to unlink.
+   * The original handle can then only observe its exact completion; prepared-v2 readers reject v3.
+   */
+  async completeNativeRemoval(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+  ): Promise<void> {
+    const original = await this.verifiedPreparation(handle, transaction);
+    await this.assertCompletionJournal(original.collection, transaction);
+    const [settings] = await this.database.sequelize.query(
+      "SELECT current_setting('transaction_read_only') AS read_only, current_setting('transaction_isolation') AS isolation",
+      { transaction },
+    );
+    if (
+      (settings as { read_only: string; isolation: string }[])[0]?.isolation !== 'serializable' ||
+      (settings as { read_only: string; isolation: string }[])[0]?.read_only !== 'off'
+    )
+      throw new TypeError('Removal completion requires the original writable serializable transaction');
+    if ((await this.testNativeRowPredicate(handle, native, transaction, predicate)) !== true)
+      throw new TypeError('Removal completion final native observation failed');
+    const completed = {
+      ...structuredClone(original.payload),
+      schemaVersion: 3,
+      state: 'verified-deleted-in-transaction',
+      completion: {
+        schemaVersion: 1,
+        kind: 'attachment-removal-sql-completion',
+        nativeCapture: native.functionName,
+      },
+    };
+    await this.assertCompletionJournal(original.collection, transaction);
+    const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const id = quote(this.attributes[0].column);
+    const payload = quote(this.attributes[1].column);
+    const [updated] = await this.database.sequelize.query(
+      `UPDATE ${this.quoteTable(this.model)} SET ${payload}=$completed::jsonb
+      WHERE ${id}=$id AND ${payload}::jsonb=$prepared::jsonb RETURNING ${id}`,
+      {
+        transaction,
+        bind: { id: handle.id, completed: JSON.stringify(completed), prepared: JSON.stringify(original.payload) },
+      },
+    );
+    const options = {
+      attributes: ['id', 'payload'],
+      transaction,
+      hooks: false,
+      useMaster: true,
+      lock: transaction.LOCK.UPDATE,
+    };
+    const row = await this.model.unscoped().findByPk(handle.id, options);
+    this.assertTransaction(original);
+    await this.assertCompletionJournal(original.collection, transaction);
+    if ((updated as unknown[]).length !== 1 || !row || !isDeepStrictEqual(row.getDataValue('payload'), completed))
+      throw new TypeError('Removal completion was not stored unchanged');
+    original.completed = structuredClone(completed);
   }
 
   private expectedEvent(payload: ReturnType<AttachmentRemovalIntentJournal['capture']>, version: 1 | 2) {
@@ -296,9 +382,29 @@ export class AttachmentRemovalIntentJournal {
     transaction: Transaction,
     predicate: { readonly sql: string; readonly rootAlias: string },
   ): Promise<boolean> {
+    return this.testRecordedRowPredicate(handle, native, transaction, predicate, 'prepared');
+  }
+
+  /** Same original transaction/handle only; permits the executor's final checks after its own marker write. */
+  async testCompletedNativeRowPredicate(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+  ): Promise<boolean> {
+    return this.testRecordedRowPredicate(handle, native, transaction, predicate, 'completed');
+  }
+
+  private async testRecordedRowPredicate(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+    state: 'prepared' | 'completed',
+  ): Promise<boolean> {
     // Capture caller input before awaits; SQL text is an observation, never a bearer permission.
     const captured = { sql: predicate?.sql, rootAlias: predicate?.rootAlias };
-    const original = await this.verifiedPreparation(handle, transaction);
+    const original = await this.verifiedPreparation(handle, transaction, state);
     if (!(native instanceof AttachmentRemovalNativeCapture))
       throw new TypeError('Native removal capture is unavailable');
     const matches = await native.testFullRowPredicate(
@@ -308,7 +414,7 @@ export class AttachmentRemovalIntentJournal {
       this.expectedEvent(original.payload, 2),
       captured,
     );
-    await this.verifiedPreparation(handle, transaction);
+    await this.verifiedPreparation(handle, transaction, state);
     return matches;
   }
 }

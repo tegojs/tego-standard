@@ -14,15 +14,20 @@ type RecordProof = Pick<
 export function createAttachmentRemovalEvidenceAdapter(
   journal: AttachmentRemovalIntentJournal,
   native: AttachmentRemovalNativeCapture,
+  options?: { readonly recordCompletion: true },
 ) {
   if (!(journal instanceof AttachmentRemovalIntentJournal) || !(native instanceof AttachmentRemovalNativeCapture))
     throw new TypeError('Attachment removal execution requires its trusted journal and native capture');
+  if (options !== undefined && options.recordCompletion !== true)
+    throw new TypeError('Attachment removal completion must be explicitly enabled');
+  const recordCompletion = options?.recordCompletion === true;
   return Object.freeze({
     async prepare(proof: RecordProof) {
       const { collection, transaction, record } = proof;
       if (collection.db !== journal.database || typeof proof.assertCurrent !== 'function')
         throw new TypeError('Attachment removal evidence source does not match its journal');
       await native.assertFullRowInstalled(collection, transaction);
+      if (recordCompletion) await journal.assertCompletionJournal(collection, transaction);
       await proof.assertCurrent();
       const storage = await resolveAttachmentRemovalStorage(collection, record.storageId, transaction);
       const assertPreparationCurrent = async () => {
@@ -39,10 +44,12 @@ export function createAttachmentRemovalEvidenceAdapter(
         }),
       );
       await assertPreparationCurrent();
-      let state: 'prepared' | 'marked' | 'deleted' = 'prepared';
+      let state: 'prepared' | 'marked' | 'deleted' | 'completed' = 'prepared';
+      let observed: Readonly<{ sql: string; rootAlias: string }> | undefined;
       const setting = native.setting;
       const assertCurrent = async () => {
         await native.assertFullRowInstalled(collection, transaction);
+        if (recordCompletion) await journal.assertCompletionJournal(collection, transaction);
         await storage.assertCurrent();
       };
       const marker = async () => {
@@ -78,13 +85,30 @@ export function createAttachmentRemovalEvidenceAdapter(
         },
         assertCurrent,
         async testPredicate(predicate: { readonly sql: string; readonly rootAlias: string }) {
-          if (state !== 'deleted')
+          if (state !== 'deleted' && state !== 'completed')
             throw new TypeError('Attachment removal evidence is not ready for final verification');
+          observed = undefined;
+          const captured = Object.freeze({ sql: predicate.sql, rootAlias: predicate.rootAlias });
           await assertCurrent();
-          const matches = await journal.testNativeRowPredicate(handle, native, transaction, predicate);
+          const matches = await (state === 'completed'
+            ? journal.testCompletedNativeRowPredicate(handle, native, transaction, captured)
+            : journal.testNativeRowPredicate(handle, native, transaction, captured));
           await assertCurrent();
+          if (matches) observed = captured;
           return matches;
         },
+        ...(recordCompletion
+          ? {
+              async complete() {
+                if (state !== 'deleted' || !observed)
+                  throw new TypeError('Attachment removal completion requires successful final observation');
+                await assertCurrent();
+                await journal.completeNativeRemoval(handle, native, transaction, observed);
+                state = 'completed';
+                await assertCurrent();
+              },
+            }
+          : {}),
       });
     },
   });

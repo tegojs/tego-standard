@@ -2623,3 +2623,19 @@ Ruling: 跨进程完成读取需要另行观察已持久的原事务，不能放
 - [x] 文件包客户端、服务端及声明构建退出 0，保留 removal-committed-native-build-file.log；两份源码与独立快照 SHA256 一致，四文件 Prettier 通过、两份 TS 的 oxlint 零错误/警告，diff 和作者自审通过。未改租户包实现，不重做其已完成构建。整分支独立复核仍未完成。
 
 §171 原六文件索引先独立提交为 d473373ed，已核实默认签名 G；用户回复后正常交互签名成功，无待答认证问题或签名进程。§172 没有混入该提交。确认测试/构建均退出、真实集群目录与零其他客户端后，仅删除专用库 tego_tenant_access_test_e17229f616，pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按独立原生已提交观察作英文默认签名原子提交，不推送；下一项组合严格 v3 完成意图、独立池及未知结局读取协议，仍不授权物理清理。
+
+## 173. 独立实例的显式 SQL 完成观察
+
+Ruling: 另行显式构造 AttachmentRemovalCompletionInspector，传入原业务 Database 与独立观察池上的真实来源/意图/事件 Collection；不复制原 WeakMap 句柄、不重构完成能力，不从任意请求或当前上传配置猜测位置。构造只固定元数据；inspect 只接受一个来自可信服务端的 UUID，拥有独立 SERIALIZABLE 顶层事务并确认实际数据库主库，读取并锁定物理日志/来源结构。因为沿用结构锁和日志行锁，事务不是 PostgreSQL READ ONLY，但不执行业务/日志数据写入、DDL 或文件 I/O。
+
+严格 v3 规范核对原事务文本、实际来源 OID/schema/表名/主键/归属物理列、记录位置和实际 owner、根目录/保留要求、完成格式及 full-row 捕获定义，不接受多余字段或错误类型；再以 §172 在 SQL 内精确验证真实完整 OLD 和已提交原事务。前后复核元数据、日志行为、函数/触发器及独立池端点。返回只含 committed-sql-observed、操作 UUID 和事务文本，不返回文件位置或完整 OLD；缺记录或 v1/v2 prepared 返回 unknown，错误、不一致、未知事务状态不能降级为已回滚或清理许可。
+
+这个协议是可信服务端的显式单项观察，不是自动发现、租约、执行器重试/恢复协议或普通用户 API。§170 执行器仍未提供可跨进程复用的操作关联 token；调用方必须已从可信内部来源获得 UUID，不能把任意 UUID 当作权限。提交观察不证明最新 ACL/G、当前原键仍缺失、没有共享路径/其他引用、文件对象身份或事件因果不可伪造；受控 schema/可信服务端和保留原文件的边界不变。未知 COMMIT 的端到端关联与重试协调仍需另行交付。
+
+- [x] 十三项实际 PG 场景先因缺少独立 Inspector 正确 RED，保留 removal-completion-inspection-red.log；最小实现后十三项通过，保留 removal-completion-inspection-green.log。
+- [x] 新增端点漂移、日志/事件 RLS 和停用捕获触发器的既有边界复核后十七项定向通过，保留 removal-completion-inspection-green-final.log。覆盖真实执行器完成记录、全新池/映射而无原句柄、提交前 unknown 与提交后观察、完成后回滚仍 unknown、prepared/missing unknown、同池拒绝、六类日志漂移、缺事件及同键重建仍只能报告历史提交观察；所有情形原文件保留。
+
+- [x] 授权读取/HTTP/意图/执行和原生捕获两个完整文件串行二百三十项通过、一百一十三项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；保留 removal-completion-inspection-regression.log。十七项新增实际 PG 场景不与定向结果重复计数。
+- [x] 文件包客户端、服务端及声明构建退出 0，保留 removal-completion-inspection-build-file.log。三份源码与快照 SHA256 一致，五文件 Prettier 通过、三份 TS 的 oxlint 零错误/警告，diff 与作者自审通过。未修改租户包，不重做其已有构建；整分支独立复核仍未完成。
+
+专用库 tego_tenant_access_test_f17329a617 仅供本批串行验证。确认所有测试/构建退出、实际集群目录和零其他客户端后，仅删除该专用库并确认 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按独立完成观察作英文默认签名原子提交，不推送；原文件继续保留。下一项继续已知操作关联/未知结局协调、共享路径/其他引用和对象身份的最小独立交付，不把本次读取当成已完成恢复或清理。其余入口和正式整合/业务试点仍未完成。

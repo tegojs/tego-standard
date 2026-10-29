@@ -760,6 +760,197 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
               }
 
               describe('optional SQL completion', () => {
+                describe('independent completion inspection', () => {
+                  async function observer() {
+                    const other = isolatedPostgresDatabase(postgresUrl!);
+                    try {
+                      other.collection(storageDefinition);
+                      const source = other.collection({ ...docs.options });
+                      const intent = other.collection({ ...intents.options });
+                      const event = other.collection({ ...events.options });
+                      return {
+                        db: other,
+                        inspector: new files.AttachmentRemovalCompletionInspector(db, source, intent, event),
+                      };
+                    } catch (error) {
+                      await other.close();
+                      throw error;
+                    }
+                  }
+
+                  async function completed() {
+                    const { entry, evidence } = await execution(1, true);
+                    expect(await entry.executeNativeRemoval(evidence)).toBe(1);
+                    return (await intents.model.findOne()).getDataValue('id') as string;
+                  }
+
+                  it('observes an actual committed completion from fresh mappings without the original handle', async () => {
+                    const id = await completed();
+                    const other = await observer();
+                    try {
+                      const payload = (await intents.model.findByPk(id)).getDataValue('payload');
+                      expect(await other.inspector.inspect(id)).toEqual({
+                        state: 'committed-sql-observed',
+                        operationId: id,
+                        transactionId: payload.transactionId,
+                      });
+                      expect(await fs.readFile(location())).toEqual(bytes);
+                      expect(await intents.model.count()).toBe(1);
+                      expect(await events.model.count()).toBe(1);
+                    } finally {
+                      await other.db.close();
+                    }
+                  });
+
+                  it('keeps missing and prepared-only outcomes unknown without granting cleanup', async () => {
+                    const { entry, evidence } = await execution();
+                    await entry.executeNativeRemoval(evidence);
+                    const id = (await intents.model.findOne()).getDataValue('id');
+                    const other = await observer();
+                    try {
+                      expect(await other.inspector.inspect(id)).toEqual({ state: 'unknown' });
+                      expect(await other.inspector.inspect('11111111-1111-1111-1111-111111111111')).toEqual({
+                        state: 'unknown',
+                      });
+                      expect(await fs.readFile(location())).toEqual(bytes);
+                    } finally {
+                      await other.db.close();
+                    }
+                  });
+
+                  it.each([false, true])(
+                    'keeps an in-flight completion unknown, then observes rollback=%s honestly',
+                    async (rollback) => {
+                      const { entry, evidence } = await execution(1, true);
+                      const other = await observer();
+                      let id: string;
+                      try {
+                        const run = entry.executeNativeRemoval({
+                          async prepare(proof) {
+                            const session = await evidence.prepare(proof);
+                            return {
+                              ...session,
+                              async complete() {
+                                await session.complete();
+                                id = (await intents.model.findOne({ transaction: proof.transaction })).getDataValue(
+                                  'id',
+                                );
+                                expect(await other.inspector.inspect(id)).toEqual({ state: 'unknown' });
+                                if (rollback) throw new Error('rollback after completion');
+                              },
+                            };
+                          },
+                        });
+                        if (rollback) await expect(run).rejects.toThrow('rollback after completion');
+                        else await expect(run).resolves.toBe(1);
+                        expect((await other.inspector.inspect(id!)).state).toBe(
+                          rollback ? 'unknown' : 'committed-sql-observed',
+                        );
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      } finally {
+                        await other.db.close();
+                      }
+                    },
+                  );
+
+                  it('rejects reusing the business pool for outcome inspection', () => {
+                    expect(() => new files.AttachmentRemovalCompletionInspector(db, docs, intents, events)).toThrow(
+                      'independent pool for the same database',
+                    );
+                  });
+
+                  it('rejects endpoint drift after constructing an independent inspector', async () => {
+                    const other = await observer();
+                    const port = other.db.options.port;
+                    try {
+                      other.db.options.port = Number(port) + 1;
+                      await expect(other.inspector.inspect('11111111-1111-1111-1111-111111111111')).rejects.toThrow(
+                        'independent pool for the same database',
+                      );
+                    } finally {
+                      other.db.options.port = port;
+                      await other.db.close();
+                    }
+                  });
+
+                  it.each(['intent RLS', 'event RLS', 'disabled capture'])(
+                    'rejects persisted evidence after actual catalog drift: %s',
+                    async (change) => {
+                      const id = await completed();
+                      const statements = {
+                        'intent RLS': 'ALTER TABLE attachment_removal_intents ENABLE ROW LEVEL SECURITY',
+                        'event RLS': 'ALTER TABLE attachment_removal_events ENABLE ROW LEVEL SECURITY',
+                        'disabled capture': 'ALTER TABLE documents DISABLE TRIGGER tac_remove_capture',
+                      };
+                      await db.sequelize.query(statements[change]);
+                      const other = await observer();
+                      try {
+                        await expect(other.inspector.inspect(id)).rejects.toThrow(
+                          /unsupported database behavior|installation is unavailable or changed/,
+                        );
+                      } finally {
+                        await other.db.close();
+                      }
+                    },
+                  );
+
+                  it.each(['transaction', 'source', 'owner', 'storage', 'capture', 'extra'])(
+                    'rejects a persisted completion with inconsistent %s metadata',
+                    async (change) => {
+                      const id = await completed();
+                      const mutations = {
+                        transaction: `jsonb_set(payload::jsonb, '{transactionId}', '"3"')`,
+                        source: `jsonb_set(payload::jsonb, '{source,oid}', '"1"')`,
+                        owner: `jsonb_set(payload::jsonb, '{record,tenantId}', '"H"')`,
+                        storage: `jsonb_set(payload::jsonb, '{storage,retainContent}', '"false"')`,
+                        capture: `jsonb_set(payload::jsonb, '{completion,nativeCapture}', '"untrusted_capture"')`,
+                        extra: `payload::jsonb || '{"unverified":true}'::jsonb`,
+                      };
+                      await db.sequelize.query(`UPDATE attachment_removal_intents SET payload=${mutations[change]}`);
+                      const other = await observer();
+                      try {
+                        await expect(other.inspector.inspect(id)).rejects.toThrow();
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      } finally {
+                        await other.db.close();
+                      }
+                    },
+                  );
+
+                  it('rejects a completed marker whose native event is missing', async () => {
+                    const id = await completed();
+                    await events.model.destroy({ where: { id }, hooks: false });
+                    const other = await observer();
+                    try {
+                      await expect(other.inspector.inspect(id)).rejects.toThrow(
+                        'Native full-row event does not match its prepared intent',
+                      );
+                    } finally {
+                      await other.db.close();
+                    }
+                  });
+
+                  it('does not mistake a committed observation for present absence or exclusive file ownership', async () => {
+                    const id = await completed();
+                    await docs.model.create({
+                      id: 1,
+                      tenantId: 'B',
+                      path: 'old/tenants/H',
+                      filename: 'receipt.txt',
+                      storageId: 18,
+                      size: bytes.length,
+                    });
+                    const other = await observer();
+                    try {
+                      expect((await other.inspector.inspect(id)).state).toBe('committed-sql-observed');
+                      expect(await docs.model.count()).toBe(3);
+                      expect(await fs.readFile(location())).toEqual(bytes);
+                    } finally {
+                      await other.db.close();
+                    }
+                  });
+                });
+
                 it('commits a distinct completed format visible from an independent pool while retaining bytes', async () => {
                   const { entry, evidence } = await execution(1, true);
                   const other = isolatedPostgresDatabase(postgresUrl!);

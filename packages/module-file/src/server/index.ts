@@ -10,6 +10,8 @@ export type { StagedAttachmentPersistence } from './storages/staged-transaction'
 export { StagedAttachmentJournal } from './storages/staged-journal';
 export { StagedAttachmentReceiptJournal } from './storages/staged-receipt-journal';
 export { AttachmentRemovalIntentJournal } from './storages/removal-intent-journal';
+export { AttachmentRemovalCompletionInspector } from './storages/removal-completion-inspector';
+export type { AttachmentRemovalCompletionObservation } from './storages/removal-completion-inspector';
 export { AttachmentRemovalNativeCapture } from './storages/native-removal-capture';
 export { createAttachmentRemovalEvidenceAdapter } from './storages/removal-execution-evidence';
 export { recoverStagedAttachment, recoverCancelledAttachments } from './storages/staged-recovery';

@@ -261,7 +261,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
             expect(rows[0]).toMatchObject({
               id: result.id,
               payload: {
-                schemaVersion: 1,
+                schemaVersion: 2,
                 kind: 'attachment-removal-intent',
                 state: 'prepared',
                 source: { collectionName: 'documents', primaryKey: 'id' },
@@ -274,6 +274,56 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
             await other.close();
           }
           expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('binds preparation to the actual PostgreSQL transaction, physical source and stored owner', async () => {
+          let firstTransaction: string;
+          let sourceOid: string;
+          const first = await prepare(await context(1, {}, 'destroy'), async (proof) => {
+            const [actual] = await db.sequelize.query(
+              `SELECT txid_current()::text AS transaction_id, 'documents'::regclass::oid::text AS source_oid`,
+              { transaction: proof.transaction },
+            );
+            firstTransaction = actual[0].transaction_id;
+            sourceOid = actual[0].source_oid;
+            return persist(proof);
+          });
+          const firstPayload = (await intents.model.findByPk(first.id)).getDataValue('payload');
+          expect(firstPayload).toMatchObject({
+            schemaVersion: 2,
+            state: 'prepared',
+            transactionId: firstTransaction!,
+            source: { oid: sourceOid!, schema: 'public', tableName: 'documents', primaryField: 'id' },
+            record: { key: 1, tenantId: 'B' },
+          });
+          const second = await prepare(await context(1, {}, 'destroy'), persist);
+          const secondPayload = (await intents.model.findByPk(second.id)).getDataValue('payload');
+          expect(secondPayload.transactionId).toMatch(/^\d+$/);
+          expect(secondPayload.transactionId).not.toBe(firstTransaction!);
+          expect(secondPayload.source.oid).toBe(sourceOid!);
+          expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('stores the actual owner when G permits access to another tenant rather than substituting the actor', async () => {
+          const store = new AccessConfigStore(db, (value) =>
+            resolveModelMetadata(db.getCollection(value.collectionName), {
+              resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
+            }),
+          );
+          const saved = await store.read(mainIdentity);
+          await store.save(
+            mainIdentity,
+            { ...configFor({ type: 'constant', value: true }), revision: saved!.revision },
+            { userId: 28 },
+          );
+          const result = await prepare(await context(2, {}, 'destroy'), persist);
+          expect((await intents.model.findByPk(result.id)).getDataValue('payload').record).toMatchObject({
+            key: 2,
+            tenantId: 'H',
+          });
+          expect((await docs.model.findByPk(2)).getDataValue('tenantId')).toBe('H');
           expect(await fs.readFile(location())).toEqual(bytes);
         });
 

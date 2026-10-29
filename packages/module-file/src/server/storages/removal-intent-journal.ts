@@ -6,6 +6,14 @@ import type { AuthorizedAttachmentRemovalPreparation } from './authorized-remova
 import { lockAttachmentJournalStructure } from './journal-structure';
 import { getLocalStorageRoot } from './local-root';
 
+interface SourceProvenance {
+  transactionId: string;
+  oid: string;
+  schema: string;
+  tableName: string;
+  tenantId: string | null;
+}
+
 /**
  * Explicit internal PostgreSQL collection: independent string id PK and JSON payload only.
  * This records preparation in the caller transaction, never a deletion result or cleanup permit.
@@ -83,6 +91,42 @@ export class AttachmentRemovalIntentJournal {
     return generator.quoteTable(model.getTableName());
   }
 
+  private async sourceProvenance(preparation: AuthorizedAttachmentRemovalPreparation): Promise<SourceProvenance> {
+    this.assertTransaction(preparation);
+    const model = preparation.collection.model;
+    const primaryField = model.rawAttributes[model.primaryKeyAttribute]?.field;
+    const owner = model.rawAttributes.tenantId;
+    if (!primaryField || (owner && (!owner.field || (owner.type as { key?: string }).key === 'VIRTUAL')))
+      throw new TypeError('Removal intent requires physical source identity and ownership fields');
+    const primary = `"${primaryField.replaceAll('"', '""')}"`;
+    const [rows] = await this.database.sequelize.query(
+      `SELECT pg_catalog.txid_current()::text AS "transactionId", original.tableoid::text AS oid,
+        n.nspname::text AS schema, c.relname::text AS "tableName",
+        pg_catalog.to_jsonb(original)->>$owner AS "tenantId"
+      FROM ${this.quoteTable(model)} AS original
+      JOIN pg_catalog.pg_class c ON c.oid=original.tableoid
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE original.${primary}=$key FOR UPDATE OF original`,
+      {
+        transaction: preparation.transaction,
+        bind: { key: preparation.record.key, owner: owner?.field ?? null },
+      },
+    );
+    this.assertTransaction(preparation);
+    const result = (rows as SourceProvenance[])[0];
+    if (
+      (rows as SourceProvenance[]).length !== 1 ||
+      !result ||
+      !/^\d+$/.test(result.transactionId) ||
+      !/^\d+$/.test(result.oid) ||
+      !result.schema ||
+      !result.tableName ||
+      (result.tenantId !== null && typeof result.tenantId !== 'string')
+    )
+      throw new TypeError('Removal intent source transaction and actual record are unavailable');
+    return result;
+  }
+
   private async lockStructure(transaction: Transaction) {
     await lockAttachmentJournalStructure(
       this.database,
@@ -94,7 +138,7 @@ export class AttachmentRemovalIntentJournal {
     this.assertCurrent();
   }
 
-  private capture(preparation: AuthorizedAttachmentRemovalPreparation) {
+  private capture(preparation: AuthorizedAttachmentRemovalPreparation, provenance: SourceProvenance) {
     this.assertTransaction(preparation);
     const storage = preparation.storage;
     if (storage.type !== 'local' || storage.id !== preparation.record.storageId)
@@ -105,15 +149,23 @@ export class AttachmentRemovalIntentJournal {
       throw new TypeError('Removal intent requires a valid original local storage root');
     const root = getLocalStorageRoot({ options: typeof documentRoot === 'string' ? { documentRoot } : {} });
     return structuredClone({
-      schemaVersion: 1,
+      // Older prepared entries lack original transaction/ownership evidence and cannot be upgraded by guessing.
+      schemaVersion: 2,
       kind: 'attachment-removal-intent',
       state: 'prepared',
+      transactionId: provenance.transactionId,
       source: {
         collectionName: preparation.collection.name,
         table: this.quoteTable(preparation.collection.model),
         primaryKey: preparation.collection.model.primaryKeyAttribute,
+        primaryField:
+          preparation.collection.model.rawAttributes[preparation.collection.model.primaryKeyAttribute].field,
+        ownerField: preparation.collection.model.rawAttributes.tenantId?.field ?? null,
+        oid: provenance.oid,
+        schema: provenance.schema,
+        tableName: provenance.tableName,
       },
-      record: preparation.record,
+      record: { ...preparation.record, tenantId: provenance.tenantId },
       storage: { root, retainContent: preparation.retainContent },
     });
   }
@@ -122,12 +174,12 @@ export class AttachmentRemovalIntentJournal {
   async persist(preparation: AuthorizedAttachmentRemovalPreparation): Promise<Readonly<{ id: string }>> {
     this.assertTransaction(preparation);
     await preparation.assertCurrent();
-    const payload = this.capture(preparation);
     const { transaction } = preparation;
     await this.lockStructure(transaction);
     await preparation.assertCurrent();
-    if (!isDeepStrictEqual(this.capture(preparation), payload))
-      throw new TypeError('Removal intent source or original storage changed');
+    const provenance = await this.sourceProvenance(preparation);
+    await preparation.assertCurrent();
+    const payload = this.capture(preparation, provenance);
     const id = randomUUID();
     await this.model.unscoped().create({ id, payload }, { hooks: false, transaction });
     // RETURNING can predate an AFTER INSERT trigger. Read the actually stored payload as well.
@@ -139,9 +191,10 @@ export class AttachmentRemovalIntentJournal {
       lock: transaction.LOCK.UPDATE,
     };
     const row = await this.model.unscoped().findByPk(id, options);
+    const currentProvenance = await this.sourceProvenance(preparation);
     await preparation.assertCurrent();
     if (
-      !isDeepStrictEqual(this.capture(preparation), payload) ||
+      !isDeepStrictEqual(this.capture(preparation, currentProvenance), payload) ||
       !row ||
       row.getDataValue('id') !== id ||
       !isDeepStrictEqual(row.getDataValue('payload'), payload)

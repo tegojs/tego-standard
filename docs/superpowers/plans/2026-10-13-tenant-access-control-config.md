@@ -2427,3 +2427,16 @@ Ruling: 先完成可单独验证的安装完整性边界。新增 assertInstalle
 - [x] 文件包客户端、服务端和声明构建退出 0，保留 native-capture-verification-build.log；独立快照既有 UnkVer 警告不涉及正式版本修改。
 
 两份 TypeScript 的 Prettier、oxlint 零错误/警告、源/快照 SHA256、diff 及作者自审通过；未做整分支独立复核。核实实际临时集群目录及零其他客户端后，仅删除专用库 tego_tenant_access_test_a15929b606，确认 pg_database 计数 0，停止临时 PG 并保留日志；被清理的测试数据可重建，未涉及业务数据。本批按安装复核独立默认签名提交，不推送。下一项继续事件日志完整性与原 prepared 意图/事务的严格组合，仍不得以事件存在或安装通过授权实际物理删除。
+
+## 160. 准备意图记录原事务与实际物理归属
+
+Ruling: §156 的 prepared 意图没有原事务编号、来源 OID 或实际归属，无法严密匹配 §158 的原生事件。将内部意图提升为 schemaVersion 2，在调用者原顶层写事务中按真实来源主键读取并锁定原行，记录 PostgreSQL txid_current 的十进制文本、tableoid、实际物理 schema/表名、主键/归属物理列及原行归属文本。原始文件位置和存储保留快照继续保留；不保存其他业务字段或凭据。不能根据查看者当前租户填归属，也不把缺少这些事实的旧 v1 意图猜测升级为 v2。
+
+写日志前后分别读取实际来源身份，等待查询后复核原 destroy/G、角色、位置、归属、存储及准备生命周期，实际日志回读仍须与完整 payload 相同。意图和原事务共同回滚。保持 prepared 状态，不删除来源行或字节，不改变 withRecord 的原行必须仍在契约。这些身份事实是后续匹配的必要输入，不能替代依赖其他业务字段/关系的最终 G，也尚未实施原生事件匹配、可信删除回执或提交后清理。
+
+- [x] 新格式与实际事务身份两项真实 PG RED：旧意图缺少事务/OID/归属且仍为 v1，保留 removal-intent-provenance-red.log；九十二项仅过滤，不能计入通过。
+- [x] 最小实现后十三项真实 PG 意图场景通过，保留 removal-intent-provenance-green.log；其余八十一项为名称/数据库分组过滤，不混算。
+- [x] 作者自审补充 G 允许访问其他租户的场景，证明操作者 B 获准处理 H 记录时保存实际 H，原行/字节不变。最终三个相关文件一百一十六项通过、十四项 SQLite 的 PG 意图专项分组跳过，对应实际 PG 分组执行，保留 removal-intent-provenance-final.log。原生安装校验、Repository 真实删除表征及既有 SQLite/PG 读取、HTTP、准备/回滚保护一并回归。
+- [x] 文件包客户端、服务端和声明构建退出 0，保留 removal-intent-provenance-build.log；未改正式版本或依赖。
+
+两份 TypeScript 的 Prettier、oxlint 零错误/警告、源/快照 SHA256、diff 与作者自审通过，整分支独立复核未完成。核实实际临时集群目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_b16029c607，确认 pg_database 计数 0，并停止临时服务，保留目录日志；可重建测试数据已清理，未涉及业务数据。§159 已有效默认签名提交 3ecf52e1c，本批按意图身份独立默认签名提交，不推送；下一项继续日志完整性和原生事件严格匹配，正式入口、规则保存/启用及物理删除仍关闭。

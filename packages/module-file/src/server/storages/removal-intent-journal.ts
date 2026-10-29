@@ -389,7 +389,8 @@ export class AttachmentRemovalIntentJournal {
 
   /** Same active original handle/transaction only. Not a commit observation or cleanup capability. */
   async assertLocalObjectMatches(handle: Readonly<{ id: string }>, transaction: Transaction): Promise<void> {
-    const original = await this.verifiedPreparation(handle, transaction);
+    const state = this.preparations.get(handle)?.completed ? 'completed' : 'prepared';
+    const original = await this.verifiedPreparation(handle, transaction, state);
     const evidence = original.localObject;
     if (!evidence) throw new TypeError('Original removal object binding is unavailable');
     const assertJournal = async () => {
@@ -404,7 +405,7 @@ export class AttachmentRemovalIntentJournal {
     };
     await assertJournal();
     await this.readLocalObject(evidence.journal, handle.id, transaction, evidence.payload);
-    await this.verifiedPreparation(handle, transaction);
+    await this.verifiedPreparation(handle, transaction, state);
     await assertJournal();
   }
 

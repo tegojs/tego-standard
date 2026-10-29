@@ -1152,6 +1152,157 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
               describe('optional SQL completion', () => {
                 describe('independent completion inspection', () => {
                   describe('recorded execution outcome correlation', () => {
+                    describe('optional bound local removal execution', () => {
+                      let objects: Collection;
+
+                      beforeEach(async () => {
+                        objects = db.collection({
+                          name: 'attachment_removal_objects',
+                          autoGenId: false,
+                          timestamps: false,
+                          fields: [
+                            { name: 'id', type: 'string', primaryKey: true },
+                            { name: 'payload', type: 'jsonb' },
+                          ],
+                        });
+                        await objects.model.sync();
+                      });
+
+                      afterEach(async () => {
+                        await db.sequelize.query('DROP FUNCTION IF EXISTS tamper_bound_completion(jsonb) CASCADE');
+                      });
+
+                      async function runBound() {
+                        const { entry } = await execution();
+                        return files.executeRecordedAttachmentRemoval(entry, journal, native, {
+                          localObjects: objects,
+                        });
+                      }
+
+                      it('commits one object binding, full OLD and v3 completion with the same original UUID and transaction', async () => {
+                        const object = await fs.lstat(location(), { bigint: true });
+                        const result = await runBound();
+                        const bound = (await objects.model.findByPk(result.operationId)).getDataValue('payload');
+                        const completion = (await intents.model.findByPk(result.operationId)).getDataValue('payload');
+                        const event = (await events.model.findByPk(result.operationId)).getDataValue('payload');
+                        expect(bound).toMatchObject({
+                          kind: 'attachment-removal-bound-local-object',
+                          intent: {
+                            id: result.operationId,
+                            payload: { schemaVersion: 2, state: 'prepared', transactionId: completion.transactionId },
+                          },
+                          object: { object: { ino: String(object.ino), birthtimeNs: String(object.birthtimeNs) } },
+                        });
+                        expect(completion.schemaVersion).toBe(3);
+                        expect(event.transactionId).toBe(completion.transactionId);
+                        expect(event.source.oid).toBe(bound.intent.payload.source.oid);
+                        expect(event.record.tenantId).toBe(bound.intent.payload.record.tenantId);
+                        expect(await docs.model.findByPk(1)).toBeNull();
+                        // Existing records still reference these bytes; SQL completion grants no cleanup.
+                        expect(await docs.model.count()).toBe(2);
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      });
+
+                      it('leaves object persistence off in the default recorded execution', async () => {
+                        const { entry } = await execution();
+                        await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                        expect(await objects.model.count()).toBe(0);
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      });
+
+                      it('rolls the object binding back with a real Repository hook failure and preserves its unknown UUID', async () => {
+                        docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                          expect(await objects.model.count({ transaction })).toBe(1);
+                          throw new Error('bound Repository refusal');
+                        });
+                        const failure = await runBound().catch((error: unknown) => error);
+                        expect(failure).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                        expect(failure).toMatchObject({
+                          outcome: 'unknown',
+                          operationId: expect.any(String),
+                          errors: [expect.objectContaining({ message: 'bound Repository refusal' })],
+                        });
+                        expect(await objects.model.count()).toBe(0);
+                        await assertRollback();
+                      });
+
+                      it.each(['changed', 'missing'])(
+                        'forces rollback when a later Repository hook leaves %s object evidence',
+                        async (kind) => {
+                          docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                            if (kind === 'missing') await objects.model.destroy({ where: {}, transaction });
+                            else
+                              await objects.model.update(
+                                { payload: { kind: 'replacement' } },
+                                { where: {}, transaction },
+                              );
+                          });
+                          const failure = await runBound().catch((error: unknown) => error);
+                          expect(failure).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                          expect(failure).toMatchObject({
+                            errors: [
+                              expect.objectContaining({
+                                message: 'Removal object evidence no longer matches its original binding',
+                              }),
+                            ],
+                          });
+                          expect(await objects.model.count()).toBe(0);
+                          await assertRollback();
+                        },
+                      );
+
+                      it('rechecks the object binding after a real completion CHECK function changes it', async () => {
+                        await db.sequelize.query(`
+                          CREATE FUNCTION tamper_bound_completion(value jsonb) RETURNS boolean LANGUAGE plpgsql AS $$
+                          BEGIN IF value->>'schemaVersion'='3' THEN
+                            UPDATE attachment_removal_objects SET payload='{"kind":"replacement"}'::jsonb;
+                          END IF; RETURN true; END $$;
+                          ALTER TABLE attachment_removal_intents ADD CONSTRAINT bound_completion_check CHECK(tamper_bound_completion(payload));
+                        `);
+                        const failure = await runBound().catch((error: unknown) => error);
+                        expect(failure).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                        expect(failure).toMatchObject({
+                          errors: [
+                            expect.objectContaining({
+                              message: 'Removal object evidence no longer matches its original binding',
+                            }),
+                          ],
+                        });
+                        expect(await objects.model.count()).toBe(0);
+                        await assertRollback();
+                      });
+
+                      it('preserves committed object evidence after afterCommit rejects without treating it as a cleanup receipt', async () => {
+                        sourceAfterCommitFailure();
+                        const failure = await runBound().catch((error: unknown) => error);
+                        expect(failure).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                        const result = failure as InstanceType<typeof files.AttachmentRemovalOutcomeError>;
+                        expect(result.outcome).toBe('unknown');
+                        expect(await objects.model.findByPk(result.operationId)).not.toBeNull();
+                        expect(await docs.model.findByPk(1)).toBeNull();
+                        const other = await observer();
+                        try {
+                          expect(await other.inspector.inspect(result.operationId)).toMatchObject({
+                            state: 'committed-sql-observed',
+                          });
+                        } finally {
+                          await other.db.close();
+                        }
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      });
+
+                      it('fails missing-file preparation without deleting SQL rows or reusing a previous operation id', async () => {
+                        await fs.unlink(location());
+                        const failure = await runBound().catch((error: unknown) => error);
+                        expect(failure).toMatchObject({ code: 'ENOENT' });
+                        expect(failure).not.toHaveProperty('operationId');
+                        expect(await objects.model.count()).toBe(0);
+                        expect(await intents.model.count()).toBe(0);
+                        expect(await events.model.count()).toBe(0);
+                        expect(await docs.model.count()).toBe(3);
+                      });
+                    });
+
                     it('returns the committed operation id for subsequent independent inspection', async () => {
                       const { entry } = await execution();
                       const result = await files.executeRecordedAttachmentRemoval(entry, journal, native);

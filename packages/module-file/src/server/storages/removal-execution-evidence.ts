@@ -1,3 +1,5 @@
+import type { Collection } from '@tego/server';
+
 import type { AuthorizedAttachmentRemovalPreparation } from './authorized-removal-storage';
 import { AttachmentRemovalNativeCapture } from './native-removal-capture';
 import { AttachmentRemovalIntentJournal } from './removal-intent-journal';
@@ -9,18 +11,22 @@ type RecordProof = Pick<
 >;
 
 /** Trusted server composition for the separate tenant SQL executor, never action parameters.
- * Persists preparation and brackets the real Repository DELETE; no file I/O or cleanup permits.
+ * Persists preparation and brackets the real Repository DELETE; optional read-only local object
+ * binding is explicit. No byte mutation or cleanup permits.
  */
 export function createAttachmentRemovalEvidenceAdapter(
   journal: AttachmentRemovalIntentJournal,
   native: AttachmentRemovalNativeCapture,
-  options?: { readonly recordCompletion: true },
+  options?: { readonly recordCompletion: true; readonly localObjects?: Collection },
 ) {
   if (!(journal instanceof AttachmentRemovalIntentJournal) || !(native instanceof AttachmentRemovalNativeCapture))
     throw new TypeError('Attachment removal execution requires its trusted journal and native capture');
   if (options !== undefined && options.recordCompletion !== true)
     throw new TypeError('Attachment removal completion must be explicitly enabled');
   const recordCompletion = options?.recordCompletion === true;
+  const localObjects = options?.localObjects;
+  if (localObjects !== undefined && localObjects?.db !== journal.database)
+    throw new TypeError('Attachment removal objects must use the original journal database');
   return Object.freeze({
     async prepare(proof: RecordProof) {
       const { collection, transaction, record } = proof;
@@ -35,14 +41,14 @@ export function createAttachmentRemovalEvidenceAdapter(
         await proof.assertCurrent();
       };
       await assertPreparationCurrent();
-      const handle = await journal.persist(
-        Object.freeze({
-          ...proof,
-          storage: storage.values,
-          retainContent: storage.retainContent,
-          assertCurrent: assertPreparationCurrent,
-        }),
-      );
+      const preparation = Object.freeze({
+        ...proof,
+        storage: storage.values,
+        retainContent: storage.retainContent,
+        assertCurrent: assertPreparationCurrent,
+      });
+      const handle = await journal.persist(preparation);
+      if (localObjects !== undefined) await journal.persistLocalObject(handle, preparation, localObjects);
       await assertPreparationCurrent();
       let state: 'prepared' | 'marked' | 'deleted' | 'completed' = 'prepared';
       let observed: Readonly<{ sql: string; rootAlias: string }> | undefined;
@@ -50,6 +56,7 @@ export function createAttachmentRemovalEvidenceAdapter(
       const assertCurrent = async () => {
         await native.assertFullRowInstalled(collection, transaction);
         if (recordCompletion) await journal.assertCompletionJournal(collection, transaction);
+        if (localObjects !== undefined) await journal.assertLocalObjectMatches(handle, transaction);
         await storage.assertCurrent();
       };
       const marker = async () => {

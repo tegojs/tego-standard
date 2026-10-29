@@ -3,7 +3,7 @@ import { Op, type Collection, type Database } from '@tego/server';
 import type { AccessCollectionIdentity } from '../../access-control/config-store';
 import { AccessRoleFilterCompiler } from '../../access-control/role-filter';
 import { internalQuery } from '../../access-control/write-support';
-import { isolatedPostgresDatabase, sqliteDatabase } from './database';
+import { isolatedPostgresDatabase, queryRows, sqliteDatabase } from './database';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const identity = (collectionName: string): AccessCollectionIdentity => ({
@@ -132,6 +132,99 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('role authorizat
     scoped.assertCurrent();
     return records.map((record) => record.getDataValue('id'));
   };
+
+  describe('native role predicates', () => {
+    async function nativeRows(filter: unknown) {
+      const scope = compiler.compileNative(identity('documents'), filter);
+      const alias = `"${scope.rootAlias.replaceAll('"', '""')}"`;
+      scope.assertCurrent();
+      const records = await queryRows<{ id: number }>(
+        db,
+        `SELECT ${alias}."record_id" AS id FROM "role_filter_documents" AS ${alias} WHERE ${scope.sql} ORDER BY id`,
+      );
+      scope.assertCurrent();
+      return records.map((row) => row.id);
+    }
+
+    it.each([
+      [{ tenantId: 'H', amount: { $gte: 20 } }, [2, 6]],
+      [{ project: { name: 'Secret' } }, [2]],
+      [{ children: { name: 'Alpha', tenantId: 'C' } }, []],
+      [{ 'children.name': 'Alpha', 'children.tenantId': 'B' }, [1]],
+      [{ projects: { name: 'Secret' } }, [1]],
+      [{ project: { name: 'Alpha' } }, [1, 6]],
+      [{ 'project.id.$notExists': true }, [3, 4, 5]],
+      [{ $or: [{ tenantId: null }, { project: { name: 'Secret' } }] }, [2, 5]],
+      [{ 'project.company.projects.name': 'Secret' }, [1, 2]],
+    ])('executes complete role facts using registered physical columns %#', async (filter, expected) => {
+      expect(await nativeRows(filter)).toEqual(expected);
+    });
+
+    it('keeps SQL-like values literal without ORM binding text substitution', async () => {
+      const name = "Secret' OR 1=1 -- $tac_role_1 $$ \\";
+      await projects.model.update({ name }, { where: { id: 102 } });
+      expect(await nativeRows({ project: { name } })).toEqual([2]);
+      expect(await docs.model.count()).toBe(6);
+    });
+
+    it('evaluates current associated facts rather than the compile-time matching set', async () => {
+      const scope = compiler.compileNative(identity('documents'), { project: { name: 'Secret' } });
+      await projects.model.update({ enabled: false }, { where: { id: 102 } });
+      const records = await queryRows(
+        db,
+        `SELECT "record_id" FROM "role_filter_documents" AS "documents" WHERE ${scope.sql}`,
+      );
+      expect(records).toEqual([]);
+      scope.assertCurrent();
+    });
+
+    it('preserves metadata and stable identity checks for native consumers', () => {
+      const scope = compiler.compileNative(identity('documents'), { projects: { name: 'Secret' } });
+      links.model.addScope('defaultScope', { where: { enabled: false } }, { override: true });
+      expect(() => scope.assertCurrent()).toThrow('metadata');
+    });
+
+    it('returns the actual root alias without colliding with generated relationship aliases', async () => {
+      Object.defineProperty(docs.model, 'name', { value: 'TAC_ROLE_1', configurable: true });
+      expect(await nativeRows({ project: { name: 'Secret' } })).toEqual([2]);
+    });
+
+    it('includes root default constraints that an ORM query normally adds separately', async () => {
+      docs.model.addScope('defaultScope', { where: { amount: { [Op.gte]: 20 } } }, { override: true });
+      expect(await nativeRows({ tenantId: 'H' })).toEqual([2, 6]);
+    });
+
+    it('includes root boolean defaults and soft deletion for a native root query', async () => {
+      const scope = compiler.compileNative(identity('projects'), { name: 'Alpha' });
+      const records = await queryRows<{ id: number }>(
+        db,
+        `SELECT "record_id" AS id FROM "role_filter_projects" AS "projects" WHERE ${scope.sql} ORDER BY id`,
+      );
+      expect(records.map((row) => row.id)).toEqual([101, 105]);
+      scope.assertCurrent();
+    });
+
+    it('rejects a dialect without an explicit native SQL contract', () => {
+      const method = vi.spyOn(db.sequelize, 'getDialect').mockReturnValue('mysql');
+      try {
+        expect(() => compiler.compileNative(identity('documents'), {})).toThrow('dialect');
+      } finally {
+        method.mockRestore();
+      }
+    });
+
+    it('rejects identifiers the installed dialect generator cannot preserve exactly', () => {
+      docs.model.rawAttributes.tenantId.field = dialect === 'postgres' ? 'tenant"id' : 'tenant`id';
+      expect(() => compiler.compileNative(identity('documents'), { tenantId: 'H' })).toThrow('identifier');
+    });
+
+    it.each([{ project: { name: '{{ $user.id }}' } }, { project: { name: { $regexp: '.*' } } }])(
+      'rejects unresolved or unsupported final role filters %#',
+      (filter) => {
+        expect(() => compiler.compileNative(identity('documents'), filter)).toThrow(/unresolved|unsupported/);
+      },
+    );
+  });
   it.each(['project', 'children', 'single'])(
     '%s checks internal facts without target tenant/read configuration',
     async (name) => {

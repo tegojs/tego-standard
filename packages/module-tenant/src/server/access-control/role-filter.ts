@@ -28,6 +28,29 @@ export class AccessRoleFilterCompiler {
     identity: AccessCollectionIdentity,
     filter: unknown,
   ): { where: WhereOptions; rootWhere?: WhereOptions; assertCurrent(): void } {
+    const { where, rootWhere, assertCurrent } = this.compilePlan(identity, filter, false);
+    return { where, rootWhere, assertCurrent };
+  }
+
+  /** Role facts and root default/paranoid restrictions, not an action grant, G/V or authorization lease.
+   * Native consumers use the returned root alias and must omit ORM bind options entirely.
+   */
+  compileNative(
+    identity: AccessCollectionIdentity,
+    filter: unknown,
+  ): { sql: string; rootAlias: string; assertCurrent(): void } {
+    const { sql, rootAlias, assertCurrent } = this.compilePlan(identity, filter, true);
+    return { sql, rootAlias, assertCurrent };
+  }
+
+  private compilePlan(
+    identity: AccessCollectionIdentity,
+    filter: unknown,
+    native: boolean,
+  ): { where: WhereOptions; rootWhere?: WhereOptions; sql: string; rootAlias: string; assertCurrent(): void } {
+    const dialect = this.db.sequelize.getDialect();
+    if (native && !['sqlite', 'postgres'].includes(dialect))
+      invalid('Native role predicates require an explicitly supported dialect');
     identity = cloneDeep(identity);
     const rootKey = accessCollectionKey(identity);
     const root = this.db.getCollection(identity.collectionName);
@@ -194,7 +217,28 @@ export class AccessRoleFilterCompiler {
         }
       }
     };
-    const where = literal(compile(tree, root.model, metadata, []));
+    const roleSql = compile(tree, root.model, metadata, []);
+    // Raw SQL has no model query to add its root scope or soft-deletion restriction.
+    const sql = native ? `(${roleSql}) AND (${scalar(restrictions(root.model), root.model)})` : roleSql;
+    if (native) {
+      // The legacy scalar generator quotes its own identifiers. Reject loss rather than
+      // rewriting generated SQL, which could also change values or correlated subqueries.
+      for (const collection of identities.keys()) {
+        const model = collection.model;
+        const tableName = model.getTableName();
+        const names = [
+          model.name,
+          ...(typeof tableName === 'string' ? [tableName] : [tableName.schema, tableName.tableName].filter(Boolean)),
+          ...Object.entries(model.rawAttributes).flatMap(([field, attribute]) => [field, attribute.field || field]),
+        ];
+        for (const name of names) {
+          const expected =
+            dialect === 'postgres' ? `"${name.replaceAll('"', '""')}"` : `\`${name.replaceAll('`', '``')}\``;
+          if (quote(name) !== expected) invalid('Native role predicate identifier cannot be preserved by this dialect');
+        }
+      }
+    }
+    const where = literal(sql);
     const metadataCurrent = accessMetadataGuard(this.db, [], paths);
     const assertCurrent = () => {
       metadataCurrent();
@@ -210,6 +254,6 @@ export class AccessRoleFilterCompiler {
     };
     assertCurrent();
     const rootWhere = rootFilterWhere(tree, root.model.primaryKeyAttribute);
-    return { where, rootWhere, assertCurrent };
+    return { where, rootWhere, sql, rootAlias: root.model.name, assertCurrent };
   }
 }

@@ -2363,3 +2363,18 @@ Ruling: 将 §153/154 已验证的能力在文件模块内强制组合，后续�
 最终组合与租户记录证明两文件串行一百三十九项通过，仅 SQLite 的一项 PostgreSQL 行锁场景按数据库分组跳过，实际 PG 对应项已执行；保留 authorized-removal-storage-final.log。文件包客户端、服务端和声明构建退出 0，保留 authorized-removal-storage-build.log。三份 TypeScript 的源/快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff 及作者自审通过；整分支独立复核仍未完成。
 
 核实集群实际目录、零其他客户端后，仅删除本轮专用库 tego_tenant_access_test_c15529d602，确认 pg_database 计数 0，并停止临时服务；可重建的测试数据已清理，目录和日志保留，未涉及业务数据。下一阶段先核查 Repository 钩子与实际 SQL 删除结果的契约，不能把 afterDestroy 的内存模型或 affected count 冒充数据库实际删除前位置；再实现原事务持久化意图、引用与对象身份及确定提交后的受控清理。此准备组合没有放行物理删除或正式入口。
+
+## 156. 删除意图与业务事务共同持久化
+
+Ruling: 先完成与真实删除结果相互独立的意图记录，不假设 Repository 返回值能证明实际删除前位置。可选 PostgreSQL 内部日志由调用者明确登记，仅含独立 id 主键和 JSON payload；不自动建表、接入动作或启动扫描。仅接收 §155 的可信本地附件准备能力，要求来源记录和日志使用同一数据库、同一有效顶层写事务，在日志写入前后复核原权限、位置和存储。意图只记录结构版本、来源物理表/主键、原位置、原本地根目录及保留策略，不保存存储凭据。记录始终明确为 prepared：即使事务提交且另一实例读得到，也不代表原附件已经删除，更不授权物理清理；原事务回滚则意图一并消失。
+
+- [x] 真实 PG 正向 RED，同事务提交/回滚、等待后撤权、失效事务、存储边界和实际日志篡改拒绝。
+- [x] 最小实现、相关双库回归、文件包构建、作者自审、专用资源清理；默认签名原子提交。
+
+初始真实 PG 正向因缺少 AttachmentRemovalIntentJournal 失败，保留 removal-intent-red.log。最小实现后八项实际 PG 定向通过，保留 removal-intent-green.log；其余七十六项仅名称过滤，不能计入通过。随后补齐 V/隐藏记录拒绝、远程存储拒绝及 savepoint 不能代替原事务。为避免复制物理表核查，将既有上传身份证据表和本意图表的结构锁/目录查询提为内部共用函数，原字段、独立主键、外键和多余物理列拒绝语义不变。
+
+最终三文件串行一百六十九项通过、十三项按数据库分组跳过，保留 removal-intent-final.log：十二项新日志场景在实际 PG 执行，SQLite 跳过相同的 PG 专项；另一个为 SQLite 的既有 PG 行锁专项，其 PG 对应项已实际执行。包含既有 SQLite/PG 读取/HTTP/删除准备、十八项真实 PG 独立上传身份证据及租户记录证明回归。第二个独立数据库实例实际读到提交的 prepared 意图，但原三条文件记录及原字节仍在。实际 AFTER INSERT 触发器把 payload 改为 completed 时，回读发现不一致并整体回滚；不是把 ORM RETURNING 当作最终存储结果。
+
+首次声明构建发现 Transaction 的公开类型未包含运行时 options、存储 options 为 unknown，以及 findByPk 内联 hooks 选项的超额属性检查；按相邻代码补运行时字段收窄、局部选项对象并显式检查本地根目录类型。复跑时项目 strictNullChecks 关闭导致 unknown 的条件收窄仍不充分，改为正向 typeof string 分支；最终文件包客户端/服务端/声明构建退出 0，保留 removal-intent-build-final.log。没有改依赖或运行时语义来绕过类型问题。
+
+五份 TypeScript 的源/快照 SHA256 一致，Prettier、oxlint 零错误/警告、diff 及作者自审通过。整分支独立复核仍待完成。核实实例实际目录和零其他客户端后，仅删除专用库 tego_tenant_access_test_d15629e603，确认 pg_database 计数 0，并停止临时 PG，保留目录日志；测试数据可重建，未涉及业务数据。意图方法要求调用者在任何错误时回滚，不能捕获错误后继续提交。下一阶段仍须取得真实删除结果证据，再补共享引用、对象身份和确定提交后的受控清理，不能用 prepared 意图或上传取消回执授权物理删除；正式运行时继续关闭。

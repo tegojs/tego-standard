@@ -218,6 +218,178 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
         );
       }
 
+      describe.skipIf(dialect !== 'postgres')('transactional removal intents', () => {
+        let intents: Collection;
+        let journal: InstanceType<typeof files.AttachmentRemovalIntentJournal>;
+
+        beforeEach(async () => {
+          journal = undefined;
+          intents = db.collection({
+            name: 'attachment_removal_intents',
+            autoGenId: false,
+            timestamps: false,
+            fields: [
+              { name: 'id', type: 'string', primaryKey: true },
+              { name: 'payload', type: 'jsonb' },
+            ],
+          });
+          await intents.model.sync();
+        });
+
+        afterEach(async () => {
+          await db.sequelize.query('DROP FUNCTION IF EXISTS tamper_removal_intent() CASCADE');
+        });
+
+        const persist = (proof: files.AuthorizedAttachmentRemovalPreparation) => {
+          journal ??= new files.AttachmentRemovalIntentJournal(intents);
+          return journal.persist(proof);
+        };
+
+        // A committed intent is observable from another pool, but the original record and bytes remain.
+        it('commits only a prepared intent with the original location and retention policy', async () => {
+          journal = undefined;
+          await db.getRepository('storages').update({ filterByTk: 18, values: { paranoid: true } });
+          const result = await prepare(await context(1, {}, 'destroy'), async (proof) => {
+            const recorded = await persist(proof);
+            expect(await intents.model.count({ transaction: proof.transaction })).toBe(1);
+            return recorded;
+          });
+          const other = isolatedPostgresDatabase(postgresUrl!);
+          try {
+            const [rows] = await other.sequelize.query('SELECT id, payload FROM attachment_removal_intents');
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+              id: result.id,
+              payload: {
+                schemaVersion: 1,
+                kind: 'attachment-removal-intent',
+                state: 'prepared',
+                source: { collectionName: 'documents', primaryKey: 'id' },
+                record: { key: 1, path: 'old/tenants/H', filename: 'receipt.txt', storageId: 18, size: bytes.length },
+                storage: { root, retainContent: true },
+              },
+            });
+            expect(JSON.stringify(rows)).not.toContain('baseUrl');
+          } finally {
+            await other.close();
+          }
+          expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('rolls back the intent together with the caller business transaction', async () => {
+          journal = undefined;
+          await expect(
+            prepare(await context(1, {}, 'destroy'), async (proof) => {
+              await persist(proof);
+              throw new Error('caller rollback');
+            }),
+          ).rejects.toThrow('caller rollback');
+          expect(await intents.model.count()).toBe(0);
+          expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('does not keep an intent when the final destroy decision changes during insertion', async () => {
+          journal = undefined;
+          const ctx = await context(1, {}, 'destroy');
+          const create = intents.model.create;
+          vi.spyOn(intents.model, 'create').mockImplementationOnce(async function (...args) {
+            const row = await create.apply(this, args);
+            Object.assign(ctx.permission as object, { can: false, skip: false });
+            return row;
+          });
+          await expect(prepare(ctx, persist)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('refuses an expired preparation instead of writing on another transaction', async () => {
+          journal = undefined;
+          let saved: files.AuthorizedAttachmentRemovalPreparation;
+          await prepare(await context(1, {}, 'destroy'), async (proof) => {
+            saved = proof;
+          });
+          await expect(persist(saved!)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+        });
+
+        it.each([2, 3])('does not persist a deletion intent for visible-only or hidden record %s', async (key) => {
+          await expect(prepare(await context(key, {}, 'destroy'), persist)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('does not treat a remote storage as a local removal intent', async () => {
+          await db.getRepository('storages').update({ filterByTk: 18, values: { type: 's3' } });
+          await expect(prepare(await context(1, {}, 'destroy'), persist)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('rejects a caller savepoint in place of the original top-level transaction', async () => {
+          await prepare(await context(1, {}, 'destroy'), async (proof) => {
+            await expect(
+              db.sequelize.transaction({ transaction: proof.transaction }, (savepoint) =>
+                persist({ ...proof, transaction: savepoint }),
+              ),
+            ).rejects.toThrow();
+            await proof.assertCurrent();
+          });
+          expect(await intents.model.count()).toBe(0);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('rejects a journal in another database instance even when it has the same table', async () => {
+          const other = isolatedPostgresDatabase(postgresUrl!);
+          try {
+            const collection = other.collection({
+              name: 'attachment_removal_intents',
+              autoGenId: false,
+              timestamps: false,
+              fields: [
+                { name: 'id', type: 'string', primaryKey: true },
+                { name: 'payload', type: 'jsonb' },
+              ],
+            });
+            const otherJournal = new files.AttachmentRemovalIntentJournal(collection);
+            await expect(
+              prepare(await context(1, {}, 'destroy'), (proof) => otherJournal.persist(proof)),
+            ).rejects.toThrow();
+            expect(await intents.model.count()).toBe(0);
+          } finally {
+            await other.close();
+          }
+        });
+
+        it.each(['column', 'primary'])('refuses actual journal schema drift: %s', async (kind) => {
+          journal = undefined;
+          if (kind === 'column')
+            await db.sequelize.query('ALTER TABLE attachment_removal_intents ADD COLUMN extra text');
+          else
+            await db.sequelize.query(
+              'ALTER TABLE attachment_removal_intents DROP CONSTRAINT attachment_removal_intents_pkey',
+            );
+          await expect(prepare(await context(1, {}, 'destroy'), persist)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+          expect(await docs.model.count()).toBe(3);
+        });
+
+        it('rejects a database trigger rewriting the stored intent', async () => {
+          journal = undefined;
+          await db.sequelize.query(`
+            CREATE FUNCTION tamper_removal_intent() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN UPDATE attachment_removal_intents SET payload = '{"state":"completed"}'::jsonb WHERE id = NEW.id;
+            RETURN NEW; END $$;
+            CREATE TRIGGER tamper_intent AFTER INSERT ON attachment_removal_intents
+              FOR EACH ROW EXECUTE FUNCTION tamper_removal_intent();
+          `);
+          await expect(prepare(await context(1, {}, 'destroy'), persist)).rejects.toThrow();
+          expect(await intents.model.count()).toBe(0);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+      });
+
       it('binds the original storage and location to an owned actual record without deleting anything', async () => {
         const ctx = await context(1, { fields: [] }, 'destroy');
         docs.options.storage = 'missing-new-upload-setting';

@@ -1,5 +1,6 @@
 import { Transaction, type Collection, type Database } from '@tego/server';
 
+import { lockAttachmentJournalStructure } from './journal-structure';
 import { captureLocalStagedAttachment, verifyLocalStagedAttachment } from './local-recovery';
 
 type LocalLocation = Parameters<typeof verifyLocalStagedAttachment>[0];
@@ -78,39 +79,14 @@ export class StagedAttachmentReceiptJournal {
   }
 
   private async lockStructure(transaction: Transaction) {
-    const generator = this.database.sequelize.getQueryInterface().queryGenerator as unknown as {
-      quoteTable(table: unknown): string;
-    };
-    const table = generator.quoteTable(this.model.getTableName());
-    // Hold the same lock as INSERT, preventing ALTER TABLE from adding a blocking FK between
-    // catalog inspection and persistence. This never locks an operation row or a referenced table.
-    await this.database.sequelize.query(`LOCK TABLE ${table} IN ROW EXCLUSIVE MODE`, { transaction });
-    const [rows] = await this.database.sequelize.query(
-      `
-      SELECT
-        ARRAY(SELECT attname::text FROM pg_attribute
-          WHERE attrelid = to_regclass($table) AND attnum > 0 AND NOT attisdropped) AS columns,
-        EXISTS(SELECT 1 FROM pg_constraint
-          WHERE conrelid = to_regclass($table) AND contype = 'f') AS "hasReferences",
-        EXISTS(SELECT 1 FROM pg_constraint c JOIN pg_attribute a
-          ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
-          WHERE c.conrelid = to_regclass($table) AND c.contype = 'p'
-            AND array_length(c.conkey, 1) = 1 AND a.attname = $key) AS "hasPrimary"
-    `,
-      { transaction, bind: { table, key: this.attributes[0].column } },
+    await lockAttachmentJournalStructure(
+      this.database,
+      this.model,
+      this.attributes.map(({ column }) => column),
+      transaction,
+      'Attachment receipt table must have its own primary key and no foreign keys or extra columns',
     );
-    const schema = (rows as { columns: string[]; hasReferences: boolean; hasPrimary: boolean }[])[0];
     this.assertCurrent();
-    if (
-      !schema ||
-      schema.hasReferences ||
-      !schema.hasPrimary ||
-      schema.columns.length !== 2 ||
-      this.attributes.some(({ column }) => !schema.columns.includes(column))
-    )
-      throw new TypeError(
-        'Attachment receipt table must have its own primary key and no foreign keys or extra columns',
-      );
   }
 
   /** Called from the trusted pre-copy callback; never join the original business transaction. */

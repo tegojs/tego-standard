@@ -256,4 +256,41 @@ export class AttachmentRemovalNativeCapture {
     if (!result || result.valid !== true || result.body !== this.functionBody())
       throw new TypeError('Native removal capture installation is unavailable or changed');
   }
+
+  private async assertEvidenceBehavior(transaction: Transaction) {
+    const [rows] = await this.database.sequelize.query(
+      `SELECT (c.relkind='r' AND NOT c.relrowsecurity AND NOT c.relforcerowsecurity
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid=c.oid OR i.inhparent=c.oid)
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_trigger t WHERE t.tgrelid=c.oid)
+        AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_rewrite r WHERE r.ev_class=c.oid)) AS valid
+      FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($table)`,
+      { transaction, bind: { table: this.table(this.evidenceTable) } },
+    );
+    this.assertCurrent();
+    if ((rows as { valid: boolean }[])[0]?.valid !== true)
+      throw new TypeError('Native removal evidence has unsupported database behavior');
+  }
+
+  /**
+   * Locked raw observation for an internal matcher, not proof of authorization or cleanup authority.
+   * Trusted schema management must exclude concurrent function replacement throughout the operation.
+   */
+  async readEvent(source: Collection, transaction: Transaction, operationId: string): Promise<unknown> {
+    if (source !== this.source || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))
+      throw new TypeError('Native removal event source or operation is unavailable');
+    await this.assertInstalled(transaction);
+    await this.assertEvidenceBehavior(transaction);
+    const options = {
+      attributes: ['id', 'payload'],
+      hooks: false,
+      useMaster: true,
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    };
+    const row = await this.evidenceModel.unscoped().findByPk(operationId, options);
+    await this.assertInstalled(transaction);
+    await this.assertEvidenceBehavior(transaction);
+    if (!row || row.getDataValue('id') !== operationId) throw new TypeError('Native removal event is unavailable');
+    return structuredClone(row.getDataValue('payload'));
+  }
 }

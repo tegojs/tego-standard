@@ -5,6 +5,7 @@ import { Transaction, type Collection, type Database } from '@tego/server';
 import type { AuthorizedAttachmentRemovalPreparation } from './authorized-removal-storage';
 import { lockAttachmentJournalStructure } from './journal-structure';
 import { getLocalStorageRoot } from './local-root';
+import { AttachmentRemovalNativeCapture } from './native-removal-capture';
 
 interface SourceProvenance {
   transactionId: string;
@@ -24,6 +25,14 @@ export class AttachmentRemovalIntentJournal {
   private readonly model: Collection['model'];
   private readonly table: string;
   private readonly attributes: { key: string; attribute: object; column: string; type: string }[];
+  private readonly preparations = new WeakMap<
+    Readonly<{ id: string }>,
+    {
+      collection: Collection;
+      transaction: Transaction;
+      payload: ReturnType<AttachmentRemovalIntentJournal['capture']>;
+    }
+  >();
 
   constructor(private readonly collection: Collection) {
     this.database = collection.db;
@@ -64,7 +73,7 @@ export class AttachmentRemovalIntentJournal {
       throw new TypeError('Removal intent collection identity is unavailable or changed');
   }
 
-  private assertTransaction(preparation: AuthorizedAttachmentRemovalPreparation) {
+  private assertTransaction(preparation: Pick<AuthorizedAttachmentRemovalPreparation, 'collection' | 'transaction'>) {
     this.assertCurrent();
     const transaction = preparation.transaction as Transaction & {
       sequelize?: Database['sequelize'];
@@ -200,6 +209,71 @@ export class AttachmentRemovalIntentJournal {
       !isDeepStrictEqual(row.getDataValue('payload'), payload)
     )
       throw new TypeError('Removal intent was not stored unchanged');
-    return Object.freeze({ id });
+    const handle = Object.freeze({ id });
+    this.preparations.set(handle, {
+      collection: preparation.collection,
+      transaction,
+      payload: structuredClone(payload),
+    });
+    return handle;
+  }
+
+  /**
+   * Original-transaction consistency check only. No DELETE, state promotion, commit or file I/O.
+   * This does not reauthorize G/role facts after preparation, exclude references or prove commit.
+   * The caller must still roll back on any failure and provide a separate deletion execution contract.
+   */
+  async assertNativeEventMatches(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+  ): Promise<void> {
+    const original = this.preparations.get(handle);
+    if (!original) throw new TypeError('Original removal intent handle is unavailable');
+    if (original.transaction !== transaction) throw new TypeError('Original removal intent transaction is unavailable');
+    this.assertTransaction(original);
+    if (!(native instanceof AttachmentRemovalNativeCapture))
+      throw new TypeError('Native removal capture is unavailable');
+    await this.lockStructure(transaction);
+    const options = {
+      attributes: ['id', 'payload'],
+      hooks: false,
+      useMaster: true,
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    };
+    const row = await this.model.unscoped().findByPk(handle.id, options);
+    this.assertTransaction(original);
+    if (
+      !row ||
+      row.getDataValue('id') !== handle.id ||
+      !isDeepStrictEqual(row.getDataValue('payload'), original.payload)
+    )
+      throw new TypeError('Removal intent no longer matches its original preparation');
+    const payload = original.payload;
+    const event = await native.readEvent(original.collection, transaction, handle.id);
+    this.assertTransaction(original);
+    const expected = {
+      schemaVersion: 1,
+      kind: 'attachment-native-delete',
+      state: 'deleted-in-transaction',
+      transactionId: payload.transactionId,
+      source: {
+        oid: payload.source.oid,
+        schema: payload.source.schema,
+        table: payload.source.tableName,
+        primaryField: payload.source.primaryField,
+      },
+      record: {
+        key: String(payload.record.key),
+        path: payload.record.path,
+        filename: payload.record.filename,
+        storageId: String(payload.record.storageId),
+        size: String(payload.record.size),
+        tenantId: payload.record.tenantId,
+      },
+    };
+    if (!isDeepStrictEqual(event, expected))
+      throw new TypeError('Native attachment event does not match its prepared intent');
   }
 }

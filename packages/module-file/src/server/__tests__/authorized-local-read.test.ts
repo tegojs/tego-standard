@@ -62,6 +62,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       db.collection(storageDefinition);
       docs = db.collection({
         name: 'documents',
+        ...(dialect === 'postgres' ? { schema: 'public' } : {}),
         template: 'file',
         timestamps: false,
         fields: [
@@ -437,6 +438,221 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
           await expect(prepare(await context(1, {}, 'destroy'), persist)).rejects.toThrow();
           expect(await intents.model.count()).toBe(0);
           expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        describe('native event matching', () => {
+          let events: Collection;
+          let native: InstanceType<typeof files.AttachmentRemovalNativeCapture>;
+
+          beforeEach(async () => {
+            events = db.collection({
+              name: 'attachment_removal_events',
+              schema: 'public',
+              autoGenId: false,
+              timestamps: false,
+              fields: [
+                { name: 'id', type: 'string', primaryKey: true },
+                { name: 'payload', type: 'jsonb' },
+              ],
+            });
+            await events.model.sync();
+            native = new files.AttachmentRemovalNativeCapture(docs, events);
+            await db.sequelize.transaction((transaction) => native.install(transaction));
+          });
+
+          afterEach(async () => {
+            await db.sequelize.query(`DROP FUNCTION IF EXISTS ${native.functionName}() CASCADE`);
+            await db.sequelize.query('DROP FUNCTION IF EXISTS tamper_native_evidence() CASCADE');
+          });
+
+          async function markedDelete(transaction: Transaction, id: string) {
+            await db.sequelize.query('SELECT set_config($setting, $id, true)', {
+              transaction,
+              bind: { setting: native.setting, id },
+            });
+            // Test fixture only: the production deletion executor and final G contract remain unimplemented.
+            await docs.repository.destroy({ filterByTk: 1, transaction });
+          }
+
+          async function exercise(consume: (handle: Readonly<{ id: string }>, tx: Transaction) => Promise<void>) {
+            const entry = mutations.captureAttachmentRemoval(await context(1, {}, 'destroy'), {
+              tenantId: 'B',
+              roleName: 'reader',
+              userId: 28,
+            });
+            await db.sequelize.transaction(async (transaction) => {
+              const handle = await files.withAuthorizedAttachmentRemovalStorage(entry, transaction, persist);
+              await markedDelete(transaction, handle.id);
+              await consume(handle, transaction);
+            });
+          }
+
+          it('matches actual OLD to the original intent after preparation expires without touching bytes', async () => {
+            docs.model.addHook('beforeDestroy', (row) => row.setDataValue('filename', 'memory-only.txt'));
+            await exercise((handle, transaction) => journal.assertNativeEventMatches(handle, native, transaction));
+            expect(await docs.model.findByPk(1)).toBeNull();
+            expect(await intents.model.count()).toBe(1);
+            expect(await events.model.count()).toBe(1);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('rejects a real beforeDestroy location change rather than trusting the old model instance', async () => {
+            docs.model.addHook('beforeDestroy', async (_row, { transaction }) => {
+              await docs.model.update(
+                { filename: 'changed-in-db.txt' },
+                { where: { id: 1 }, hooks: false, transaction },
+              );
+            });
+            await expect(
+              exercise((handle, transaction) => journal.assertNativeEventMatches(handle, native, transaction)),
+            ).rejects.toThrow('Native attachment event does not match its prepared intent');
+            expect((await docs.model.findByPk(1)).getDataValue('filename')).toBe('receipt.txt');
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('does not imply absence or cleanup permission when a hook recreates the original key', async () => {
+            docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+              await docs.repository.create({
+                values: {
+                  id: 1,
+                  tenantId: 'B',
+                  path: 'old/tenants/H',
+                  filename: 'receipt.txt',
+                  storageId: 18,
+                  size: bytes.length,
+                },
+                transaction,
+              });
+            });
+            await exercise((handle, transaction) => journal.assertNativeEventMatches(handle, native, transaction));
+            expect(await docs.model.count()).toBe(3);
+            expect(await events.model.count()).toBe(1);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('does not substitute a different registered source collection', async () => {
+            const alias = db.collection({
+              name: 'documents_alias',
+              schema: 'public',
+              template: 'file',
+              timestamps: false,
+              fields: [
+                { name: 'id', type: 'integer', primaryKey: true },
+                ...['tenantId', 'path', 'filename'].map((name) => ({ name, type: 'string' })),
+                { name: 'storageId', type: 'integer' },
+                { name: 'size', type: 'integer' },
+              ],
+            });
+            await alias.model.sync();
+            const alternate = new files.AttachmentRemovalNativeCapture(alias, events);
+            await expect(
+              exercise((handle, transaction) => journal.assertNativeEventMatches(handle, alternate, transaction)),
+            ).rejects.toThrow('Native removal event source or operation is unavailable');
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it.each(['transaction', 'table', 'key', 'owner', 'location', 'extra', 'version'])(
+            'rejects a native event with different %s and rolls back the fixture DELETE',
+            async (change) => {
+              await expect(
+                exercise(async (handle, transaction) => {
+                  const row = await events.model.findByPk(handle.id, { transaction });
+                  const payload = row.getDataValue('payload');
+                  if (change === 'transaction') payload.transactionId = '0';
+                  if (change === 'table') payload.source.oid = '0';
+                  if (change === 'key') payload.record.key = '2';
+                  if (change === 'owner') payload.record.tenantId = 'H';
+                  if (change === 'location') payload.record.filename = 'another.txt';
+                  if (change === 'extra') payload.extra = 'unrecognized';
+                  if (change === 'version') payload.schemaVersion = 9;
+                  await events.model.update({ payload }, { where: { id: handle.id }, transaction });
+                  await journal.assertNativeEventMatches(handle, native, transaction);
+                }),
+              ).rejects.toThrow('Native attachment event does not match its prepared intent');
+              expect(await docs.model.count()).toBe(3);
+              expect(await intents.model.count()).toBe(0);
+              expect(await events.model.count()).toBe(0);
+              expect(await fs.readFile(location())).toEqual(bytes);
+            },
+          );
+
+          it('rejects a changed persisted intent rather than trusting its public identifier', async () => {
+            await expect(
+              exercise(async (handle, transaction) => {
+                await intents.model.update(
+                  { payload: { state: 'completed' } },
+                  { where: { id: handle.id }, transaction },
+                );
+                await journal.assertNativeEventMatches(handle, native, transaction);
+              }),
+            ).rejects.toThrow('Removal intent no longer matches its original preparation');
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it('refuses a reconstructed handle even when its id matches the real intent', async () => {
+            await expect(
+              exercise((handle, transaction) =>
+                journal.assertNativeEventMatches({ id: handle.id }, native, transaction),
+              ),
+            ).rejects.toThrow('Original removal intent handle is unavailable');
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it('does not reuse a committed preparation in a later transaction', async () => {
+            const handle = await prepare(await context(1, {}, 'destroy'), persist);
+            await expect(
+              db.sequelize.transaction(async (transaction) => {
+                await markedDelete(transaction, handle.id);
+                await journal.assertNativeEventMatches(handle, native, transaction);
+              }),
+            ).rejects.toThrow('Original removal intent transaction is unavailable');
+            expect(await docs.model.count()).toBe(3);
+            expect(await events.model.count()).toBe(0);
+            expect(await intents.model.count()).toBe(1);
+          });
+
+          it('refuses missing native evidence even though preparation and the DELETE succeeded', async () => {
+            await expect(
+              exercise(async (handle, transaction) => {
+                await events.model.destroy({ where: { id: handle.id }, transaction });
+                await journal.assertNativeEventMatches(handle, native, transaction);
+              }),
+            ).rejects.toThrow('Native removal event is unavailable');
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it('rechecks the actual capture function when consuming evidence', async () => {
+            await expect(
+              exercise(async (handle, transaction) => {
+                await db.sequelize.query(`ALTER FUNCTION ${native.functionName}() SECURITY DEFINER`, { transaction });
+                await journal.assertNativeEventMatches(handle, native, transaction);
+              }),
+            ).rejects.toThrow('Native removal capture installation is unavailable or changed');
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it.each(['trigger', 'rls', 'rule'])(
+            'refuses evidence table %s behavior even if it currently preserves payloads',
+            async (change) => {
+              if (change === 'trigger')
+                await db.sequelize.query(`
+              CREATE FUNCTION tamper_native_evidence() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';
+              CREATE TRIGGER custom_evidence BEFORE INSERT ON attachment_removal_events FOR EACH ROW
+                EXECUTE FUNCTION tamper_native_evidence();
+            `);
+              else if (change === 'rls')
+                await db.sequelize.query('ALTER TABLE attachment_removal_events ENABLE ROW LEVEL SECURITY');
+              else
+                await db.sequelize.query(
+                  'CREATE RULE native_evidence_no_insert AS ON INSERT TO attachment_removal_events DO INSTEAD NOTHING',
+                );
+              await expect(
+                exercise((handle, transaction) => journal.assertNativeEventMatches(handle, native, transaction)),
+              ).rejects.toThrow('Native removal evidence has unsupported database behavior');
+              expect(await docs.model.count()).toBe(3);
+              expect(await fs.readFile(location())).toEqual(bytes);
+            },
+          );
         });
       });
 

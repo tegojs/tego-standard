@@ -2702,3 +2702,18 @@ Ruling: createAttachmentRemovalEvidenceAdapter 在原显式 recordCompletion:tru
 文件身份是准备时观察，后续文件/目录检查、跨进程严格对象读取及确定独占清理仍待交付；不得将一次捕获提升为文件系统锁。正式 selected executor、业务路由、自动安装、规则保存/启用继续关闭，§150 框架边界不变；整分支独立复核仍未完成。
 
 确认测试/构建均退出、真实集群目录/端口及零其他客户端后，仅删除本批专用库 tego_tenant_access_test_d17729e621，pg_database 计数确认 0；临时 PG 已停止，日志保留。删除的是可重建测试数据，未涉及业务数据。§176 已先独立提交 fa7a99bf4 并核实默认签名 G；本批按显式 SQL/完成链对象组合另作一个英文默认签名原子提交，不推送。下一项可先交付独立池上的严格对象/完成绑定读取，再推进共享路径/其他引用与清理协调；不是重做已有 SQL 完成 Inspector 或原生完整行观察。
+
+## 178. 独立池的对象与 SQL 完成绑定观察
+
+Ruling: 在既有 AttachmentRemovalCompletionInspector 另设 inspectLocalObject，构造时显式提供同一独立观察池上的对象 Collection；原 inspect 仍只返回原 SQL 观察协议，不输出路径。新方法复用同一拥有的主库 SERIALIZABLE 事务、严格 v3 意图、原生完整 OLD 和 pg_xact_status 已提交核验，再锁内读取对象日志，不另起第二笔观察事务拼接结果。代价是新方法输出包含位置的内部冻结历史快照，只供可信服务端组合，不可当作普通用户 API 或 cleanup token。
+
+新观察精确核对原 UUID、完整原 v2 意图与 v3 除完成状态外的一致性、原事务/物理来源/owner/位置/保留要求，以及原意图表和对象表实际 OID/schema/表/字段；四张来源/意图/原生事件/对象物理表必须独立。证据表结构和无继承/触发器/规则/RLS、原捕获安装及独立池端点继续前后复核。纯格式检查共用已有不安全路径段规则，不做文件 I/O；严格目录链、记录投影、根目录、十进制身份/时间/大小、版本/kind 和完整键集合，返回重新构建的深冻结快照。完整 OLD 数值仍只在 SQL 内重建，没有 JS 数值往返。
+
+缺原意图、prepared 或缺对象日志返回 unknown，不推断回滚；存在的日志格式/绑定漂移、物理表被同名复制重建或 RLS 直接失败。状态名 committed-object-binding-observed 只表示当前持久对象日志与过去 SQL 完成的一致性观察，不证明当前文件存在、没有引用或最初快照因果不可伪造。原 v3 没有对象内容摘要，本方法不能把自洽日志内容当作不可篡改的最初捕获值；仍依赖可信服务端和受控 schema，后续清理必须单独处理当前对象、引用及租约边界。
+
+- [x] 二十一项实际 PG 缺方法 RED 全部正确失败，保留 removal-object-inspection-red.log；最小实现后二十一项全部通过、三百九十三项仅名称/数据库分组过滤，退出 0，保留 removal-object-inspection-green.log。覆盖新池/映射、提交前 unknown/提交后观察、文件后来缺失仍只读历史快照、prepared/missing/无可选对象 unknown、显式配置、十三类格式/绑定漂移、实际对象表重建和 RLS。
+- [x] 文件包客户端/服务端/声明构建退出 0，保留 removal-object-inspection-build-file.log；独立快照既有 UnkVer/UnkBranch 提示不改变正式版本/依赖。
+- [x] 两个完整相关文件最终顺序回归二百九十八项通过、一百七十一项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；保留 removal-object-inspection-regression-final.log。二十一项新功能场景不与定向计数相加；另三项末尾换行文本边界原校验已拒绝，独立运行时验证也不支持作者最初的正则缺口假设，因此只保留覆盖，没有产品修复，不称 RED→GREEN。初轮完整回归二百九十五项通过/一百六十八项分组跳过亦保留于 removal-object-inspection-regression.log。
+- [x] 五份 TS 源码与快照 SHA256 一致，七文件 Prettier、五份 TS 的 oxlint 零错误/警告、diff及作者自审通过。产品源码在已通过的文件包构建后未再修改，不因三个测试用例重复包构建；整分支独立复核未完成。
+
+确认测试/构建均退出、实际集群目录/端口与零其他客户端后，仅删除本批专用库 tego_tenant_access_test_e17829f622，pg_database 计数核实 0；临时 PG 已停止，日志保留。删除的是可重建测试数据，未涉及业务数据。本批按独立对象/完成绑定观察作英文默认签名原子提交，不推送。正式运行时/selected executor/路由/自动安装与规则保存启用继续关闭；下一项推进共享路径/其他记录引用与受控清理协调。替换、崩溃发现及整分支独立复核尚未完成，原文件继续保留。

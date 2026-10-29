@@ -1179,6 +1179,206 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                         });
                       }
 
+                      describe('independent bound object inspection', () => {
+                        it('reads the committed binding from fresh mappings and returns a detached frozen historical snapshot', async () => {
+                          const stat = await fs.lstat(location(), { bigint: true });
+                          const result = await runBound();
+                          const other = await observer(objects);
+                          try {
+                            const seen = await other.inspector.inspectLocalObject(result.operationId);
+                            const completed = (await intents.model.findByPk(result.operationId)).getDataValue(
+                              'payload',
+                            );
+                            expect(seen).toMatchObject({
+                              state: 'committed-object-binding-observed',
+                              operationId: result.operationId,
+                              transactionId: completed.transactionId,
+                              object: {
+                                kind: 'attachment-removal-local-object',
+                                configuredRoot: root,
+                                record: { key: 1, storageId: 18 },
+                                object: { ino: String(stat.ino), size: String(bytes.length) },
+                              },
+                            });
+                            if (seen.state !== 'committed-object-binding-observed')
+                              throw new Error('Expected historical object evidence');
+                            expect(Object.isFrozen(seen.object)).toBe(true);
+                            expect(Object.isFrozen(seen.object.record)).toBe(true);
+                            expect(Object.isFrozen(seen.object.object)).toBe(true);
+                            expect(Object.isFrozen(seen.object.directories)).toBe(true);
+                            expect(Object.isFrozen(seen.object.directories[0])).toBe(true);
+                            expect(JSON.parse(JSON.stringify(seen))).toEqual(seen);
+                            expect(await other.inspector.inspect(result.operationId)).toEqual({
+                              state: 'committed-sql-observed',
+                              operationId: result.operationId,
+                              transactionId: completed.transactionId,
+                            });
+                            expect(await fs.readFile(location())).toEqual(bytes);
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('keeps the original active transaction unknown and observes its binding only after commit', async () => {
+                          docs.model.addHook('afterDestroy', async (_row, { transaction }) => {
+                            const handle = await intents.model.findOne({ transaction });
+                            const other = await observer(objects);
+                            try {
+                              expect(await other.inspector.inspectLocalObject(handle.getDataValue('id'))).toEqual({
+                                state: 'unknown',
+                              });
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+                          const result = await runBound();
+                          const other = await observer(objects);
+                          try {
+                            expect(await other.inspector.inspectLocalObject(result.operationId)).toMatchObject({
+                              state: 'committed-object-binding-observed',
+                            });
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('does not infer a current filesystem object or exclusive references from a committed binding', async () => {
+                          const result = await runBound();
+                          await fs.unlink(location());
+                          const other = await observer(objects);
+                          try {
+                            expect(await other.inspector.inspectLocalObject(result.operationId)).toMatchObject({
+                              state: 'committed-object-binding-observed',
+                            });
+                            expect(await docs.model.count()).toBe(2);
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('keeps missing object evidence and prepared SQL outcomes unknown', async () => {
+                          const { entry, evidence } = await execution();
+                          await entry.executeNativeRemoval(evidence);
+                          const prepared = (await intents.model.findOne()).getDataValue('id');
+                          const other = await observer(objects);
+                          try {
+                            expect(await other.inspector.inspectLocalObject(prepared)).toEqual({ state: 'unknown' });
+                            expect(
+                              await other.inspector.inspectLocalObject('00000000-0000-4000-8000-000000000000'),
+                            ).toEqual({ state: 'unknown' });
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('keeps a valid SQL completion without the optional object evidence unknown to the object reader', async () => {
+                          const { entry } = await execution();
+                          const result = await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                          const other = await observer(objects);
+                          try {
+                            expect(await other.inspector.inspectLocalObject(result.operationId)).toEqual({
+                              state: 'unknown',
+                            });
+                            expect(await other.inspector.inspect(result.operationId)).toMatchObject({
+                              state: 'committed-sql-observed',
+                            });
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('requires an explicitly configured object mapping rather than using an upload journal', async () => {
+                          const result = await runBound();
+                          const other = await observer();
+                          try {
+                            await expect(other.inspector.inspectLocalObject(result.operationId)).rejects.toThrow(
+                              'Object inspection requires an explicit independent object mapping',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it.each([
+                          'source',
+                          'transaction',
+                          'owner',
+                          'intent id',
+                          'intent journal',
+                          'object journal',
+                          'extra field',
+                          'inode',
+                          'inode newline',
+                          'mtime newline',
+                          'directory identity newline',
+                          'birthtime',
+                          'size',
+                          'directory',
+                          'collection',
+                          'root',
+                        ])('rejects persisted object binding drift: %s', async (change) => {
+                          const result = await runBound();
+                          const row = await objects.model.findByPk(result.operationId);
+                          const payload = structuredClone(row.getDataValue('payload'));
+                          if (change === 'source') payload.intent.payload.source.oid = '1';
+                          if (change === 'transaction') payload.intent.payload.transactionId = '1';
+                          if (change === 'owner') payload.intent.payload.record.tenantId = 'H';
+                          if (change === 'intent id') payload.intent.id = '00000000-0000-4000-8000-000000000000';
+                          if (change === 'intent journal') payload.intent.journal.oid = '1';
+                          if (change === 'object journal') payload.journal.oid = '1';
+                          if (change === 'extra field') payload.extra = true;
+                          if (change === 'inode') payload.object.object.ino = '01';
+                          if (change === 'inode newline') payload.object.object.ino += '\n';
+                          if (change === 'mtime newline') payload.object.object.mtimeNs += '\n';
+                          if (change === 'directory identity newline') payload.object.directories[0].dev += '\n';
+                          if (change === 'birthtime') payload.object.object.birthtimeNs = '0';
+                          if (change === 'size') payload.object.object.size = '999999';
+                          if (change === 'directory') payload.object.directories[1].path = '../elsewhere';
+                          if (change === 'collection') payload.object.collectionName = 'other_documents';
+                          if (change === 'root') payload.object.configuredRoot = path.join(root, 'other');
+                          await row.update({ payload });
+                          const other = await observer(objects);
+                          try {
+                            await expect(other.inspector.inspectLocalObject(result.operationId)).rejects.toThrow(
+                              'Removal object binding is invalid or inconsistent',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                          expect(await fs.readFile(location())).toEqual(bytes);
+                        });
+
+                        it('rejects a same-name object table recreated with copied exact evidence', async () => {
+                          const result = await runBound();
+                          await db.sequelize
+                            .query(`CREATE TABLE replacement_objects (LIKE attachment_removal_objects INCLUDING ALL);
+                            INSERT INTO replacement_objects SELECT * FROM attachment_removal_objects;
+                            DROP TABLE attachment_removal_objects;
+                            ALTER TABLE replacement_objects RENAME TO attachment_removal_objects;`);
+                          const other = await observer(objects);
+                          try {
+                            await expect(other.inspector.inspectLocalObject(result.operationId)).rejects.toThrow(
+                              'Removal object binding is invalid or inconsistent',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+
+                        it('rejects object RLS even when the table owner can still read every row', async () => {
+                          const result = await runBound();
+                          await db.sequelize.query('ALTER TABLE attachment_removal_objects ENABLE ROW LEVEL SECURITY');
+                          const other = await observer(objects);
+                          try {
+                            await expect(other.inspector.inspectLocalObject(result.operationId)).rejects.toThrow(
+                              'Completion journal has unsupported database behavior',
+                            );
+                          } finally {
+                            await other.db.close();
+                          }
+                        });
+                      });
+
                       it('commits one object binding, full OLD and v3 completion with the same original UUID and transaction', async () => {
                         const object = await fs.lstat(location(), { bigint: true });
                         const result = await runBound();
@@ -1411,16 +1611,17 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                     });
                   });
 
-                  async function observer() {
+                  async function observer(objects?: Collection) {
                     const other = isolatedPostgresDatabase(postgresUrl!);
                     try {
                       other.collection(storageDefinition);
                       const source = other.collection({ ...docs.options });
                       const intent = other.collection({ ...intents.options });
                       const event = other.collection({ ...events.options });
+                      const object = objects ? other.collection({ ...objects.options }) : undefined;
                       return {
                         db: other,
-                        inspector: new files.AttachmentRemovalCompletionInspector(db, source, intent, event),
+                        inspector: new files.AttachmentRemovalCompletionInspector(db, source, intent, event, object),
                       };
                     } catch (error) {
                       await other.close();

@@ -12,7 +12,7 @@ export interface LocalAttachmentReadRecord {
   readonly size: number;
 }
 
-const unsafeSegment = (segment: string) =>
+export const isUnsafeLocalAttachmentSegment = (segment: string) =>
   !segment ||
   segment === '.' ||
   segment === '..' ||
@@ -61,10 +61,10 @@ export async function withLocalAttachmentRead<T>(
     !key(captured.storageId) ||
     String(captured.storageId) !== String(storage.id) ||
     typeof captured.path !== 'string' ||
-    (captured.path !== '' && captured.path.split('/').some(unsafeSegment)) ||
+    (captured.path !== '' && captured.path.split('/').some(isUnsafeLocalAttachmentSegment)) ||
     typeof captured.filename !== 'string' ||
     captured.filename.includes('/') ||
-    unsafeSegment(captured.filename) ||
+    isUnsafeLocalAttachmentSegment(captured.filename) ||
     !Number.isSafeInteger(captured.size) ||
     captured.size < 0 ||
     typeof consume !== 'function'

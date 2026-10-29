@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { compileAccessScopes } from './compile';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { requiresAccessContext, resolveAccessContext, type AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import { resolveModelMetadata } from './model-metadata';
 import { AccessRuleError, type AccessConfig, type AccessScopes } from './types';
 
@@ -23,6 +24,12 @@ export interface ResolvedAccessScopes {
 
 export interface ScopedAccessQuery extends ResolvedAccessScopes {
   query: Pick<AccessPredicateQuery, 'where' | 'bind' | 'transaction'>;
+}
+
+interface ResolveScopeOptions {
+  rootAlias?: string;
+  parameterPrefix?: string;
+  transaction?: Transaction;
 }
 
 /** Internal root predicate service; entry adapters remain responsible for associations and mutations. */
@@ -66,7 +73,31 @@ export class AccessQueryService {
     ctx: object,
     identity: AccessCollectionIdentity,
     authenticated: AccessIdentity,
-    options: { rootAlias?: string; parameterPrefix?: string; transaction?: Transaction } = {},
+    options: ResolveScopeOptions = {},
+  ): Promise<ResolvedAccessScopes | null> {
+    return this.resolveCompiledScopes(ctx, identity, authenticated, options, false);
+  }
+
+  /** Internal predicate snapshot, not action authorization or a deletion/cleanup lease.
+   * Consumers must intersect final ACL and omit ORM bind options entirely.
+   */
+  async resolveNativeScopes(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    options: Omit<ResolveScopeOptions, 'parameterPrefix'> = {},
+  ): Promise<ResolvedAccessScopes | null> {
+    if (!['sqlite', 'postgres'].includes(this.db.sequelize.getDialect()))
+      throw new AccessRuleError('INVALID_ACCESS_RULE', 'Native access scopes require an explicitly supported dialect');
+    return this.resolveCompiledScopes(ctx, identity, authenticated, options, true);
+  }
+
+  private async resolveCompiledScopes(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    options: ResolveScopeOptions,
+    native: boolean,
   ): Promise<ResolvedAccessScopes | null> {
     identity = { ...identity };
     const config = this.prepared.configuration(ctx, identity);
@@ -81,7 +112,13 @@ export class AccessQueryService {
       throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query model identity does not match its configuration');
     }
     const { transaction, rootAlias = collection.model.name, parameterPrefix } = options;
+    const metadataCurrent = native ? accessMetadataGuard(this.db, [{ model, config }]) : undefined;
     const context = await resolveAccessContext(this.db, config, { ...authenticated }, { transaction });
+    if (native && transaction) {
+      const state = transaction as Transaction & { finished?: string; sequelize: Database['sequelize'] };
+      if (state.finished || state.sequelize !== this.db.sequelize)
+        throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Invalid authorization transaction after scope resolution');
+    }
     // An ended or replaced phase cannot publish a late authorization result.
     if (this.prepared.configuration(ctx, identity) !== config) {
       throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query phase changed during scope resolution');
@@ -93,6 +130,7 @@ export class AccessQueryService {
     ) {
       throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query model identity changed during scope resolution');
     }
+    metadataCurrent?.();
     const metadata = resolveModelMetadata(collection, { resolveCollectionKey: this.resolveCollectionKey });
     const queryInterface = this.db.sequelize.getQueryInterface();
     return {
@@ -102,7 +140,19 @@ export class AccessQueryService {
         context,
         rootAlias,
         parameterPrefix,
-        quoteIdentifier: (name) => queryInterface.quoteIdentifier(name),
+        // The installed PostgreSQL ORM removes embedded quotes; native SQL must preserve physical names.
+        quoteIdentifier: (name) => (native ? `"${name.replaceAll('"', '""')}"` : queryInterface.quoteIdentifier(name)),
+        // Selected here by trusted server code, never forwarded from request/compiler options.
+        ...(native
+          ? {
+              quoteValue: (value) =>
+                String(
+                  (queryInterface.queryGenerator as unknown as { escape(value: unknown): string | number }).escape(
+                    value,
+                  ),
+                ),
+            }
+          : {}),
       }),
     };
   }

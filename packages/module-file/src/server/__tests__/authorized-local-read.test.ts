@@ -333,6 +333,309 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
           return journal.persist(proof);
         };
 
+        describe('bound local removal object evidence', () => {
+          let objects: Collection;
+
+          beforeEach(async () => {
+            objects = db.collection({
+              name: 'attachment_removal_objects',
+              autoGenId: false,
+              timestamps: false,
+              fields: [
+                { name: 'id', type: 'string', primaryKey: true },
+                { name: 'payload', type: 'jsonb' },
+              ],
+            });
+            await objects.model.sync();
+          });
+
+          afterEach(async () => {
+            await db.sequelize.query('DROP FUNCTION IF EXISTS tamper_removal_object(jsonb) CASCADE');
+          });
+
+          it('stores actual object identity with the original UUID, transaction and complete physical intent', async () => {
+            const stat = await fs.lstat(location(), { bigint: true });
+            const handle = await prepare(await context(1, {}, 'destroy'), async (proof) => {
+              const handle = await persist(proof);
+              await journal.persistLocalObject(handle, proof, objects);
+              await journal.assertLocalObjectMatches(handle, proof.transaction);
+              const other = isolatedPostgresDatabase(postgresUrl!);
+              try {
+                const [rows] = await other.sequelize.query('SELECT id FROM attachment_removal_objects');
+                expect(rows).toHaveLength(0);
+              } finally {
+                await other.close();
+              }
+              return handle;
+            });
+            const intent = (await intents.model.findByPk(handle.id)).getDataValue('payload');
+            const [physical] = await db.sequelize
+              .query(`SELECT 'attachment_removal_intents'::regclass::oid::text AS oid,
+              'attachment_removal_objects'::regclass::oid::text AS object_oid`);
+            const row = await objects.model.findByPk(handle.id);
+            expect(row.getDataValue('payload')).toEqual({
+              schemaVersion: 1,
+              kind: 'attachment-removal-bound-local-object',
+              journal: {
+                oid: physical[0].object_oid,
+                schema: 'public',
+                tableName: 'attachment_removal_objects',
+                primaryField: 'id',
+                payloadField: 'payload',
+              },
+              intent: {
+                id: handle.id,
+                payload: intent,
+                journal: {
+                  oid: physical[0].oid,
+                  schema: 'public',
+                  tableName: 'attachment_removal_intents',
+                  primaryField: 'id',
+                  payloadField: 'payload',
+                },
+              },
+              object: expect.objectContaining({
+                schemaVersion: 1,
+                kind: 'attachment-removal-local-object',
+                configuredRoot: root,
+                root: await fs.realpath(root),
+                record: { key: 1, path: 'old/tenants/H', filename: 'receipt.txt', storageId: 18, size: bytes.length },
+                object: {
+                  dev: String(stat.dev),
+                  ino: String(stat.ino),
+                  birthtimeNs: String(stat.birthtimeNs),
+                  mtimeNs: String(stat.mtimeNs),
+                  ctimeNs: String(stat.ctimeNs),
+                  size: String(bytes.length),
+                },
+              }),
+            });
+            expect(intent.schemaVersion).toBe(2);
+            expect(intent.state).toBe('prepared');
+            expect(intent.transactionId).toMatch(/^\d+$/);
+            expect(intent.source).toMatchObject({ schema: 'public', tableName: 'documents', primaryField: 'id' });
+            expect(intent.record.tenantId).toBe('B');
+            expect(await docs.model.count()).toBe(3);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('rolls object evidence back with its original intent and caller transaction', async () => {
+            await expect(
+              prepare(await context(1, {}, 'destroy'), async (proof) => {
+                const handle = await persist(proof);
+                await journal.persistLocalObject(handle, proof, objects);
+                throw new Error('rollback bound object');
+              }),
+            ).rejects.toThrow('rollback bound object');
+            expect(await objects.model.count()).toBe(0);
+            expect(await intents.model.count()).toBe(0);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('rejects copied handles and reconstructed preparations even with identical values', async () => {
+            await prepare(await context(1, {}, 'destroy'), async (proof) => {
+              const handle = await persist(proof);
+              await expect(journal.persistLocalObject({ ...handle }, proof, objects)).rejects.toThrow(
+                'Original removal intent handle is unavailable',
+              );
+              await expect(journal.persistLocalObject(handle, { ...proof }, objects)).rejects.toThrow(
+                'Original removal object preparation is unavailable',
+              );
+              expect(await objects.model.count({ transaction: proof.transaction })).toBe(0);
+            });
+          });
+
+          it('does not rebind an old handle to another active transaction or preparation', async () => {
+            const old = await prepare(await context(1, {}, 'destroy'), persist);
+            await prepare(await context(1, {}, 'destroy'), async (proof) => {
+              await expect(journal.persistLocalObject(old, proof, objects)).rejects.toThrow(
+                'Original removal intent transaction is unavailable',
+              );
+            });
+            expect(await objects.model.count()).toBe(0);
+          });
+
+          it('refuses a changed persisted intent before binding filesystem evidence', async () => {
+            await expect(
+              prepare(await context(1, {}, 'destroy'), async (proof) => {
+                const handle = await persist(proof);
+                await intents.model.update(
+                  { payload: { state: 'prepared' } },
+                  { where: { id: handle.id }, transaction: proof.transaction },
+                );
+                await journal.persistLocalObject(handle, proof, objects);
+              }),
+            ).rejects.toThrow('Removal intent no longer matches its original preparation');
+            expect(await objects.model.count()).toBe(0);
+            expect(await intents.model.count()).toBe(0);
+          });
+
+          it('refuses to use the intent table as the independent object evidence table', async () => {
+            await expect(
+              prepare(await context(1, {}, 'destroy'), async (proof) => {
+                const handle = await persist(proof);
+                await journal.persistLocalObject(handle, proof, intents);
+              }),
+            ).rejects.toThrow('Removal object evidence requires independent physical tables');
+            expect(await intents.model.count()).toBe(0);
+          });
+
+          it('keeps object evidence one-shot rather than silently replacing the recorded object', async () => {
+            await prepare(await context(1, {}, 'destroy'), async (proof) => {
+              const handle = await persist(proof);
+              await journal.persistLocalObject(handle, proof, objects);
+              await expect(journal.persistLocalObject(handle, proof, objects)).rejects.toThrow(
+                'Removal object evidence already exists for this intent',
+              );
+              await journal.assertLocalObjectMatches(handle, proof.transaction);
+            });
+            expect(await objects.model.count()).toBe(1);
+          });
+
+          it.each(['object', 'source', 'transaction', 'intent', 'missing'])(
+            'detects actual evidence drift: %s',
+            async (kind) => {
+              await expect(
+                prepare(await context(1, {}, 'destroy'), async (proof) => {
+                  const handle = await persist(proof);
+                  await journal.persistLocalObject(handle, proof, objects);
+                  const row = await objects.model.findByPk(handle.id, { transaction: proof.transaction });
+                  const payload = structuredClone(row.getDataValue('payload'));
+                  if (kind === 'object') payload.object.object.ino = '999999999999999999999';
+                  if (kind === 'source') payload.intent.payload.source.oid = '1';
+                  if (kind === 'transaction') payload.intent.payload.transactionId = '1';
+                  if (kind === 'intent') payload.intent.id = '00000000-0000-4000-8000-000000000000';
+                  if (kind === 'missing')
+                    await objects.model.destroy({ where: { id: handle.id }, transaction: proof.transaction });
+                  else await row.update({ payload }, { transaction: proof.transaction });
+                  await journal.assertLocalObjectMatches(handle, proof.transaction);
+                }),
+              ).rejects.toThrow('Removal object evidence no longer matches its original binding');
+              expect(await objects.model.count()).toBe(0);
+              expect(await fs.readFile(location())).toEqual(bytes);
+            },
+          );
+
+          it('rechecks final destroy authorization after the object evidence write', async () => {
+            const ctx = await context(1, {}, 'destroy');
+            const create = objects.model.create;
+            vi.spyOn(objects.model, 'create').mockImplementationOnce(async function (...args) {
+              const row = await create.apply(this, args);
+              Object.assign(ctx.permission as object, { can: false, skip: false });
+              return row;
+            });
+            await expect(
+              prepare(ctx, async (proof) => {
+                const handle = await persist(proof);
+                await journal.persistLocalObject(handle, proof, objects);
+              }),
+            ).rejects.toThrow('Attachment removal identity, final decision or preparation phase changed');
+            expect(await objects.model.count()).toBe(0);
+            expect(await intents.model.count()).toBe(0);
+          });
+
+          it('does not mistake a prepared handle without an object binding for object evidence', async () => {
+            await prepare(await context(1, {}, 'destroy'), async (proof) => {
+              const handle = await persist(proof);
+              await expect(journal.assertLocalObjectMatches(handle, proof.transaction)).rejects.toThrow(
+                'Original removal object binding is unavailable',
+              );
+            });
+          });
+
+          it.each(['rls', 'rule', 'column'])(
+            'refuses unsupported object journal behavior before insertion: %s',
+            async (kind) => {
+              if (kind === 'rls')
+                await db.sequelize.query('ALTER TABLE attachment_removal_objects ENABLE ROW LEVEL SECURITY');
+              if (kind === 'rule')
+                await db.sequelize.query(
+                  'CREATE RULE skip_object_insert AS ON INSERT TO attachment_removal_objects DO INSTEAD NOTHING',
+                );
+              if (kind === 'column')
+                await db.sequelize.query('ALTER TABLE attachment_removal_objects ADD COLUMN extra text');
+              await expect(
+                prepare(await context(1, {}, 'destroy'), async (proof) => {
+                  const handle = await persist(proof);
+                  await journal.persistLocalObject(handle, proof, objects);
+                }),
+              ).rejects.toThrow(
+                kind === 'column'
+                  ? 'Removal intent table requires its own primary key and no references or extra columns'
+                  : 'Completion journal has unsupported database behavior',
+              );
+              expect(await intents.model.count()).toBe(0);
+              expect(await objects.model.count()).toBe(0);
+            },
+          );
+
+          it('observes real CHECK-function business writes after insertion and rolls the whole preparation back', async () => {
+            await db.sequelize.query(`
+              CREATE FUNCTION tamper_removal_object(value jsonb) RETURNS boolean LANGUAGE plpgsql AS $$
+              BEGIN UPDATE documents SET "tenantId"='H' WHERE id=1; RETURN true; END $$;
+              ALTER TABLE attachment_removal_objects ADD CONSTRAINT check_object CHECK (tamper_removal_object(payload));
+            `);
+            await expect(
+              prepare(await context(1, {}, 'destroy'), async (proof) => {
+                const handle = await persist(proof);
+                await journal.persistLocalObject(handle, proof, objects);
+              }),
+            ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+            expect((await docs.model.findByPk(1)).getDataValue('tenantId')).toBe('B');
+            expect(await intents.model.count()).toBe(0);
+            expect(await objects.model.count()).toBe(0);
+            expect(await fs.readFile(location())).toEqual(bytes);
+          });
+
+          it('detects a replaced physical source even if its name and every stored record value are preserved', async () => {
+            await expect(
+              prepare(await context(1, {}, 'destroy'), async (proof) => {
+                const handle = await persist(proof);
+                await journal.persistLocalObject(handle, proof, objects);
+                await db.sequelize.query(
+                  `
+                CREATE TABLE replacement_documents (LIKE documents INCLUDING ALL);
+                INSERT INTO replacement_documents SELECT * FROM documents;
+                DROP TABLE documents;
+                ALTER TABLE replacement_documents RENAME TO documents;
+              `,
+                  { transaction: proof.transaction },
+                );
+                await journal.assertLocalObjectMatches(handle, proof.transaction);
+              }),
+            ).rejects.toThrow('Removal object source physical identity changed');
+            expect(await intents.model.count()).toBe(0);
+            expect(await objects.model.count()).toBe(0);
+            expect(await docs.model.count()).toBe(3);
+          });
+
+          it.each(['intents', 'objects'])(
+            'rejects a physically replaced evidence table with copied exact rows: %s',
+            async (kind) => {
+              await expect(
+                prepare(await context(1, {}, 'destroy'), async (proof) => {
+                  const handle = await persist(proof);
+                  await journal.persistLocalObject(handle, proof, objects);
+                  // Fixed fixture identifiers only; both replacements live in this test transaction.
+                  const table = kind === 'intents' ? 'attachment_removal_intents' : 'attachment_removal_objects';
+                  await db.sequelize.query(
+                    `
+                CREATE TABLE replacement_evidence (LIKE ${table} INCLUDING ALL);
+                INSERT INTO replacement_evidence SELECT * FROM ${table};
+                DROP TABLE ${table};
+                ALTER TABLE replacement_evidence RENAME TO ${table};
+              `,
+                    { transaction: proof.transaction },
+                  );
+                  await journal.assertLocalObjectMatches(handle, proof.transaction);
+                }),
+              ).rejects.toThrow(/Removal object .*journal.*identity changed/);
+              expect(await intents.model.count()).toBe(0);
+              expect(await objects.model.count()).toBe(0);
+            },
+          );
+        });
+
         // A committed intent is observable from another pool, but the original record and bytes remain.
         it('commits only a prepared intent with the original location and retention policy', async () => {
           journal = undefined;

@@ -2669,3 +2669,20 @@ Ruling: 对象证据必须在真实 destroy/G 的原存储准备仍有效、原�
 - [x] 文件包客户端、服务端及声明构建退出 0，保留 removal-object-identity-build-file.log；三份源码与快照 SHA256 一致，五文件 Prettier 通过、三份 TS 的 oxlint 零错误/警告、diff 与作者自审通过。仅修改文件包，不重复租户包已有构建；整分支独立复核未完成。
 
 独立专用库 tego_tenant_access_test_b17529c619 仅供本批串行验证。确认所有测试/构建退出、真实集群目录及零其他客户端后，仅删除该库并核实 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按既有对象只读身份证据作英文默认签名原子提交，不推送。下一项先将该证据与真实原意图/事务/来源严格持久化绑定，再完成共享路径/其他引用及受控清理协调；不能以来源名称、owner/位置或本次快照单独授权删除。崩溃发现、其他入口与正式整合仍未完成，原文件继续保留。
+
+## 176. 同原意图及物理来源的本地对象持久化绑定
+
+Ruling: 另行显式传入独立两列对象证据 Collection，由原 AttachmentRemovalIntentJournal.persistLocalObject 只接受原 WeakMap 句柄及 persist 时的同一准备对象，在同一活动顶层写事务内自行只读捕获对象。不接收外部文件快照、另一份记录/存储或重构的准备对象；默认 v2 prepared/v3 完成格式均不扩展。代价是多一张须由可信服务端明确登记的证据表，尚不能直接供原完成 Inspector 使用；避免无声改变已有完成读取协议。
+
+独立 kind:attachment-removal-bound-local-object/schemaVersion:1 按原 UUID 写入，保存完整原 v2 意图、原事务 txid、实际业务来源 OID/schema/物理表/键列/owner 列/实际归属、位置/原存储保留策略，以及原意图表和对象表的实际 OID/schema/表/物理两列。写入前后重新检查原意图实际值、来源行/归属/位置、最终 destroy/G 和存储，并在数据库写入之后重新只读捕获文件/目录身份，拒绝等待期间发生的替换。只在实际回读完全一致后建立本实例私有绑定；第二次持久化拒绝覆盖。新 assertLocalObjectMatches 仅做同活动原事务、原句柄、原 prepared 意图和实际日志的精确一致性观察。
+
+Ruling: 作者自审实际 PG RED 证明仅查元数据及原 payload 会接受同事务内重建且复制完全相同记录的来源表，也会接受复制相同日志的对象证据表。现复核真实来源 OID，并固定两张证据表的物理身份；同名同值不能替代原物理表。原意图表替换原已被身份比较拒绝，不计作新增 RED。代价是 schema 重建后的旧证据必须另行恢复校验，不能按名称自动信任或迁移。
+
+- [x] 首批十三项实际 PG 缺方法 RED，保留 removal-object-binding-red.log；最小实现十二项通过、一项仅预期错误文本错误，已对照原最终权限检查的真实错误修正，不修改产品拒绝。原意图表 provenance 断言补充后正确 RED，保留 removal-object-binding-provenance-red.log；随后十三项定向通过，保留 removal-object-binding-green-final.log。
+- [x] 来源重建和对象证据表重建分别实际复现意外成功，保留 removal-object-binding-source-red.log、removal-object-binding-table-red.log。完成 OID 复核后最终二十一项实际 PG 定向通过，三百三十五项仅名称/数据库分组过滤，退出 0；保留 removal-object-binding-green-complete.log。包括独立池提交前不可见、回滚一并消失、句柄/准备/事务隔离、实际证据漂移、缺证据、三类日志行为拒绝及真实 CHECK 函数在 INSERT 内改归属后整笔回滚。
+- [x] 两个完整相关文件串行二百六十六项通过、一百三十九项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；保留 removal-object-binding-regression.log。二十一项新增实际 PG 场景不与定向计数相加。
+- [x] 文件包客户端/服务端/声明构建退出 0，保留 removal-object-binding-build-file.log；独立快照既有 UnkVer/UnkBranch 提示未改变正式版本或依赖。两份 TS 源码与快照 SHA256 一致，四文件 Prettier、两份 TS 的 oxlint 零错误/警告、diff及作者自审通过。自审的物理身份缺口已分别真实 RED→GREEN 修正；没有调用旧 storage.delete，没有改变原准备后置条件、全局 ACL 或 eager-loading。整分支独立复核未完成。
+
+本步只在可信原准备期间持久化对象观察，不删除业务行或字节，不提升原意图状态；原行存在的准备后置条件保留。对象证据的同事务观察不验证跨进程确定提交、最新授权、无共享路径/其他引用或清理租约，也不证明后续文件未替换或提供原子 inode 条件 unlink。仍依赖稳定服务端独占目录及受控 schema；没有接入 SQL 删除适配器、selected executor、正式动作/路由或自动安装，没有扩大旧上传取消证据的权限。跨进程对象读取/完成组合、引用协调、实际受控清理及崩溃发现仍待后续交付；整分支独立复核未完成。
+
+确认测试/构建均退出、真实集群目录/端口及零其他客户端后，仅删除专用库 tego_tenant_access_test_c17629d620，pg_database 计数确认 0，临时 PG 已停止，日志保留。删除的是可重建测试数据，未涉及业务数据。本批按对象证据原意图/物理身份绑定作一个英文默认签名原子提交，不推送；下一项继续可信 SQL 执行/完成记录中的显式对象绑定组合，再推进共享路径/其他引用和受控清理协调。

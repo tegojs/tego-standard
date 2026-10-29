@@ -4,6 +4,7 @@ import { Transaction, type Collection, type Database } from '@tego/server';
 
 import type { AuthorizedAttachmentRemovalPreparation } from './authorized-removal-storage';
 import { lockAttachmentJournalStructure } from './journal-structure';
+import { captureLocalAttachmentRemovalObject } from './local-removal-object';
 import { getLocalStorageRoot } from './local-root';
 import { AttachmentRemovalNativeCapture } from './native-removal-capture';
 
@@ -13,6 +14,14 @@ interface SourceProvenance {
   schema: string;
   tableName: string;
   tenantId: string | null;
+}
+
+interface JournalProvenance {
+  oid: string;
+  schema: string;
+  tableName: string;
+  primaryField: string;
+  payloadField: string;
 }
 
 /**
@@ -31,8 +40,14 @@ export class AttachmentRemovalIntentJournal {
     {
       collection: Collection;
       transaction: Transaction;
+      preparation: AuthorizedAttachmentRemovalPreparation;
       payload: ReturnType<AttachmentRemovalIntentJournal['capture']>;
       completed?: Record<string, unknown>;
+      localObject?: {
+        journal: AttachmentRemovalIntentJournal;
+        provenance: { intent: JournalProvenance; object: JournalProvenance };
+        payload: Record<string, unknown>;
+      };
     }
   >();
 
@@ -215,6 +230,7 @@ export class AttachmentRemovalIntentJournal {
     this.preparations.set(handle, {
       collection: preparation.collection,
       transaction,
+      preparation,
       payload: structuredClone(payload),
     });
     return handle;
@@ -244,6 +260,152 @@ export class AttachmentRemovalIntentJournal {
     if (!row || row.getDataValue('id') !== handle.id || !isDeepStrictEqual(row.getDataValue('payload'), expected))
       throw new TypeError('Removal intent no longer matches its original preparation');
     return original;
+  }
+
+  private async assertObjectJournal(
+    objects: AttachmentRemovalIntentJournal,
+    source: Collection,
+    transaction: Transaction,
+    sourceOid: string,
+  ) {
+    await this.assertCompletionJournal(source, transaction);
+    await objects.assertCompletionJournal(source, transaction);
+    const [rows] = await this.database.sequelize.query(
+      `SELECT i.oid::text AS intent, o.oid::text AS object,
+        pg_catalog.to_regclass($source)::oid::text AS source,
+        n.nspname::text AS schema, i.relname::text AS "tableName",
+        onsp.nspname::text AS "objectSchema", o.relname::text AS "objectTable"
+      FROM pg_catalog.pg_class i JOIN pg_catalog.pg_namespace n ON n.oid=i.relnamespace
+      JOIN pg_catalog.pg_class o ON o.oid=pg_catalog.to_regclass($object)
+      JOIN pg_catalog.pg_namespace onsp ON onsp.oid=o.relnamespace
+      WHERE i.oid=pg_catalog.to_regclass($intent)`,
+      {
+        transaction,
+        bind: {
+          intent: this.quoteTable(this.model),
+          object: objects.quoteTable(objects.model),
+          source: this.quoteTable(source.model),
+        },
+      },
+    );
+    const physical = (
+      rows as {
+        intent: string;
+        object: string;
+        source: string;
+        schema: string;
+        tableName: string;
+        objectSchema: string;
+        objectTable: string;
+      }[]
+    )[0];
+    if (physical?.source !== sourceOid) throw new TypeError('Removal object source physical identity changed');
+    if (!physical?.intent || !physical.object || new Set([physical.intent, physical.object, sourceOid]).size !== 3)
+      throw new TypeError('Removal object evidence requires independent physical tables');
+    return {
+      intent: {
+        oid: physical.intent,
+        schema: physical.schema,
+        tableName: physical.tableName,
+        primaryField: this.attributes[0].column,
+        payloadField: this.attributes[1].column,
+      },
+      object: {
+        oid: physical.object,
+        schema: physical.objectSchema,
+        tableName: physical.objectTable,
+        primaryField: objects.attributes[0].column,
+        payloadField: objects.attributes[1].column,
+      },
+    } satisfies { intent: JournalProvenance; object: JournalProvenance };
+  }
+
+  /**
+   * Explicit preparation-time capture only. No caller-supplied snapshot, reconstructed preparation,
+   * state promotion, row deletion or byte mutation. Caller must roll back on every error.
+   * The separate table preserves the default v2/v3 formats; no table is created automatically.
+   */
+  async persistLocalObject(
+    handle: Readonly<{ id: string }>,
+    preparation: AuthorizedAttachmentRemovalPreparation,
+    collection: Collection,
+  ): Promise<void> {
+    const original = await this.verifiedPreparation(handle, preparation.transaction);
+    if (original.preparation !== preparation) throw new TypeError('Original removal object preparation is unavailable');
+    if (original.localObject) throw new TypeError('Removal object evidence already exists for this intent');
+    // Reuse the internal two-column journal identity/structure validator, not its intent writer.
+    const objects = new AttachmentRemovalIntentJournal(collection);
+    const { transaction } = original;
+    const assertOriginal = async () => {
+      await this.verifiedPreparation(handle, transaction);
+      await preparation.assertCurrent();
+      const provenance = await this.sourceProvenance(preparation);
+      await preparation.assertCurrent();
+      if (!isDeepStrictEqual(this.capture(preparation, provenance), original.payload))
+        throw new TypeError('Removal object source no longer matches its original intent');
+      return this.assertObjectJournal(objects, original.collection, transaction, original.payload.source.oid);
+    };
+    const provenance = await assertOriginal();
+    const object = await captureLocalAttachmentRemovalObject(preparation);
+    if (object.configuredRoot !== original.payload.storage.root)
+      throw new TypeError('Removal object root does not match its original intent');
+    const payload = {
+      schemaVersion: 1,
+      kind: 'attachment-removal-bound-local-object',
+      journal: provenance.object,
+      intent: { id: handle.id, journal: provenance.intent, payload: structuredClone(original.payload) },
+      object,
+    };
+    if (!isDeepStrictEqual(await assertOriginal(), provenance))
+      throw new TypeError('Removal object intent journal identity changed');
+    await objects.model.unscoped().create({ id: handle.id, payload }, { hooks: false, transaction });
+    await this.readLocalObject(objects, handle.id, transaction, payload);
+    // Database waits/writes must not silently bind a replacement object or revoked preparation.
+    if (!isDeepStrictEqual(await captureLocalAttachmentRemovalObject(preparation), object))
+      throw new TypeError('Removal object changed while its binding was stored');
+    if (!isDeepStrictEqual(await assertOriginal(), provenance))
+      throw new TypeError('Removal object intent journal identity changed');
+    await this.readLocalObject(objects, handle.id, transaction, payload);
+    original.localObject = { journal: objects, provenance, payload: structuredClone(payload) };
+  }
+
+  private async readLocalObject(
+    objects: AttachmentRemovalIntentJournal,
+    id: string,
+    transaction: Transaction,
+    expected: Record<string, unknown>,
+  ) {
+    const options = {
+      attributes: ['id', 'payload'],
+      hooks: false,
+      useMaster: true,
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    };
+    const row = await objects.model.unscoped().findByPk(id, options);
+    if (!row || row.getDataValue('id') !== id || !isDeepStrictEqual(row.getDataValue('payload'), expected))
+      throw new TypeError('Removal object evidence no longer matches its original binding');
+  }
+
+  /** Same active original handle/transaction only. Not a commit observation or cleanup capability. */
+  async assertLocalObjectMatches(handle: Readonly<{ id: string }>, transaction: Transaction): Promise<void> {
+    const original = await this.verifiedPreparation(handle, transaction);
+    const evidence = original.localObject;
+    if (!evidence) throw new TypeError('Original removal object binding is unavailable');
+    const assertJournal = async () => {
+      const provenance = await this.assertObjectJournal(
+        evidence.journal,
+        original.collection,
+        transaction,
+        original.payload.source.oid,
+      );
+      if (!isDeepStrictEqual(provenance, evidence.provenance))
+        throw new TypeError('Removal object intent journal identity changed');
+    };
+    await assertJournal();
+    await this.readLocalObject(evidence.journal, handle.id, transaction, evidence.payload);
+    await this.verifiedPreparation(handle, transaction);
+    await assertJournal();
   }
 
   /** Explicit completion mode only. Holds structure stable; never installs or changes schema. */

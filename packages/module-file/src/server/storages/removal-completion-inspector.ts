@@ -6,6 +6,7 @@ import type { LocalAttachmentRemovalObject } from './local-removal-object';
 import { AttachmentRemovalNativeCapture } from './native-removal-capture';
 import { AttachmentRemovalIntentJournal } from './removal-intent-journal';
 import { validateLocalAttachmentRemovalObject } from './removal-object-validation';
+import { AttachmentRemovalReferenceWriteFence } from './removal-reference-fence';
 import { captureRemovalReferenceMappings, type AttachmentRemovalReferenceMappings } from './removal-reference-mappings';
 import { lockAttachmentRemovalReferenceScope, type AttachmentRemovalReferenceScope } from './removal-reference-scope';
 
@@ -26,10 +27,15 @@ export type AttachmentRemovalCommittedReferenceObservation =
   | Readonly<{ state: 'unknown' }>
   | Readonly<{ state: 'committed-reference-observed'; operationId: string; transactionId: string; references: number }>;
 
+export type AttachmentRemovalReferenceReservation =
+  | Readonly<{ state: 'unknown' }>
+  | Readonly<{ state: 'committed-reference-fence-reservation'; operationId: string; transactionId: string }>;
+
 /**
  * Trusted-server outcome observation, from explicitly independent mappings/pool on the same primary.
  * Owns its transaction and reads/locks SQL evidence; explicit reference inspection also reads current
- * filesystem metadata. No schema installation, lease, row/byte deletion or operation-state update.
+ * filesystem metadata. No schema installation, lease or row/byte deletion. The explicit reservation
+ * method alone writes its coordination binding/fence; ordinary inspection does not update state.
  * A missing/prepared outcome remains unknown, never rollback.
  * inspect reports SQL only; explicit inspectLocalObject adds a historical persisted object snapshot.
  * Neither proves current absence, fresh ACL, causal unforgeability, references or current file identity.
@@ -42,6 +48,7 @@ export class AttachmentRemovalCompletionInspector {
   private readonly endpoint: { host: string; port: number; database: string };
   private readonly objectJournal?: AttachmentRemovalIntentJournal;
   private readonly references?: ReturnType<typeof captureRemovalReferenceMappings>;
+  private readonly referenceFence?: AttachmentRemovalReferenceWriteFence;
 
   constructor(
     private readonly businessDatabase: Database,
@@ -50,6 +57,7 @@ export class AttachmentRemovalCompletionInspector {
     private readonly events: Collection,
     private readonly objects?: Collection,
     referenceMappings?: AttachmentRemovalReferenceMappings,
+    reservation?: { readonly fence: Collection },
   ) {
     this.database = source.db;
     this.endpoint = this.connection(this.database);
@@ -70,6 +78,21 @@ export class AttachmentRemovalCompletionInspector {
     if (referenceMappings !== undefined) {
       if (!objects) throw new TypeError('Reference inspection requires explicit complete independent mappings');
       this.references = captureRemovalReferenceMappings(businessDatabase, this.database, referenceMappings);
+    }
+    if (reservation !== undefined) {
+      const fence = reservation.fence;
+      if (
+        !this.references ||
+        fence?.db !== this.database ||
+        [source, intents, events, objects].some((value) => value && this.table(value.model) === this.table(fence.model))
+      )
+        throw new TypeError('Reference reservation requires an explicit independent fence mapping');
+      this.referenceFence = new AttachmentRemovalReferenceWriteFence(
+        this.database,
+        this.references.sources,
+        this.references.storages,
+        fence,
+      );
     }
   }
 
@@ -191,7 +214,7 @@ export class AttachmentRemovalCompletionInspector {
       !isDeepStrictEqual(object.record, location)
     )
       return invalid();
-    return object;
+    return { object, binding: payload as Record<string, unknown> };
   }
 
   private async expectedHeader(payload: unknown, transaction: Transaction) {
@@ -294,19 +317,29 @@ export class AttachmentRemovalCompletionInspector {
     return this.inspectEvidence(operationId, 'references');
   }
 
+  /** Owned, fixed verification and persistent denial state. Never an unlink or filesystem lease. */
+  async reserveLocalReferences(operationId: string): Promise<AttachmentRemovalReferenceReservation> {
+    if (!this.referenceFence)
+      throw new TypeError('Reference reservation requires an explicit independent fence mapping');
+    this.references!.assertCurrent();
+    return this.inspectEvidence(operationId, 'reserve');
+  }
+
   private inspectEvidence(operationId: string, mode: 'sql'): Promise<AttachmentRemovalCompletionObservation>;
   private inspectEvidence(operationId: string, mode: 'object'): Promise<AttachmentRemovalObjectObservation>;
   private inspectEvidence(
     operationId: string,
     mode: 'references',
   ): Promise<AttachmentRemovalCommittedReferenceObservation>;
+  private inspectEvidence(operationId: string, mode: 'reserve'): Promise<AttachmentRemovalReferenceReservation>;
   private async inspectEvidence(
     operationId: string,
-    mode: 'sql' | 'object' | 'references',
+    mode: 'sql' | 'object' | 'references' | 'reserve',
   ): Promise<
     | AttachmentRemovalCompletionObservation
     | AttachmentRemovalObjectObservation
     | AttachmentRemovalCommittedReferenceObservation
+    | AttachmentRemovalReferenceReservation
   > {
     if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))
       throw new TypeError('Completion inspection requires an operation identifier');
@@ -315,7 +348,7 @@ export class AttachmentRemovalCompletionInspector {
     const options = { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, transaction: null };
     return this.database.sequelize.transaction(options, async (transaction) => {
       let scope: AttachmentRemovalReferenceScope | undefined;
-      if (mode === 'references') {
+      if (mode === 'references' || mode === 'reserve') {
         this.references!.assertCurrent();
         scope = await lockAttachmentRemovalReferenceScope(
           this.database,
@@ -350,11 +383,61 @@ export class AttachmentRemovalCompletionInspector {
       const expected = await this.expectedHeader(payload, transaction);
       await this.native.assertCommittedFullRowMatches(this.source, transaction, operationId, expected);
       if (withObject) {
-        const object = await this.readObject(operationId, payload, transaction);
+        const bound = await this.readObject(operationId, payload, transaction);
+        const object = bound?.object;
         await this.assertCurrent(transaction, true, scope);
         if (object && scope) {
           const observed = await scope.observeLocalObject(object);
           await this.assertCurrent(transaction, true, scope);
+          if (mode === 'reserve') {
+            if (observed.references !== 0)
+              throw new TypeError('Removal reference reservation requires zero mapped references');
+            if (payload.storage.retainContent !== false)
+              throw new TypeError('Removal reference reservation cannot discard retained content');
+            const [rows] = await this.database.sequelize.query(
+              `SELECT pg_catalog.txid_current()::text AS xid, pg_catalog.to_regclass($table)::oid::text AS oid`,
+              { transaction, bind: { table: this.table(this.events.model) } },
+            );
+            const actual = (rows as { xid: string; oid: string }[])[0];
+            await this.referenceFence!.reserveWithEvidence(
+              {
+                schemaVersion: 1,
+                kind: 'attachment-removal-reference-fence-binding',
+                operationId,
+                transactionId: actual.xid,
+                references: 0,
+                completion: structuredClone(payload),
+                objectBinding: structuredClone(bound!.binding),
+                event: {
+                  oid: actual.oid,
+                  table: this.table(this.events.model),
+                  key: this.events.model.rawAttributes.id.field,
+                  payload: this.events.model.rawAttributes.payload.field,
+                },
+              },
+              transaction,
+            );
+            // Recheck all original evidence, native installation and current filesystem facts after
+            // persistence. Any failure rolls back both the binding and the database write fence.
+            await this.assertCurrent(transaction, true, scope);
+            await this.native.assertCommittedFullRowMatches(this.source, transaction, operationId, expected);
+            const reread = await this.intents.model.unscoped().findByPk(operationId, read);
+            if (
+              !reread ||
+              !isDeepStrictEqual(reread.getDataValue('payload'), payload) ||
+              !isDeepStrictEqual(await this.readObject(operationId, payload, transaction), bound)
+            )
+              throw new TypeError('Removal reference reservation evidence changed');
+            if ((await scope.observeLocalObject(object)).references !== 0)
+              throw new TypeError('Removal reference reservation requires zero mapped references');
+            await this.referenceFence!.assertInstalled(transaction);
+            await this.assertCurrent(transaction, true, scope);
+            return Object.freeze({
+              state: 'committed-reference-fence-reservation' as const,
+              operationId,
+              transactionId: actual.xid,
+            });
+          }
           return Object.freeze({
             state: 'committed-reference-observed' as const,
             operationId,

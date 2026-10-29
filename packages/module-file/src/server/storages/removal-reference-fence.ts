@@ -7,6 +7,18 @@ import { lockAttachmentRemovalReferenceScope } from './removal-reference-scope';
 
 const uuid = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 
+/** Internal data from the fixed owned inspector, not a transferable proof or cleanup permission. */
+export interface AttachmentRemovalReferenceFenceBinding {
+  readonly schemaVersion: 1;
+  readonly kind: 'attachment-removal-reference-fence-binding';
+  readonly operationId: string;
+  readonly transactionId: string;
+  readonly references: 0;
+  readonly completion: Record<string, unknown>;
+  readonly objectBinding: Record<string, unknown>;
+  readonly event: { readonly oid: string; readonly table: string; readonly key: string; readonly payload: string };
+}
+
 /**
  * Explicit, conservative database write isolation, not ACL or cleanup permission. Installation is
  * opt-in schema work; construction does no SQL. A reservation permanently closes ALL registered
@@ -223,13 +235,47 @@ END`;
       tx,
     );
     const payload = (rows as { payload: Record<string, unknown> }[])[0]?.payload;
-    const { reservation, ...base } = payload && typeof payload === 'object' ? payload : {};
+    const { reservation, binding, ...base } = payload && typeof payload === 'object' ? payload : {};
     if (
       !isDeepStrictEqual(base, context.base) ||
       !(reservation === null || (typeof reservation === 'string' && uuid.test(reservation)))
     )
       throw new TypeError('Removal reference fence state is invalid');
-    return reservation as string | null;
+    if (binding !== undefined) this.assertBinding(binding, reservation as string);
+    return { reservation: reservation as string | null, binding };
+  }
+
+  private assertBinding(value: unknown, operationId: string): asserts value is AttachmentRemovalReferenceFenceBinding {
+    const object = (value: unknown): value is Record<string, unknown> =>
+      Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+    if (
+      !object(value) ||
+      !uuid.test(operationId || '') ||
+      value.schemaVersion !== 1 ||
+      value.kind !== 'attachment-removal-reference-fence-binding' ||
+      value.operationId !== operationId ||
+      typeof value.transactionId !== 'string' ||
+      !/^[1-9]\d{0,19}$/.test(value.transactionId) ||
+      value.references !== 0 ||
+      !object(value.completion) ||
+      !object(value.objectBinding) ||
+      !object(value.event) ||
+      typeof value.event.oid !== 'string' ||
+      !/^[1-9]\d*$/.test(value.event.oid) ||
+      ['table', 'key', 'payload'].some((key) => typeof value.event[key] !== 'string' || !value.event[key]) ||
+      !isDeepStrictEqual(Object.keys(value.event).sort(), ['key', 'oid', 'payload', 'table']) ||
+      !isDeepStrictEqual(Object.keys(value).sort(), [
+        'completion',
+        'event',
+        'kind',
+        'objectBinding',
+        'operationId',
+        'references',
+        'schemaVersion',
+        'transactionId',
+      ])
+    )
+      throw new TypeError('Removal reference fence binding is invalid');
   }
 
   /** Explicit transactional schema installation only. Never replaces an existing gate or function. */
@@ -255,7 +301,7 @@ END`;
       transaction,
     );
     await this.assertDefinition(context, transaction);
-    if ((await this.state(context, transaction)) !== null)
+    if ((await this.state(context, transaction)).reservation !== null)
       throw new TypeError('Removal reference fence state is invalid');
   }
 
@@ -272,19 +318,40 @@ END`;
    * Caller owns commit/rollback; an uncertain commit must leave this reservation unresolved.
    */
   async reserve(operationId: string, transaction: Transaction) {
+    return this.close(operationId, transaction);
+  }
+
+  /**
+   * Internal persistence after the owned inspector's actual checks, not validation of arbitrary
+   * supplied evidence. Stored binding must be independently reverified before any future cleanup.
+   * Does not upgrade an earlier bare reservation or grant authority beyond closing database writes.
+   */
+  async reserveWithEvidence(binding: AttachmentRemovalReferenceFenceBinding, transaction: Transaction) {
+    const captured = structuredClone(binding);
+    this.assertBinding(captured, captured?.operationId);
+    return this.close(captured.operationId, transaction, captured);
+  }
+
+  private async close(operationId: string, transaction: Transaction, binding?: AttachmentRemovalReferenceFenceBinding) {
     if (typeof operationId !== 'string' || !uuid.test(operationId))
       throw new TypeError('Removal reference fence requires a valid operation UUID');
     const context = await this.context(transaction);
     await this.assertDefinition(context, transaction);
-    if ((await this.state(context, transaction)) !== null)
+    if ((await this.state(context, transaction)).reservation !== null)
       throw new TypeError('Removal reference fence is already reserved');
+    if (binding) {
+      const [rows] = await this.query('SELECT pg_catalog.txid_current()::text AS xid', transaction);
+      if ((rows as { xid: string }[])[0]?.xid !== binding.transactionId)
+        throw new TypeError('Removal reference fence binding requires its original coordinating transaction');
+    }
     await this.query(
       `UPDATE ${context.table} SET ${context.payload}=
-       ${this.generator().escape(JSON.stringify({ ...context.base, reservation: operationId }))}::jsonb
+       ${this.generator().escape(JSON.stringify({ ...context.base, reservation: operationId, ...(binding ? { binding } : {}) }))}::jsonb
        WHERE ${context.key}=${this.generator().escape(this.key)}`,
       transaction,
     );
-    if ((await this.state(context, transaction)) !== operationId)
+    const actual = await this.state(context, transaction);
+    if (actual.reservation !== operationId || !isDeepStrictEqual(actual.binding, binding))
       throw new TypeError('Removal reference fence state is invalid');
     await this.assertDefinition(context, transaction);
     return Object.freeze({ state: 'reference-writes-fenced-in-transaction' as const, operationId });

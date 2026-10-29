@@ -1183,6 +1183,227 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                         const mappedFiles = () =>
                           [...db.collections.values()].filter((value) => value.options.template === 'file');
                         const references = () => observer(objects, mappedFiles());
+
+                        describe('owned verified reference reservation', () => {
+                          let fenceJournal: Collection;
+                          let fence: files.AttachmentRemovalReferenceWriteFence;
+                          beforeEach(async () => {
+                            await db.getCollection('storages').model.update({ paranoid: false }, { where: { id: 18 } });
+                            fenceJournal = db.collection({
+                              name: 'verified_reference_fence',
+                              schema: 'public',
+                              timestamps: false,
+                              fields: [
+                                { name: 'id', type: 'string', primaryKey: true },
+                                { name: 'payload', type: 'jsonb' },
+                              ],
+                            });
+                            await fenceJournal.model.sync();
+                            fence = new files.AttachmentRemovalReferenceWriteFence(
+                              db,
+                              mappedFiles(),
+                              db.getCollection('storages'),
+                              fenceJournal,
+                            );
+                            await db.sequelize.transaction(
+                              { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+                              (tx) => fence.install(tx),
+                            );
+                          });
+                          afterEach(async () => {
+                            if (fence)
+                              await db.sequelize.query(`DROP FUNCTION IF EXISTS ${fence.functionName}() CASCADE`);
+                          });
+                          const coordinated = () => observer(objects, mappedFiles(), fenceJournal);
+                          const unreferenced = async () => {
+                            const result = await runBound();
+                            // Privileged isolated fixture removes other retained references, never file bytes.
+                            await db.sequelize.query('DELETE FROM documents WHERE id IN (2,3)');
+                            return result.operationId;
+                          };
+
+                          it('persists verified completion/object/event provenance and the owning transaction before fencing writes', async () => {
+                            const id = await unreferenced();
+                            const other = await coordinated();
+                            try {
+                              const seen = await other.inspector.reserveLocalReferences(id);
+                              expect(seen).toMatchObject({
+                                state: 'committed-reference-fence-reservation',
+                                operationId: id,
+                              });
+                              expect(Object.isFrozen(seen)).toBe(true);
+                              const payload = (await fenceJournal.model.findOne()).getDataValue('payload');
+                              expect(payload.reservation).toBe(id);
+                              expect(payload.binding).toMatchObject({
+                                schemaVersion: 1,
+                                kind: 'attachment-removal-reference-fence-binding',
+                                operationId: id,
+                                transactionId: seen.transactionId,
+                                references: 0,
+                                completion: (await intents.model.findByPk(id)).getDataValue('payload'),
+                                objectBinding: (await objects.model.findByPk(id)).getDataValue('payload'),
+                                event: { table: '"public"."attachment_removal_events"' },
+                              });
+                              const [status] = await db.sequelize.query('SELECT pg_xact_status($xid::xid8) AS status', {
+                                bind: { xid: seen.transactionId },
+                              });
+                              expect(status).toEqual([{ status: 'committed' }]);
+                              await expect(
+                                docs.repository.create({
+                                  values: { id: 9, storageId: 18, path: '', filename: 'new.txt' },
+                                }),
+                              ).rejects.toThrow('Attachment removal reference writes are fenced');
+                              expect(await fs.readFile(location())).toEqual(bytes);
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('refuses to reserve when another retained row references the object', async () => {
+                            const result = await runBound();
+                            const other = await coordinated();
+                            try {
+                              await expect(other.inspector.reserveLocalReferences(result.operationId)).rejects.toThrow(
+                                'Removal reference reservation requires zero mapped references',
+                              );
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('keeps missing operation and missing object outcomes unknown without reserving the fence', async () => {
+                            const id = await unreferenced();
+                            await objects.model.destroy({ where: { id } });
+                            const other = await coordinated();
+                            try {
+                              expect(await other.inspector.reserveLocalReferences(id)).toEqual({ state: 'unknown' });
+                              expect(
+                                await other.inspector.reserveLocalReferences('11111111-1111-1111-1111-111111111111'),
+                              ).toEqual({ state: 'unknown' });
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('refuses a deletion whose recorded storage requires retaining content', async () => {
+                            await db.getCollection('storages').model.update({ paranoid: true }, { where: { id: 18 } });
+                            const id = await unreferenced();
+                            const other = await coordinated();
+                            try {
+                              await expect(other.inspector.reserveLocalReferences(id)).rejects.toThrow(
+                                'Removal reference reservation cannot discard retained content',
+                              );
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('rejects current object replacement before persisting a reservation', async () => {
+                            const id = await unreferenced();
+                            await fs.rename(location(), `${location()}.original`);
+                            await fs.writeFile(location(), bytes);
+                            const other = await coordinated();
+                            try {
+                              await expect(other.inspector.reserveLocalReferences(id)).rejects.toThrow(
+                                'Removal reference object changed or is unavailable',
+                              );
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('refuses a disabled native write guard and leaves the reservation open', async () => {
+                            const id = await unreferenced();
+                            await db.sequelize.query('ALTER TABLE documents DISABLE TRIGGER ALL');
+                            const other = await coordinated();
+                            try {
+                              await expect(other.inspector.reserveLocalReferences(id)).rejects.toThrow(
+                                'Native removal capture installation is unavailable or changed',
+                              );
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('does not overwrite an already bound reservation on a second request', async () => {
+                            const id = await unreferenced();
+                            const other = await coordinated();
+                            try {
+                              await other.inspector.reserveLocalReferences(id);
+                              const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                              await expect(other.inspector.reserveLocalReferences(id)).rejects.toThrow(
+                                'Removal reference fence is already reserved',
+                              );
+                              expect((await fenceJournal.model.findOne()).getDataValue('payload')).toEqual(before);
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+
+                          it('rolls back the actually written binding and fence when the current object changes afterward', async () => {
+                            const id = await unreferenced();
+                            const other = await coordinated();
+                            let replaced = false;
+                            other.db.sequelize.addHook(
+                              'afterQuery',
+                              'replace-after-fence-persistence',
+                              async (_options, query) => {
+                                const sql = (query as unknown as { sql: string }).sql;
+                                if (
+                                  !replaced &&
+                                  sql.startsWith('UPDATE "public"."verified_reference_fence"') &&
+                                  sql.includes('"binding"')
+                                ) {
+                                  replaced = true;
+                                  await fs.rename(location(), `${location()}.original`);
+                                  await fs.writeFile(location(), bytes);
+                                }
+                              },
+                            );
+                            try {
+                              await expect(other.inspector.reserveLocalReferences(id)).rejects.toThrow(
+                                'Removal reference object changed or is unavailable',
+                              );
+                              expect(replaced).toBe(true);
+                              const payload = (await fenceJournal.model.findOne()).getDataValue('payload');
+                              expect(payload.reservation).toBeNull();
+                              expect(payload).not.toHaveProperty('binding');
+                              expect((await intents.model.findByPk(id)).getDataValue('payload').schemaVersion).toBe(3);
+                              expect(await fs.readFile(`${location()}.original`)).toEqual(bytes);
+                            } finally {
+                              other.db.sequelize.removeHook('afterQuery', 'replace-after-fence-persistence');
+                              await other.db.close();
+                            }
+                          });
+
+                          it('keeps ordinary reference inspection read-only with respect to reservation state', async () => {
+                            const id = await unreferenced();
+                            const other = await coordinated();
+                            try {
+                              expect(await other.inspector.inspectLocalReferences(id)).toMatchObject({ references: 0 });
+                              expect(
+                                (await fenceJournal.model.findOne()).getDataValue('payload').reservation,
+                              ).toBeNull();
+                            } finally {
+                              await other.db.close();
+                            }
+                          });
+                        });
                         const addSource = async () => {
                           const another = db.collection({
                             ...docs.options,
@@ -1838,7 +2059,11 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                     });
                   });
 
-                  async function observer(objects?: Collection, references?: readonly Collection[]) {
+                  async function observer(
+                    objects?: Collection,
+                    references?: readonly Collection[],
+                    fence?: Collection,
+                  ) {
                     const other = isolatedPostgresDatabase(postgresUrl!);
                     try {
                       other.collection(storageDefinition);
@@ -1863,6 +2088,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                           event,
                           object,
                           referenceMappings,
+                          fence ? { fence: other.collection({ ...fence.options }) } : undefined,
                         ),
                       };
                     } catch (error) {

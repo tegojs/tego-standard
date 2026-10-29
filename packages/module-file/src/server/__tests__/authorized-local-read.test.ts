@@ -5,7 +5,7 @@ import type { FileHandle } from 'node:fs/promises';
 import { createServer, get, type ServerResponse } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { ACL, Resourcer, type Collection, type Database } from '@tego/server';
+import { ACL, Resourcer, Transaction, type Collection, type Database } from '@tego/server';
 
 import * as files from '..';
 import { seedAclScopes } from '../../../../module-tenant/src/server/__tests__/access-control/acl-database';
@@ -25,6 +25,7 @@ import {
 } from '../../../../module-tenant/src/server/access-control/config-store';
 import { resolveModelMetadata } from '../../../../module-tenant/src/server/access-control/model-metadata';
 import { AccessQueryService } from '../../../../module-tenant/src/server/access-control/query';
+import { AccessRootMutationHandler } from '../../../../module-tenant/src/server/access-control/root-mutation-handler';
 import { AccessRootReadHandler } from '../../../../module-tenant/src/server/access-control/root-read-handler';
 import storageDefinition from '../collections/storages';
 
@@ -39,6 +40,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
     let docs: Collection;
     let adapter: AccessAclScopeAdapter;
     let handler: AccessRootReadHandler;
+    let mutations: AccessRootMutationHandler;
     let directory: string;
     let root: string;
     let rendered: boolean;
@@ -147,6 +149,12 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
         new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection))),
         identity,
       );
+      mutations = new AccessRootMutationHandler(
+        db,
+        adapter,
+        new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection))),
+        identity,
+      );
     });
 
     afterEach(async () => {
@@ -159,15 +167,15 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       }
     });
 
-    async function context(key = 2, grant: object = { fields }) {
+    async function context(key = 2, grant: object = { fields }, operation = 'download') {
       const acl = new ACL();
-      acl.setAvailableAction('download', {});
-      acl.define({ role: 'reader' }).grantAction('documents:download', grant);
+      acl.setAvailableAction(operation, {});
+      acl.define({ role: 'reader' }).grantAction(`documents:${operation}`, grant);
       const resourcer = new Resourcer();
-      resourcer.define({ name: 'documents', actions: { download: {} } });
-      const action = resourcer.getAction('documents', 'download').clone();
-      Object.assign(action, { resourceName: 'documents', actionName: 'download' });
-      action.mergeParams({ resourceName: 'documents', actionName: 'download', filterByTk: key });
+      resourcer.define({ name: 'documents', actions: { [operation]: {} } });
+      const action = resourcer.getAction('documents', operation).clone();
+      Object.assign(action, { resourceName: 'documents', actionName: operation });
+      action.mergeParams({ resourceName: 'documents', actionName: operation, filterByTk: key });
       const ctx = {
         db,
         action,
@@ -198,6 +206,126 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
         consume,
       );
     }
+
+    describe('authorized removal storage preparation', () => {
+      async function prepare<T>(
+        ctx: Awaited<ReturnType<typeof context>>,
+        consume: Parameters<typeof files.withAuthorizedAttachmentRemovalStorage<T>>[2],
+      ) {
+        const entry = mutations.captureAttachmentRemoval(ctx, { tenantId: 'B', roleName: 'reader', userId: 28 });
+        return db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE }, (transaction) =>
+          files.withAuthorizedAttachmentRemovalStorage(entry, transaction, consume),
+        );
+      }
+
+      it('binds the original storage and location to an owned actual record without deleting anything', async () => {
+        const ctx = await context(1, { fields: [] }, 'destroy');
+        docs.options.storage = 'missing-new-upload-setting';
+        const result = await prepare(ctx, async (proof) => {
+          expect(proof.collection).toBe(docs);
+          expect(proof.record).toMatchObject({ key: 1, path: 'old/tenants/H', filename: 'receipt.txt', storageId: 18 });
+          expect(proof.storage).toMatchObject({ id: 18, path: 'new-upload-path', options: { documentRoot: root } });
+          expect(proof.retainContent).toBe(false);
+          await proof.assertCurrent();
+          return 'prepared-only';
+        });
+        expect(result).toBe('prepared-only');
+        expect(await docs.model.count()).toBe(3);
+        expect(await fs.readFile(location())).toEqual(bytes);
+      });
+
+      it.each([2, 3])('does not prepare a visible-only or hidden attachment %s', async (key) => {
+        let consumed = false;
+        await expect(
+          prepare(await context(key, {}, 'destroy'), async () => {
+            consumed = true;
+          }),
+        ).rejects.toThrow();
+        expect(consumed).toBe(false);
+        expect(await fs.readFile(location())).toEqual(bytes);
+      });
+
+      it.each(['decision', 'location', 'policy'])(
+        'rolls back consumer database work and preserves bytes after %s drift',
+        async (kind) => {
+          const ctx = await context(1, {}, 'destroy');
+          await expect(
+            prepare(ctx, async (proof) => {
+              await docs.model.update(
+                { viewable: true },
+                { where: { id: 1 }, transaction: proof.transaction, hooks: false },
+              );
+              if (kind === 'decision') Object.assign(ctx.permission as object, { can: false, skip: false });
+              if (kind === 'location')
+                await docs.model.update(
+                  { path: 'changed' },
+                  { where: { id: 1 }, transaction: proof.transaction, hooks: false },
+                );
+              if (kind === 'policy')
+                await db
+                  .getRepository('storages')
+                  .update({ filterByTk: 18, values: { paranoid: true }, transaction: proof.transaction });
+            }),
+          ).rejects.toThrow();
+          const row = await docs.model.findByPk(1);
+          expect(row.getDataValue('viewable')).toBe(false);
+          expect(row.getDataValue('path')).toBe('old/tenants/H');
+          expect((await db.getRepository('storages').findOne({ filterByTk: 18 })).getDataValue('paranoid')).toBe(false);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        },
+      );
+
+      it('preserves the original storage retention requirement and detaches returned configuration', async () => {
+        await db.getRepository('storages').update({ filterByTk: 18, values: { paranoid: true } });
+        const ctx = await context(1, {}, 'destroy');
+        let assertExpired: () => Promise<void>;
+        await prepare(ctx, async (proof) => {
+          assertExpired = proof.assertCurrent;
+          proof.storage.paranoid = false;
+          expect(proof.retainContent).toBe(true);
+          expect(proof.storage.paranoid).toBe(true);
+        });
+        await expect(assertExpired!()).rejects.toThrow();
+        expect(await fs.readFile(location())).toEqual(bytes);
+      });
+
+      it('rechecks the final destroy decision after awaiting the actual storage lookup', async () => {
+        const ctx = await context(1, {}, 'destroy');
+        const model = db.getCollection('storages').model;
+        const find = model.findAll;
+        vi.spyOn(model, 'findAll').mockImplementationOnce(async function (options) {
+          const rows = await find.call(this, options);
+          Object.assign(ctx.permission as object, { can: false, skip: false });
+          return rows;
+        });
+        let consumed = false;
+        await expect(
+          prepare(ctx, async () => {
+            consumed = true;
+          }),
+        ).rejects.toThrow();
+        expect(consumed).toBe(false);
+        expect(await fs.readFile(location())).toEqual(bytes);
+      });
+
+      it('does not mistake a visibility-only download proof for a destroy preparation', async () => {
+        const entry = handler.captureAttachment(await context(2), { tenantId: 'B', roleName: 'reader', userId: 28 });
+        let consumed = false;
+        await expect(
+          db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE }, (transaction) =>
+            files.withAuthorizedAttachmentRemovalStorage(
+              entry as unknown as files.AuthorizedAttachmentRemovalEntry,
+              transaction,
+              async () => {
+                consumed = true;
+              },
+            ),
+          ),
+        ).rejects.toThrow('Attachment removal proof does not match');
+        expect(consumed).toBe(false);
+        expect(await fs.readFile(location())).toEqual(bytes);
+      });
+    });
 
     it.each([1, 2])('reads authorized record %s using its original storage and directory', async (key) => {
       let opened: FileHandle;

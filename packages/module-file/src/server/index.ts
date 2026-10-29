@@ -16,6 +16,11 @@ export { withLocalAttachmentRead } from './storages/local-read';
 export type { LocalAttachmentReadRecord } from './storages/local-read';
 export { withAuthorizedLocalAttachmentRead } from './storages/authorized-local-read';
 export type { AuthorizedAttachmentReadEntry } from './storages/authorized-local-read';
+export { withAuthorizedAttachmentRemovalStorage } from './storages/authorized-removal-storage';
+export type {
+  AuthorizedAttachmentRemovalEntry,
+  AuthorizedAttachmentRemovalPreparation,
+} from './storages/authorized-removal-storage';
 export { sendAuthorizedLocalAttachment } from './actions/send-authorized-local';
 export type { StagedAttachmentRecoveryClaim } from './storages/staged-journal';
 export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from './storages/staged-record';

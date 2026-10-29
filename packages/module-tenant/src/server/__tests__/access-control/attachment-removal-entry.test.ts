@@ -333,6 +333,195 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('attachment remo
     );
   });
 
+  describe.skipIf(dialect !== 'postgres')('native OLD policy feasibility only', () => {
+    let facts: Collection;
+    const run = <T>(consume: (tx: Transaction) => Promise<T>) =>
+      db.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, consume);
+    beforeEach(async () => {
+      docs.setField('allowDelete', { type: 'boolean' });
+      await db.sequelize.query('ALTER TABLE "documents" ADD COLUMN "allowDelete" BOOLEAN DEFAULT TRUE');
+      facts = db.collection({
+        name: 'oldPolicyFacts',
+        timestamps: false,
+        fields: [
+          { name: 'documentId', type: 'integer' },
+          { name: 'allowed', type: 'boolean' },
+          { name: 'authorized', type: 'boolean' },
+        ],
+      });
+      // Deliberately no FK/cascade: isolate predicate visibility from reference side effects.
+      docs.setField('facts', {
+        type: 'hasMany',
+        target: 'oldPolicyFacts',
+        foreignKey: 'documentId',
+        constraints: false,
+      });
+      await facts.model.sync();
+      await facts.model.create({ documentId: 1, allowed: true, authorized: true });
+      const saved = await store.read(mainIdentity);
+      await store.save(
+        mainIdentity,
+        {
+          ...configFor({
+            type: 'all',
+            children: [
+              ownerCondition,
+              {
+                type: 'compare',
+                operator: 'eq',
+                left: { type: 'field', path: 'allowDelete' },
+                right: { type: 'literal', value: true },
+              },
+              {
+                type: 'exists',
+                path: 'facts',
+                condition: {
+                  type: 'compare',
+                  operator: 'eq',
+                  left: { type: 'field', path: 'allowed' },
+                  right: { type: 'literal', value: true },
+                },
+              },
+            ],
+          }),
+          revision: saved!.revision,
+        },
+        { userId: 28 },
+      );
+    });
+
+    async function installOldCheck(proof: { sql: string; rootAlias: string; transaction: Transaction }) {
+      const alias = `"${proof.rootAlias.replaceAll('"', '""')}"`;
+      // Test-only candidate using the real compiled policy and the actual typed OLD tuple.
+      // Not an installer, deletion executor or claim that arbitrary AFTER order is safe.
+      await db.sequelize.query(
+        `CREATE FUNCTION check_native_old_policy() RETURNS trigger LANGUAGE plpgsql AS $old_policy$
+          BEGIN
+            IF NOT COALESCE((SELECT ${proof.sql} FROM (SELECT (OLD).*) AS ${alias}), FALSE)
+            THEN RAISE EXCEPTION 'native OLD policy refused'; END IF;
+            RETURN OLD;
+          END $old_policy$;
+          CREATE TRIGGER mm_check_native_old AFTER DELETE ON "documents"
+            FOR EACH ROW EXECUTE FUNCTION check_native_old_policy()`,
+        { transaction: proof.transaction },
+      );
+    }
+
+    async function assertRolledBack() {
+      expect((await docs.model.findByPk(1)).getDataValue('allowDelete')).toBe(true);
+      expect((await facts.model.findOne()).getDataValue('allowed')).toBe(true);
+      expect((await facts.model.findOne()).getDataValue('authorized')).toBe(true);
+      expect(await observations().count()).toBe(0);
+    }
+
+    it('checks the actual OLD root after DELETE even though the source row is already absent', async () => {
+      await docs.model.update(
+        { path: "stored/$tac_0/it's here", filename: 'original $tac_1.pdf' },
+        { where: { id: 1 }, hooks: false },
+      );
+      const ctx = await context(1, { filter: { facts: { authorized: true } } });
+      let deletedInside = false;
+      await expect(
+        run((tx) =>
+          handler.captureAttachmentRemoval(ctx, actor()).withNativePredicate(async (proof) => {
+            await installOldCheck(proof);
+            expect(await docs.repository.destroy({ filterByTk: 1, transaction: tx })).toBe(1);
+            expect(await docs.model.findByPk(1, { transaction: tx })).toBeNull();
+            await observations().create({ note: 'actual OLD passed full G and role' }, { transaction: tx });
+            deletedInside = true;
+          }, tx),
+        ),
+      ).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+      // The existing preparation postcondition still refuses deletion and forces rollback.
+      expect(deletedInside).toBe(true);
+      await assertRolledBack();
+    });
+
+    it.each(['G scalar', 'G relation', 'role relation'])(
+      'rejects actual %s changes made by the Repository beforeDestroy hook',
+      async (change) => {
+        docs.model.addHook('beforeDestroy', async (_row, { transaction: tx }) => {
+          if (change === 'G scalar')
+            await docs.model.update({ allowDelete: false }, { where: { id: 1 }, transaction: tx, hooks: false });
+          else
+            await facts.model.update(change === 'G relation' ? { allowed: false } : { authorized: false }, {
+              where: { documentId: 1 },
+              transaction: tx,
+              hooks: false,
+            });
+        });
+        const ctx = await context(1, { filter: { facts: { authorized: true } } });
+        await expect(
+          run((tx) =>
+            handler.captureAttachmentRemoval(ctx, actor()).withNativePredicate(async (proof) => {
+              await installOldCheck(proof);
+              await docs.repository.destroy({ filterByTk: 1, transaction: tx });
+            }, tx),
+          ),
+        ).rejects.toThrow('native OLD policy refused');
+        await assertRolledBack();
+      },
+    );
+
+    it.each(['G relation', 'role relation'])(
+      'observes %s revoked by the last BEFORE DELETE trigger',
+      async (change) => {
+        const ctx = await context(1, { filter: { facts: { authorized: true } } });
+        await expect(
+          run((tx) =>
+            handler.captureAttachmentRemoval(ctx, actor()).withNativePredicate(async (proof) => {
+              await installOldCheck(proof);
+              await db.sequelize.query(
+                `CREATE FUNCTION change_native_old_fact() RETURNS trigger LANGUAGE plpgsql AS $old_fact$
+                  BEGIN UPDATE "oldPolicyFacts" SET ${change === 'G relation' ? 'allowed' : 'authorized'}=FALSE
+                    WHERE "documentId"=OLD.id; RETURN OLD; END $old_fact$;
+                  CREATE TRIGGER zz_change_old_fact BEFORE DELETE ON "documents"
+                    FOR EACH ROW EXECUTE FUNCTION change_native_old_fact()`,
+                { transaction: tx },
+              );
+              await docs.repository.destroy({ filterByTk: 1, transaction: tx });
+            }, tx),
+          ),
+        ).rejects.toThrow('native OLD policy refused');
+        await assertRolledBack();
+      },
+    );
+
+    it.each(['earlier AFTER', 'later AFTER', 'afterDestroy'])(
+      'characterizes full native policy visibility relative to %s fact revocation',
+      async (timing) => {
+        const ctx = await context(1, { filter: { facts: { authorized: true } } });
+        let deletedInside = false;
+        if (timing === 'afterDestroy')
+          docs.model.addHook('afterDestroy', async (_row, { transaction: tx }) => {
+            await facts.model.update({ authorized: false }, { where: { documentId: 1 }, transaction: tx });
+          });
+        const execution = run((tx) =>
+          handler.captureAttachmentRemoval(ctx, actor()).withNativePredicate(async (proof) => {
+            await installOldCheck(proof);
+            if (timing !== 'afterDestroy')
+              await db.sequelize.query(
+                `CREATE FUNCTION change_native_old_fact() RETURNS trigger LANGUAGE plpgsql AS $old_fact$
+                  BEGIN UPDATE "oldPolicyFacts" SET authorized=FALSE WHERE "documentId"=OLD.id;
+                    RETURN OLD; END $old_fact$;
+                  CREATE TRIGGER ${timing === 'earlier AFTER' ? 'aa' : 'zz'}_change_old_fact
+                    AFTER DELETE ON "documents" FOR EACH ROW EXECUTE FUNCTION change_native_old_fact()`,
+                { transaction: tx },
+              );
+            expect(await docs.repository.destroy({ filterByTk: 1, transaction: tx })).toBe(1);
+            expect((await facts.model.findOne({ transaction: tx })).getDataValue('authorized')).toBe(false);
+            expect(await docs.model.findByPk(1, { transaction: tx })).toBeNull();
+            deletedInside = true;
+          }, tx),
+        );
+        if (timing === 'earlier AFTER') await expect(execution).rejects.toThrow('native OLD policy refused');
+        else await expect(execution).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+        expect(deletedInside).toBe(timing !== 'earlier AFTER');
+        await assertRolledBack();
+      },
+    );
+  });
+
   it('prepares the owned raw location without deleting or changing the file row', async () => {
     const ctx = await context(1, { fields: [] });
     const result = await transaction(async (tx) =>

@@ -2556,3 +2556,21 @@ Ruling: §167 证明结束后的授权复核需要实际 OLD 的完整业务字�
 v2 完整行仍只是 SQL 事件，不能代替同原事务的可信意图匹配、最终 G/角色重算、提交或清理许可。实际集成测试要求原 v1 匹配器拒绝 v2，不悄悄忽略额外行字段；失败整笔回滚且保留文件。下一项实现可信完整行的同事务原生评估和独立删除执行契约，必须保护最终决策、全部业务事实、触发器及后续钩子顺序。旧附件字节继续保留；正式 schema/路由、规则保存/启用、共享路径/引用及确定提交等边界不变。
 
 §167 已核实有效默认签名 7d4616c85。确认测试/构建全部退出、实际临时集群目录及零其他客户端后，仅删除共用专用库 tego_tenant_access_test_a16729b612，pg_database 计数 0；临时 PG 服务已停止，日志保留。删除的是可重建测试数据，可按夹具重建，未涉及业务数据。本批按完整原生行事件独立默认签名提交，不推送。
+
+## 169. 原意图绑定的完整行原生谓词观察
+
+Ruling: 在 AttachmentRemovalIntentJournal 增加显式 testNativeRowPredicate，重用原意图的 WeakMap 句柄、同一活动顶层写事务和实际日志锁内回读；查询结束后再次回读意图。原 v1 匹配器保持原格式语义。下层 AttachmentRemovalNativeCapture.testFullRowPredicate 仅接受 full-row 模式，在 SQL 内将实际存储的原生 JSONB 重建为来源表类型，以服务端编译器提供的根别名和谓词评估，不从 JavaScript 对象回写完整行。
+
+实际查询严格比对去除 row 后的完整 v2 事件头、原事务 txid、实际来源 OID、完整物理键集合、强类型重建后的原生 JSONB 和原主键/位置/归属投影；缺失、额外、类型不规范或与原 prepared 意图不一致均拒绝。来源、函数/触发器及证据表结构行为在前后复核。原生 SQL 查询完全省略 bind 选项，值使用可信方言编码，保留编译器字符串中的美元符号和引号；别名碰撞使用另一个内部证据别名，不扫描或改写谓词。
+
+这是内部时点观察接口，调用方提供的 SQL 必须来自可信服务端编译器，方法本身不验证编译来源、最终 destroy 决策或新鲜度。布尔 true 不是删除能力，false 也不会自动回滚；后续独立删除执行器必须绑定当前最终决策、可信身份/准备阶段，并重新解析包括层级等动态上下文的完整 G/角色谓词后评估，拒绝或错误时回滚。事件一致性仍不是不可伪造因果、无引用、确定提交或物理清理许可。原 withRecord/withNativePredicate 准备后置条件不变，正式执行器/路由/规则保存和启用未连接。
+
+- [x] 十八项真实 PG 缺方法 RED 均正确失败，拒绝场景使用明确预期错误，未将 TypeError 当作有效拒绝；保留 removal-row-evaluation-red.log。最小实现后十八项通过，一百五十四项仅名称/数据库分组过滤；保留 removal-row-evaluation-green.log。
+- [x] 补充原事务/实际意图、bigint/嵌套 JSON 精度及根别名碰撞，首轮两个相关完整文件一百六十一项通过、五十四项 SQLite 的 PG 专项分组跳过，对应 PG 均执行；保留 removal-row-evaluation-regression.log。
+- [x] 作者自审发现 JavaScript UTF-16 排序与 PG 原生列名排序不同会误拒绝合法完整行；新增含 BMP 私用字符及补充平面字符的物理列，真实 PG RED 复现，保留 removal-row-evaluation-unicode-red.log。独立只读查询确认原生顺序为 57344/65536，JavaScript 顺序相反。以无序 JSONB 键对象比较替代有序数组后定向通过，保留 removal-row-evaluation-unicode-green.log；没有放宽缺列、额外列或类型一致性检查。
+- [x] 最终两个相关文件串行一百六十二项通过、五十四项 SQLite 的 PG 专项分组跳过，对应 PG 均实际执行，退出 0；保留 removal-row-evaluation-regression-final.log。包括二十二项新增真实 PG 场景；计数不与此前定向及首轮回归相加。四份源码/快照 SHA256 一致。
+- [x] 文件包客户端、服务端和声明构建退出 0，保留 removal-row-evaluation-build.log；独立快照既有 UnkVer/UnkBranch 提示未改变正式版本或依赖。Prettier、oxlint 零错误/警告、diff 和作者自审通过。自审确认原 v1 格式拒绝 v2 的行为保留，所有 SQL 观察均无状态提升或文件 I/O；原生证据表依旧锁内检查无触发器/规则/RLS，仍依赖可信服务端与受控 schema，不能防范函数所有者并发替换。整分支独立复核未完成。
+
+本批新增场景包括真实 Repository beforeDestroy 的标量 G 改动，beforeDestroy、较晚 AFTER 和 afterDestroy 对 G/角色关系的撤销，实际完整行/头被修改、缺失或增加字段、非规范类型、复制句柄/不同事务/意图变更，以及精度/标识符边界。允许的测试观察不会删除文件；拒绝的测试通过调用者显式回滚，原行、日志及事实恢复。专用库 tego_tenant_access_test_b16929c613 只用于本批串行验证，结束后统一清理；不修改业务库或正式 schema。下一项仍是独立删除执行契约和最终操作/动态授权事实的新鲜度组合，再推进引用/对象身份、确定提交及受控清理。
+
+确认所有测试/构建退出、实际临时集群目录及零其他客户端后，仅删除本批专用库 tego_tenant_access_test_b16929c613，pg_database 计数确认 0；临时 PG 已停止，保留目录日志。删除的是可重建测试数据，未涉及业务数据。本批按完整行原生观察独立默认签名提交，不推送。

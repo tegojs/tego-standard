@@ -318,4 +318,70 @@ export class AttachmentRemovalNativeCapture {
     if (!row || row.getDataValue('id') !== operationId) throw new TypeError('Native removal event is unavailable');
     return structuredClone(row.getDataValue('payload'));
   }
+
+  /**
+   * Internal SQL observation only, using a header from the original intent journal and a trusted
+   * server-compiled predicate. Neither arbitrary SQL nor the returned boolean is action authority.
+   * Reconstructs the native JSONB inside PostgreSQL, never from a JavaScript-parsed full row.
+   */
+  async testFullRowPredicate(
+    source: Collection,
+    transaction: Transaction,
+    operationId: string,
+    expected: Record<string, unknown>,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+  ): Promise<boolean> {
+    if (
+      this.format !== 'full-row' ||
+      source !== this.source ||
+      !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId) ||
+      expected?.schemaVersion !== 2 ||
+      typeof predicate?.sql !== 'string' ||
+      !predicate.sql.trim() ||
+      typeof predicate.rootAlias !== 'string' ||
+      !predicate.rootAlias ||
+      predicate.rootAlias.includes('\0')
+    )
+      throw new TypeError('Native full-row predicate source or definition is unavailable');
+    const header = structuredClone(expected);
+    const { sql, rootAlias } = predicate;
+    await this.assertInstalled(transaction);
+    await this.assertEvidenceBehavior(transaction);
+    const literal = (value: string) => this.generator().escape(value);
+    const root = this.quote(rootAlias);
+    const event = this.quote(rootAlias === 'tac_native_event' ? 'tac_native_event_1' : 'tac_native_event');
+    const payload = `${event}.${this.quote(this.evidenceFields[1].column)}::jsonb`;
+    const original = (key: string) => {
+      const field = this.fields.find((field) => field.key === key);
+      return field ? `${payload}->'row'->>${literal(field.column)}` : 'NULL::text';
+    };
+    // Omit bind entirely: the installed ORM scans even literal dollar tokens with an empty bind.
+    const [rows] = await this.database.sequelize.query(
+      `SELECT (
+        (${payload} - 'row') = ${literal(JSON.stringify(header))}::jsonb
+        AND ${payload}->>'transactionId'=pg_catalog.txid_current()::text
+        AND ${payload}->'source'->>'oid'=pg_catalog.to_regclass(${literal(this.table(this.sourceTable))})::oid::text
+        AND pg_catalog.jsonb_typeof(${payload}->'row')='object'
+        AND (SELECT pg_catalog.jsonb_object_agg(k, TRUE) FROM pg_catalog.jsonb_object_keys(${payload}->'row') AS keys(k))
+          = ${literal(JSON.stringify(Object.fromEntries(this.rowFields.map(({ column }) => [column, true]))))}::jsonb
+        AND pg_catalog.to_jsonb(${root})=${payload}->'row'
+        AND pg_catalog.jsonb_build_object('key', ${original(this.fields[0].key)},
+          'path', ${original('path')}, 'filename', ${original('filename')},
+          'storageId', ${original('storageId')}, 'size', ${original('size')}, 'tenantId', ${original('tenantId')})
+          = ${payload}->'record'
+      ) AS valid, COALESCE((${sql}), FALSE) AS matches
+      FROM ${this.table(this.evidenceTable)} AS ${event}
+      CROSS JOIN LATERAL pg_catalog.jsonb_populate_record(NULL::${this.table(this.sourceTable)}, ${payload}->'row') AS ${root}
+      WHERE ${event}.${this.quote(this.evidenceFields[0].column)}=${literal(operationId)} FOR UPDATE OF ${event}`,
+      { transaction },
+    );
+    await this.assertInstalled(transaction);
+    await this.assertEvidenceBehavior(transaction);
+    if ((transaction as Transaction & { finished?: string }).finished)
+      throw new TypeError('Native full-row observation transaction is no longer active');
+    const result = (rows as { valid: boolean; matches: boolean }[])[0];
+    if ((rows as unknown[]).length !== 1 || result?.valid !== true)
+      throw new TypeError('Native full-row event does not match its prepared intent');
+    return result.matches === true;
+  }
 }

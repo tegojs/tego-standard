@@ -145,6 +145,72 @@ describe.skipIf(!postgresUrl)('explicit PostgreSQL attachment delete capture', (
       expect(await rows()).toEqual([]);
     });
 
+    it('evaluates exact bigint and nested JSON inside the original transaction with a colliding root alias', async () => {
+      source.setField('amount', { type: 'bigInt' });
+      source.setField('details', { type: 'jsonb' });
+      await db.sequelize.query(`ALTER TABLE native_capture_files
+        ADD COLUMN amount bigint DEFAULT 9007199254740993,
+        ADD COLUMN details jsonb DEFAULT '{"n":9007199254740993}'`);
+      await installFullRow();
+      let id: string;
+      let header: Record<string, unknown>;
+      const predicate = {
+        rootAlias: 'tac_native_event',
+        sql: `"tac_native_event".id=9007199254740993 AND "tac_native_event".amount=9007199254740993
+          AND "tac_native_event".details->>'n'='9007199254740993'`,
+      };
+      await db.sequelize.transaction(async (transaction) => {
+        id = await mark(transaction);
+        await remove(transaction);
+        const [results] = await db.sequelize.query(
+          `SELECT payload-'row' AS header FROM native_capture_evidence WHERE id=$id`,
+          { transaction, bind: { id } },
+        );
+        header = (results as { header: Record<string, unknown> }[])[0].header;
+        expect(await capture.testFullRowPredicate(source, transaction, id, header, predicate)).toBe(true);
+        expect(
+          await capture.testFullRowPredicate(source, transaction, id, header, {
+            rootAlias: 'tac_native_event',
+            sql: '"tac_native_event".amount=9007199254740992',
+          }),
+        ).toBe(false);
+      });
+      await expect(
+        db.sequelize.transaction((transaction) =>
+          capture.testFullRowPredicate(source, transaction, id!, header!, predicate),
+        ),
+      ).rejects.toThrow('Native full-row event does not match its prepared intent');
+    });
+
+    it('compares the native physical column set independently of JavaScript and database Unicode sort order', async () => {
+      const bmp = 'column_\uE000';
+      const astral = 'column_\u{10000}';
+      source.setField('bmpValue', { type: 'string', field: bmp });
+      source.setField('astralValue', { type: 'string', field: astral });
+      await db.sequelize.query(
+        `ALTER TABLE native_capture_files ADD COLUMN "${bmp}" text, ADD COLUMN "${astral}" text`,
+      );
+      await installFullRow();
+      await db.sequelize.transaction(async (transaction) => {
+        const id = await mark(transaction);
+        await remove(transaction);
+        const [results] = await db.sequelize.query(
+          `SELECT payload-'row' AS header FROM native_capture_evidence WHERE id=$id`,
+          {
+            transaction,
+            bind: { id },
+          },
+        );
+        const header = (results as { header: Record<string, unknown> }[])[0].header;
+        expect(
+          await capture.testFullRowPredicate(source, transaction, id, header, {
+            rootAlias: 'actual_old',
+            sql: '"actual_old".id=9007199254740993',
+          }),
+        ).toBe(true);
+      });
+    });
+
     it.each(['add', 'remove', 'rename', 'type'])(
       'rejects %s drift of ordinary business field metadata captured for the full row',
       async (change) => {

@@ -218,22 +218,11 @@ export class AttachmentRemovalIntentJournal {
     return handle;
   }
 
-  /**
-   * Original-transaction consistency check only. No DELETE, state promotion, commit or file I/O.
-   * This does not reauthorize G/role facts after preparation, exclude references or prove commit.
-   * The caller must still roll back on any failure and provide a separate deletion execution contract.
-   */
-  async assertNativeEventMatches(
-    handle: Readonly<{ id: string }>,
-    native: AttachmentRemovalNativeCapture,
-    transaction: Transaction,
-  ): Promise<void> {
+  private async verifiedPreparation(handle: Readonly<{ id: string }>, transaction: Transaction) {
     const original = this.preparations.get(handle);
     if (!original) throw new TypeError('Original removal intent handle is unavailable');
     if (original.transaction !== transaction) throw new TypeError('Original removal intent transaction is unavailable');
     this.assertTransaction(original);
-    if (!(native instanceof AttachmentRemovalNativeCapture))
-      throw new TypeError('Native removal capture is unavailable');
     await this.lockStructure(transaction);
     const options = {
       attributes: ['id', 'payload'],
@@ -250,11 +239,12 @@ export class AttachmentRemovalIntentJournal {
       !isDeepStrictEqual(row.getDataValue('payload'), original.payload)
     )
       throw new TypeError('Removal intent no longer matches its original preparation');
-    const payload = original.payload;
-    const event = await native.readEvent(original.collection, transaction, handle.id);
-    this.assertTransaction(original);
-    const expected = {
-      schemaVersion: 1,
+    return original;
+  }
+
+  private expectedEvent(payload: ReturnType<AttachmentRemovalIntentJournal['capture']>, version: 1 | 2) {
+    return {
+      schemaVersion: version,
       kind: 'attachment-native-delete',
       state: 'deleted-in-transaction',
       transactionId: payload.transactionId,
@@ -273,7 +263,52 @@ export class AttachmentRemovalIntentJournal {
         tenantId: payload.record.tenantId,
       },
     };
+  }
+
+  /**
+   * Original-transaction consistency check only. No DELETE, state promotion, commit or file I/O.
+   * This does not reauthorize G/role facts after preparation, exclude references or prove commit.
+   * The caller must still roll back on any failure and provide a separate deletion execution contract.
+   */
+  async assertNativeEventMatches(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+  ): Promise<void> {
+    const original = await this.verifiedPreparation(handle, transaction);
+    if (!(native instanceof AttachmentRemovalNativeCapture))
+      throw new TypeError('Native removal capture is unavailable');
+    const event = await native.readEvent(original.collection, transaction, handle.id);
+    this.assertTransaction(original);
+    const expected = this.expectedEvent(original.payload, 1);
     if (!isDeepStrictEqual(event, expected))
       throw new TypeError('Native attachment event does not match its prepared intent');
+  }
+
+  /**
+   * Strict v2 event/intent observation in the original active transaction. The predicate must come
+   * from a trusted server compiler; this is not a final action decision or a deletion capability.
+   * A false result or any error must cause the independent deletion executor to roll back.
+   */
+  async testNativeRowPredicate(
+    handle: Readonly<{ id: string }>,
+    native: AttachmentRemovalNativeCapture,
+    transaction: Transaction,
+    predicate: { readonly sql: string; readonly rootAlias: string },
+  ): Promise<boolean> {
+    // Capture caller input before awaits; SQL text is an observation, never a bearer permission.
+    const captured = { sql: predicate?.sql, rootAlias: predicate?.rootAlias };
+    const original = await this.verifiedPreparation(handle, transaction);
+    if (!(native instanceof AttachmentRemovalNativeCapture))
+      throw new TypeError('Native removal capture is unavailable');
+    const matches = await native.testFullRowPredicate(
+      original.collection,
+      transaction,
+      handle.id,
+      this.expectedEvent(original.payload, 2),
+      captured,
+    );
+    await this.verifiedPreparation(handle, transaction);
+    return matches;
   }
 }

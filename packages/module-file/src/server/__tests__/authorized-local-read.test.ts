@@ -515,6 +515,228 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
             expect(await fs.readFile(location())).toEqual(bytes);
           });
 
+          describe('full native row predicate observation', () => {
+            let facts: Collection;
+            beforeEach(async () => {
+              await db.sequelize.query(`DROP FUNCTION ${native.functionName}() CASCADE`);
+              facts = db.collection({
+                name: 'removalPolicyFacts',
+                timestamps: false,
+                fields: [
+                  { name: 'documentId', type: 'integer' },
+                  { name: 'allowed', type: 'boolean' },
+                  { name: 'authorized', type: 'boolean' },
+                ],
+              });
+              docs.setField('facts', {
+                type: 'hasMany',
+                target: 'removalPolicyFacts',
+                foreignKey: 'documentId',
+                constraints: false,
+              });
+              await facts.model.sync();
+              await facts.model.create({ documentId: 1, allowed: true, authorized: true });
+              const store = new AccessConfigStore(db, (value) =>
+                resolveModelMetadata(db.getCollection(value.collectionName), {
+                  resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
+                }),
+              );
+              const saved = await store.read(mainIdentity);
+              await store.save(
+                mainIdentity,
+                {
+                  ...configFor({
+                    type: 'all',
+                    children: [
+                      ownerCondition,
+                      {
+                        type: 'compare',
+                        operator: 'eq',
+                        left: { type: 'field', path: 'viewable' },
+                        right: { type: 'literal', value: false },
+                      },
+                      {
+                        type: 'exists',
+                        path: 'facts',
+                        condition: {
+                          type: 'compare',
+                          operator: 'eq',
+                          left: { type: 'field', path: 'allowed' },
+                          right: { type: 'literal', value: true },
+                        },
+                      },
+                    ],
+                  }),
+                  revision: saved!.revision,
+                },
+                { userId: 28 },
+              );
+              native = new files.AttachmentRemovalNativeCapture(docs, events, 'full-row');
+              await db.sequelize.transaction((transaction) => native.install(transaction));
+            });
+
+            async function exerciseRow(
+              consume: (
+                handle: Readonly<{ id: string }>,
+                transaction: Transaction,
+                predicate: { sql: string; rootAlias: string },
+              ) => Promise<void>,
+            ) {
+              const entry = mutations.captureAttachmentRemoval(
+                await context(1, { filter: { facts: { authorized: true } } }, 'destroy'),
+                { tenantId: 'B', roleName: 'reader', userId: 28 },
+              );
+              await db.sequelize.transaction(
+                { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+                async (transaction) => {
+                  let predicate: { sql: string; rootAlias: string };
+                  const preparation: files.AuthorizedAttachmentRemovalEntry = {
+                    withRecord(consume, tx) {
+                      return entry.withNativePredicate(async (proof) => {
+                        predicate = Object.freeze({ sql: proof.sql, rootAlias: proof.rootAlias });
+                        return consume(proof);
+                      }, tx);
+                    },
+                  };
+                  const handle = await files.withAuthorizedAttachmentRemovalStorage(preparation, transaction, persist);
+                  // Fixture DELETE is after the unchanged preparation postcondition has completed.
+                  await markedDelete(transaction, handle.id);
+                  await consume(handle, transaction, predicate!);
+                },
+              );
+            }
+
+            it('evaluates complete compiled G and role SQL against the actual OLD after the source row is absent', async () => {
+              await exerciseRow(async (handle, transaction, predicate) => {
+                expect(await docs.model.findByPk(1, { transaction })).toBeNull();
+                expect(await journal.testNativeRowPredicate(handle, native, transaction, predicate)).toBe(true);
+              });
+              expect(await docs.model.count()).toBe(2);
+              expect(await fs.readFile(location())).toEqual(bytes);
+            });
+
+            it('keeps compiler dollar tokens and quotes in original locations as literal SQL values', async () => {
+              await docs.model.update({ path: "old/$tac_0/it's here", filename: '$tac_1.txt' }, { where: { id: 1 } });
+              await exerciseRow(async (handle, transaction, predicate) => {
+                expect(await journal.testNativeRowPredicate(handle, native, transaction, predicate)).toBe(true);
+              });
+              expect(await fs.readFile(location())).toEqual(bytes);
+            });
+
+            it('evaluates actual scalar G changed by beforeDestroy rather than the old model instance', async () => {
+              docs.model.addHook('beforeDestroy', async (_row, { transaction }) => {
+                await docs.model.update({ viewable: true }, { where: { id: 1 }, hooks: false, transaction });
+              });
+              await expect(
+                exerciseRow(async (handle, transaction, predicate) => {
+                  expect(await journal.testNativeRowPredicate(handle, native, transaction, predicate)).toBe(false);
+                  throw new Error('rollback observed denied predicate');
+                }),
+              ).rejects.toThrow('rollback observed denied predicate');
+              expect((await docs.model.findByPk(1)).getDataValue('viewable')).toBe(false);
+              expect(await events.model.count()).toBe(0);
+            });
+
+            it.each([
+              ['G', 'beforeDestroy'],
+              ['role', 'beforeDestroy'],
+              ['G', 'later AFTER'],
+              ['role', 'later AFTER'],
+              ['G', 'afterDestroy'],
+              ['role', 'afterDestroy'],
+            ])('observes %s relation revocation in %s after preparation', async (scope, timing) => {
+              const field = scope === 'G' ? 'allowed' : 'authorized';
+              if (timing === 'later AFTER')
+                await db.sequelize
+                  .query(`CREATE FUNCTION tamper_native_evidence() RETURNS trigger LANGUAGE plpgsql AS $$
+                  BEGIN UPDATE "removalPolicyFacts" SET ${field}=FALSE WHERE "documentId"=OLD.id; RETURN OLD; END $$;
+                  CREATE TRIGGER zz_revoke_row_policy AFTER DELETE ON documents FOR EACH ROW EXECUTE FUNCTION tamper_native_evidence()`);
+              else
+                docs.model.addHook(timing, async (_row, { transaction }) => {
+                  await facts.model.update({ [field]: false }, { where: { documentId: 1 }, transaction });
+                });
+              await expect(
+                exerciseRow(async (handle, transaction, predicate) => {
+                  expect(await journal.testNativeRowPredicate(handle, native, transaction, predicate)).toBe(false);
+                  throw new Error('rollback observed denied predicate');
+                }),
+              ).rejects.toThrow('rollback observed denied predicate');
+              expect(await docs.model.count()).toBe(3);
+              expect((await facts.model.findOne()).getDataValue(field)).toBe(true);
+              expect(await intents.model.count()).toBe(0);
+              expect(await events.model.count()).toBe(0);
+              expect(await fs.readFile(location())).toEqual(bytes);
+            });
+
+            it.each([
+              'row key',
+              'row location',
+              'row owner',
+              'missing field',
+              'extra field',
+              'string boolean',
+              'extra header',
+              'transaction',
+            ])('rejects %s evidence inconsistency before treating a true predicate as a match', async (change) => {
+              await expect(
+                exerciseRow(async (handle, transaction, predicate) => {
+                  const row = await events.model.findByPk(handle.id, { transaction });
+                  const payload = row.getDataValue('payload');
+                  if (change === 'row key') payload.row.id = 999;
+                  else if (change === 'row location') payload.row.path = 'another/path';
+                  else if (change === 'row owner') payload.row.tenantId = 'H';
+                  else if (change === 'missing field') delete payload.row.viewable;
+                  else if (change === 'extra field') payload.row.unmodeled = true;
+                  else if (change === 'string boolean') payload.row.viewable = 'false';
+                  else if (change === 'extra header') payload.extra = true;
+                  else payload.transactionId = '1';
+                  await events.model.update({ payload }, { where: { id: handle.id }, transaction, hooks: false });
+                  await journal.testNativeRowPredicate(handle, native, transaction, predicate);
+                }),
+              ).rejects.toThrow('Native full-row event does not match its prepared intent');
+              expect(await docs.model.count()).toBe(3);
+              expect(await events.model.count()).toBe(0);
+            });
+
+            it('requires the exact original intent handle rather than a copied identifier', async () => {
+              await expect(
+                exerciseRow(async (handle, transaction, predicate) => {
+                  await journal.testNativeRowPredicate({ id: handle.id }, native, transaction, predicate);
+                }),
+              ).rejects.toThrow('Original removal intent handle is unavailable');
+              expect(await docs.model.count()).toBe(3);
+            });
+
+            it('rejects a different active transaction instead of reusing an original preparation', async () => {
+              await expect(
+                exerciseRow(async (handle, _transaction, predicate) => {
+                  await db.sequelize.transaction((other) =>
+                    journal.testNativeRowPredicate(handle, native, other, predicate),
+                  );
+                }),
+              ).rejects.toThrow('Original removal intent transaction is unavailable');
+              expect(await docs.model.count()).toBe(3);
+            });
+
+            it('rereads the actually stored intent before observing the full row', async () => {
+              await expect(
+                exerciseRow(async (handle, transaction, predicate) => {
+                  await intents.model.update(
+                    { payload: { state: 'completed' } },
+                    {
+                      where: { id: handle.id },
+                      hooks: false,
+                      transaction,
+                    },
+                  );
+                  await journal.testNativeRowPredicate(handle, native, transaction, predicate);
+                }),
+              ).rejects.toThrow('Removal intent no longer matches its original preparation');
+              expect(await docs.model.count()).toBe(3);
+              expect(await intents.model.count()).toBe(0);
+            });
+          });
+
           it('rejects a real beforeDestroy location change rather than trusting the old model instance', async () => {
             docs.model.addHook('beforeDestroy', async (_row, { transaction }) => {
               await docs.model.update(

@@ -60,6 +60,8 @@ export function createAttachmentRemovalEvidenceAdapter(
         return (rows as { marker: string | null }[])[0]?.marker;
       };
       return Object.freeze({
+        /** Correlation only, not a portable deletion or cleanup capability. */
+        operationId: handle.id,
         async beforeDelete() {
           if (state !== 'prepared') throw new TypeError('Attachment removal evidence marker has already been used');
           await assertPreparationCurrent();

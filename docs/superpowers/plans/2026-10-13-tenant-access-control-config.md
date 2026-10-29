@@ -2639,3 +2639,17 @@ Ruling: 另行显式构造 AttachmentRemovalCompletionInspector，传入原业�
 - [x] 文件包客户端、服务端及声明构建退出 0，保留 removal-completion-inspection-build-file.log。三份源码与快照 SHA256 一致，五文件 Prettier 通过、三份 TS 的 oxlint 零错误/警告，diff 与作者自审通过。未修改租户包，不重做其已有构建；整分支独立复核仍未完成。
 
 专用库 tego_tenant_access_test_f17329a617 仅供本批串行验证。确认所有测试/构建退出、实际集群目录和零其他客户端后，仅删除该专用库并确认 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按独立完成观察作英文默认签名原子提交，不推送；原文件继续保留。下一项继续已知操作关联/未知结局协调、共享路径/其他引用和对象身份的最小独立交付，不把本次读取当成已完成恢复或清理。其余入口和正式整合/业务试点仍未完成。
+
+## 174. 显式记录执行的操作关联
+
+Ruling: 文件层另行提供 executeRecordedAttachmentRemoval，显式组合可信拥有事务的 SQL entry、原 journal 与 full-row capture，强制选择已有 v3 完成模式；不改 §170 默认计数接口或授权解释，不接受 SQL、位置、外部事务或替代删除回调。证据 session 在原意图准备成功后额外暴露纯 operationId 关联值，不暴露原句柄、完整 OLD 或清理能力。成功返回 affected:1 和操作 UUID，之后可显式交给 §173 新实例核查。
+
+原意图准备完成后的任何错误均以 AttachmentRemovalOutcomeError 保留本次 UUID、原错误及 outcome:unknown；包括真实 afterCommit 回调报错时数据库可能已提交。错误本身不猜测 rollback/commit，不自动检查或重试；独立检查缺记录仍未知。准备前拒绝和重复使用 entry 不借用上次 UUID，保留原异常语义。该值不是权限，任意构造错误或复制 UUID 不能绕过最终 destroy/G/角色/完整 OLD 校验。进程在 UUID 交付之前彻底崩溃的发现/关联仍需另行完成，不声称已覆盖所有未知提交恢复。
+
+- [x] 五项新增真实 PG 场景先因缺少组合方法/关联错误类失败，保留 removal-outcome-correlation-red.log。初始拒绝用例的 undefined 类断言属于引导错误，已改为断言真实 ACCESS_RECORD_UNAVAILABLE，并在实现前确认其与缺方法错误不符而 RED，保留 removal-outcome-correlation-denial-red.log；不把这个断言问题称为授权漏洞。
+- [x] 最小实现后五项实际 PG 全通过，保留 removal-outcome-correlation-green.log：正常提交并独立观察、真实 transaction.afterCommit 抛错后 SQL 已提交并可用本次 UUID 观察、Repository 拒绝后 rollback 但独立结果仍 unknown、重复 entry 不复用旧 UUID、准备前授权拒绝不发 UUID。所有原文件保留，没有伪造 COMMIT 响应或测试替换数据库提交方法；真实网络丢失提交确认没有实测，不把 afterCommit 失败等同于覆盖该故障。
+
+- [x] 授权读取/HTTP/意图/执行与原生捕获两个完整文件顺序二百三十五项通过、一百一十八项 SQLite 的 PG 专项分组跳过，对应实际 PG 专项均执行，退出 0；保留 removal-outcome-correlation-regression.log。五项新增实际 PG 场景不与定向结果相加；没有并发启动第二个测试/构建进程。
+- [x] 文件包客户端、服务端与声明构建退出 0，保留 removal-outcome-correlation-build-file.log；四份源码与快照 SHA256 一致，六文件 Prettier 通过、四份 TS 的 oxlint 零错误/警告，diff 和作者自审通过。未改租户包实现，不重复其既有构建；整分支独立复核未完成。
+
+专用库 tego_tenant_access_test_a17429b618 仅供本批串行验证。确认测试/构建均退出、真实集群目录及零其他客户端后，仅删除该库并核实 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。按操作关联作英文默认签名原子提交，不推送。下一项推进共享路径/其他引用与对象身份的最小交付，原文件继续保留；物理清理、崩溃发现、其他入口及正式整合仍未完成。

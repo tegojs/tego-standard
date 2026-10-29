@@ -14,6 +14,8 @@ export { AttachmentRemovalCompletionInspector } from './storages/removal-complet
 export type { AttachmentRemovalCompletionObservation } from './storages/removal-completion-inspector';
 export { AttachmentRemovalNativeCapture } from './storages/native-removal-capture';
 export { createAttachmentRemovalEvidenceAdapter } from './storages/removal-execution-evidence';
+export { executeRecordedAttachmentRemoval, AttachmentRemovalOutcomeError } from './storages/recorded-removal';
+export type { RecordedAttachmentRemovalEntry } from './storages/recorded-removal';
 export { recoverStagedAttachment, recoverCancelledAttachments } from './storages/staged-recovery';
 export type { StagedAttachmentRecoveryBatchItem } from './storages/staged-recovery';
 export { verifyLocalStagedAttachment } from './storages/local-recovery';

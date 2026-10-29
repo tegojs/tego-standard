@@ -761,6 +761,115 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
 
               describe('optional SQL completion', () => {
                 describe('independent completion inspection', () => {
+                  describe('recorded execution outcome correlation', () => {
+                    it('returns the committed operation id for subsequent independent inspection', async () => {
+                      const { entry } = await execution();
+                      const result = await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                      const id = (await intents.model.findOne()).getDataValue('id');
+                      expect(result).toEqual({ affected: 1, operationId: id });
+                      const other = await observer();
+                      try {
+                        expect(await other.inspector.inspect(result.operationId)).toMatchObject({
+                          state: 'committed-sql-observed',
+                          operationId: id,
+                        });
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      } finally {
+                        await other.db.close();
+                      }
+                    });
+
+                    it('preserves correlation after a real afterCommit failure without inferring rollback or deleting bytes', async () => {
+                      sourceAfterCommitFailure();
+                      const { entry } = await execution();
+                      let failure: InstanceType<typeof files.AttachmentRemovalOutcomeError>;
+                      try {
+                        await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                        throw new Error('expected post-commit failure');
+                      } catch (error) {
+                        expect(error).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                        failure = error as typeof failure;
+                      }
+                      expect(failure!.outcome).toBe('unknown');
+                      expect(failure!.errors[0]).toMatchObject({ message: 'real afterCommit failure' });
+                      expect(await docs.model.findByPk(1)).toBeNull();
+                      const other = await observer();
+                      try {
+                        expect(await other.inspector.inspect(failure!.operationId)).toMatchObject({
+                          state: 'committed-sql-observed',
+                          operationId: failure!.operationId,
+                        });
+                        expect(await fs.readFile(location())).toEqual(bytes);
+                      } finally {
+                        await other.db.close();
+                      }
+                    });
+
+                    function sourceAfterCommitFailure() {
+                      docs.model.addHook('afterDestroy', (_row, { transaction }) => {
+                        transaction.afterCommit(() => {
+                          throw new Error('real afterCommit failure');
+                        });
+                      });
+                    }
+
+                    it('retains a fresh operation id after Repository rollback and leaves unknown evidence alone', async () => {
+                      docs.model.addHook('afterDestroy', () => {
+                        throw new Error('real Repository refusal');
+                      });
+                      const { entry } = await execution();
+                      let failure: InstanceType<typeof files.AttachmentRemovalOutcomeError>;
+                      try {
+                        await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                        throw new Error('expected rollback');
+                      } catch (error) {
+                        expect(error).toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                        failure = error as typeof failure;
+                      }
+                      expect(failure!.outcome).toBe('unknown');
+                      expect(failure!.errors[0]).toMatchObject({ message: 'real Repository refusal' });
+                      const other = await observer();
+                      try {
+                        expect(await other.inspector.inspect(failure!.operationId)).toEqual({ state: 'unknown' });
+                        await assertRollback();
+                      } finally {
+                        await other.db.close();
+                      }
+                    });
+
+                    it('does not reuse an earlier operation id when an entry has already been consumed', async () => {
+                      const { entry } = await execution();
+                      await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                      let failure: unknown;
+                      try {
+                        await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                      } catch (error) {
+                        failure = error;
+                      }
+                      expect(failure).not.toBeInstanceOf(files.AttachmentRemovalOutcomeError);
+                      expect(failure).not.toHaveProperty('operationId');
+                      expect(failure).toMatchObject({ message: expect.stringContaining('already been used') });
+                      expect(await intents.model.count()).toBe(1);
+                      expect(await fs.readFile(location())).toEqual(bytes);
+                    });
+
+                    it('does not issue a correlation id when final destroy authorization rejects before preparation', async () => {
+                      const { entry } = await execution(2);
+                      let failure: unknown;
+                      try {
+                        await files.executeRecordedAttachmentRemoval(entry, journal, native);
+                      } catch (error) {
+                        failure = error;
+                      }
+                      expect(failure).toBeTruthy();
+                      expect(failure).toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
+                      expect(failure).not.toHaveProperty('operationId');
+                      expect(await intents.model.count()).toBe(0);
+                      expect(await docs.model.count()).toBe(3);
+                      expect(await fs.readFile(location())).toEqual(bytes);
+                    });
+                  });
+
                   async function observer() {
                     const other = isolatedPostgresDatabase(postgresUrl!);
                     try {

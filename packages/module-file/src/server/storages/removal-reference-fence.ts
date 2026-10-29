@@ -234,6 +234,10 @@ END`;
        WHERE ${context.key}=${this.generator().escape(this.key)} RETURNING ${context.payload} AS payload`,
       tx,
     );
+    return this.parseState(context, rows);
+  }
+
+  private parseState(context: Awaited<ReturnType<AttachmentRemovalReferenceWriteFence['context']>>, rows: unknown) {
     const payload = (rows as { payload: Record<string, unknown> }[])[0]?.payload;
     const { reservation, binding, ...base } = payload && typeof payload === 'object' ? payload : {};
     if (
@@ -242,7 +246,10 @@ END`;
     )
       throw new TypeError('Removal reference fence state is invalid');
     if (binding !== undefined) this.assertBinding(binding, reservation as string);
-    return { reservation: reservation as string | null, binding };
+    return {
+      reservation: reservation as string | null,
+      binding: binding as AttachmentRemovalReferenceFenceBinding | undefined,
+    };
   }
 
   private assertBinding(value: unknown, operationId: string): asserts value is AttachmentRemovalReferenceFenceBinding {
@@ -311,6 +318,20 @@ END`;
     await this.assertDefinition(context, transaction);
     await this.state(context, transaction);
     await this.assertDefinition(context, transaction);
+  }
+
+  /** Locked durable data only; does not update state or verify the binding's evidence/commit claims. */
+  async readBinding(transaction: Transaction): Promise<AttachmentRemovalReferenceFenceBinding | undefined> {
+    const context = await this.context(transaction);
+    await this.assertDefinition(context, transaction);
+    const [rows] = await this.query(
+      `SELECT ${context.payload} AS payload FROM ${context.table}
+       WHERE ${context.key}=${this.generator().escape(this.key)} FOR UPDATE`,
+      transaction,
+    );
+    const state = this.parseState(context, rows);
+    await this.assertDefinition(context, transaction);
+    return state.binding;
   }
 
   /**

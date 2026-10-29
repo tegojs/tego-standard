@@ -23,6 +23,7 @@ export type {
   AttachmentRemovalObjectObservation,
   AttachmentRemovalCommittedReferenceObservation,
   AttachmentRemovalReferenceReservation,
+  AttachmentRemovalReferenceReservationObservation,
 } from './storages/removal-completion-inspector';
 export type { AttachmentRemovalReferenceMappings } from './storages/removal-reference-mappings';
 export { AttachmentRemovalNativeCapture } from './storages/native-removal-capture';

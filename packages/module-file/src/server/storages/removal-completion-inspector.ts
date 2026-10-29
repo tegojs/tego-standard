@@ -31,6 +31,15 @@ export type AttachmentRemovalReferenceReservation =
   | Readonly<{ state: 'unknown' }>
   | Readonly<{ state: 'committed-reference-fence-reservation'; operationId: string; transactionId: string }>;
 
+export type AttachmentRemovalReferenceReservationObservation =
+  | Readonly<{ state: 'unknown' }>
+  | Readonly<{
+      state: 'committed-reference-reservation-observed';
+      operationId: string;
+      transactionId: string;
+      removalTransactionId: string;
+    }>;
+
 /**
  * Trusted-server outcome observation, from explicitly independent mappings/pool on the same primary.
  * Owns its transaction and reads/locks SQL evidence; explicit reference inspection also reads current
@@ -325,6 +334,14 @@ export class AttachmentRemovalCompletionInspector {
     return this.inspectEvidence(operationId, 'reserve');
   }
 
+  /** Independent durable binding/commit and current mapped facts, never an unlink permission or filesystem lease. */
+  async inspectReferenceReservation(operationId: string): Promise<AttachmentRemovalReferenceReservationObservation> {
+    if (!this.referenceFence)
+      throw new TypeError('Reference reservation inspection requires an explicit independent fence mapping');
+    this.references!.assertCurrent();
+    return this.inspectEvidence(operationId, 'reservation');
+  }
+
   private inspectEvidence(operationId: string, mode: 'sql'): Promise<AttachmentRemovalCompletionObservation>;
   private inspectEvidence(operationId: string, mode: 'object'): Promise<AttachmentRemovalObjectObservation>;
   private inspectEvidence(
@@ -332,14 +349,19 @@ export class AttachmentRemovalCompletionInspector {
     mode: 'references',
   ): Promise<AttachmentRemovalCommittedReferenceObservation>;
   private inspectEvidence(operationId: string, mode: 'reserve'): Promise<AttachmentRemovalReferenceReservation>;
+  private inspectEvidence(
+    operationId: string,
+    mode: 'reservation',
+  ): Promise<AttachmentRemovalReferenceReservationObservation>;
   private async inspectEvidence(
     operationId: string,
-    mode: 'sql' | 'object' | 'references' | 'reserve',
+    mode: 'sql' | 'object' | 'references' | 'reserve' | 'reservation',
   ): Promise<
     | AttachmentRemovalCompletionObservation
     | AttachmentRemovalObjectObservation
     | AttachmentRemovalCommittedReferenceObservation
     | AttachmentRemovalReferenceReservation
+    | AttachmentRemovalReferenceReservationObservation
   > {
     if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))
       throw new TypeError('Completion inspection requires an operation identifier');
@@ -348,7 +370,7 @@ export class AttachmentRemovalCompletionInspector {
     const options = { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, transaction: null };
     return this.database.sequelize.transaction(options, async (transaction) => {
       let scope: AttachmentRemovalReferenceScope | undefined;
-      if (mode === 'references' || mode === 'reserve') {
+      if (mode === 'references' || mode === 'reserve' || mode === 'reservation') {
         this.references!.assertCurrent();
         scope = await lockAttachmentRemovalReferenceScope(
           this.database,
@@ -366,6 +388,9 @@ export class AttachmentRemovalCompletionInspector {
       if (connection?.database !== this.endpoint.database || connection.primary !== true)
         throw new TypeError('Completion inspection requires the original database primary');
       await this.assertCurrent(transaction, withObject, scope);
+      const reservation = mode === 'reservation' ? await this.referenceFence!.readBinding(transaction) : undefined;
+      if (mode === 'reservation' && !reservation) return Object.freeze({ state: 'unknown' as const });
+      if (reservation && reservation.operationId !== operationId) return Object.freeze({ state: 'unknown' as const });
       const read = { hooks: false, useMaster: true, transaction, lock: transaction.LOCK.UPDATE };
       const row = await this.intents.model.unscoped().findByPk(operationId, read);
       if (row && row.getDataValue('id') !== operationId)
@@ -377,6 +402,7 @@ export class AttachmentRemovalCompletionInspector {
           payload?.kind === 'attachment-removal-intent' &&
           payload?.state === 'prepared')
       ) {
+        if (reservation) throw new TypeError('Removal reference reservation completion is unavailable');
         await this.assertCurrent(transaction, withObject, scope);
         return Object.freeze({ state: 'unknown' as const });
       }
@@ -389,7 +415,7 @@ export class AttachmentRemovalCompletionInspector {
         if (object && scope) {
           const observed = await scope.observeLocalObject(object);
           await this.assertCurrent(transaction, true, scope);
-          if (mode === 'reserve') {
+          if (mode === 'reserve' || mode === 'reservation') {
             if (observed.references !== 0)
               throw new TypeError('Removal reference reservation requires zero mapped references');
             if (payload.storage.retainContent !== false)
@@ -399,6 +425,59 @@ export class AttachmentRemovalCompletionInspector {
               { transaction, bind: { table: this.table(this.events.model) } },
             );
             const actual = (rows as { xid: string; oid: string }[])[0];
+            const event = {
+              oid: actual.oid,
+              table: this.table(this.events.model),
+              key: this.events.model.rawAttributes.id.field,
+              payload: this.events.model.rawAttributes.payload.field,
+            };
+            if (mode === 'reservation') {
+              if (
+                !isDeepStrictEqual(reservation, {
+                  schemaVersion: 1,
+                  kind: 'attachment-removal-reference-fence-binding',
+                  operationId,
+                  transactionId: reservation!.transactionId,
+                  references: 0,
+                  completion: payload,
+                  objectBinding: bound!.binding,
+                  event,
+                }) ||
+                reservation!.transactionId === expected.transactionId ||
+                reservation!.transactionId === actual.xid
+              )
+                throw new TypeError('Removal reference reservation binding does not match its actual evidence');
+              const [statuses] = await this.database.sequelize.query(
+                'SELECT pg_catalog.pg_xact_status($xid::pg_catalog.xid8) AS status',
+                { transaction, bind: { xid: reservation!.transactionId } },
+              );
+              if (
+                (statuses as { status: string }[]).length !== 1 ||
+                (statuses as { status: string }[])[0]?.status !== 'committed'
+              )
+                throw new TypeError(
+                  'Removal reference reservation coordinating transaction is not explicitly committed',
+                );
+              await this.assertCurrent(transaction, true, scope);
+              await this.native.assertCommittedFullRowMatches(this.source, transaction, operationId, expected);
+              const reread = await this.intents.model.unscoped().findByPk(operationId, read);
+              if (
+                !reread ||
+                !isDeepStrictEqual(reread.getDataValue('payload'), payload) ||
+                !isDeepStrictEqual(await this.readObject(operationId, payload, transaction), bound) ||
+                !isDeepStrictEqual(await this.referenceFence!.readBinding(transaction), reservation)
+              )
+                throw new TypeError('Removal reference reservation evidence changed');
+              if ((await scope.observeLocalObject(object)).references !== 0)
+                throw new TypeError('Removal reference reservation requires zero mapped references');
+              await this.assertCurrent(transaction, true, scope);
+              return Object.freeze({
+                state: 'committed-reference-reservation-observed' as const,
+                operationId,
+                transactionId: reservation!.transactionId,
+                removalTransactionId: expected.transactionId,
+              });
+            }
             await this.referenceFence!.reserveWithEvidence(
               {
                 schemaVersion: 1,
@@ -408,12 +487,7 @@ export class AttachmentRemovalCompletionInspector {
                 references: 0,
                 completion: structuredClone(payload),
                 objectBinding: structuredClone(bound!.binding),
-                event: {
-                  oid: actual.oid,
-                  table: this.table(this.events.model),
-                  key: this.events.model.rawAttributes.id.field,
-                  payload: this.events.model.rawAttributes.payload.field,
-                },
+                event,
               },
               transaction,
             );
@@ -445,6 +519,7 @@ export class AttachmentRemovalCompletionInspector {
             references: observed.references,
           });
         }
+        if (reservation) throw new TypeError('Removal reference reservation object binding is unavailable');
         return object
           ? Object.freeze({
               state: 'committed-object-binding-observed' as const,

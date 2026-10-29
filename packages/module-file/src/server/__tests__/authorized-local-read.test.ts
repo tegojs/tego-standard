@@ -1222,6 +1222,305 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                             return result.operationId;
                           };
 
+                          describe('independent durable reference reservation inspection', () => {
+                            const reserved = async () => {
+                              const id = await unreferenced();
+                              const other = await coordinated();
+                              try {
+                                return { id, reservation: await other.inspector.reserveLocalReferences(id) };
+                              } finally {
+                                await other.db.close();
+                              }
+                            };
+                            const changeBinding = async (fields: string[], value: unknown) => {
+                              await db.sequelize.query(
+                                'UPDATE verified_reference_fence SET payload=jsonb_set(payload,$fields::text[],$value::jsonb)',
+                                { bind: { fields: ['binding', ...fields], value: JSON.stringify(value) } },
+                              );
+                            };
+
+                            it('independently observes both committed transactions without updating the durable row or bytes', async () => {
+                              const { id, reservation } = await reserved();
+                              const [before] = await db.sequelize.query(
+                                'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                              );
+                              const other = await coordinated();
+                              try {
+                                const completion = (await intents.model.findByPk(id)).getDataValue('payload');
+                                const seen = await other.inspector.inspectReferenceReservation(id);
+                                expect(seen).toEqual({
+                                  state: 'committed-reference-reservation-observed',
+                                  operationId: id,
+                                  transactionId: reservation.transactionId,
+                                  removalTransactionId: completion.transactionId,
+                                });
+                                expect(Object.isFrozen(seen)).toBe(true);
+                                expect(seen.transactionId).not.toBe(seen.removalTransactionId);
+                                const [after] = await db.sequelize.query(
+                                  'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                );
+                                expect(after).toEqual(before);
+                                expect(await fs.readFile(location())).toEqual(bytes);
+                                await expect(docs.repository.create({ values: { id: 9 } })).rejects.toThrow(
+                                  'Attachment removal reference writes are fenced',
+                                );
+                              } finally {
+                                await other.db.close();
+                              }
+                            });
+
+                            it.each(['open', 'bare'])(
+                              'keeps an %s fence unknown rather than promoting its UUID',
+                              async (state) => {
+                                const id = await unreferenced();
+                                if (state === 'bare')
+                                  await db.sequelize.transaction(
+                                    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+                                    (tx) => fence.reserve(id, tx),
+                                  );
+                                const other = await coordinated();
+                                try {
+                                  expect(await other.inspector.inspectReferenceReservation(id)).toEqual({
+                                    state: 'unknown',
+                                  });
+                                  expect(
+                                    await other.inspector.inspectReferenceReservation(
+                                      '11111111-1111-1111-1111-111111111111',
+                                    ),
+                                  ).toEqual({ state: 'unknown' });
+                                  expect(
+                                    (await fenceJournal.model.findOne()).getDataValue('payload'),
+                                  ).not.toHaveProperty('binding');
+                                } finally {
+                                  await other.db.close();
+                                }
+                              },
+                            );
+
+                            it.each([
+                              { kind: 'completion', fields: ['completion', 'record', 'tenantId'], value: 'H' },
+                              { kind: 'object', fields: ['objectBinding', 'object', 'object', 'size'], value: '999' },
+                              { kind: 'event oid', fields: ['event', 'oid'], value: '1' },
+                              { kind: 'event field', fields: ['event', 'payload'], value: 'another_payload' },
+                              {
+                                kind: 'operation',
+                                fields: ['operationId'],
+                                value: '11111111-1111-1111-1111-111111111111',
+                              },
+                              { kind: 'extra', fields: ['extra'], value: true },
+                            ])('rejects durable $kind binding tampering', async ({ fields, value }) => {
+                              const { id } = await reserved();
+                              await changeBinding(fields, value);
+                              const other = await coordinated();
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  /Removal reference/,
+                                );
+                                expect(await fs.readFile(location())).toEqual(bytes);
+                              } finally {
+                                await other.db.close();
+                              }
+                            });
+
+                            it.each(['active', 'aborted', 'original', 'future', 'invalid'])(
+                              'rejects a %s coordinating transaction',
+                              async (kind) => {
+                                const { id } = await reserved();
+                                let active: Transaction | undefined;
+                                let xid: string;
+                                if (kind === 'original')
+                                  xid = (await intents.model.findByPk(id)).getDataValue('payload').transactionId;
+                                else if (kind === 'future') xid = '18446744073709551615';
+                                else if (kind === 'invalid') xid = '0';
+                                else {
+                                  active = await db.sequelize.transaction();
+                                  const [rows] = await db.sequelize.query('SELECT txid_current()::text AS xid', {
+                                    transaction: active,
+                                  });
+                                  xid = (rows as { xid: string }[])[0].xid;
+                                  if (kind === 'aborted') {
+                                    await active.rollback();
+                                    active = undefined;
+                                  }
+                                }
+                                await changeBinding(['transactionId'], xid);
+                                const other = await coordinated();
+                                try {
+                                  await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow();
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  if (active) await active.rollback();
+                                  await other.db.close();
+                                }
+                              },
+                            );
+
+                            it.each(['completion', 'object'])(
+                              'rejects a bound reservation with missing actual %s evidence',
+                              async (kind) => {
+                                const { id } = await reserved();
+                                await (kind === 'completion' ? intents : objects).model.destroy({
+                                  where: { id },
+                                  hooks: false,
+                                });
+                                const other = await coordinated();
+                                try {
+                                  await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                    /Removal reference reservation/,
+                                  );
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              },
+                            );
+
+                            it('requires explicit fence configuration instead of falling back to ordinary inspection', async () => {
+                              const { id } = await reserved();
+                              const other = await references();
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  'Reference reservation inspection requires an explicit independent fence mapping',
+                                );
+                              } finally {
+                                await other.db.close();
+                              }
+                            });
+
+                            it('rereads the locked binding after the actual evidence checks and rolls back timing-hook changes', async () => {
+                              const { id } = await reserved();
+                              const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                              const other = await coordinated();
+                              let changed = false;
+                              other.db.sequelize.addHook(
+                                'afterQuery',
+                                'change-after-binding-read',
+                                async (options, query) => {
+                                  if (
+                                    !changed &&
+                                    (query as unknown as { sql: string }).sql.startsWith(
+                                      'SELECT "payload" AS payload FROM "public"."verified_reference_fence"',
+                                    )
+                                  ) {
+                                    changed = true;
+                                    await other.db.sequelize.query(
+                                      `UPDATE verified_reference_fence SET payload=jsonb_set(payload,'{binding,completion,record,tenantId}','"H"'::jsonb)`,
+                                      { transaction: options.transaction },
+                                    );
+                                  }
+                                },
+                              );
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  'Removal reference reservation evidence changed',
+                                );
+                                expect(changed).toBe(true);
+                                expect((await fenceJournal.model.findOne()).getDataValue('payload')).toEqual(before);
+                              } finally {
+                                other.db.sequelize.removeHook('afterQuery', 'change-after-binding-read');
+                                await other.db.close();
+                              }
+                            });
+
+                            it('rejects the observing transaction as the recorded coordinator', async () => {
+                              const { id } = await reserved();
+                              const other = await coordinated();
+                              let changed = false;
+                              other.db.sequelize.addHook(
+                                'afterQuery',
+                                'replace-coordinator-with-observer',
+                                async (options, query) => {
+                                  if (
+                                    !changed &&
+                                    (query as unknown as { sql: string }).sql.startsWith(
+                                      'SELECT pg_catalog.current_database()',
+                                    )
+                                  ) {
+                                    changed = true;
+                                    await other.db.sequelize.query(
+                                      `UPDATE verified_reference_fence SET payload=jsonb_set(payload,'{binding,transactionId}',to_jsonb(txid_current()::text))`,
+                                      { transaction: options.transaction },
+                                    );
+                                  }
+                                },
+                              );
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  /Removal reference/,
+                                );
+                                expect(changed).toBe(true);
+                              } finally {
+                                other.db.sequelize.removeHook('afterQuery', 'replace-coordinator-with-observer');
+                                await other.db.close();
+                              }
+                            });
+
+                            it('refuses a same-name replacement of the physical fence table', async () => {
+                              const { id } = await reserved();
+                              await db.sequelize.query(
+                                'ALTER TABLE verified_reference_fence RENAME TO original_reference_fence',
+                              );
+                              await fenceJournal.model.sync();
+                              await db.sequelize.query(
+                                'INSERT INTO verified_reference_fence SELECT * FROM original_reference_fence',
+                              );
+                              const other = await coordinated();
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  /Removal reference/,
+                                );
+                              } finally {
+                                await other.db.close();
+                                await db.sequelize.query('DROP TABLE verified_reference_fence');
+                                await db.sequelize.query(
+                                  'ALTER TABLE original_reference_fence RENAME TO verified_reference_fence',
+                                );
+                              }
+                            });
+
+                            it('rejects current filesystem replacement despite a committed reservation', async () => {
+                              const { id } = await reserved();
+                              await fs.rename(location(), `${location()}.original`);
+                              await fs.writeFile(location(), bytes);
+                              const other = await coordinated();
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  'Removal reference object changed or is unavailable',
+                                );
+                                expect(await fs.readFile(`${location()}.original`)).toEqual(bytes);
+                              } finally {
+                                await other.db.close();
+                              }
+                            });
+
+                            it('rejects a privileged fixture reintroduction instead of relying on the historical zero', async () => {
+                              const { id } = await reserved();
+                              // Only this isolated fixture bypasses guards to simulate an out-of-contract writer.
+                              const guard = fence.functionName.split('.').at(-1);
+                              await db.sequelize.query(`ALTER TABLE documents DISABLE TRIGGER ${guard}`);
+                              await docs.model.create(
+                                {
+                                  id: 9,
+                                  path: 'old/tenants/H',
+                                  filename: 'receipt.txt',
+                                  storageId: 18,
+                                  size: bytes.length,
+                                },
+                                { hooks: false },
+                              );
+                              await db.sequelize.query(`ALTER TABLE documents ENABLE ALWAYS TRIGGER ${guard}`);
+                              const other = await coordinated();
+                              try {
+                                await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                  'Removal reference reservation requires zero mapped references',
+                                );
+                                expect(await fs.readFile(location())).toEqual(bytes);
+                              } finally {
+                                await other.db.close();
+                              }
+                            });
+                          });
+
                           it('persists verified completion/object/event provenance and the owning transaction before fencing writes', async () => {
                             const id = await unreferenced();
                             const other = await coordinated();

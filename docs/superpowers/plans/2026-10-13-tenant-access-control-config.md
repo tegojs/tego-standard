@@ -2814,3 +2814,19 @@ Ruling: Inspector 新增显式 fence 映射及 reserveLocalReferences，从原�
 - [x] 最终授权读取/HTTP/意图/独立观察/协调、原生捕获、原写入隔离及锁范围四个完整相关文件顺序三百七十四项通过、一百九十一项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；九项新增实际 PG 不与定向结果相加。保留 removal-verified-fence-regression.log；所有测试/构建进程实际退出后才运行下一轮。四份 TS 源/快照 SHA256 一致，六文件格式、四 TS oxlint 零错误/警告、diff及作者自审通过。整分支独立复核未完成。
 
 确认真实集群目录/端口及零其他客户端后，仅删除专用库 tego_tenant_access_test_e18529f628，pg_database 计数核实 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。按同事务可信证据/预留组合作英文默认签名原子提交，不推送。下一项独立重读持久绑定并核验本协调事务确定提交，后续仍须对象最终互斥及清理协调；不能仅因方法返回成功、任意 reservation UUID 或合法 JSON 就清理。真实 COMMIT 确认丢失、崩溃发现、可用的逐对象写者/路径复用协议、替换及其他入口和最终整合/业务试点均未完成，原文件继续保留。
+
+## 186. 独立池的持久预留绑定及协调提交观察
+
+Ruling: 承接原 Inspector 的固定证据链，新增只接受已知 UUID 的 inspectReferenceReservation，不把 reserveLocalReferences 的返回值、任意 JSON 或裸预留当作能力。在独立主库池拥有的 SERIALIZABLE 事务内以完整引用 LOCK 为首 SQL，实际读取并锁定原永久行；新增低层 readBinding 使用 SELECT FOR UPDATE 并复用原安装/物理状态校验，不调用会实际 UPDATE 的 assertInstalled。既有写者每次 UPDATE 永久行的隔离协议不变，原对象/完成/普通引用观察不增加写入。
+
+重读原真实 v3、原事务明确 committed 的完整 OLD、严格原对象封装、当前对象/目录及零引用，要求原保留策略明确为 false。持久 binding 必须精确匹配实际 v3、原对象封装和事件表 OID/物理字段；本协调 xid 与原删除 xid、本观察 xid 必须互异，pg_xact_status(xid8) 必须明确 committed。返回前重新读取原日志、原生定义和 binding，并再次验证当前对象及零引用。返回只含 committed-reference-reservation-observed、原 UUID、协调及原删除事务标识；开放/裸预留/另一个 UUID 未知，本 UUID 已有绑定却缺实际完成/对象证据则失败，不据此推断回滚。
+
+前提仍是可信服务端、受控 schema/函数所有者和稳定登记映射。此方法观察存储的协调事务标识及其提交状态，不证明字段不可伪造的因果来源；任意有权改写日志的 schema 所有者不受其隔离。SELECT 行锁不构成 PostgreSQL READ ONLY、文件系统租约、全部未知引用保证或清理许可；原文件字节继续保留。没有自动发现、升级/覆盖/释放预留、自动重试、正式注册或路由。
+
+- [x] 十七项新增实际 PG 在缺方法时有效 RED，修正首轮夹具 ENABLE ALWAYS TRIGGER USER 语法后全部仍因缺方法失败；最小实现后十七项通过，保留 removal-fence-inspection-red.log、removal-fence-inspection-green.log。覆盖独立新池/映射重读、协调行 xmin/ctid/payload 不变、开放/裸预留、完成/对象/事件/UUID/额外字段篡改、活动/回滚/原删除/未来 xid、本观察 xid、同名物理协调表替换、当前对象替换及特权夹具重引入引用。
+- [x] 作者自审追加缺实际完成/对象日志、缺显式 fence 配置、实际读取后的同事务 SQL 时点篡改及非法 xid 五项；这些是现有检查的表征，不伪称新增产品 RED。初次追加把 bootstrap xid 1 误作为不可判定夹具，实际 PG 返回 committed，已按事实移除该错误假设，改以格式非法的 xid 0 校验拒绝；不声称实际复现了历史提交状态截断，也不以此扩大因果证明。
+- [x] 文件包客户端、服务端和声明构建退出 0，保留 removal-fence-inspection-build-file.log；快照无 Git 元数据的既有版本提示保留，没有改依赖或版本。
+- [x] 最终授权读取/HTTP/意图/独立观察/协调、原生捕获、原隔离及锁范围四个完整相关文件顺序三百九十六项通过、二百一十三项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；二十二项新增实际 PG 不与定向计数相加。保留 removal-fence-inspection-regression.log；本次包含纠正后的全部追加场景。四 TS 源/快照 SHA256 一致，六文件 Prettier、四 TS oxlint 零错误/警告、diff及作者自审通过。整分支独立复核未完成，不启动或联系子智能体。
+- [x] 确认测试/构建实际退出、真实集群目录/端口及零其他客户端后，删除本批专用库 tego_tenant_access_test_f18629a629，并核实 pg_database 计数 0；临时 PG 已停止，目录和日志保留。删除的是可重建测试数据，未涉及业务数据库。按独立持久预留观察作英文默认签名原子提交，不推送。
+
+本批专用库 tego_tenant_access_test_f18629a629，日志前缀 removal-fence-inspection-*。下一项对象最终互斥及受控清理协调仍须独立设计/实测，不能把此观察返回后释放的数据库锁当作文件系统排他权；真实网络 COMMIT 确认丢失、UUID 交付前崩溃发现、可用逐对象写者及路径复用、替换/其他入口和最终整合/业务试点仍未完成。

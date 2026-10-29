@@ -2333,3 +2333,18 @@ Ruling: 先交付有界的一条附件删除前证明，复用 AccessMutationSer
 实际 PostgreSQL 根写入组二百一十四项通过，SQLite 组二百一十二项仅被名称过滤，不混进通过数；包含 §152 附件删除拒绝、普通表删除、关联及受保护文件字段回归，保留 attachment-removal-root-postgres.log。租户包首轮声明构建发现 Sequelize DataType 联合类型没有公共 key 属性；按相邻实现使用可选 key 类型收窄后，最终客户端、服务端和声明构建退出 0，保留 attachment-removal-entry-build-final.log。只改类型断言和格式，不变更已验证运行逻辑。三份 TypeScript 的实际 oxlint 零错误/警告、Prettier、源/快照 SHA256、diff 及作者自审通过。整分支独立复核仍未完成。
 
 本批准备接口不承诺文件字节安全删除，也未持久化真实删除意图。下一阶段必须补齐原事务删除结果证据和存储策略、共享路径/其他记录引用检查，再推进确定提交后的受控清理；不能先调用旧 storage.delete，也不能绕过 Repository 钩子。§150 的正式下载框架兼容阻塞仍在，未改核心/依赖或启用正式运行时。§152 已有效默认签名提交 6c8a8946f；本批保持独立原子签名提交，不推送。
+
+## 154. 销毁准备使用原存储和事务内保留策略
+
+Ruling: 从原记录取得的存储键必须与当前上传配置分开。复用存储选择器的真实关系、物理字段和配置快照核查，新增独立 removal 分支：首次在调用者的有效同库写事务中锁定 storageId 对应存储行，再捕获原始配置；后续复核固定原事务，事务结束即失效。读取分支继续不锁存储、允许实际只读事务；新增分支继续按字段/表/默认选择上传存储，不改变它们的契约。不会从请求选择集合/存储或在新函数内创建、提交事务。
+
+按旧销毁 SQL 的保留边界保守处理：只有实际 paranoid=false 返回 retainContent=false，true 和 null 等其他值均保留；false 仍只是后续清理的必要条件，不是充分授权，也不证明数据库删除已提交。该接口不做文件 I/O，不可直接接 storage.delete；仍需与 §153 的来源记录 destroy/G 证明及尚未完成的删除结果、引用、对象身份证据组合。
+
+- [x] 原存储选择缺少实现的实际 RED，最小实现后 SQLite/PostgreSQL 存储选择完整回归及真实存储行锁等待。
+- [x] 新 SQL 只读边界与受控读取组合回归、文件包构建、格式/lint、源/快照核对、作者自审与默认签名提交。
+
+初始定向正向失败因缺少 resolveAttachmentRemovalStorage，保留 attachment-removal-storage-red.log。首轮完整存储选择一百四十一项通过，SQLite 的一个 PostgreSQL 锁等待用例按数据库分组跳过，PG 对应项已实际执行，保留 attachment-removal-storage-green.log。验证原配置优先、不回退默认、true/null 保留、原事务结束失效、事务内策略漂移拒绝及返回快照不可改变保留决定；真实 pg_stat_activity 观察另一 UPDATE 等待存储配置行锁，调用者回滚后才改动成功。作者自审补充不依赖 ORM readOnly 标记的真实 SET TRANSACTION READ ONLY 场景，并对既有授权读取/HTTP组合做共享选择器回归，最终结果如下。
+
+最终两文件顺序一百九十二项通过，仅 SQLite 的两项 PostgreSQL 专项按数据库分组跳过；对应实际 PG 行锁和 SQL 只读用例均通过，保留 attachment-removal-storage-final.log。包括原上传/读取/新删除准备选择，以及最终记录授权、本地句柄、真实 HTTP 的拒绝、撤权、取消、空文件和八兆背压等既有组合回归。文件包客户端、服务端及声明构建退出 0，保留 attachment-removal-storage-build.log；租户包已在 §153 最终源码完成构建，此后没有改动其源码，不重复运行。
+
+三份 TypeScript 的 oxlint 零错误/警告、Prettier、源/快照 SHA256、diff 与作者自审通过，整分支独立复核仍待完成。核实实际临时集群目录和零其他客户端后，删除本轮专用库 tego_tenant_access_test_a15329b601，确认 pg_database 计数 0，停止临时服务并保留目录日志；仅移除了可重建测试数据，未涉及业务数据。§153 已有效默认签名 d67598bbd；本批单独签名提交，不推送。下一阶段接续原事务的真实删除结果证据及持久化意图、共享路径/引用、对象身份和确定提交后的受控清理；记录/配置准备不等于附件删除已完成，正式路由、规则保存及启用仍关闭。

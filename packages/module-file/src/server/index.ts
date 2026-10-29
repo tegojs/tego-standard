@@ -22,9 +22,14 @@ export { captureStagedAttachmentRecord, captureStagedAttachmentResponse } from '
 export {
   resolveStagedAttachmentStorage,
   resolveAttachmentReadStorage,
+  resolveAttachmentRemovalStorage,
   renderStagedAttachmentStorage,
 } from './storages/storage-selection';
-export type { StagedAttachmentStorageSelection, AttachmentReadStorageSelection } from './storages/storage-selection';
+export type {
+  StagedAttachmentStorageSelection,
+  AttachmentReadStorageSelection,
+  AttachmentRemovalStorageSelection,
+} from './storages/storage-selection';
 export { prepareStagedAttachmentStorage } from './storages/staged-upload';
 export type {
   StagedAttachmentLocalReceipt,

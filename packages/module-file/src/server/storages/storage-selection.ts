@@ -20,6 +20,14 @@ export interface AttachmentReadStorageSelection {
   assertCurrent(transaction?: Transaction): Promise<void>;
 }
 
+export interface AttachmentRemovalStorageSelection {
+  readonly values: Record<string, unknown>;
+  /** False only for an explicit false policy; never a permission or receipt to unlink content. */
+  readonly retainContent: boolean;
+  /** Recheck using the same still-active transaction that holds the original storage row lock. */
+  assertCurrent(): Promise<void>;
+}
+
 /** Server rendering and directory namespacing only, not storage-use authorization. Never pass request tenant values. */
 export function renderStagedAttachmentStorage(
   selection: StagedAttachmentStorageSelection,
@@ -85,11 +93,40 @@ export async function resolveAttachmentReadStorage(
   return resolveStorageSelection(collection, { kind: 'read', storageId });
 }
 
+/** Original stored key and caller-owned transaction only. Record destroy ACL/G is checked separately. */
+export async function resolveAttachmentRemovalStorage(
+  collection: Collection,
+  storageId: string | number,
+  transaction: Transaction,
+): Promise<AttachmentRemovalStorageSelection> {
+  if (
+    !(
+      (typeof storageId === 'string' && storageId.length > 0 && storageId.length <= 255) ||
+      (typeof storageId === 'number' && Number.isSafeInteger(storageId))
+    )
+  )
+    throw new TypeError('Attachment removal requires its stored storage key');
+  const selected = await resolveStorageSelection(collection, { kind: 'removal', storageId, transaction });
+  return Object.freeze({
+    get values() {
+      return selected.values;
+    },
+    retainContent: selected.values.paranoid !== false,
+    async assertCurrent() {
+      await selected.assertCurrent(transaction);
+    },
+  });
+}
+
 async function resolveStorageSelection(
   collection: Collection,
-  selection: { kind: 'upload'; attachmentField?: Field } | { kind: 'read'; storageId: string | number },
+  selection:
+    | { kind: 'upload'; attachmentField?: Field }
+    | { kind: 'read'; storageId: string | number }
+    | { kind: 'removal'; storageId: string | number; transaction: Transaction },
 ): Promise<AttachmentReadStorageSelection> {
   const reading = selection.kind === 'read';
+  const stored = selection.kind !== 'upload';
   const attachmentField = selection.kind === 'upload' ? selection.attachmentField : undefined;
   const db = collection.db;
   const model = collection.model;
@@ -103,7 +140,7 @@ async function resolveStorageSelection(
   const fieldStorage = attachmentField?.options.storage;
   const fieldRelation = sourceModel?.associations[fieldName];
   const collectionStorage = collection.options.storage;
-  const configured = reading ? undefined : fieldStorage === undefined ? collectionStorage : fieldStorage;
+  const configured = stored ? undefined : fieldStorage === undefined ? collectionStorage : fieldStorage;
   if (configured !== undefined && (typeof configured !== 'string' || !configured.length || configured.length > 255))
     throw new TypeError('Attachment storage configuration is invalid');
   const storage = db.getCollection('storages');
@@ -132,7 +169,7 @@ async function resolveStorageSelection(
       collection.model !== model ||
       db.modelCollection.get(model) !== collection ||
       collection.options.template !== 'file' ||
-      (!reading && collection.options.storage !== collectionStorage) ||
+      (!stored && collection.options.storage !== collectionStorage) ||
       (attachmentField !== undefined &&
         (!source ||
           attachmentField.collection !== source ||
@@ -190,7 +227,7 @@ async function resolveStorageSelection(
   const read = async (transaction?: Transaction) => {
     const options = {
       where:
-        selection.kind === 'read'
+        selection.kind !== 'upload'
           ? { id: selection.storageId }
           : configured === undefined
             ? { default: true }
@@ -205,7 +242,32 @@ async function resolveStorageSelection(
     current();
     return records.map((record) => Object.fromEntries(storageFields.map((key) => [key, record.getDataValue(key)])));
   };
-  const records = await read();
+  const assertRemovalTransaction = () => {
+    if (selection.kind !== 'removal') return;
+    const transaction = selection.transaction;
+    const state = transaction as Transaction & {
+      sequelize?: typeof db.sequelize;
+      finished?: string;
+      parent?: Transaction;
+      options?: { readOnly?: boolean; type?: string };
+    };
+    const dialect = db.sequelize.getDialect();
+    if (
+      !(transaction instanceof Transaction) ||
+      state.sequelize !== db.sequelize ||
+      state.finished ||
+      state.parent ||
+      state.options?.readOnly ||
+      !['postgres', 'sqlite'].includes(dialect) ||
+      (dialect === 'sqlite' &&
+        state.options?.type !== Transaction.TYPES.IMMEDIATE &&
+        state.options?.type !== Transaction.TYPES.EXCLUSIVE)
+    )
+      throw new TypeError('Attachment removal requires its active storage write transaction');
+  };
+  assertRemovalTransaction();
+  const records = await read(selection.kind === 'removal' ? selection.transaction : undefined);
+  assertRemovalTransaction();
   if (records.length !== 1) throw new TypeError('Attachment requires a unique configured storage');
   const captured = structuredClone(records[0]);
   return Object.freeze({
@@ -213,6 +275,7 @@ async function resolveStorageSelection(
       return structuredClone(captured);
     },
     async assertCurrent(transaction?: Transaction) {
+      assertRemovalTransaction();
       const state = transaction as Transaction & {
         sequelize?: typeof db.sequelize;
         finished?: string;
@@ -226,6 +289,7 @@ async function resolveStorageSelection(
         throw new TypeError('Attachment requires an active storage selection transaction');
       current();
       const latest = await read(transaction);
+      assertRemovalTransaction();
       if (state?.finished) throw new TypeError('Attachment requires an active storage selection transaction');
       if (latest.length !== 1 || !isDeepStrictEqual(latest[0], captured))
         throw new TypeError('Selected attachment storage changed');

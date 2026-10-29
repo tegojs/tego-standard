@@ -417,6 +417,102 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       await expect(fs.stat(destination)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
+    describe('stored attachment removal configuration', () => {
+      async function removal(key: unknown = 18) {
+        transaction ??= await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
+        return files.resolveAttachmentRemovalStorage(collection, key as string | number, transaction);
+      }
+
+      it('locks the original storage and keeps current upload choices out of removal', async () => {
+        collection.options.storage = 'missing-upload-storage';
+        source.getField('file').options.storage = 'also-missing';
+        const selected = await removal();
+        expect(selected.values).toMatchObject({ id: 18, name: 'receipts', path: 'receipts' });
+        expect(selected.retainContent).toBe(false);
+        collection.options.storage = 'local';
+        await selected.assertCurrent();
+      });
+
+      it.each([true, null])('retains content when the original storage paranoid value is %j', async (paranoid) => {
+        await db.getRepository('storages').update({ filterByTk: 18, values: { paranoid } });
+        const selected = await removal();
+        expect(selected.retainContent).toBe(true);
+        expect(selected.values.paranoid).toBe(paranoid);
+        await selected.assertCurrent();
+      });
+
+      it('never falls back to the current default for a missing original storage', async () => {
+        await expect(removal(999)).rejects.toThrow();
+      });
+
+      it('requires the caller write transaction before selecting a storage', async () => {
+        await expect(files.resolveAttachmentRemovalStorage(collection, 18, undefined!)).rejects.toThrow();
+      });
+
+      it('does not accept a read-only transaction as a removal storage lock', async () => {
+        transaction = await db.sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE, readOnly: true });
+        if (dialect === 'postgres') await db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
+        await expect(files.resolveAttachmentRemovalStorage(collection, 18, transaction)).rejects.toThrow();
+      });
+
+      it.skipIf(dialect !== 'postgres')(
+        'rejects actual SQL read-only mode without trusting advisory options',
+        async () => {
+          transaction = await db.sequelize.transaction();
+          await db.sequelize.query('SET TRANSACTION READ ONLY', { transaction });
+          await expect(files.resolveAttachmentRemovalStorage(collection, 18, transaction)).rejects.toThrow();
+        },
+      );
+
+      it('expires the storage selection when the caller transaction finishes', async () => {
+        const selected = await removal();
+        await transaction.commit();
+        await expect(selected.assertCurrent()).rejects.toThrow();
+      });
+
+      it('rejects storage policy drift inside the owned transaction', async () => {
+        const selected = await removal();
+        await db.getRepository('storages').update({ filterByTk: 18, values: { paranoid: true }, transaction });
+        await expect(selected.assertCurrent()).rejects.toThrow('Selected attachment storage changed');
+        await transaction.rollback();
+        expect((await db.getRepository('storages').findOne({ filterByTk: 18 })).getDataValue('paranoid')).toBe(false);
+      });
+
+      it('does not let a consumer mutate the retention decision through the returned configuration', async () => {
+        const selected = await removal();
+        selected.values.paranoid = true;
+        expect(selected.values.paranoid).toBe(false);
+        expect(selected.retainContent).toBe(false);
+        await selected.assertCurrent();
+      });
+
+      it.skipIf(dialect !== 'postgres')('holds the actual storage policy lock until the caller finishes', async () => {
+        const selected = await removal();
+        let contender: Promise<unknown> | undefined;
+        try {
+          contender = db
+            .getCollection('storages')
+            .model.update({ paranoid: true }, { where: { id: 18 }, hooks: false });
+          void contender.catch(() => {});
+          await vi.waitFor(
+            async () => {
+              const [rows] = await db.sequelize.query(
+                "SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'UPDATE %storages%';",
+              );
+              expect(rows).toHaveLength(1);
+            },
+            { timeout: 3000, interval: 25 },
+          );
+          await selected.assertCurrent();
+          expect(selected.retainContent).toBe(false);
+        } finally {
+          await transaction.rollback();
+          await contender;
+        }
+        expect((await db.getRepository('storages').findOne({ filterByTk: 18 })).getDataValue('paranoid')).toBe(true);
+      });
+    });
+
     describe('stored attachment read configuration', () => {
       async function storedSelection(key: unknown) {
         return files.resolveAttachmentReadStorage(collection, key as string | number);

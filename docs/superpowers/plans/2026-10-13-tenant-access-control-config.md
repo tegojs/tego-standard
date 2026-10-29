@@ -2653,3 +2653,19 @@ Ruling: 文件层另行提供 executeRecordedAttachmentRemoval，显式组合可
 - [x] 文件包客户端、服务端与声明构建退出 0，保留 removal-outcome-correlation-build-file.log；四份源码与快照 SHA256 一致，六文件 Prettier 通过、四份 TS 的 oxlint 零错误/警告，diff 和作者自审通过。未改租户包实现，不重复其既有构建；整分支独立复核未完成。
 
 专用库 tego_tenant_access_test_a17429b618 仅供本批串行验证。确认测试/构建均退出、真实集群目录及零其他客户端后，仅删除该库并核实 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。按操作关联作英文默认签名原子提交，不推送。下一项推进共享路径/其他引用与对象身份的最小交付，原文件继续保留；物理清理、崩溃发现、其他入口及正式整合仍未完成。
+
+## 175. 既有本地附件的只读对象身份快照
+
+Ruling: 对象证据必须在真实 destroy/G 的原存储准备仍有效、原记录尚在时取得，不能使用新上传的取消回执代表既有对象。另行提供 captureLocalAttachmentRemovalObject，仅接收可信 AuthorizedAttachmentRemovalPreparation，固定原记录、原存储和来源，再复用既有只读文件打开能力；不接另一份位置、storageId、上传回执或文件字节。
+
+返回独立 schemaVersion:1/kind:attachment-removal-local-object 格式，记录配置根及实际 canonical 根、原来源名称/记录位置、目录链的 dev/ino/birthtimeNs，以及实际打开文件的 dev/ino/birthtimeNs/mtimeNs/ctimeNs/size，数值以原始十进制文本保存。捕获后再次检查路径上的当前对象和仍打开的句柄、根/目录链及最终准备权限；句柄由原只读打开器负责关闭。深冻结可 JSON 序列化快照，不写数据库/文件或调用旧删除接口；paranoid true/false 都保留字节。
+
+此快照依赖稳定的服务端独占目录，只提供观察时的对象身份，没有原子 inode 条件 unlink，不是不可伪造凭证、持久化意图绑定、确定提交、无共享路径/其他引用或清理租约。来源名称也不是实际表/OID 的充分绑定；后续须与真实原事务意图和完整行事件严格组合，不能仅按名称或位置认领对象。本批不把新证据接到物理清理器，既有上传取消格式/恢复语义保持不变。
+
+- [x] 五项 SQLite 场景在实现前检查缺少能力。首轮三个失败、两个宽泛拒绝断言误接受了缺方法/缺回调；改为真实 ENOENT 和硬链接拒绝的明确断言后五项均正确 RED，保留 removal-object-identity-red.log、removal-object-identity-red-final.log，不把误通过算成有效功能复现。
+- [x] 最小实现后五项 SQLite 全通过，保留 removal-object-identity-green.log：真实文件/每级目录身份和时间/大小文本、深冻结及 JSON 序列化、不写原行/字节、要求保留的存储仍只捕获、缺文件与硬链接拒绝、文件系统等待期间最终 destroy 决策撤销时拒绝返回快照。
+
+- [x] 两个完整相关文件串行二百四十五项通过、一百一十八项 SQLite 的 PG 专项分组跳过，对应实际 PG 专项均执行，退出 0，保留 removal-object-identity-regression.log。本批五类对象场景实际 SQLite/PG 各执行一次，共十项，不与此前 SQLite 定向结果相加。
+- [x] 文件包客户端、服务端及声明构建退出 0，保留 removal-object-identity-build-file.log；三份源码与快照 SHA256 一致，五文件 Prettier 通过、三份 TS 的 oxlint 零错误/警告、diff 与作者自审通过。仅修改文件包，不重复租户包已有构建；整分支独立复核未完成。
+
+独立专用库 tego_tenant_access_test_b17529c619 仅供本批串行验证。确认所有测试/构建退出、真实集群目录及零其他客户端后，仅删除该库并核实 pg_database 计数 0；临时 PG 已停止，目录及日志保留。删除的是可重建测试数据，未涉及业务数据。本批按既有对象只读身份证据作英文默认签名原子提交，不推送。下一项先将该证据与真实原意图/事务/来源严格持久化绑定，再完成共享路径/其他引用及受控清理协调；不能以来源名称、owner/位置或本次快照单独授权删除。崩溃发现、其他入口与正式整合仍未完成，原文件继续保留。

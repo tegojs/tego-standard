@@ -219,6 +219,93 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
         );
       }
 
+      describe('existing local removal object identity', () => {
+        it('captures actual file and directory identities from the original storage without changing bytes or rows', async () => {
+          const object = await fs.lstat(location(), { bigint: true });
+          const receipt = await prepare(await context(1, {}, 'destroy'), files.captureLocalAttachmentRemovalObject);
+          expect(receipt).toMatchObject({
+            schemaVersion: 1,
+            kind: 'attachment-removal-local-object',
+            configuredRoot: root,
+            root: await fs.realpath(root),
+            record: { key: 1, storageId: 18, path: 'old/tenants/H', filename: 'receipt.txt', size: bytes.length },
+            object: {
+              dev: String(object.dev),
+              ino: String(object.ino),
+              birthtimeNs: String(object.birthtimeNs),
+              mtimeNs: String(object.mtimeNs),
+              ctimeNs: String(object.ctimeNs),
+              size: String(bytes.length),
+            },
+          });
+          expect(receipt.directories.map((directory) => directory.path)).toEqual([
+            '',
+            'old',
+            'old/tenants',
+            'old/tenants/H',
+          ]);
+          for (const directory of receipt.directories) {
+            const actual = await fs.lstat(path.join(root, directory.path), { bigint: true });
+            expect(directory).toMatchObject({
+              dev: String(actual.dev),
+              ino: String(actual.ino),
+              birthtimeNs: String(actual.birthtimeNs),
+            });
+            expect(Object.isFrozen(directory)).toBe(true);
+          }
+          expect(Object.isFrozen(receipt)).toBe(true);
+          expect(Object.isFrozen(receipt.object)).toBe(true);
+          expect(Object.isFrozen(receipt.record)).toBe(true);
+          expect(Object.isFrozen(receipt.directories)).toBe(true);
+          expect(JSON.parse(JSON.stringify(receipt))).toEqual(receipt);
+          expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+
+        it('retains the same captured object for a storage that requires retention', async () => {
+          await db.getRepository('storages').update({ filterByTk: 18, values: { paranoid: true } });
+          const receipt = await prepare(await context(1, {}, 'destroy'), files.captureLocalAttachmentRemovalObject);
+          expect(receipt.kind).toBe('attachment-removal-local-object');
+          expect(await fs.readFile(location())).toEqual(bytes);
+          expect(await docs.model.count()).toBe(3);
+        });
+
+        it('does not accept a missing existing file as newly owned removal evidence', async () => {
+          await fs.unlink(location());
+          await expect(
+            prepare(await context(1, {}, 'destroy'), (proof) => files.captureLocalAttachmentRemovalObject(proof)),
+          ).rejects.toMatchObject({ code: 'ENOENT' });
+          expect(await docs.model.count()).toBe(3);
+        });
+
+        it('refuses an object with another hard link rather than calling it exclusive content', async () => {
+          await fs.link(location(), path.join(root, 'alias.txt'));
+          await expect(
+            prepare(await context(1, {}, 'destroy'), (proof) => files.captureLocalAttachmentRemovalObject(proof)),
+          ).rejects.toThrow('Local attachment is not a matching regular file');
+          expect(await fs.readFile(location())).toEqual(bytes);
+          expect(await fs.readFile(path.join(root, 'alias.txt'))).toEqual(bytes);
+        });
+
+        it('rejects changed final destroy authorization during filesystem waits before returning evidence', async () => {
+          const ctx = await context(1, {}, 'destroy');
+          const original = fs.lstat;
+          await expect(
+            prepare(ctx, async (proof) => {
+              vi.spyOn(fs, 'lstat').mockImplementationOnce(async (...args) => {
+                const result = await original(...args);
+                Object.assign(ctx.permission as object, { can: false, skip: false });
+                return result;
+              });
+              await expect(files.captureLocalAttachmentRemovalObject(proof)).rejects.toThrow();
+              throw new Error('rollback rejected identity capture');
+            }),
+          ).rejects.toThrow('rollback rejected identity capture');
+          expect(await docs.model.count()).toBe(3);
+          expect(await fs.readFile(location())).toEqual(bytes);
+        });
+      });
+
       describe.skipIf(dialect !== 'postgres')('transactional removal intents', () => {
         let intents: Collection;
         let journal: InstanceType<typeof files.AttachmentRemovalIntentJournal>;

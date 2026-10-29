@@ -36,6 +36,12 @@ export interface AccessAttachmentRemovalProof {
   assertCurrent(): Promise<void>;
 }
 
+/** Server-only predicate snapshot. It does not authorize DELETE, commit or physical cleanup. */
+export interface AccessAttachmentRemovalNativeProof extends AccessAttachmentRemovalProof {
+  readonly sql: string;
+  readonly rootAlias: string;
+}
+
 interface RemovalContext {
   db: Database;
   action: object;
@@ -160,59 +166,108 @@ export function captureAttachmentRemoval(
     invalid('Attachment removal metadata is unavailable');
   current();
   let used = false;
+  const withLockedRecord = async <T>(
+    consume: (proof: AccessAttachmentRemovalProof, owner: unknown) => Promise<T>,
+    transaction: Transaction,
+  ): Promise<T> => {
+    if (used || typeof consume !== 'function') invalid('Attachment removal entry has already been used or is invalid');
+    used = true;
+    let active = true;
+    const read = async (): Promise<{ record: AccessAttachmentRemovalRecord; owner: unknown }> => {
+      if (!active) invalid('Attachment removal proof is no longer active');
+      current();
+      await validateWriteTransaction(db, transaction, false);
+      const plan = await new AccessMutationService(db, prepared, queries).authorizeExisting(
+        ctx,
+        identity,
+        actor,
+        { operation: 'destroy', keys: [key], where: role.rootWhere ?? role.where },
+        transaction,
+      );
+      current();
+      if (!active) invalid('Attachment removal proof is no longer active');
+      const row = plan.records[0];
+      const record = Object.freeze({
+        key: row.getDataValue(primary),
+        path: row.getDataValue('path'),
+        filename: row.getDataValue('filename'),
+        storageId: row.getDataValue('storageId'),
+        size: row.getDataValue('size'),
+      });
+      if (
+        typeof record.path !== 'string' ||
+        typeof record.filename !== 'string' ||
+        !(
+          (typeof record.storageId === 'string' && record.storageId.length > 0 && record.storageId.length <= 255) ||
+          (typeof record.storageId === 'number' && Number.isSafeInteger(record.storageId))
+        ) ||
+        !Number.isSafeInteger(record.size) ||
+        record.size < 0
+      )
+        invalid('Stored attachment removal location is invalid');
+      return { record, owner: config.ownership.enabled ? row.getDataValue('tenantId') : undefined };
+    };
+    try {
+      const before = await read();
+      const assertCurrent = async () => {
+        if (!isDeepStrictEqual(await read(), before)) invalid('Stored attachment removal location or owner changed');
+      };
+      const record = before.record;
+      const result = await consume(Object.freeze({ collection, transaction, record, assertCurrent }), before.owner);
+      // This stage prepares only; consumers may not delete, rewrite or commit the source row.
+      await assertCurrent();
+      return result;
+    } finally {
+      active = false;
+    }
+  };
   return Object.freeze({
     async withRecord<T>(consume: (proof: AccessAttachmentRemovalProof) => Promise<T>, transaction: Transaction) {
-      if (used || typeof consume !== 'function')
-        invalid('Attachment removal entry has already been used or is invalid');
-      used = true;
-      let active = true;
-      const read = async (): Promise<{ record: AccessAttachmentRemovalRecord; owner: unknown }> => {
-        if (!active) invalid('Attachment removal proof is no longer active');
-        current();
-        await validateWriteTransaction(db, transaction, false);
-        const plan = await new AccessMutationService(db, prepared, queries).authorizeExisting(
-          ctx,
+      if (typeof consume !== 'function') invalid('Attachment removal entry has already been used or is invalid');
+      return withLockedRecord((proof) => consume(proof), transaction);
+    },
+    async withNativePredicate<T>(
+      consume: (proof: AccessAttachmentRemovalNativeProof) => Promise<T>,
+      transaction: Transaction,
+    ) {
+      if (typeof consume !== 'function') invalid('Attachment removal entry has already been used or is invalid');
+      return withLockedRecord(async (proof, owner) => {
+        const nativeRole = new AccessRoleFilterCompiler(db, resolveIdentity).compileNative(
           identity,
-          actor,
-          { operation: 'destroy', keys: [key], where: role.rootWhere ?? role.where },
-          transaction,
+          captureAccessFilter(grants.filter === undefined ? {} : grants.filter),
         );
-        current();
-        if (!active) invalid('Attachment removal proof is no longer active');
-        const row = plan.records[0];
-        const record = Object.freeze({
-          key: row.getDataValue(primary),
-          path: row.getDataValue('path'),
-          filename: row.getDataValue('filename'),
-          storageId: row.getDataValue('storageId'),
-          size: row.getDataValue('size'),
+        const scopes = await queries.resolveNativeScopes(ctx, identity, actor, {
+          rootAlias: nativeRole.rootAlias,
+          transaction,
         });
-        if (
-          typeof record.path !== 'string' ||
-          typeof record.filename !== 'string' ||
-          !(
-            (typeof record.storageId === 'string' && record.storageId.length > 0 && record.storageId.length <= 255) ||
-            (typeof record.storageId === 'number' && Number.isSafeInteger(record.storageId))
-          ) ||
-          !Number.isSafeInteger(record.size) ||
-          record.size < 0
-        )
-          invalid('Stored attachment removal location is invalid');
-        return { record, owner: config.ownership.enabled ? row.getDataValue('tenantId') : undefined };
-      };
-      try {
-        const before = await read();
+        if (!scopes || scopes.config !== config) invalid('Attachment removal native preparation phase changed');
         const assertCurrent = async () => {
-          if (!isDeepStrictEqual(await read(), before)) invalid('Stored attachment removal location or owner changed');
+          nativeRole.assertCurrent();
+          await proof.assertCurrent();
+          nativeRole.assertCurrent();
         };
-        const record = before.record;
-        const result = await consume(Object.freeze({ collection, transaction, record, assertCurrent }));
-        // This stage prepares only; consumers may not delete, rewrite or commit the source row.
         await assertCurrent();
+        const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
+        const generator = db.sequelize.getQueryInterface().queryGenerator as unknown as {
+          escape(value: unknown): string | number;
+        };
+        const expected: Array<[string, unknown]> = [
+          [primary, proof.record.key],
+          ['path', proof.record.path],
+          ['filename', proof.record.filename],
+          ['size', proof.record.size],
+          ['storageId', proof.record.storageId],
+          ...(config.ownership.enabled ? ([['tenantId', owner]] as Array<[string, unknown]>) : []),
+        ];
+        const snapshot = expected.map(
+          ([field, value]) =>
+            `${quote(nativeRole.rootAlias)}.${quote(model.rawAttributes[field].field || field)} = ${generator.escape(value)}`,
+        );
+        const sql = [scopes.scopes.ownership.sql, nativeRole.sql, ...snapshot].map((part) => `(${part})`).join(' AND ');
+        const result = await consume(Object.freeze({ ...proof, sql, rootAlias: nativeRole.rootAlias, assertCurrent }));
+        nativeRole.assertCurrent();
         return result;
-      } finally {
-        active = false;
-      }
+      }, transaction);
     },
   });
 }

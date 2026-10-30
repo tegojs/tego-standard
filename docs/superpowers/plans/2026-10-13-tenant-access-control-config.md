@@ -3161,3 +3161,25 @@ Ruling: 随后读取 MicrosoftDocs/sdk-api 的 CreateFileW 官方 FILE_SHARE_WRI
 源/快照 SHA256 一致：测试 9201F528DA300E484F9648D90C6A8730BE73348414B6C1CBEE3D61E5983FCC9A，PS 44F6AA22D4ABF08450704337A12F3854DED51B17AE656DA08575D6235F3E711E。四文件 diff/空白检查通过。按 requesting-code-review 模板由作者串行自审，不联系任何子智能体：新固定模式先过原 namespace 白名单；只写 CreateNew 新文件的一个固定数据字节；原 source/mapping using 在收紧 DACL 前结束，view 在正常路径显式 Unmap、异常路径 finally Unmap，候选句柄最终关闭；真正受限线程验证/原身份恢复和新对象 DACL 原有回读不削弱。移除 DACL 收紧会使新数据打开不再为 5，漏关原 writer/view 会使后继同参数候选不能为 0，移除映射写入会使 Node 固定字节断言失败，错误对象由原 native dev/ino 与 Node 独立 stat/大小/nlink 对照拒绝；没有 mock 或仅凭 JSON 宣称生产能力。生产目录链对抗、所有共享模式/旧写者/跨会话与完整部署、崩溃持久性、因果来源和最终原子条件动作均不予完成判断。
 
 最终原 runner 已实际退出，精确资源回读退出 0：测试/esbuild/helper 0，本轮 permission/unrelated 目录 0，25466 全部端口记录 0；未启 PG/建库。唯一旧 6cUGZR 仍存在且未触及，不报告全部临时目录零或重试被拒清理。一次生产源码 rg 无匹配而整体只读检查退出 1 不是测试失败；后继显式 JSON 回读以实际退出 0 核实上述结果。前两次提交工具 payload 外层 JS 不完整，在解析阶段被拒，没有执行 Git、改变暂存内容或触发签名认证，纠正后才发起实际提交。原只读 broker/client/owner、生产 recorder/inspector、既有附件、主检出/核心和正式依赖均未改。正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭，完整物理前提/未知结果协调/逐对象可用性/其他入口业务试点与整分支独立复核仍未完成。
+
+## 205. 独立旧映射持有进程与局部退出的排空边界
+
+核实实际 HEAD=29b96f7f9、功能分支及工作区干净、两份记录至 §204。本节不重做单 view/DACL 或候选重开结论；选择尚缺的独立旧写者覆盖：两个真正独立的 PowerShell 进程各自建立同一个新文件的非执行可写 view，并关闭自己的 source/mapping 对象句柄。验证其中一个正常退出或被测试父进程定向终止，不会撤销另一个的映射，候选在剩余 view 期间仍拒绝 32；最后一个正常写入/Unmap/实际退出后才成功打开 0。两个进程位于同登录会话，不冒称跨账号/跨登录会话、全部部署写者或可信生产根。
+
+Ruling: 只新增 removal-multi-process-mapping.test.ts、fixtures/removal-multi-process-mapping.ps1 及两份记录。Node 自建新的 OS 临时目录直子 tego-removal-multi-view-* 和固定 CreateNew probe.txt，helper 只打开该固定路径，拒绝不合规 namespace/额外条目/reparse/非单链接文件；只接受 hold-first、hold-second、probe-gate 三模式和一次固定 write-and-release，写入只限固定新文件的两个不同固定字节。没有创建/修改账号或 token、DACL、任意命令/动作 callback、删除/disposition/生产导出。本节不推断 pid/环境路径是可信生产来源；它们只用于本次测试父进程的资源所有权。若把此夹具推广为生产准入，会遗漏真实物理根/全部写者和最终原子窗口，故正式门控仍关闭。
+
+- [x] 新四项先在已校验 snapshot 真实 RED，缺 helper 只算 fixture 缺实现。
+- [x] 最小固定 helper 后完整新文件顺序回归；两持有进程只在单个受控用例内按屏障共存，不并行运行第二个 runner/诊断。
+- [x] TS 格式/lint、PS AST、源/快照 SHA、精确范围/作者串行自审及记录完成；默认 GPG 英文原子提交/独立验签结果以实际 Git 为准，不预写成功。不启 PG/建库或跑无关包构建。
+
+最初一次聚焦 rg 把 removal-* 作为 Windows 路径导致只读路径错误，之后用实际目录和 -g 修正；不是产品失败或验证。旧 6cUGZR 不触及，不联系任何子智能体。原 §203—204 权限 helper、原只读 broker/client/owner 和生产代码不改。
+
+原四项先实际失败、整体退出 1，3.92 秒，removal-multi-view-red.log；缺 helper 的 PowerShell usage 空行令三项 JSON 解析拒绝，额外 namespace 用例也未获得应有回包，未到后续原生行为断言。不称已经读到 helper 64 退出码，不算产品 RED。最小 helper 后四项全部通过、退出 0，11.96 秒（测试 8.62 秒），removal-multi-view-green.log。第一项真正看到第一个进程正常 close/退出 0 后，第二个存续、候选 32，第二个固定写入后 Node 读到 M/S 两个字节；第二项第一个被本次父进程直接 child.kill 且真实非正常退出，原字节未变，第二个仍写出固定 S。最后候选 0 只是在本次两个已知持有者实际结束之后的本机结果。
+
+作者串行自审补任意直子 namespace、嵌套 namespace、未知 mode 三项；已有 helper 守卫不改，三项不冒称缺实现 RED。它们与原额外条目和未知 stdin 命令共同验证新夹具边界，不接任意路径或命令。引用/来源认证、全部旧写者排空、跨会话权限和物理动作窗口仍不予判断；不能把局部进程盘点或这些结果作为生产条件。
+
+最终完整新 removal-multi-process-mapping.test.ts 在已校验 snapshot 执行 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-multi-process-mapping.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose，7 项全部通过、无跳过、实际退出 0，总 17.69 秒（测试 11.31 秒），removal-multi-view-regression.log。最初四项包含在最终七项内，各轮不相加，不是整分支回归；未重跑 §203—204 已完成独立文件。red、green、regression 各 runner 实际退出后才启动下一轮，最后 session21402 已实际退出 0，不继续等待。TS Prettier/oxlint 零错误警告、PS AST 通过；新 helper 内 C# 已在真实进程实际编译执行。Markdown 被忽略不称已格式化，没有依赖/产品导出或构建敏感变更，不跑无关包构建。
+
+源/快照 SHA256 一致：测试 294222FF04E820B8FCF0E64C25F604FB02AC9A0804DDF76FCC26364C61CD0201，PS 2DFC613B14B3556742BFFECA6D3BA34CB00F05691EB2B555005CB1D222171A00。作者按 requesting-code-review 模板串行自审精确四文件：原 namespace/固定文件/模式校验后才 Open；source/mapping using 在交付 view-held 前结束；固定字节只有 Marshal 写映射路径，无额外 file write 或 callback；正常显式 Unmap、未知命令 finally 释放，强制终止不声称执行了 finally；Node 持有实际子进程句柄并等 EOF/close 退出，PID 差异本身不是权限或排空证据。第二个独立写入、候选 32、后继实际字节和原对象对照共同证明该局部未排空反例，最后候选 0 不意味着已发现所有外部写者。未判断真实部署身份/全部别名和写者/完整物理根、跨登录会话、崩溃持久性、不可伪造来源与最后原子动作；若错误推广，会导致生产误授权，故所有正式门控保持关闭。此为作者自审，不是独立审查，整分支独立复核仍未完成。
+
+最终精确资源/生产引用扫描及 diff 检查实际退出 0：测试/esbuild/helper 0，本轮 multi-view/unrelated 新目录 0，25466 全部端口记录 0；未启动 PG/建库。唯一旧 6cUGZR 实际仍存在且未触及，不报告全部临时目录零、不重试被拒清理或换 API 绕过。原集群/日志、既有附件、原权限 helper 和只读 broker/client/owner、生产 recorder/inspector、主检出/核心及正式依赖均未改。默认签名原子提交前精确核对暂存范围；不推送/合并/发布，不以此新增夹具替代未知结果协调、UUID 交付前发现、逐对象可用性或生产接入。

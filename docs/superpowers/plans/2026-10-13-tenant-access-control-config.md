@@ -2994,3 +2994,26 @@ Ruling: 承接 §196 的原调用异常无动作契约，先补真实网络 COMM
 - [x] 确认测试/校验/helper 进程及新会话夹具目录均零、原专用库 owner=tenant_test 且无客户端后，删除 tego_tenant_access_test_e19730f634 并核实 pg_database 计数 0；原集群正常停止，pg_ctl 无服务、25466 全部端口记录为零，清理进程实际退出 0。保留原集群与日志，既有附件/主检出/核心/正式依赖未改。作者自审核对实际协议启动/帧边界、COMMIT 精确截断点、真实记录失败和独立持久观察、端点一致性、全部 socket/listener 关闭及无动作/恢复分支；四文件 diff/暂存范围与英文默认签名原子提交由提交前后命令核实，不预填提交号、不推送。作者自审不替代未完成的整分支独立复核。
 
 本轮只证明受控本机 PostgreSQL TCP 在两个精确断点产生不同持久结果但调用均失败；不是任意网络分区、机器崩溃、UUID 交付前发现或完整未知结果协调器。没有发送物理动作/新生执行命令，原会话只 hello/observe/close；历史观察、Backend PID、UUID、attempt 及代理报告均不是执行 token。固定服务端原调用/原会话生命周期、发送前单次消费、可信物理根/全部写者与硬链接/属性最终窗口仍未实现；正式接入保持关闭。
+
+## 198. 仅新夹具的单次拥有型只读演练
+
+Ruling: 在既定固定执行契约之内，先实现仅测试的原会话/独立池/原 attempt 调用所有者；所有者不返回 native session，不接任意动作或 callback，不增加生产 API、PS 消息或删除能力。只允许正常完成原 owned attempt、严格核对同次明确历史提交与实际持久对象/目录绑定后，消费本地 final 标记并向同一原会话再发一次 observe；最终产物明确叫只读演练，不是清理许可。原被 claim 调用的正常或错误结局均由 finally 关闭原会话/池，原 owner 永远不能重入；并发重复调用只拒绝，不接管或终止正在运行的原调用，没有从历史观察恢复的入口。局部同步 claim/final 消费不证明 broker 端不可逆命令最多一次，也不补齐可信根/全部写者/硬链接窗口；如果该裁决被误当可执行产品，代价是越过尚未满足的物理安全前提，因此正式接入仍关闭。
+
+- [x] 在既有真实 PG/Windows 分组增加正常完成、同 owner 并发调用、attempt UPDATE 内真实 broker 死亡、真实 COMMIT 确认丢失四项。初始只接通既有真实 native 会话的 fixture stub 在 recordOnce 明确报缺实现，四项实际 RED、626 过滤/分组跳过、总 630、进程退出 1，日志 removal-owned-read-only-red.log；原 SQL 删除和预留已真实执行，缺的是新只读 fixture，不伪称产品缺陷。
+- [x] 仅在 fixtures/removal-owned-read-only.ts 最小实现私有会话/独立池、首次 await 前同步 claim、实际持久对象/固定目录链与同一活 native 观察逐字段核对、原 recordLocalCleanupAttempt 及严格历史提交的全部标识核对、最终只读 observe 调用前本地消费。正常以原 close 握手结束，错误终止原 broker；finally 关闭独立池，所有者不外泄 session/路径或接任意动作 callback。没有更改生产 recorder/inspector、原 PS 协议或正式依赖。
+- [x] 初始四项 GREEN 全通过、626 过滤/分组跳过、实际退出 0，日志 removal-owned-read-only-green.log：并发第二调用真实报 already claimed，仅原调用能记录及最终观察；attempt UPDATE 内杀死并等待原 broker 退出后，原 recorder 仍会提交，但新所有者拒绝并保持 finalProbeCalls=0；真实 TCP COMMIT 确认丢失也拒绝且关闭会话/池，后来明确 committed 不允许原 owner 或第二记录续做，协调行不再更新。原附件新夹具字节保留。
+- [x] 作者追加一项已实现检查直接通过，不制造 RED：在原 attempt 的真实 afterCommit 标记后，仅在后继历史观察 owned 事务的 afterCommit 中真实 fs.link。历史观察已正常提交，但所有者后继活身份观察实际拒绝，finalConsumed=false/finalProbeCalls=0；持久 unresolved 仍可由新池严格观察，旧 owner 不重入，原名/新增别名均保留字节。定向一项通过、631 过滤/分组跳过、总 632、退出 0，日志 removal-owned-read-only-late-link.log。该时序不覆盖最终 observe 返回之后的原子动作窗口。
+- [x] 最终完整 authorized-local-read.test.ts 在已校验快照串行实际完成：356 通过、278 跳过（SQLite 中 PG 专项分组，对应 PG 实际执行），总 634、进程退出 0，耗时 499.47 秒；日志 removal-owned-read-only-regression.log 保留，六项新增不与初始/定向轮次相加，不称整个分支回归。真实预期 COMMIT 断线及已有守卫错误日志保留，没有禁日志或改依赖。
+- [x] 最终两 TS Prettier 检查通过、oxlint 零错误/警告；源码/快照 SHA256 一致：authorized-local-read.test.ts 为 77160CA680DD195169C88AF185B4C0A145629AA84BAE9CECA7990AB2A520C34E，removal-owned-read-only.ts 为 30A36C6A2CD115CB4E423B0029EE161817B6E05BB4CD7497D34F95ACD55229E8。未改的 removal-session.ps1 源/快照均仍为 D2BE49FE582D7FB4AAAE8D3FDF09C7307CD5C04FA62FFB153ADAF3A64930FA7C，原 removal-session-client.ts 均仍为 5D0B490CC2AEE0D0374AC1DFA4BF71CCBB82C6D7B59F89B497B59DF7D04A5E5F。Markdown 受仓库忽略不宣称实际格式化；本批只测试/文档，不跑无关包构建。
+- [x] 最终确认验证/esbuild/helper 进程和新会话目录均零，以全部 25466 端口记录、实际 postmaster PID 33984/原 data_directory 命令行、tenant_test、127.0.0.1 与 /32、主库、零其他客户端和专用库 owner 严格核对后，删除 tego_tenant_access_test_a19830b636，核实其与已删除的 tego_tenant_access_test_f19830a635 合计 pg_database 计数 0。原集群正常停止，pg_ctl 无服务、PID 33984 消失、25466 全部端口记录零，清理进程实际退出 0；其他 PG 服务、主检出/核心/正式依赖未改，保留集群和全部日志，既有附件不变。
+- [x] 作者自审完成：核对同步 claim 与重复调用不接管原调用、受 finally 保护的首次失效分支、正常 close/错误终止及池关闭、实际持久对象/目录与原 native 身份、全部同次提交标识、原记录异常不进入历史续做、final 消费先于只读 observe 调用、无物理动作/执行 callback、无生产注册/导出。真实原行/SQL 删除/owned 事务/ACL 等产品契约未改；四文件 diff/暂存范围及英文默认签名原子提交由提交前后命令核实，不预填提交号、不推送。作者自审不替代尚未完成的整分支独立复核。
+
+作者自审补出首次调用前原 session 已失效的分支：原 assertActive 位于 recordOnce 的 try/finally 之外。为先固定该失败而中止尚在运行的首个完整文件回归；首个保守路径匹配没有识别唯一进程，安全拒绝且没有杀进程，随后只读核对实际 PID 82560、创建时间和规范化的隔离 snapshot 命令行，再仅终止该自有 Vitest 及其两个子进程，原 session 76479 确认退出 1。removal-owned-read-only-initial-regression-aborted.log 保留，不把中止算测试通过或产品 RED。确认验证/helper/新会话目录均零、原集群/角色/端点/主库及零其他客户端、专用库 owner 后，删除中止运行的 tego_tenant_access_test_f19830a635，并在 pg_database 核实旧库与尚未创建的新库合计 0，才创建 tego_tenant_access_test_a19830b636 继续；未终止未知进程或其他数据库服务。
+
+新增独立实际 PG 用例在 terminateNative 后首次 recordOnce 上复现 RED：原会话错误虽抛出，但 snapshot 的 claimed/closed 均仍 false；一项失败、633 过滤/分组跳过、总 634、实际退出 1，日志 removal-owned-read-only-precall-red.log。该失败发生在状态断言，未声称该轮已执行其后的关闭池 SQL 断言。最小修复仅把 assertActive 移入同步 claim 后受 finally 保护的范围；修复仅新测试 fixture，不是产品 recorder 的修复。最终用例还要求实际独立池 SELECT 1 因关闭而拒绝、永久行不变且原 owner 不重入。
+
+修复后的完整新分组六项实际 PG 定向全部通过、628 过滤/分组跳过、总 634、实际退出 0，日志 removal-owned-read-only-final-targeted.log；包含上述首次调用前终止的 RED→GREEN 及真实关闭池 SQL 拒绝。六项不与初始四项或单项定向相加。初次准备命令的快照路径守卫曾因正反斜杠直接比较而安全拒绝，改为双方规范化绝对路径后才格式/复制；没有放宽目标目录或改主检出。随后最终完整文件结果见本节完成记录，不沿用被中止轮次的状态。
+
+本轮 finalProbeCalls 是固定只读客户端 observe 调用计数，不是不可逆命令、底层 socket 交付或 broker 动作计数。局部 claim/finalConsumed 不能当执行 token；原 PS 仍允许只读 observe，不新增 broker 一次性动作分支。原 SQL 删除/已提交预留、完整映射由外层隔离夹具建立并传入实际独立池/对象表，不证明生产来源不可伪造、OS 完整祖先或完整部署写者。固定生产协调器及 broker 不可逆动作仍未交付，正式接入和规则启用保持关闭。
+
+下一项可承接最终只读消息在本地消费后发生真实通道失联/无确认时的同次不可重入与资源关闭，而非重复已完成的 COMMIT/早期 broker 死亡/硬链接表征；不得将只读演练改名为执行器或把诊断状态/历史标识序列化成能力。broker 端不可逆命令单次处理、最终核验到动作原子窗口、可信根/别名/跨会话权限/全部写者、来源不可伪造、UUID 交付前发现、逐对象可用性、替换/其他入口/业务试点和整分支独立复核仍未完成。

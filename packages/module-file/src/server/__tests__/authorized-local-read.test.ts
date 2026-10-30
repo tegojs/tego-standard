@@ -29,6 +29,7 @@ import { AccessRootMutationHandler } from '../../../../module-tenant/src/server/
 import { AccessRootReadHandler } from '../../../../module-tenant/src/server/access-control/root-read-handler';
 import storageDefinition from '../collections/storages';
 import { createRemovalCommitProxy } from './fixtures/removal-commit-proxy';
+import { openOwnedReadOnlyRemovalFixture } from './fixtures/removal-owned-read-only';
 import { openReadOnlyRemovalFixtureSession } from './fixtures/removal-session-client';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
@@ -1493,6 +1494,229 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                   afterAll(async () => {
                                     testPostgresUrl = postgresUrl;
                                     await proxy?.close();
+                                  });
+
+                                  describe('owned read-only rehearsal', () => {
+                                    const owners = new Set<
+                                      Awaited<ReturnType<typeof openOwnedReadOnlyRemovalFixture>>
+                                    >();
+                                    afterEach(async () => {
+                                      for (const owner of owners) await owner.close();
+                                      owners.clear();
+                                    });
+                                    const startOwned = async () => {
+                                      const pool = await coordinated();
+                                      const owner = await openOwnedReadOnlyRemovalFixture(
+                                        sessionDirectory,
+                                        pool,
+                                        objects,
+                                      );
+                                      owners.add(owner);
+                                      const id = await unreferenced();
+                                      await pool.inspector.reserveLocalReferences(id);
+                                      return { owner, pool, id };
+                                    };
+
+                                    it('owns the original native session and attempt through one final read-only observation', async () => {
+                                      const { owner, id } = await startOwned();
+                                      const result = await owner.recordOnce(id);
+                                      expect(result).toMatchObject({
+                                        state: 'read-only-attempt-rehearsed',
+                                        operationId: id,
+                                      });
+                                      expect(Object.isFrozen(result)).toBe(true);
+                                      expect(result).not.toHaveProperty('session');
+                                      expect(result).not.toHaveProperty('path');
+                                      expect(owner.snapshot()).toEqual({
+                                        claimed: true,
+                                        closed: true,
+                                        finalConsumed: true,
+                                        finalProbeCalls: 1,
+                                      });
+                                      const before = await state();
+                                      await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                      expect(await state()).toEqual(before);
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                      const reopened = await fs.open(sessionFile, 'r+');
+                                      await reopened.close();
+                                    });
+
+                                    it('claims synchronously before overlapping calls can record or send a final probe twice', async () => {
+                                      const { owner, id } = await startOwned();
+                                      const results = await Promise.allSettled([
+                                        owner.recordOnce(id),
+                                        owner.recordOnce(id),
+                                      ]);
+                                      expect(results[0].status).toBe('fulfilled');
+                                      expect(results[1]).toMatchObject({
+                                        status: 'rejected',
+                                        reason: expect.any(Error),
+                                      });
+                                      if (results[1].status === 'rejected')
+                                        expect(String(results[1].reason)).toContain('already claimed');
+                                      expect(owner.snapshot()).toMatchObject({
+                                        claimed: true,
+                                        closed: true,
+                                        finalProbeCalls: 1,
+                                      });
+                                      expect(
+                                        (await fenceJournal.model.findOne()).getDataValue('payload').attempt.state,
+                                      ).toBe('unresolved');
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    });
+
+                                    it('closes its actual pool when the original native session ended before the first record call', async () => {
+                                      const { owner, pool, id } = await startOwned();
+                                      const before = await state();
+                                      await owner.terminateNative();
+                                      await expect(owner.recordOnce(id)).rejects.toThrow('session ended');
+                                      expect(await state()).toEqual(before);
+                                      expect(owner.snapshot()).toEqual({
+                                        claimed: true,
+                                        closed: true,
+                                        finalConsumed: false,
+                                        finalProbeCalls: 0,
+                                      });
+                                      await expect(pool.db.sequelize.query('SELECT 1')).rejects.toThrow(/closed/i);
+                                      await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    });
+
+                                    it('sends no final probe after the original broker dies during a genuinely committed attempt', async () => {
+                                      const { owner, pool, id } = await startOwned();
+                                      let killed = false;
+                                      pool.db.sequelize.addHook(
+                                        'afterQuery',
+                                        'owned-rehearsal-death',
+                                        async (_options, query) => {
+                                          const sql = (query as unknown as { sql: string }).sql;
+                                          if (
+                                            !killed &&
+                                            sql.startsWith('UPDATE ') &&
+                                            sql.includes('attachment-removal-cleanup-attempt')
+                                          ) {
+                                            killed = true;
+                                            await owner.terminateNative();
+                                          }
+                                        },
+                                      );
+                                      try {
+                                        await expect(owner.recordOnce(id)).rejects.toThrow('session ended');
+                                        expect(killed).toBe(true);
+                                      } finally {
+                                        pool.db.sequelize.removeHook('afterQuery', 'owned-rehearsal-death');
+                                      }
+                                      expect(owner.snapshot()).toEqual({
+                                        claimed: true,
+                                        closed: true,
+                                        finalConsumed: false,
+                                        finalProbeCalls: 0,
+                                      });
+                                      const fresh = await coordinated();
+                                      try {
+                                        expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                          state: 'committed-cleanup-attempt-observed',
+                                        });
+                                        const before = await state();
+                                        await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                        expect(await state()).toEqual(before);
+                                      } finally {
+                                        await fresh.db.close();
+                                      }
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    });
+
+                                    it('does not send or resume after a real lost COMMIT confirmation despite later committed history', async () => {
+                                      const { owner, id } = await startOwned();
+                                      const fault = proxy.arm('after-complete');
+                                      await expect(owner.recordOnce(id)).rejects.toThrow(
+                                        /terminated|closed|socket|ECONNRESET/i,
+                                      );
+                                      await fault.observed;
+                                      expect(fault.snapshot()).toMatchObject({
+                                        commitSeen: 1,
+                                        commitForwarded: 1,
+                                        completionReceived: 1,
+                                        completionDelivered: 0,
+                                      });
+                                      expect(owner.snapshot()).toEqual({
+                                        claimed: true,
+                                        closed: true,
+                                        finalConsumed: false,
+                                        finalProbeCalls: 0,
+                                      });
+                                      const fresh = await coordinated();
+                                      try {
+                                        expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                          state: 'committed-cleanup-attempt-observed',
+                                        });
+                                        const before = await state();
+                                        await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                        await expect(fresh.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                          'already recorded',
+                                        );
+                                        expect(await state()).toEqual(before);
+                                      } finally {
+                                        await fresh.db.close();
+                                      }
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    });
+
+                                    it('rechecks the original live object after historical observation actually commits', async () => {
+                                      const { owner, pool, id } = await startOwned();
+                                      const alias = path.join(sessionDirectory, 'late-owned-alias.txt');
+                                      let attemptCommitted = false;
+                                      let scheduled = false;
+                                      let linked = false;
+                                      pool.db.sequelize.addHook(
+                                        'afterQuery',
+                                        'owned-rehearsal-late-link',
+                                        (options, query) => {
+                                          const sql = (query as unknown as { sql: string }).sql;
+                                          const tx = (options as { transaction: Transaction }).transaction;
+                                          if (
+                                            sql.startsWith('UPDATE ') &&
+                                            sql.includes('attachment-removal-cleanup-attempt')
+                                          )
+                                            tx.afterCommit(() => {
+                                              attemptCommitted = true;
+                                            });
+                                          if (attemptCommitted && !scheduled && sql.startsWith('LOCK TABLE ')) {
+                                            scheduled = true;
+                                            tx.afterCommit(async () => {
+                                              await fs.link(sessionFile, alias);
+                                              linked = true;
+                                            });
+                                          }
+                                        },
+                                      );
+                                      try {
+                                        await expect(owner.recordOnce(id)).rejects.toThrow('identity');
+                                        expect(attemptCommitted && scheduled && linked).toBe(true);
+                                      } finally {
+                                        pool.db.sequelize.removeHook('afterQuery', 'owned-rehearsal-late-link');
+                                      }
+                                      expect(owner.snapshot()).toEqual({
+                                        claimed: true,
+                                        closed: true,
+                                        finalConsumed: false,
+                                        finalProbeCalls: 0,
+                                      });
+                                      const fresh = await coordinated();
+                                      try {
+                                        expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                          state: 'committed-cleanup-attempt-observed',
+                                        });
+                                        const before = await state();
+                                        await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                        expect(await state()).toEqual(before);
+                                      } finally {
+                                        await fresh.db.close();
+                                      }
+                                      expect((await fs.stat(sessionFile, { bigint: true })).nlink).toBe(2n);
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                      expect(await fs.readFile(alias)).toEqual(bytes);
+                                    });
                                   });
 
                                   it('normally confirms the owned attempt through the actual bounded TCP transport', async () => {

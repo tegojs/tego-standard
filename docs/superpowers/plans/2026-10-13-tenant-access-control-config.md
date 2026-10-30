@@ -3073,3 +3073,31 @@ Ruling: 承接 §199 之后的 broker 端请求生命周期，仅为原新夹具
 TS Prettier 检查通过、oxlint 零警告/错误，PS AST 语法通过；两源码/快照 SHA256 一致：测试 E57DBB091AF6762878D2BB848C8BD922B81EFAA46986EA754C35548E9AB21515，PS DDBBFC12203E8803E89D3178132A9B8CB2326A9EA2628C1E938DC7700253F4E4。一次外层工具 JavaScript 引号错误在 shell 启动前失败，纠正传输引号后才实际运行格式/语法/完整测试，不算产品 RED 或一次测试运行。Markdown 仍按仓库忽略规则不声称实际格式化；仅两份测试源码与两份记录，不运行无关包构建或 PG 回归，没有启动 PG 或创建数据库。
 
 全部验证/helper 进程实际退出，最终只读盘点仅旧 6cUGZR 保留，新测试没有遗留目录；未重试或换 API 清理被拒旧目录，仍需允许的人工清理，不报告临时目录零。§198—199 owner/client、生产 recorder/inspector、正式依赖、主检出/核心及既有附件不变。正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项如组合本次终结只读协议与原 owned fixture，应仍只限全新隔离对象、保持原异常不续做和持久 unresolved，不把 broker 的终结回复升级为物理执行能力。
+
+## 201. 原 owned fixture 同次终结只读组合
+
+Ruling: 将 §198—199 owner 已同步 claim/本地 final 消费之后的固定最终只读消息接到 §200 的 finish-read-only；原 live 绑定、正常记录/严格历史同次提交、后继实际绑定检查不变。客户端须相关真实 read-only-finished 后确认 EOF 和原 broker 正常退出，不能再发送 close 才迫使其终结；原 owner 的 finally 仍关闭其实际池。两种固定断线仍不交付 owner、不从历史 committed 续做。测试诊断只统计相关真实终结回复、close 写回调及实际进程退出码，不是 broker 物理动作计数/执行能力。如果错误地将只读会话终结推成物理动作完成，会越过尚缺的原子窗口，因此产品/正式接入均保持关闭，不新增动作或持久成功状态。
+
+- [x] 先在全新独立 PG 库实际运行正常终结与原两种固定失联的新增契约断言并记录 RED；不改原 PS 或生产源码。
+- [x] 最小客户端/owner 组合后定向与完整受影响文件顺序验证，保持原 unresolved/不可重入和实际池/句柄关闭。
+- [x] 三 TS 格式/lint、源/快照 SHA、作者串行自审、记录与严格专用库清理/临时 PG 停止；随后默认签名英文原子提交，不预写提交 ID 或签名结论。
+
+沿用 §200 已校验 snapshot 和已停止的原 PG 集群，但启动/建库前重新核对实际路径/端点/角色/其他客户端；只建新正则专用库。旧 6cUGZR 保留，不重复被拒删除或换 API 清理。整分支独立复核未完成。
+
+启动前真实目录无 reparse、PG_VERSION=17、无测试/helper/该集群进程、全部 25466 记录 0、pg_ctl 明确无服务。用显式 -o '-h 127.0.0.1 -p 25466' 启动原集群，实际 postmaster PID 73880，真实命令行/目录/端口一致；真实 SQL 确认 tenant_test、host 127.0.0.1、inet 127.0.0.1/32、25466、postgres 主库/非恢复、零其他客户端，核对端口所有者后才建全新 tego_tenant_access_test_b20130c639，owner tenant_test。第一次工具 payload 包含空字符在 CreateProcess 前遭拒，没有启动 shell、PG 或建库；移除无必要的空字符替换后才执行，不算产品 RED。此前只读命令误读不存在的根 vitest.config.ts 退出 1，也没有测试或数据库写入。
+
+先仅扩展现有正常与两失联用例断言，真实 PG 定向 3 失败、635 过滤/分组跳过、总 638、退出 1，日志 removal-owned-terminal-red.log：缺 terminalLifecycleSnapshot，实际得到 undefined，未到后续新 SQL 池关闭断言；明确这是新增 fixture 观测契约缺失，不冒称生产 RED 或已经直接证明旧 broker 发出了错误命令。最小实现将唯一最终 finalObserve 从 observe 改发固定 finish-read-only，相关真实 read-only-finished 后读取真实 EOF、等待原 child close 且 exitCode=0 才交付结果；原正常 close 对已经终结会话不再发第二消息，仅等待/销毁已关资源。其他 hello/observe/close 行为不变。
+
+新增冻结 terminalLifecycleSnapshot 的 replyReceived 只在真实终结回复完整相关之后增加，closeRequestWritten 仅本地 close 写回调，brokerExitCode 是实际 child.exitCode；owner 只透出这些测试诊断，不透出 session/path 或执行 callback。两固定故障仍分别在发送前或相关回复到客户端后关闭真实 pipe，历史 committed 不续做。完整 owned read-only rehearsal 分组最初 8 通过、630 过滤/分组跳过、退出 0，日志 removal-owned-terminal-green.log；作者随后将 replyConfirmed 的增加点进一步移到 EOF/正常退出验证后，避免尚未完成终结验证就把结果算作交付 owner，最终完整文件验证以该版本为准。
+
+Ruling: 此最终观察在 broker 释放原句柄之后才交付 owner；随后 checkNative 是将该次真实只读快照同原绑定核对，不证明返回时对象仍活或仍被排他持有。它没有动作入口，不把 read-only-attempt-rehearsed、正常退出或历史 unresolved 当 cleanup 完成/执行许可。生产 recordLocalCleanupAttempt 的 live 输入缺口和最后核验到物理动作窗口未因此修复。
+
+最终完整 authorized-local-read.test.ts 在隔离 snapshot/本节新专用库串行实际 358 通过、280 SQLite 的 PG 专项分组跳过（对应 PG 实际执行）、总 638、退出 0，总 579.31 秒（测试 572.74 秒），日志 removal-owned-terminal-regression.log。本节扩展原三项断言，没有新增独立用例；原 owned 八项和真实 TCP COMMIT 确认丢失、早期死亡、晚硬链接及不可重入/池关闭均在完整结果中，不与定向相加。完整日志中的永久守卫拒绝 INSERT 和故意断线的预期 stderr 保留，没有禁日志或改正式依赖。
+
+作者按既有 requesting-code-review 清单串行自审，不启动/联系任何子智能体：最终命令仅由原 owner 已消费调用发出，原 SQL/绑定检查链未改；固定 kind、回包类型及所有原关联校验相符，成功路径等待真实 EOF/close/退出 0；异常仍由原 owner finally 终止/关池，不从终结回包或 committed 历史重入。原普通观察/close 使用者不改协议，已终结 close 只收敛资源。真实 r+ 重开、SQL 池关闭拒绝和永久行 xmin/ctid/payload 不变均由行为验证；诊断并非不可逆动作计数。变异核对：退回 observe 会使终结相关回包计数为 0 且发送 close，破坏正常断言；提前给 after-reply 交付 owner 会破坏原拒绝/0 确认断言；移除 claim/finally 会破坏重入/实际池资源断言。最终 EOF/退出验证不能升级为完整未知结果或原子动作证明，这些项仍不予完成判断；整分支独立复核未完成。
+
+三 TS Prettier 检查通过、oxlint 零警告/错误；源/快照 SHA256 一致：authorized-local-read.test.ts 为 B143FDD898EC85EF0E5DA61716C9EC2AB7EB4B3F8C146398A3B8752C731BFE05，removal-session-client.ts 为 54FF8FA149C6441C0C4413B427CCAA0E29B60629770DF1BEDEBE7A4AFFC4189C，removal-owned-read-only.ts 为 7B46544DD6C6AAFB6A4E1BB768B4C3A98F171F5AAC4122ABEF3288480DC420A5。原 PS 未改，源/快照仍 DDBBFC12203E8803E89D3178132A9B8CB2326A9EA2628C1E938DC7700253F4E4。五文件 diff/作者自审通过；Markdown 被忽略不声称实际格式化，没有包级生产变更或无关构建。
+
+完整 runner 实际退出后确认测试/esbuild/helper 0，精确核对全部 25466 端口仅原监听 PID73880（State 仍为 null，不用 Listen 过滤）、原进程创建时间/目录/命令、真实 SQL 原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库/非恢复、零其他客户端及专用库 owner；仅 DROP b20130c639，pg_database count0。原 PG 正常停止，pg_ctl 无服务、PID73880 消失、25466 全部记录 0，清理实际退出 0；原集群和 removal-owned-terminal-* 日志保留。新 session 夹具无遗留，唯一旧 6cUGZR 未触及且仍需允许的人工清理，不报告临时目录零。既有附件/主检出/核心/正式依赖不改，正式 helper/selected executor/注册/路由/自动安装/规则保存启用仍关闭。
+
+本节完成的是只读控制生命周期组合，不是可删除执行器；后续应针对仍缺的可信物理根/因果来源、完整部署写者/跨会话权限/旧句柄排空及最后原子窗口承接明确交付，不能继续叠加历史标识/客户端诊断来代替这些前提，不能重做 §188—201 已完成的独立表征。没有对应授权和实际覆盖，不安装正式 helper 或触及既有附件。

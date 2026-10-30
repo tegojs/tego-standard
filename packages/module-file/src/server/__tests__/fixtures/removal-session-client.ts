@@ -75,6 +75,7 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
   let ended = false;
   let socketClosed = false;
   const finalTransport = { requestWritten: 0, replyReceived: 0, replyConfirmed: 0 };
+  const terminalLifecycle = { replyReceived: 0, closeRequestWritten: 0 };
   const dispose = async () => {
     ended = true;
     socket?.destroy();
@@ -115,7 +116,7 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
     const challenge = randomUUID();
     let sessionId: string | undefined;
     const exchange = async (
-      kind: 'hello' | 'observe' | 'close',
+      kind: 'hello' | 'observe' | 'close' | 'finish-read-only',
       final?: { fault?: 'before-write' | 'after-reply' },
     ) => {
       if (ended || child.exitCode !== null || child.signalCode !== null) throw new Error('Fixture session ended');
@@ -130,6 +131,7 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
         });
         // Local write callback only; this alone does not prove broker receipt.
         if (final) finalTransport.requestWritten++;
+        if (kind === 'close') terminalLifecycle.closeRequestWritten++;
       }
       const line = await lines.next();
       if (line.done) throw new Error('Fixture session ended: ' + diagnostics);
@@ -140,11 +142,19 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
         reply.requestId !== requestId ||
         reply.challenge !== challenge ||
         (sessionId && reply.sessionId !== sessionId) ||
-        reply.kind !== (kind === 'hello' ? 'held' : kind === 'close' ? 'closed' : 'observed')
+        reply.kind !==
+          (kind === 'hello'
+            ? 'held'
+            : kind === 'close'
+              ? 'closed'
+              : kind === 'finish-read-only'
+                ? 'read-only-finished'
+                : 'observed')
       )
         throw new Error('Fixture reply correlation failed');
       if (kind !== 'close' && (reply.peerProcessId !== process.pid || reply.brokerProcessId !== child.pid))
         throw new Error('Fixture peer correlation failed');
+      if (kind === 'finish-read-only') terminalLifecycle.replyReceived++;
       if (final) {
         finalTransport.replyReceived++;
         if (final.fault === 'after-reply') {
@@ -154,7 +164,6 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
           if (!end.done) throw new Error('Fixture received unexpected trailing reply');
           throw new Error('Fixture session ended without final confirmation');
         }
-        finalTransport.replyConfirmed++;
       }
       return reply as { sessionId: string; observations: typeof expected };
     };
@@ -167,13 +176,24 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
       },
       // Fixed test fault only, never an action or arbitrary message/callback.
       async finalObserve(fault?: 'before-write' | 'after-reply') {
-        return (await exchange('observe', { fault })).observations;
+        const reply = await exchange('finish-read-only', { fault });
+        ended = true;
+        const tail = await lines.next();
+        if (!tail.done) throw new Error('Fixture received unexpected trailing reply');
+        await closed;
+        if (child.exitCode !== 0) throw new Error('Fixture terminal close failed: ' + diagnostics);
+        finalTransport.replyConfirmed++;
+        return reply.observations;
       },
       finalTransportSnapshot: () => Object.freeze({ ...finalTransport, socketClosed, brokerClosed }),
+      // Related reply/local close-write diagnostics only, never a broker physical action count.
+      terminalLifecycleSnapshot: () => Object.freeze({ ...terminalLifecycle, brokerExitCode: child.exitCode }),
       async close() {
         try {
-          await exchange('close');
-          ended = true;
+          if (!ended) {
+            await exchange('close');
+            ended = true;
+          }
           await closed;
           if (child.exitCode !== 0) throw new Error('Fixture close failed: ' + diagnostics);
         } finally {

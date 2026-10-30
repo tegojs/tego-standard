@@ -1521,7 +1521,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                     };
 
                                     it('owns the original native session and attempt through one final read-only observation', async () => {
-                                      const { owner, id } = await startOwned();
+                                      const { owner, pool, id } = await startOwned();
                                       const result = await owner.recordOnce(id);
                                       expect(result).toMatchObject({
                                         state: 'read-only-attempt-rehearsed',
@@ -1543,6 +1543,12 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                         socketClosed: true,
                                         brokerClosed: true,
                                       });
+                                      expect(owner.terminalLifecycleSnapshot?.()).toEqual({
+                                        replyReceived: 1,
+                                        closeRequestWritten: 0,
+                                        brokerExitCode: 0,
+                                      });
+                                      await expect(pool.db.sequelize.query('SELECT 1')).rejects.toThrow(/closed/i);
                                       const before = await state();
                                       await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
                                       expect(await state()).toEqual(before);
@@ -1702,6 +1708,10 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                           replyConfirmed: 0,
                                           socketClosed: true,
                                           brokerClosed: true,
+                                        });
+                                        expect(owner.terminalLifecycleSnapshot?.()).toMatchObject({
+                                          replyReceived: mode === 'before-write' ? 0 : 1,
+                                          closeRequestWritten: 0,
                                         });
                                         await expect(pool.db.sequelize.query('SELECT 1')).rejects.toThrow(/closed/i);
                                         const fresh = await coordinated();

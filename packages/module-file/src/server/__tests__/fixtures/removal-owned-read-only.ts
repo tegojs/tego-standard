@@ -139,6 +139,7 @@ export async function openOwnedReadOnlyRemovalFixture(
     },
     snapshot: () => Object.freeze({ claimed, closed, finalConsumed, finalProbeCalls }),
     finalTransportSnapshot: session.finalTransportSnapshot,
+    terminalLifecycleSnapshot: session.terminalLifecycleSnapshot,
     close,
   };
 }

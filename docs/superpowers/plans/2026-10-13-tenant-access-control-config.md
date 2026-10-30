@@ -2978,3 +2978,19 @@ Ruling: 承接 §195，不再重跑独立管道/原生/互斥表征，先以真�
 - [x] 测试进程实际退出后，首次最终清理进程守卫仍有匹配而安全拒绝，没有做数据库清理或终止未知 PID；随后只读精确盘点已无匹配，再次完整守卫确认 helper、验证进程和 tego-removal-session-* 新夹具目录均 0。没有据此推断首轮具体残留进程的原因。再次核对 PG 真实目录、tenant_test、127.0.0.1/32 与 25466、主库及零其他客户端和专用库所有者后，删除 tego_tenant_access_test_d19630e633，pg_database 计数确认 0；PG 正常停止，pg_ctl 无服务、25466 无监听，清理脚本实际退出 0。保留日志和集群目录，既有附件/主检出/核心/正式依赖未改。四文件 diff、暂存范围及英文默认签名原子提交由提交前后命令核实，不预填提交号、不推送。
 
 正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项仍须固定可信服务端自身拥有原会话及原尝试调用生命周期，明确异常无动作和发送前单次消费；在可信物理根/别名/完整写者/旧句柄排空、权限及硬链接/属性检查到动作窗口未满足前，不交付可删除产品执行器。真实网络 COMMIT 确认丢失、UUID 交付前崩溃发现、不可伪造因果来源、逐对象可用性、替换/其他入口/业务试点和整分支独立复核仍未完成。
+
+## 197. 仅隔离 TCP 的真实 COMMIT 确认丢失与持久尝试观察
+
+Ruling: 承接 §196 的原调用异常无动作契约，先补真实网络 COMMIT 结果不确定性的受控验证，而不是把已有 afterCommit 异常重复当作网络故障。仅新增 fixtures/removal-commit-proxy.ts 并扩展既有真实 PG/Windows 组合分组；生产 recorder/inspector、PS 只读会话和正式依赖不改。代理只接受 127.0.0.1:25466、tenant_test、符合既定正则的新专用测试库，无 URL query/hash；只在 loopback 临时端口监听，先核对实际 PostgreSQL v3 StartupMessage 的 database/user，再连接固定上游。逐帧界限 1 MiB，不接受 SSL/任意目标；不是产品通道、租约或通用网络代理。
+
+新分组将原业务池和独立观察池的已配置端点同时切到本次代理，不削弱 inspector 的相同数据库端点/完整映射检查。真实原生只读 broker、原 SQL 删除/对象日志、明确提交预留、原 owned attempt 与新池历史观察均沿用真实实现。代理只对显式 arm 后下一条实际 simple-query COMMIT 定点断线；没有 mock Sequelize 事务方法、伪造提交响应或人工改写 attempt/xid。
+
+- [x] 初始三个实际 PG 测试日志显示直接通过（622 项注册，619 项过滤或分组跳过），不是产品 RED/修复；removal-commit-loss-initial.log 保留。正常通过真实 TCP 提交后原活对象/目录绑定不变，新池观察同一 attempt。首次外层执行结果因宿主代际失效不可恢复，不能补称该命令退出 0；恢复时只读盘点确认测试/helper 已无进程、pg_ctl 无服务，未据此推断 PG 停止原因，未重复启动初始定向测试。后续独立完整运行将提供可核实退出码。
+- [x] before-forward 在代理收到真实 COMMIT 后、转发前关闭实际双向 TCP：调用真实报 Connection terminated unexpectedly；seen=1、forwarded=0、completionReceived=0、completionDelivered=0，捕获实际 BackendKeyData PID。原活会话仍能核对同一原对象，新池历史观察 unknown，原永久行 xmin/ctid/payload 不变。仅夹具知道精确截断点，失败调用不能由相同连接错误推出回滚；测试不自动发起第二次尝试。
+- [x] after-complete 转发真实 COMMIT，收到实际 PostgreSQL CommandComplete(COMMIT) 后丢弃确认并关闭连接：seen=1、forwarded=1、completionReceived=1、completionDelivered=0。原调用仍真实报同类连接错误；新池严格历史观察已提交 unresolved 的实际 attemptId/xid，第二次记录拒绝且永久行不更新，原生会话/原字节保留。没有将历史 committed 转为续做或动作能力。
+- [x] 最终完整 authorized-local-read.test.ts 在已校验隔离快照串行运行，350 通过、272 跳过（SQLite 中 PG 专项分组，对应 PG 实际执行），总数 622，实际进程退出 0；removal-commit-loss-regression.log 保留，实际耗时 724.89 秒。三项新增包含于完整结果，不与初始定向相加；不是整个分支回归。两次真实 COMMIT 连接丢失及已有永久守卫拒绝写入的预期 stderr 原样保留，不禁日志。
+- [x] 最终两 TS Prettier 检查通过，oxlint 零错误/警告；源码/快照 SHA256 一致：authorized-local-read.test.ts 为 4C075CDA25C43D25A3710CDD4679F0E99739061E1BBE2D1C4E7143A4F8FAD4E2，removal-commit-proxy.ts 为 D5681BCEFEC7CE0D3D75A9D890EFECB4051D79B55521C3977E25C37A7D2E0F65。首个最终格式命令将 PowerShell 数组作为一个路径参数传入，Prettier 明确报无匹配文件并退出 1；仅将命令改为两个显式参数后实际通过，没有改源文件、放宽规则或宣称该轮格式已检查。Markdown 受仓库忽略不宣称实际格式化；本批只测试/文档，不运行无关包构建。
+- [x] 清理首次端口守卫安全拒绝，未发 DROP/停止服务。只读对照发现该轮 Get-NetTCPConnection 按 LocalPort 能返回实际 127.0.0.1:25466、RemoteAddress=0.0.0.0/RemotePort=0、PID=15636，但 State 为空，按 State=Listen 过滤不能证明端口状态；没有据此声称服务器已停或推断根因。改为严格核对全部该端口记录恰一项、上述地址/端口/确切 PID 和该 PG 实际命令行，并同时以真实 SQL 核对原 data_directory、tenant_test、127.0.0.1 和原 /32、25466、主库及零其他客户端，未削弱数据库边界，未操作其他 PG 服务。
+- [x] 确认测试/校验/helper 进程及新会话夹具目录均零、原专用库 owner=tenant_test 且无客户端后，删除 tego_tenant_access_test_e19730f634 并核实 pg_database 计数 0；原集群正常停止，pg_ctl 无服务、25466 全部端口记录为零，清理进程实际退出 0。保留原集群与日志，既有附件/主检出/核心/正式依赖未改。作者自审核对实际协议启动/帧边界、COMMIT 精确截断点、真实记录失败和独立持久观察、端点一致性、全部 socket/listener 关闭及无动作/恢复分支；四文件 diff/暂存范围与英文默认签名原子提交由提交前后命令核实，不预填提交号、不推送。作者自审不替代未完成的整分支独立复核。
+
+本轮只证明受控本机 PostgreSQL TCP 在两个精确断点产生不同持久结果但调用均失败；不是任意网络分区、机器崩溃、UUID 交付前发现或完整未知结果协调器。没有发送物理动作/新生执行命令，原会话只 hello/observe/close；历史观察、Backend PID、UUID、attempt 及代理报告均不是执行 token。固定服务端原调用/原会话生命周期、发送前单次消费、可信物理根/全部写者与硬链接/属性最终窗口仍未实现；正式接入保持关闭。

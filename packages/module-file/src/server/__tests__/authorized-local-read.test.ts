@@ -28,6 +28,7 @@ import { AccessQueryService } from '../../../../module-tenant/src/server/access-
 import { AccessRootMutationHandler } from '../../../../module-tenant/src/server/access-control/root-mutation-handler';
 import { AccessRootReadHandler } from '../../../../module-tenant/src/server/access-control/root-read-handler';
 import storageDefinition from '../collections/storages';
+import { createRemovalCommitProxy } from './fixtures/removal-commit-proxy';
 import { openReadOnlyRemovalFixtureSession } from './fixtures/removal-session-client';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
@@ -45,6 +46,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
     let directory: string;
     let root: string;
     let rendered: boolean;
+    let testPostgresUrl = postgresUrl;
     const location = () => path.join(root, 'old/tenants/H', 'receipt.txt');
     const identity = (collection: Collection) =>
       collection.name === 'documents'
@@ -57,7 +59,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
       root = path.join(directory, 'root');
       await fs.mkdir(path.dirname(location()), { recursive: true });
       await fs.writeFile(location(), bytes);
-      db = dialect === 'postgres' ? isolatedPostgresDatabase(postgresUrl!) : sqliteDatabase();
+      db = dialect === 'postgres' ? isolatedPostgresDatabase(testPostgresUrl!) : sqliteDatabase();
       await seedConfigStore(db);
       await seedAclScopes(db);
       db.collection(storageDefinition);
@@ -1480,6 +1482,92 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                     other.db.sequelize.removeHook('afterQuery', 'live-attempt-link');
                                     await other.db.close();
                                   }
+                                });
+
+                                describe('actual COMMIT response loss', () => {
+                                  let proxy: Awaited<ReturnType<typeof createRemovalCommitProxy>>;
+                                  beforeAll(async () => {
+                                    proxy = await createRemovalCommitProxy(postgresUrl!);
+                                    testPostgresUrl = proxy.url;
+                                  });
+                                  afterAll(async () => {
+                                    testPostgresUrl = postgresUrl;
+                                    await proxy?.close();
+                                  });
+
+                                  it('normally confirms the owned attempt through the actual bounded TCP transport', async () => {
+                                    const { id, session } = await begin();
+                                    const other = await coordinated();
+                                    try {
+                                      const recorded = await other.inspector.recordLocalCleanupAttempt(id);
+                                      expect(recorded.state).toBe('committed-cleanup-attempt-recorded');
+                                      await assertOriginalBinding(id, session);
+                                      expect(await other.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                        state: 'committed-cleanup-attempt-observed',
+                                        attemptId: recorded.attemptId,
+                                      });
+                                      expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    } finally {
+                                      await other.db.close();
+                                    }
+                                  });
+
+                                  it.each(['before-forward', 'after-complete'] as const)(
+                                    'observes the actual durable result without retry after wire loss: %s',
+                                    async (mode) => {
+                                      const { id, session } = await begin();
+                                      const before = await state();
+                                      const other = await coordinated();
+                                      const fault = proxy.arm(mode);
+                                      try {
+                                        await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                          /terminated|closed|socket|ECONNRESET/i,
+                                        );
+                                        await fault.observed;
+                                      } finally {
+                                        await other.db.close();
+                                      }
+                                      expect(fault.snapshot()).toMatchObject({
+                                        commitSeen: 1,
+                                        commitForwarded: mode === 'after-complete' ? 1 : 0,
+                                        completionReceived: mode === 'after-complete' ? 1 : 0,
+                                        completionDelivered: 0,
+                                      });
+                                      expect(fault.snapshot().backendProcessId).toBeGreaterThan(0);
+                                      // The fixture alone knows where it cut the wire. The failed caller cannot infer this.
+                                      await assertOriginalBinding(id, session);
+                                      const fresh = await coordinated();
+                                      try {
+                                        if (mode === 'before-forward') {
+                                          expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toEqual({
+                                            state: 'unknown',
+                                          });
+                                          expect(await state()).toEqual(before);
+                                          // No automatic second attempt, even though this controlled transaction did abort.
+                                        } else {
+                                          const payload = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                          expect(payload.attempt).toMatchObject({
+                                            state: 'unresolved',
+                                            operationId: id,
+                                            reservation: payload.binding,
+                                          });
+                                          expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                            state: 'committed-cleanup-attempt-observed',
+                                            attemptId: payload.attempt.attemptId,
+                                            transactionId: payload.attempt.transactionId,
+                                          });
+                                          const durable = await state();
+                                          await expect(fresh.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                            'already recorded',
+                                          );
+                                          expect(await state()).toEqual(durable);
+                                        }
+                                        expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                      } finally {
+                                        await fresh.db.close();
+                                      }
+                                    },
+                                  );
                                 });
                               },
                             );
@@ -3423,7 +3511,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                     references?: readonly Collection[],
                     fence?: Collection,
                   ) {
-                    const other = isolatedPostgresDatabase(postgresUrl!);
+                    const other = isolatedPostgresDatabase(testPostgresUrl!);
                     try {
                       other.collection(storageDefinition);
                       const source = other.collection({ ...docs.options });

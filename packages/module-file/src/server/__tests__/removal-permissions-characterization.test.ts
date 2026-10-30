@@ -11,6 +11,11 @@ interface PermissionObservation {
   oldAttributeWrite?: boolean;
   insideLinkError?: number;
   outsideLinkError?: number;
+  newDataOpenError?: number;
+  shareGateOpenError?: number;
+  shareGateAfterUnmapOpenError?: number;
+  mappedDev?: string;
+  mappedIno?: string;
 }
 
 // New fixture DACL/token dependency characterization, never a production executor.
@@ -53,12 +58,12 @@ describe.skipIf(process.platform !== 'win32')('Windows fixture permission bounda
     return { code, stdout: stdout.trim(), stderr };
   }
 
-  async function observe(mode: string): Promise<PermissionObservation> {
+  async function observe(mode: string, expectedBytes = bytes): Promise<PermissionObservation> {
     const result = await probe(mode);
     expect(result, 'actual helper exit and diagnostics').toMatchObject({ code: 0, stderr: '' });
     const observation = JSON.parse(result.stdout) as PermissionObservation;
     expect(observation).toMatchObject({ restrictedThreadVerified: true, originalThreadRestored: true });
-    expect(await fs.readFile(path.join(directory, 'data', 'probe.txt'))).toEqual(bytes);
+    expect(await fs.readFile(path.join(directory, 'data', 'probe.txt'))).toEqual(expectedBytes);
     return observation;
   }
 
@@ -94,6 +99,32 @@ describe.skipIf(process.platform !== 'win32')('Windows fixture permission bounda
     const alias = await fs.stat(path.join(directory, 'outside', 'outside-link.txt'), { bigint: true });
     expect([alias.dev, alias.ino, file.nlink, alias.nlink]).toEqual([file.dev, file.ino, 2n, 2n]);
     expect(await fs.readFile(path.join(directory, 'outside', 'outside-link.txt'))).toEqual(bytes);
+  });
+
+  it('retains an old writable view after closing source handles and tightening its DACL', async () => {
+    const changed = Buffer.from('Mresh permission fixture bytes; never a business attachment\n');
+    const result = await observe('old-writable-view', changed);
+    expect(result.newDataOpenError).toBe(5);
+    const stat = await fs.stat(path.join(directory, 'data', 'probe.txt'), { bigint: true });
+    expect([String(stat.dev), String(stat.ino), stat.nlink, stat.size]).toEqual([
+      result.mappedDev,
+      result.mappedIno,
+      1n,
+      BigInt(changed.length),
+    ]);
+  });
+
+  it('rejects share-denying admission until the old writable view is unmapped', async () => {
+    const changed = Buffer.from('Mresh permission fixture bytes; never a business attachment\n');
+    const result = await observe('mapped-share-gate', changed);
+    expect(result).toMatchObject({ newDataOpenError: 5, shareGateOpenError: 32, shareGateAfterUnmapOpenError: 0 });
+    const stat = await fs.stat(path.join(directory, 'data', 'probe.txt'), { bigint: true });
+    expect([String(stat.dev), String(stat.ino), stat.nlink, stat.size]).toEqual([
+      result.mappedDev,
+      result.mappedIno,
+      1n,
+      BigInt(changed.length),
+    ]);
   });
 
   it('rejects a populated namespace without opening or changing its existing bytes', async () => {

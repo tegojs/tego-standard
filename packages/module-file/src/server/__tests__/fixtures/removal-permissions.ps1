@@ -18,6 +18,8 @@ public static class RemovalPermissionFixture {
     public int newAttributeOpenError;
     public bool? oldAttributeWrite;
     public int? insideLinkError, outsideLinkError;
+    public int? newDataOpenError, shareGateOpenError, shareGateAfterUnmapOpenError;
+    public string mappedDev, mappedIno;
   }
   [StructLayout(LayoutKind.Sequential)]
   private struct SidAttributes { public IntPtr Sid; public uint Attributes; }
@@ -79,6 +81,18 @@ public static class RemovalPermissionFixture {
   [DllImport("kernel32.dll", SetLastError=true)]
   [return: MarshalAs(UnmanagedType.Bool)]
   private static extern bool SetFileTime(SafeFileHandle handle, IntPtr created, IntPtr accessed, ref long written);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern SafeFileHandle CreateFileMappingW(SafeFileHandle file, IntPtr security,
+    uint protection, uint maximumHigh, uint maximumLow, string name);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern IntPtr MapViewOfFile(SafeFileHandle mapping, uint access,
+    uint offsetHigh, uint offsetLow, UIntPtr bytes);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool FlushViewOfFile(IntPtr address, UIntPtr bytes);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool UnmapViewOfFile(IntPtr address);
 
   private static void Native(bool ok) { if (!ok) throw new Win32Exception(Marshal.GetLastWin32Error()); }
   private static string TokenUser(SafeAccessTokenHandle token) {
@@ -178,9 +192,71 @@ public static class RemovalPermissionFixture {
     handle.Dispose(); handle = null;
     return error;
   }
+  private static void VerifyMappedFile(SafeFileHandle handle, HandleInfo original) {
+    HandleInfo actual;
+    Native(GetFileInformationByHandle(handle, out actual));
+    if (actual.Volume != original.Volume || actual.IndexHigh != original.IndexHigh ||
+      actual.IndexLow != original.IndexLow || actual.Links != 1 || (actual.Attributes & 0x410) != 0)
+      throw new BoundaryException();
+  }
+  private static void ObserveMapped(string file, string mode, SafeAccessTokenHandle token,
+    string owner, Observation result) {
+    IntPtr view = IntPtr.Zero;
+    SafeFileHandle gate = null;
+    HandleInfo original = new HandleInfo();
+    try {
+      Grant(file, owner, Read | FileSystemRights.Write);
+      Restricted(token, owner, delegate {
+        using (var source = CreateFileW(file, 0xc0000000, 7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
+          if (source.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+          Native(GetFileInformationByHandle(source, out original));
+          if ((original.Attributes & 0x410) != 0 || original.Links != 1) throw new BoundaryException();
+          result.mappedDev = original.Volume.ToString();
+          result.mappedIno = (((ulong)original.IndexHigh << 32) | original.IndexLow).ToString();
+          // PAGE_READWRITE and FILE_MAP_WRITE, unnamed and non-executable, existing file size.
+          using (var mapping = CreateFileMappingW(source, IntPtr.Zero, 4, 0, 0, null)) {
+            if (mapping.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+            view = MapViewOfFile(mapping, 2, 0, 0, UIntPtr.Zero);
+            if (view == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+          }
+        }
+      });
+      // Both source handles are disposed; the old writable view is deliberately still mapped.
+      Grant(file, owner, Read);
+      if (mode == "mapped-share-gate") {
+        gate = CreateFileW(file, 0x80010000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+        result.shareGateOpenError = gate.IsInvalid ? Marshal.GetLastWin32Error() : 0;
+        if (gate.IsInvalid) { gate.Dispose(); gate = null; }
+        else VerifyMappedFile(gate, original);
+      }
+      Restricted(token, owner, delegate {
+        result.restrictedThreadVerified = true;
+        using (var attempted = CreateFileW(file, 0xc0000000, 7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero))
+          result.newDataOpenError = attempted.IsInvalid ? Marshal.GetLastWin32Error() : 0;
+        if (Marshal.ReadByte(view) != (byte)'F') throw new BoundaryException();
+        // Only the fixed new fixture byte is changed; no file-handle write or action callback.
+        Marshal.WriteByte(view, (byte)'M');
+        Native(FlushViewOfFile(view, new UIntPtr(1)));
+      });
+      Native(UnmapViewOfFile(view));
+      view = IntPtr.Zero;
+      if (gate != null) { gate.Dispose(); gate = null; }
+      if (mode == "mapped-share-gate") {
+        // Same access/share flags and unchanged DACL; only the old view has been unmapped.
+        using (var after = CreateFileW(file, 0x80010000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
+          result.shareGateAfterUnmapOpenError = after.IsInvalid ? Marshal.GetLastWin32Error() : 0;
+          if (!after.IsInvalid) VerifyMappedFile(after, original);
+        }
+      }
+    } finally {
+      try { if (view != IntPtr.Zero) Native(UnmapViewOfFile(view)); }
+      finally { if (gate != null) gate.Dispose(); }
+    }
+  }
   private static void Boundary(string directory, string mode) {
     if (String.IsNullOrEmpty(directory) ||
-      (mode != "granted" && mode != "new-attributes-denied" && mode != "old-attributes" && mode != "outside-alias"))
+      (mode != "granted" && mode != "new-attributes-denied" && mode != "old-attributes" && mode != "outside-alias" &&
+       mode != "old-writable-view" && mode != "mapped-share-gate"))
       throw new BoundaryException();
     string full = Path.GetFullPath(directory);
     string temp = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
@@ -233,33 +309,37 @@ public static class RemovalPermissionFixture {
             var result = new Observation();
             SafeFileHandle old = null;
             try {
-              if (mode == "old-attributes") {
+              if (mode == "old-writable-view" || mode == "mapped-share-gate") {
+                ObserveMapped(file, mode, token, owner, result);
+              } else {
+                if (mode == "old-attributes") {
+                  Restricted(token, owner, delegate {
+                    int error = OpenAttributes(file, out old);
+                    if (error != 0) throw new Win32Exception(error);
+                  });
+                }
+                if (mode == "new-attributes-denied" || mode == "old-attributes") Grant(file, owner, Read);
+                if (mode == "outside-alias") Grant(data, owner, Read);
                 Restricted(token, owner, delegate {
-                  int error = OpenAttributes(file, out old);
-                  if (error != 0) throw new Win32Exception(error);
+                  result.restrictedThreadVerified = true;
+                  SafeFileHandle opened;
+                  result.newAttributeOpenError = OpenAttributes(file, out opened);
+                  if (opened != null) opened.Dispose();
+                  if (mode == "old-attributes") {
+                    long written = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc).ToFileTimeUtc();
+                    Native(SetFileTime(old, IntPtr.Zero, IntPtr.Zero, ref written));
+                    result.oldAttributeWrite = true;
+                  }
+                  if (mode == "granted" || mode == "outside-alias") {
+                    result.insideLinkError = CreateHardLinkW(Path.Combine(data, "inside-link.txt"), file, IntPtr.Zero)
+                      ? 0 : Marshal.GetLastWin32Error();
+                  }
+                  if (mode == "outside-alias") {
+                    result.outsideLinkError = CreateHardLinkW(Path.Combine(outside, "outside-link.txt"), file, IntPtr.Zero)
+                      ? 0 : Marshal.GetLastWin32Error();
+                  }
                 });
               }
-              if (mode == "new-attributes-denied" || mode == "old-attributes") Grant(file, owner, Read);
-              if (mode == "outside-alias") Grant(data, owner, Read);
-              Restricted(token, owner, delegate {
-                result.restrictedThreadVerified = true;
-                SafeFileHandle opened;
-                result.newAttributeOpenError = OpenAttributes(file, out opened);
-                if (opened != null) opened.Dispose();
-                if (mode == "old-attributes") {
-                  long written = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc).ToFileTimeUtc();
-                  Native(SetFileTime(old, IntPtr.Zero, IntPtr.Zero, ref written));
-                  result.oldAttributeWrite = true;
-                }
-                if (mode == "granted" || mode == "outside-alias") {
-                  result.insideLinkError = CreateHardLinkW(Path.Combine(data, "inside-link.txt"), file, IntPtr.Zero)
-                    ? 0 : Marshal.GetLastWin32Error();
-                }
-                if (mode == "outside-alias") {
-                  result.outsideLinkError = CreateHardLinkW(Path.Combine(outside, "outside-link.txt"), file, IntPtr.Zero)
-                    ? 0 : Marshal.GetLastWin32Error();
-                }
-              });
               NoThreadToken();
               if (IsTokenRestricted(primary) || TokenUser(primary) != owner)
                 throw new InvalidOperationException("Original primary token identity changed");

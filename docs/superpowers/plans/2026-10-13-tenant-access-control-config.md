@@ -3137,3 +3137,27 @@ Ruling: 此新夹具只要求原权限和继承保护状态恢复，不声称完
 TS Prettier/oxlint 零错误警告，PS AST 通过；源/快照 SHA256 一致：测试 48A61F163FD37C33E53BE2374E981E48C5E2627192C789DDAF1AEA515AF11E93，PS BE395DC0D884771003365B5E471F61046F4FF1198853BDE492B8B11D4E2CBA52。作者复核固定新对象/无产品引用、真实 restricted thread/同步 finally reversion、错误不交付结果、原权限回读及后继字节/时间/硬链接验证；移除 impersonation、负向 ACL 调整、原旧句柄或真实 hardlink 调用都会破坏相应结果，不用 mock/expected JSON 自证。未覆盖跨登录会话、不同账号/完整部署 ACL、恶意并发替换全部目录链/全部别名、旧内容写者/映射排空、最后核验到原子动作、不可伪造来源和未知结果协调；这些明确不予完成判断，整分支独立复核仍未完成。
 
 最终真实测试/格式/lint/helper 进程均退出，本节新 permission/unrelated 命名空间均 0、25466 全端口记录 0；未启动 PG 或创建库、未跑无关包构建，也没有改系统账号/主 token/生产权限或正式依赖。唯一旧 6cUGZR 实际仍存在且未触及，不报告全部临时目录零、不重试被拒清理。生产 recorder/inspector、原只读 broker/client/owner、既有附件及正式 helper/selected executor/注册/路由/自动安装/规则保存启用均不改。本节关闭了两个错误的局部权限推断，不提供可删除执行器或新的执行 token。
+
+## 204. 已关闭来源句柄的旧可写映射与准入候选边界
+
+开始核实 HEAD=c3dbc9dbd、功能分支/工作区干净及 §203 两份实际记录；聚焦 rg 确认既有记录明确未验证可写映射，没有重新测试已完成的属性句柄或别名作为新交付。沿用 §203 新空直子临时命名空间/固定 CreateNew probe.txt 和真实派生受限线程，只扩展原权限测试、PS helper 和两份记录。现有八项仅作为受影响文件回归。生产源码/原只读控制协议不动，没有任何产品接入。
+
+初始候选假设（不是已验证结论）：本节验证的是预先建立的 PAGE_READWRITE/FILE_MAP_WRITE 数据映射，不是旧属性句柄。先在真实受限线程打开可写新文件、建立无名映射/视图并关闭原文件与映射对象句柄，只保留该 view；再由原身份收紧新文件 DACL。其后受限线程的新数据写句柄应拒绝，旧 view 尝试仅将此新夹具首字节 F 改 M 并 FlushViewOfFile，最后 UnmapViewOfFile；Node 复核固定新字节、原 dev/ino、大小和 nlink=1。第二项原拟由原身份取得 READ|DELETE、仅 share READ 的候选句柄，保持至映射写入/flush 完成。若候选打开实际失败，须保留真实反例而非放宽断言冒称成功取得候选不等于旧映射排空。
+
+- [x] 两个新固定模式先在 snapshot 定向真实 RED；未知模式拒绝只算 fixture 缺实现，不算产品 RED。
+- [x] 最小原生映射组合后完整受影响权限文件串行验证，等待每个进程真实退出，不启 PG/不跑无关构建。
+- [x] TS 格式/lint、PS AST、源/快照 SHA、作者串行自审和两份记录完成；默认签名英文原子提交及独立验签结果以实际 Git 为准，不预写成功。
+
+最初两次 web open 的 CreateFileMappingW/MapViewOfFile 页面均无内容；交接后两次 raw 页 web open 也无内容。随后才通过只读 Invoke-WebRequest 真正读取 MicrosoftDocs/sdk-api 的 memoryapi/CreateFileMappingW、MapViewOfFile、UnmapViewOfFile、FlushViewOfFile 和 MicrosoftDocs/win32 的 Closing a File Mapping Object；本节没有 winbase 目录抓取失败，已纠正草稿不实描述。文档明确 view 保持映射内部引用，关闭源文件与映射对象句柄不等于 unmap；未释放的 view 对应文件不保持共享限制。此处只测普通本地非执行数据映射，不建命名/跨会话对象、不测可执行代码、远程 FS、崩溃持久性或完整外部写者。FlushViewOfFile 不等于硬件缓存落盘，本节仅断言本次实际 Node 后继读取，不能宣称机器崩溃后字节已持久化。旧 6cUGZR 不触及，正式 helper/selected executor/注册/路由/自动安装/规则保存启用仍关闭。
+
+原待决 RED runner session11233 已实际退出 1：两项新模式均因原 helper 的白名单拒绝 code2，2 失败/8 过滤跳过/10 总，16.00 秒，日志 removal-mapping-red.log；这是 fixture 缺实现，并未直接证实映射权限假设，更不是产品 RED。该结果读取后才开始原生实现，没有重叠启动下一验证。
+
+最小实现后的 removal-mapping-green.log 实际 1 通过/1 失败/8 过滤跳过，整体退出 1，38.73 秒，不称 GREEN。第一项在 DACL 收紧后真正从原 view 改写固定新字节，Node 同对象读取通过；第二项在候选打开失败，不能宣称成功取得拒写共享句柄仍可写映射。只读日志/进程检查没有并行启动第二个复现。读取 runner 实际退出后依 systematic-debugging 仅为该调用加阶段/数值错误，单项诊断实际退出 1、1 失败/9 过滤，12.57 秒，removal-mapping-gate-diagnostic.log 确认 mapped-share-gate CreateFileW error 32。期间一次诊断 payload 含 NUL 在 CreateProcess 前被拒，没有 shell/测试/本地写入；修正后才启动实际诊断。早先进程守卫的 JS 字符串反斜杠被转义，未能可靠匹配路径；已改为 raw 字符串与字符规范化、只排除当前 $PID。此前 runner 都由原 session 的实际退出串行分隔，不将错误守卫当成退出证明。
+
+Ruling: 随后读取 MicrosoftDocs/sdk-api 的 CreateFileW 官方 FILE_SHARE_WRITE 说明，明确已有 write-access mapping 而未指定 share WRITE 时调用失败；UnmapViewOfFile 的一般“无共享限制”描述不能覆盖这一明确例外。实际结果证伪了初始第二候选的成功假设，不能弱化 share 参数强行造绿。第二项改验真实 32，旧 view 仍只写本轮固定新字节；显式 Unmap 后在 DACL 和 READ|DELETE/share READ 参数不变时再尝试同一候选并核对原对象身份。该后继成功已在下述定向及完整运行中实际验证，但不能推导全部写者已排空、跨会话权限或生产原子动作能力。
+
+修正结论后两项定向 2 通过/8 过滤跳过、退出 0，9.88 秒，removal-mapping-corrected-green.log。随后完整受影响 removal-permissions-characterization.test.ts 在已校验 snapshot 执行 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-permissions-characterization.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose，10 项全部通过、无跳过、实际退出 0，15.41 秒（测试 11.92 秒），removal-mapping-regression.log；两项包含在 10 项内，不与定向相加。没有整分支回归或独立审查结论。TS Prettier check/oxlint 零错误警告，最终 PS AST 通过；Markdown 被忽略，不称已格式化。此为测试夹具变更，没有运行无关包构建或改正式依赖。
+
+源/快照 SHA256 一致：测试 9201F528DA300E484F9648D90C6A8730BE73348414B6C1CBEE3D61E5983FCC9A，PS 44F6AA22D4ABF08450704337A12F3854DED51B17AE656DA08575D6235F3E711E。四文件 diff/空白检查通过。按 requesting-code-review 模板由作者串行自审，不联系任何子智能体：新固定模式先过原 namespace 白名单；只写 CreateNew 新文件的一个固定数据字节；原 source/mapping using 在收紧 DACL 前结束，view 在正常路径显式 Unmap、异常路径 finally Unmap，候选句柄最终关闭；真正受限线程验证/原身份恢复和新对象 DACL 原有回读不削弱。移除 DACL 收紧会使新数据打开不再为 5，漏关原 writer/view 会使后继同参数候选不能为 0，移除映射写入会使 Node 固定字节断言失败，错误对象由原 native dev/ino 与 Node 独立 stat/大小/nlink 对照拒绝；没有 mock 或仅凭 JSON 宣称生产能力。生产目录链对抗、所有共享模式/旧写者/跨会话与完整部署、崩溃持久性、因果来源和最终原子条件动作均不予完成判断。
+
+最终原 runner 已实际退出，精确资源回读退出 0：测试/esbuild/helper 0，本轮 permission/unrelated 目录 0，25466 全部端口记录 0；未启 PG/建库。唯一旧 6cUGZR 仍存在且未触及，不报告全部临时目录零或重试被拒清理。一次生产源码 rg 无匹配而整体只读检查退出 1 不是测试失败；后继显式 JSON 回读以实际退出 0 核实上述结果。前两次提交工具 payload 外层 JS 不完整，在解析阶段被拒，没有执行 Git、改变暂存内容或触发签名认证，纠正后才发起实际提交。原只读 broker/client/owner、生产 recorder/inspector、既有附件、主检出/核心和正式依赖均未改。正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭，完整物理前提/未知结果协调/逐对象可用性/其他入口业务试点与整分支独立复核仍未完成。

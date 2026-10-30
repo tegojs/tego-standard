@@ -151,11 +151,26 @@ describe.skipIf(process.platform !== 'win32')('bound pipe and native fixture ses
       ready,
       hello,
       raw,
+      next,
       request,
       pid: child.pid,
       async frame(value: string) {
         socket.write(value);
         return next();
+      },
+      async pipeline(messages: Record<string, unknown>[]) {
+        const received: string[] = [];
+        const collect = (line: string) => received.push(line);
+        reader.on('line', collect);
+        const disconnected = new Promise<void>((resolve) => socket.once('close', () => resolve()));
+        let writeError: string | undefined;
+        // A terminal broker can close before consuming the queued tail; do not mistake write EOF for a reply.
+        socket.write(messages.map((message) => JSON.stringify(message) + '\n').join(''), (error) => {
+          writeError = (error as NodeJS.ErrnoException | undefined)?.code;
+        });
+        await disconnected;
+        reader.off('line', collect);
+        return { replies: received.map((line): Reply => JSON.parse(line)), writeError };
       },
       async release() {
         if (ready.kind === 'held' && !socket.destroyed) await request('close');
@@ -197,6 +212,69 @@ describe.skipIf(process.platform !== 'win32')('bound pipe and native fixture ses
     expect(JSON.stringify(reply)).not.toContain(directory);
     await held.release();
     expect(await fs.readFile(file)).toEqual(bytes);
+  });
+
+  describe('terminal read-only request', () => {
+    it('returns one correlated live observation and ends the original broker without a separate close request', async () => {
+      const expected = await capture();
+      const held = await broker(Promise.resolve(expected));
+      const { message, reply } = await held.request('finish-read-only');
+      expect(reply).toMatchObject({
+        version: 1,
+        kind: 'read-only-finished',
+        requestId: message.requestId,
+        challenge: held.hello.challenge,
+        sessionId: held.ready.sessionId,
+        peerProcessId: process.pid,
+        brokerProcessId: held.pid,
+      });
+      expect(reply.observations.file).toEqual(expected.file);
+      expect(reply.observations.directories).toHaveLength(3);
+      expect(JSON.stringify(reply)).not.toContain(directory);
+      expect(await held.next()).toBeNull();
+      expect(await held.finished()).toBe(0);
+      const writer = await fs.open(file, 'r+');
+      await writer.close();
+      const later = await broker();
+      expect(later.ready.kind).toBe('held');
+      await later.release();
+      expect(await fs.readFile(file)).toEqual(bytes);
+    });
+
+    it('does not accept pipelined new-id requests after its terminal read-only observation', async () => {
+      const held = await broker();
+      const messages = ['finish-read-only', 'finish-read-only', 'observe'].map((kind) => ({
+        version: 1,
+        kind,
+        requestId: randomUUID(),
+        challenge: held.hello.challenge,
+        sessionId: held.ready.sessionId,
+      }));
+      const { replies, writeError } = await held.pipeline(messages);
+      expect(replies).toHaveLength(1);
+      expect(replies[0]).toMatchObject({ kind: 'read-only-finished', requestId: messages[0].requestId });
+      expect([undefined, 'EOF']).toContain(writeError);
+      expect(await held.finished()).toBe(0);
+      expect(await fs.readFile(file)).toEqual(bytes);
+    });
+
+    it('rechecks native identity before finishing and ends on actual metadata drift', async () => {
+      const held = await broker();
+      const before = await fs.lstat(file, { bigint: true });
+      await fs.utimes(file, 1700000000, 1700000000);
+      expect((await fs.lstat(file, { bigint: true })).mtimeNs).not.toBe(before.mtimeNs);
+      const { reply } = await held.request('finish-read-only');
+      expect(reply).toMatchObject({ kind: 'rejected', reason: 'identity' });
+      expect(reply).not.toHaveProperty('observations');
+      expect(await held.next()).toBeNull();
+      expect(await held.finished()).toBe(0);
+      const writer = await fs.open(file, 'r+');
+      await writer.close();
+      const later = await broker();
+      expect(later.ready.kind).toBe('held');
+      await later.release();
+      expect(await fs.readFile(file)).toEqual(bytes);
+    });
   });
 
   it('takes root admission before opening native sessions and closes a busy peer without a session', async () => {

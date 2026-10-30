@@ -3049,3 +3049,27 @@ Ruling: 沿用 §198 的固定只读 owner，选择两个仅测试的固定断�
 全部测试/格式/lint/helper 实际退出后，核实原 postmaster PID 72944/真实目录、全部 25466 端口记录、tenant_test、127.0.0.1 与 /32、主库/主实例、零其他客户端及 owner，删除仅最终专用库 c19930d638，确认与已删除的 b19930c637 合计 pg_database count0。原集群正常停止、pg_ctl 无服务、PID72944 消失、25466 全部端口记录 0，清理实际退出 0，其他 PG 服务未改，集群及日志保留。最终只读盘点唯一遗留目录仍为上述策略阻塞的 6cUGZR，创建于 17:00:39；内部仅 root/nested/attachment.txt 和本轮预期新夹具字节，无 helper 持有，不伪称目录零或删除完成。既有附件、主检出/核心和正式依赖未改。
 
 下一项若继续固定 broker 端终结型只读请求生命周期，应仍只限新隔离夹具、验证实际消息消费与资源释放，不据此声称不可逆动作最多一次；不能跳过可信根、全部写者/权限、硬链接/属性最终窗口及真实原子动作前提。正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭；不从已消费 owner、UUID 或历史 committed 恢复执行。
+
+## 200. 新夹具 broker 的终结型只读请求
+
+Ruling: 承接 §199 之后的 broker 端请求生命周期，仅为原新夹具 PS 协议增加固定 finish-read-only；在原 peer/challenge/session/requestId 校验之后，实际复核原活句柄，回复 read-only-finished 后无条件离开会话并释放原句柄/准入，不接受已排队的新 id 请求。原 hello/observe/close 保留兼容；不改变 §198—199 owner/client 或生产入口，不把只读终结当不可逆动作最多一次、可信根或持久记忆。若判断错误，代价是误将可重建的新进程会话当真实执行保障，因此明确只限新临时夹具，正式接入保持关闭。
+
+- [x] 三项先实际 RED：正常终结、同管道预排队不同 id 不能续做、终结前真实元数据漂移仍拒绝并释放资源。
+- [x] 最小固定只读分支和原协议完整回归；只在已校验 snapshot 串行测试，不启 PG 或重跑无关包构建。
+- [x] TS 格式/lint、PS AST、源/快照 SHA、作者自审与记录；随后采用英文默认 GPG 签名原子提交，不预写尚未产生的提交 ID 或签名结果。
+
+§199 策略拒绝的 6cUGZR 目录保持不动、不重试或换 API 清理；本批正常测试 teardown 只处理各测试自己 mkdtemp 返回的全新目录，不接收该旧路径。整分支独立复核仍未完成。
+
+初始三个新用例在真实 Windows named pipe/原生句柄上均 RED、14 过滤跳过、总 17、实际退出 1，日志 removal-terminal-session-red.log。正常和预排队用例收到原未知命令 rejected/protocol，漂移用例也是 protocol 而非预期 identity；不是产品缺陷或生产 RED。最小实现仅为固定允许 kind 增加 finish-read-only，并在原关联/重放校验后选择实际 Observe-Fixture、固定 read-only-finished 回复和 break；native 校验或回复异常仍由原 catch/finally 退出，不读取下一帧，没有本地/持久成功状态、动作或释放重试 API。
+
+首次最小实现定向实际 2 通过、1 失败、14 过滤跳过、退出 1，日志 removal-terminal-session-green.log 保留，不称 GREEN：流水线用例在 broker 正常终结后遇到 write EOF。依 systematic-debugging，在同一真实新夹具的 socket data/write callback/error/close 边界临时记录带时间戳的诊断，单项实际退出 1，日志 removal-terminal-session-pipeline-diagnostic.log：完整 read-only-finished 回复先分两次 data 到达，随后未读完的写入触发 write EOF/error/close，未产生 end；原 readline 迭代器的后继读取因该真实 socket 错误拒绝。诊断在上一 runner 实际退出后串行执行，临时日志代码随后移除。
+
+不为使测试变绿而改 broker 的终结顺序或吞掉全局通道错误。仅新 pipeline 测试辅助方法收集原 reader 的真实完整 line 至 socket close，另记真实 write 回调错误；断言只有首个相关终结回复、子进程退出 0，写入仅允许正常完成或 EOF，其余错误仍失败。三个不同 UUID 帧由单次 write 排队尝试；EOF 不证明尾帧已全部交付或 broker 已读取它们，更不是不可逆命令执行计数。修正后三项定向实际通过、14 过滤跳过、退出 0，日志 removal-terminal-session-corrected-green.log。
+
+完整受影响 removal-session-characterization.test.ts 在隔离 snapshot 串行实际 17 通过、无跳过、退出 0，总 66.99 秒（测试 58.48 秒），日志 removal-terminal-session-regression.log；三项不与定向相加。原 14 项 hello/observe/close、关联/重放、未知字段/重复 JSON/帧界限/读取期限、断线及原生资源边界均包含在本次完整文件回归，不是重做其独立表征或整个分支回归。正常终结和真实元数据漂移拒绝后，r+ 重开及新只读 broker 获取只验证原句柄/准入释放，原新夹具字节保留；新会话不续做旧请求。
+
+作者按 requesting-code-review 清单串行自审，无任何子智能体：终结分支在原 peer/challenge/session/requestId 及重放校验之后，原生读取仍来自原活句柄，成功回复后 break，校验/发送异常仍从原 catch/finally 退出并逆序关句柄、释放 mutex。不新增动作回调、产品导出、删除分支或可序列化能力。变异核对：移除终结 break 会继续读取后继请求、破坏唯一回包/退出断言；省略 Observe-Fixture 会破坏真实 utimes 漂移拒绝；漏关原资源会破坏实际重开/新会话获取。只读回复不是不可逆动作最多一次，权限/物理根/全部写者、最终核验到动作原子窗口及正式接入不予完成判断；整分支独立复核仍未完成。
+
+TS Prettier 检查通过、oxlint 零警告/错误，PS AST 语法通过；两源码/快照 SHA256 一致：测试 E57DBB091AF6762878D2BB848C8BD922B81EFAA46986EA754C35548E9AB21515，PS DDBBFC12203E8803E89D3178132A9B8CB2326A9EA2628C1E938DC7700253F4E4。一次外层工具 JavaScript 引号错误在 shell 启动前失败，纠正传输引号后才实际运行格式/语法/完整测试，不算产品 RED 或一次测试运行。Markdown 仍按仓库忽略规则不声称实际格式化；仅两份测试源码与两份记录，不运行无关包构建或 PG 回归，没有启动 PG 或创建数据库。
+
+全部验证/helper 进程实际退出，最终只读盘点仅旧 6cUGZR 保留，新测试没有遗留目录；未重试或换 API 清理被拒旧目录，仍需允许的人工清理，不报告临时目录零。§198—199 owner/client、生产 recorder/inspector、正式依赖、主检出/核心及既有附件不变。正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项如组合本次终结只读协议与原 owned fixture，应仍只限全新隔离对象、保持原异常不续做和持久 unresolved，不把 broker 的终结回复升级为物理执行能力。

@@ -226,6 +226,10 @@ Inspector 可另行显式提供独立池的 fence 映射，并调用 reserveLoca
 
 最终诊断中的 requestWritten 仅表示本地 socket write 回调完成，replyReceived 表示已相关的真实回包到达，replyConfirmed 表示客户端交付该只读结果；socketClosed/brokerClosed 来自真实 close 事件。它们不是内核不可逆动作计数、不可伪造因果证据、存活租约或执行 token。新会话获取只验证原资源释放，不恢复旧 attempt；broker 端单次不可逆处理、断线撤销未完成动作和完整原子动作仍没有实现。生产 recorder/inspector、注册/路由/selected executor/正式 helper/自动安装/规则保存启用不改，物理安全前提和后续放行条件仍全部保留。
 
+§200 仅为该新夹具 broker 增加固定 finish-read-only 终结请求：原 peer/challenge/session/requestId 与重放校验保持，实际 Observe-Fixture 核对原活文件/目录句柄后返回相关 read-only-finished，随即离开读取循环并由 finally 关原句柄/准入；原生校验或发送失败也不读取下一帧。原 hello/observe/close 兼容，未接入 §198—199 owner/client 或生产代码。真实元数据漂移仍拒绝，正常终结和拒绝均验证资源释放与新夹具字节保留。
+
+终结后的流水线尾帧可能尚未被读完，实际先收到相关回复、随后发生 write EOF；测试分别断言真实完整回包数量和通道结局，不把写入 EOF 当新回包或将一次 write 解释为所有尾帧已交付。此为原只读会话不处理后继请求的固定控制流，不证明不可逆动作最多一次、持久未知结果记忆、可信根/全部写者或最后核验到动作的原子性。新 broker 获取仅说明旧资源释放，不恢复旧请求/attempt；正式执行及其全部放行条件保持关闭。
+
 ### 关联读取与授权事实
 
 关联展开只处理本次请求实际使用的关系路径，由入口显式提交查询计划。已迁移目标表按自己的读取范围过滤；未迁移目标表保持原来的租户机制。隐藏的单值关联返回 `null`，多值关联只返回可读项；单纯展开关联不能因此丢掉本来可读的根记录。过滤应在数据库查询阶段完成，不能取出后再逐项查权限。

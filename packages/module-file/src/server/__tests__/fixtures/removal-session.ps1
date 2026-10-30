@@ -141,7 +141,7 @@ function Assert-Message($message, [bool]$first) {
         $parsed.ToString('D') -cne $message[$name]) { throw [IO.InvalidDataException]::new('protocol') }
   }
   if (($first -and $message.kind -cne 'hello') -or
-      (-not $first -and $message.kind -cnotin @('observe', 'close'))) {
+      (-not $first -and $message.kind -cnotin @('observe', 'close', 'finish-read-only'))) {
     throw [IO.InvalidDataException]::new('protocol')
   }
 }
@@ -213,6 +213,11 @@ try {
     }
     if (-not $requests.Add($requestId)) { throw [IO.InvalidDataException]::new('replay') }
     if ($message.kind -ceq 'close') { Send-Reply 'closed' '' $null; break }
+    if ($message.kind -ceq 'finish-read-only') {
+      # Terminal control flow: native/reply failure also exits through catch/finally, never another read.
+      Send-Reply 'read-only-finished' '' (Observe-Fixture)
+      break
+    }
     Send-Reply 'observed' '' (Observe-Fixture)
   }
 } catch {

@@ -2932,3 +2932,18 @@ Ruling: 不把 §192 历史观察包装成 execute，也不安装生产原生 he
 - [x] 所有测试进程实际退出后，核对真实 PG17 目录、tenant_test、127.0.0.1:25466 和零其他客户端，删除本批可重建专用库 tego_tenant_access_test_c19330d632 并确认 pg_database 计数 0；临时 PG 停止，pg_ctl 无服务、端口无监听，清理脚本实际退出 0。保留集群目录及日志，未触及业务库、正式依赖或既有附件字节。本批三文件采用独立英文默认签名原子提交，最终提交/签名及工作区状态由提交后命令核实，不预填提交号，不推送。
 
 当前正式 resolver、selected executor、业务路由、自动安装及规则保存启用继续关闭；原文件保留，不调用旧 storage.delete，不借 cancelled、未知提交或历史 attempt 清理旧附件。此契约仍需后续新夹具上的真实会话/准入/持久尝试组合验证和实现；完整部署写者、原生生命周期/硬链接保证、不可伪造因果来源、真实网络 COMMIT 确认丢失、UUID 交付前崩溃发现、完成回执及可用逐对象方案、替换/其他入口/业务试点和整分支独立复核仍未完成。
+
+## 194. 仅新夹具的 broker 自持内核准入边界
+
+Ruling: 承接 §193 第三门控，用 Windows/.NET named Mutex 作为仅测试的候选内核原语，验证 broker 自己持有所有权时的具体行为，不先抽象产品 lease/execute 接口，也不安装原生组件。只接受 OS 临时目录直子 tego-removal-admission-* 新夹具，使用固定 root/control 和固定新写入文件；不删除或改写 attachment.txt，业务源码/数据库/运行时不接入。命名键按本夹具的固定绝对路径生成，仅覆盖同一测试会话/同名参与者，不宣称解决物理根别名、跨登录会话/权限或部署写者完整性。
+
+文件：新增 server/__tests__/removal-admission-characterization.test.ts 及 fixtures/removal-admission.ps1，位置均在 packages/module-file/src 下；本记录及原规格只补实际结论。测试先定义真实行为，再写最小测试 helper；这是操作系统依赖/夹具表征，不把缺夹具、假设错误或直接通过称作产品 RED/修复。
+
+- [x] 同根 holder 阻止独立 contender 的真实新文件写入，正常释放后可写且本会话最多一次；未取得准入的命令无新业务文件。真实终止持锁进程后，已有 contender 从 WaitOne 获得所有权并收到弃锁异常，夹具明确标记 tainted 并拒绝动作；所有命名对象句柄消失后新 broker 正常取得全新对象，没有持久死亡历史。故没有弃锁提示不能证明没有先前未知动作，不能取代 unresolved。
+- [x] 已接收排队命令后关闭实际控制输入，broker 在固定测试门后仍能写新的固定文件，期间独立 contender 始终 busy；直到动作/句柄关闭并释放准入后才能正常取得。命令前 EOF 则没有文件副作用。两者只表征实际 EOF，不冒称控制父进程死亡或机器崩溃。
+- [x] 作者追加真实 Node 控制父进程终止：记录其实际子 broker PID，持锁/queued 后先建立 busy contender，终止控制父进程，核对 broker 已退出、输出关闭、新业务文件缺失；既有 contender 随后收到 abandoned 且不写入。此模式下 broker 不是存活的孤儿，也不证明任意启动器/环境都联动终止。当前 Node v22.21.0/libuv 1.51.0 的 Windows process.c 对非 detached 子进程配置父退出联动，与实际 PID/弃锁结果相符，但源码本身也保留受 Job 配置约束的失败边界；不能用启动选项或这一次观察替代生产生命周期保证。
+- [x] 不参加 mutex 的真实 Node 文件写者仍能在根内创建并读回新对象；嵌套/任意命名空间在根写入前拒绝。命名键仍仅固定路径/Local 会话，未验证别名、跨登录会话/权限、完整部署参与者、实际附件身份/完整目录链、硬链接或原子删除；没有将这些事实升级为完整排他权。
+- [x] 首轮七项表征直接通过，退出 0，日志 removal-admission-initial.log。追加父终止时原“broker 继续持锁”的假设真实失败（八项中一失败），保留 removal-admission-controller-regression.log；先按 systematic-debugging 查实际进程/对应 libuv 源码，再分离启动模式。detached 候选未取得 broker 就绪输出（定向两项一通过一失败，追加诊断仍失败且无 stderr），日志 removal-admission-controller-lifetime.log、removal-admission-detached-diagnostic.log 保留；没有查明该 detached/继承控制台启动失败的全部原因，不声称验证了独立存活，将该不成立候选移出交付夹具而非加入回退。最终只保留已证实的 attached/EOF/直接进程场景，八项全部通过、无跳过、退出 0，日志 removal-admission-regression.log；各轮计数不相加，不伪称产品 RED 或修复。
+- [x] 单 TS Prettier/oxlint 零错误/警告，PS AST 语法通过，两源码/快照 SHA256 精确一致（TS 1A35CADB3B2316A58D102FFAB55BE9673ACAEF243867EF9355B534AFB9147F7D；PS 7411F472BFAD01EBC071095597E799125BDFB4B5F532A1CB72751C0AEB52AC9D）。作者自审限定只写固定 CreateNew 新对象，消费先于可能副作用，mutex 在 broker 本线程持有，未知/弃锁不动作，finally 释放/关闭，控制门只属于本次新夹具。所有测试进程实际退出，所有跟踪子进程等待 close 后清理；核实剩余该命名空间夹具目录与 helper 均零。未启 PG/创建库或运行无关产品包构建，既有附件/正式依赖/运行时不变；四文件 diff 与默认签名英文原子提交及最终工作区由提交前后命令独立核实，不预填提交号，不推送。Markdown 受仓库忽略不宣称实际格式化，作者自审不替代整分支独立复核。
+
+下一项仍需固定 broker 的可验证控制通道/命令生命周期与真实原对象/完整目录链活句柄组合，再同已提交预留及原 owned attempt 组合；不能把此夹具 mutex、PID、held 消息或路径键包装成执行 token。生产写者完整覆盖、稳定独占目录/权限、同一执行者至动作结束的持有证明、跨会话/别名、硬链接/原子动作及持久未知结果仍是未满足门控。正式 helper/selected executor/注册/路由/规则启用保持关闭，不删除既有字节，整分支独立复核未完成。

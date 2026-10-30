@@ -3111,3 +3111,29 @@ Ruling: 尚缺的生产物理根/别名、服务身份及全部部署写者不�
 该候选只在 OS 临时目录直子的新命名空间创建固定新文件，派生当前 token 的内存受限副本，不创建或修改系统账号/角色、不改当前进程主 token 或任意既有文件权限。只改变这些新对象的 DACL/测试元数据，并在原身份恢复后还原权限；没有删除/disposition/产品动作入口。它仍只是权限依赖验证，不是跨登录会话、所有权限主体或真实部署写者覆盖，不预设限制 DACL 必然能阻止硬链接或撤销既有句柄。若候选被实际反例证伪，如实记录而不放宽安全条件。
 
 本节仅两份记录对账/限定后继范围，没有新产品代码、复现、测试或包构建，没有启动 PG/创建库/打开附件。最初查找把文件通配符作为 rg 路径导致不存在路径，随后用实际目录及 -g 修正；不是产品失败或验证运行。整分支独立复核、正式依赖放行及真实文件执行的全部门控仍未完成，不将旧临时目录的策略拒绝清理视为已解决。默认签名原子提交前核对 diff/精确范围，提交结果以实际 Git 为准。
+
+## 203. 全新 Windows 权限夹具与旧句柄/目录外别名边界
+
+承接 §202 的独立候选，不再扩展 §188—201 的只读控制状态。§202 已由 b4e62c9ae 默认签名提交并独立 verify-commit 为 G。本节仅新增 removal-permissions-characterization.test.ts、fixtures/removal-permissions.ps1，并追加两份记录；没有生产调用点。固定新空 OS 临时目录直子 tego-removal-permissions-*，helper 自建 data/outside 及 CreateNew probe.txt，不接受附件路径或任意命令。当前 token 的内存受限副本只在线程同步 impersonation 范围使用，查询真实线程 token 的 restricting SID；原进程主 token 不改。原身份只修改/恢复这些新对象的 DACL，helper 不实现删除或 disposition。
+
+Ruling: 单项权限可用性须由真正的受限线程成功/拒绝与 Node 原对象/时间/字节复核共同验证，而不是返回的标记或 DACL 字符串。正向 grant 是控制组；新属性句柄预期 ERROR_ACCESS_DENIED=5、旧已授权属性句柄预期仍能 SetFileTime；data 无新增名权限但 outside 有新增名权限时尝试两处真实硬链接。后二者仍为待实测依赖假设，若系统行为不同必须保留反例并修正结论，不放宽权限或伪称产品 RED。当前同登录会话线程不覆盖跨会话/完整部署、所有别名目录或最终原子动作。
+
+- [x] 新六项先在隔离 snapshot 实际 RED：四行为与已占用/嵌套 namespace 守卫；缺 helper 仅算 fixture 缺实现，不算产品 RED。
+- [x] 最小 helper 后完整新文件串行验证；每轮等待真实退出，不启 PG、不跑无关原生/包构建。
+- [x] TS 格式/lint、PS AST、源/快照 SHA、精确 diff 与作者串行自审、记录后默认签名英文原子提交；提交 ID/签名以实际 Git 为准，不预写成功结果。
+
+官方依据先读 MicrosoftDocs/sdk-api 的 CreateRestrictedToken、ImpersonateLoggedOnUser、CreateHardLinkW、SetFileTime；前两次 web 工具无内容后改读微软原仓库。CreateHardLink 起初误取 fileapi 目录返回 404，改用 winbase 正确文档；一次 rg 通配路径无效均为只读失败，不计产品 RED。restricted SID 双重访问检查不等于另一个账号或登录会话；不使用 SANDBOX_INERT、不修改系统策略/账号/权限组。旧 6cUGZR 不触及，整分支独立复核和全部正式执行门控不变。
+
+最初只加六项测试并同步到既有隔离 snapshot，真实运行六项均因缺 removal-permissions.ps1 而退出 64、整体退出 1，保留 removal-permissions-red.log；这是缺测试夹具，不是产品 RED，也尚未验证任何原生假设。首次 helper 的外层 JS 引号失误在工具解析前失败，没有执行补丁或启动任何进程；纠正传输后才写入。最小 helper 首轮四失败/二通过、退出 1，日志 removal-permissions-green.log 保留且不称 GREEN：DACL 恢复的全 SDDL 相等校验拒绝。依 systematic-debugging 串行追加单正向诊断，退出 1、五项过滤，removal-permissions-dacl-diagnostic.log 显示原 ACE 顺序/权限完全相同，实际仅 D:AI 变 D:，不是原字节或权限条目变化。
+
+Ruling: 此新夹具只要求原权限和继承保护状态恢复，不声称完整安全描述符逐位恢复。保留原 SetFileSecurity 恢复及回读，比较时仅屏蔽本机实测会变化的 DiscretionaryAclAutoInherited 完成位；所有 ACE、掩码、顺序与其他 DACL 标志仍严格相等，差异仍抛出。没有扩大访问权限或改动新句柄应拒绝的断言，也没有尝试用另一个 ACL API 操作既有对象。诊断临时输出随后移除；恢复仅限本次新对象，teardown 也仅移除本测试自己创建的命名空间。
+
+修正恢复校验后实际三失败/三通过、退出 1，removal-permissions-corrected-green.log：正向新属性句柄和两处硬链接均得到 5，旧属性句柄无法预先取得；不能据此宣称 DACL 能全面阻止所有别名。核读微软 CreateFileW/NtCreateFile 同步 I/O 的 SYNCHRONIZE 要求，并对照本机 FileSystemRights.ReadAndExecute=131241、Synchronize=1048576，确认原手写 SDDL 的控制组缺同步权限；仅为各组共同的读基线补 Synchronize，不补负向的 WriteAttributes 或 CreateFiles。随后原六项真实通过、退出 0，日志 removal-permissions-synchronize.log；这是新夹具授权控制修正，不是产品修复。各轮结果不相加。
+
+最终实际行为：真正 OpenThreadToken/IsTokenRestricted/GetTokenInformation 确认同当前用户的派生线程 token，restricting SID 列表严格为 S-1-5-12；显式正向 grant 下新属性句柄及根内别名成功。移除 restricting SID 的 WriteAttributes 后新属性句柄明确 5；原身份恢复权限后 Node utimes 仍成功。先在受限线程取得的属性句柄跨收紧后在同受限线程 SetFileTime 成功，Node 在原名实际读到固定新时间，原新文件字节不变。仅撤 data 的新增名权限后内部别名 5，而保留新增名权限的 outside 新别名成功；Node bigint dev/ino、nlink=2 和原名/别名字节确认真实同对象。此处文件属性授权仍保留，不能泛化为任意文件 DACL 都允许新硬链接，更没有排尽其他写者/已获权句柄。
+
+作者按 requesting-code-review 清单串行自审，额外给已有守卫增加任意直子命名空间和未知 delete 操作拒绝两项，helper 无需变化，两项直接通过，不伪称新增 RED。最终完整新 removal-permissions-characterization.test.ts 在已校验 snapshot 执行 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-permissions-characterization.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose，八项通过、无跳过、实际退出 0，总 9.02 秒（测试 6.13 秒），保留 removal-permissions-regression.log；不是旧控制生命周期重测或整个分支回归。
+
+TS Prettier/oxlint 零错误警告，PS AST 通过；源/快照 SHA256 一致：测试 48A61F163FD37C33E53BE2374E981E48C5E2627192C789DDAF1AEA515AF11E93，PS BE395DC0D884771003365B5E471F61046F4FF1198853BDE492B8B11D4E2CBA52。作者复核固定新对象/无产品引用、真实 restricted thread/同步 finally reversion、错误不交付结果、原权限回读及后继字节/时间/硬链接验证；移除 impersonation、负向 ACL 调整、原旧句柄或真实 hardlink 调用都会破坏相应结果，不用 mock/expected JSON 自证。未覆盖跨登录会话、不同账号/完整部署 ACL、恶意并发替换全部目录链/全部别名、旧内容写者/映射排空、最后核验到原子动作、不可伪造来源和未知结果协调；这些明确不予完成判断，整分支独立复核仍未完成。
+
+最终真实测试/格式/lint/helper 进程均退出，本节新 permission/unrelated 命名空间均 0、25466 全端口记录 0；未启动 PG 或创建库、未跑无关包构建，也没有改系统账号/主 token/生产权限或正式依赖。唯一旧 6cUGZR 实际仍存在且未触及，不报告全部临时目录零、不重试被拒清理。生产 recorder/inspector、原只读 broker/client/owner、既有附件及正式 helper/selected executor/注册/路由/自动安装/规则保存启用均不改。本节关闭了两个错误的局部权限推断，不提供可删除执行器或新的执行 token。

@@ -2909,3 +2909,26 @@ Ruling: 新增 inspectLocalCleanupAttempt，复用独立池、完整映射及固
 本批启动临时 PG 时曾遗漏原运行时 -h/-p 参数，日志表明它尝试默认 localhost:5432 并在创建本批数据库/执行 SQL 之前绑定失败；只读核实持久配置和端口后，以原明确 127.0.0.1:25466 覆盖启动成功，未改配置、角色或其他服务。该环境命令修正不是产品 RED；本批独立库为 tego_tenant_access_test_b19230c631。
 
 成功返回 committed-cleanup-attempt-observed 只包含原 operationId、attemptId 和尝试/预留/原删除事务标识；现存 attempt 不解释为动作已执行或成功，也不能以 afterCommit 错误、旧路径缺失或该结果重试。受控 schema/可信服务端及可信因果来源限制不变；仍无生产 helper、活文件系统租约、原子条件核验并删除、完整目录链/全部写者/硬链接边界协调、未知网络 COMMIT 协调、UUID 交付前崩溃发现、逐对象可用写者方案或正式接入。既有附件保留，正式 selected executor/路由/自动安装/规则保存启用继续关闭，整分支独立复核未完成。
+
+## 193. 实际 staged 写者与固定物理执行契约
+
+Ruling: 不把 §192 历史观察包装成 execute，也不安装生产原生 helper。先把实际写者的第一次文件副作用与数据库守卫的边界分开，用新上传夹具表征，再在原规格中明确固定协调器必要契约。首个闭环选择保守根级跨进程 admission，并持续持有实际对象/完整目录链的活原生会话；这个并发取舍是建造者的设计决定，不是已实现能力或生产部署授权。任何旧/未知写者、不可约束的硬链接/属性变化、活会话丢失或提交异常均阻止动作，不用普通 rename/Node unlink/任意 caller callback 或历史 UUID 回退。
+
+源码盘点的已知边界如下；它不是完整部署写者证明，storage registry 可扩展、注入式 adapter/hook 和其他进程仍须显式登记或排除。
+
+| 入口/所有者 | 实际文件作用与生命周期 | 当前未覆盖的统一准入 |
+| --- | --- | --- |
+| actions/attachments.ts createMiddleware → multipart → storageConfig.make；storages/local.ts make/getFilename | 旧 multer 在业务行持久化前创建目录并写盘；随机文件名不等于根/对象排他 | selected entry 只在显式选中请求跳过旧 storage 中间件，不能覆盖未选中请求或别的进程 |
+| actions/attachments.ts destroyMiddleware → storageConfig.delete；storages/local.ts delete | 旧路径 unlink 在 next/业务删除之前执行，ENOENT 也计入数量 | 不能由 v3/attempt/缺路径授权该旧调用，本批仅核查源码、不调用它 |
+| storages/staged-upload.ts → local-upload.ts prepareLocalStagedUpload | mkdir/realpath、wx 创建并持有输出句柄，pipeline 后 finally 关闭；store 失败和显式 discard 还会按身份检查后 unlink 本次新文件 | plan 的 started/writing/discarding 仅本实例串行，不能提供跨进程根级准入或检查后原子 unlink |
+| storages/staged-transaction.ts withStagedAttachmentTransaction | 原上传操作锁在 execute 前取得，但 execute 可先 await store 再写业务行；已确认回滚后 await discard，未知提交保留文件 | 业务 DML 的永久 guard 不能回溯阻止已发生的文件写入/补偿；所有失败阶段也须留在统一准入内 |
+| storages/staged-recovery.ts → staged-journal.ts withCancelledRecovery → local-recovery.ts removeLocalStagedAttachment | 先持久 cancelled，再持本上传操作行锁等待回调；精确 receipt/目录/对象检查后 unlink 仅该新上传对象 | 这是上传取消协议，不是既有附件清理许可；原上传行锁不能协调别的上传、旧删除或同根路径变化 |
+| actions/staged-upload.ts withStagedAttachmentUpload | mkdtemp 后 wx 写临时 upload，清理先销毁/等待输出流再 rm 本临时目录 | 只有已证明实际临时根与最终存储根不交叠时才可独立；否则仍需纳入统一域 |
+
+- [x] 两个新增实际 PG/新文件场景直接通过、六百零四项仅过滤/分组跳过，退出 0，日志 removal-writer-contract-initial.log：已提交预留与 unresolved attempt 下，真实 staged plan 仍可写新对象并 discard；事务包装先复制字节，随后真实 Repository INSERT 被永久 guard 拒绝，确认回滚后只 discard 本次新对象。实际读取新字节、验证新对象最终缺失、documents 行数零、原旧附件字节及协调行 xmin/ctid/payload 不变。不是新的产品 RED 或修复，不为制造红灯而削弱/改写既有检查。
+- [x] 在原规格补充七项固定门控：可信物理根/完整写者登记；第一次文件副作用前至关闭与补偿结束的统一准入；原对象与完整链的活会话；同一会话中 owned 尝试和真实原证据；正常提交确认后最后门控；同句柄单次命令；未知结果不升级/重试/释放。硬链接/utimes 的检查后窗口必须由实际准入/权限或另行验证的原子能力覆盖，不能靠再次 stat。作者补充真实执行 broker 自持准入与父进程死亡/排队命令边界、内核所有权而非 TTL/断连即失效的要求，以及普通写者同一锁顺序和真实更新永久行后检查开放；活句柄结束不解除持久拒绝。这些是必要契约，尚未验证或实现该新准入基础。
+- [x] 最终完整的 independent durable cleanup attempt inspection 定向组二十九项通过、五百七十七项仅过滤/分组跳过，退出 0，日志 removal-writer-contract-regression.log；包含既有二十七项和本批新增两项，不与首轮计数相加。这不是整个文件、整个分支或正式业务链的完整回归；本批只有测试/文档改动，没有生产源码变更，未重复无关原生表征或产品包构建。
+- [x] 单 TS 源/快照 SHA256 均为 FC24D88EC51FF37D3B1E16129BB0D9B03D50D9125E7240AB0BD8EA55BC96F9D5；在隔离快照执行 Prettier 检查和 oxlint，零错误/警告，三文件 diff 检查通过。作者自审核实新增用例调用真实 staged 写入/事务和永久守卫，只读取/保留原附件，失败 discard 只作用于本次新对象；契约明确 broker 自身持续拥有准入、旧进程/句柄排空、硬链接及检查后窗口，未伪称已覆盖部署写者或实现新执行器。Markdown 受仓库忽略不宣称实际 Prettier 格式化；作者自审不替代尚未完成的整分支独立复核。
+- [x] 所有测试进程实际退出后，核对真实 PG17 目录、tenant_test、127.0.0.1:25466 和零其他客户端，删除本批可重建专用库 tego_tenant_access_test_c19330d632 并确认 pg_database 计数 0；临时 PG 停止，pg_ctl 无服务、端口无监听，清理脚本实际退出 0。保留集群目录及日志，未触及业务库、正式依赖或既有附件字节。本批三文件采用独立英文默认签名原子提交，最终提交/签名及工作区状态由提交后命令核实，不预填提交号，不推送。
+
+当前正式 resolver、selected executor、业务路由、自动安装及规则保存启用继续关闭；原文件保留，不调用旧 storage.delete，不借 cancelled、未知提交或历史 attempt 清理旧附件。此契约仍需后续新夹具上的真实会话/准入/持久尝试组合验证和实现；完整部署写者、原生生命周期/硬链接保证、不可伪造因果来源、真实网络 COMMIT 确认丢失、UUID 交付前崩溃发现、完成回执及可用逐对象方案、替换/其他入口/业务试点和整分支独立复核仍未完成。

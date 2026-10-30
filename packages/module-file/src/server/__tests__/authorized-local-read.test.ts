@@ -1976,6 +1976,71 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                 }
                               });
 
+                              describe('actual staged writer isolation boundaries', () => {
+                                const incoming = async () => {
+                                  const input = path.join(directory, 'new-upload-input.txt');
+                                  const content = Buffer.from('New upload fixture, never the original attachment');
+                                  await fs.writeFile(input, content);
+                                  const storage = (await db.getCollection('storages').model.findByPk(18)).toJSON();
+                                  return {
+                                    content,
+                                    storage,
+                                    file: {
+                                      path: input,
+                                      originalname: 'incoming.txt',
+                                      mimetype: 'text/plain',
+                                      size: content.length,
+                                    },
+                                  };
+                                };
+
+                                it('can write and discard a fresh staged object while the database cleanup attempt remains fenced', async () => {
+                                  await attempted();
+                                  const before = await fenceState();
+                                  const { content, storage, file } = await incoming();
+                                  const plan = await files.prepareStagedAttachmentStorage(storage, file);
+                                  const destination = path.join(root, plan.values.path, plan.values.filename);
+                                  try {
+                                    await plan.storeForTransaction!();
+                                    expect(await fs.readFile(destination)).toEqual(content);
+                                    expect(await docs.model.count()).toBe(0);
+                                    expect(await fenceState()).toEqual(before);
+                                    expect(await fs.readFile(location())).toEqual(bytes);
+                                  } finally {
+                                    // Discard belongs only to this newly created upload fixture, never the old attachment.
+                                    await plan.discard();
+                                  }
+                                  await expect(fs.stat(destination)).rejects.toMatchObject({ code: 'ENOENT' });
+                                  expect(await fenceState()).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                });
+
+                                it('copies fresh bytes before a real fenced repository write and discards only that new object after rollback', async () => {
+                                  await attempted();
+                                  const before = await fenceState();
+                                  const { content, storage, file } = await incoming();
+                                  let destination: string | undefined;
+                                  let copied = false;
+                                  await expect(
+                                    files.withStagedAttachmentTransaction(db, storage, file, async (input) => {
+                                      await input.store();
+                                      destination = path.join(root, input.values.path, input.values.filename);
+                                      expect(await fs.readFile(destination)).toEqual(content);
+                                      copied = true;
+                                      await db.getRepository('documents').create({
+                                        values: { id: 9, tenantId: 'B', ...input.values },
+                                        transaction: input.transaction,
+                                      });
+                                    }),
+                                  ).rejects.toThrow('Attachment removal reference writes are fenced');
+                                  expect(copied).toBe(true);
+                                  await expect(fs.stat(destination!)).rejects.toMatchObject({ code: 'ENOENT' });
+                                  expect(await docs.model.count()).toBe(0);
+                                  expect(await fenceState()).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                });
+                              });
+
                               it('requires an explicit independent fence mapping even for historical attempt inspection', async () => {
                                 const { id } = await attempted();
                                 const other = await references();

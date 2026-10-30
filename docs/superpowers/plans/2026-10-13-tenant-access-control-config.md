@@ -3183,3 +3183,23 @@ Ruling: 只新增 removal-multi-process-mapping.test.ts、fixtures/removal-multi
 源/快照 SHA256 一致：测试 294222FF04E820B8FCF0E64C25F604FB02AC9A0804DDF76FCC26364C61CD0201，PS 2DFC613B14B3556742BFFECA6D3BA34CB00F05691EB2B555005CB1D222171A00。作者按 requesting-code-review 模板串行自审精确四文件：原 namespace/固定文件/模式校验后才 Open；source/mapping using 在交付 view-held 前结束；固定字节只有 Marshal 写映射路径，无额外 file write 或 callback；正常显式 Unmap、未知命令 finally 释放，强制终止不声称执行了 finally；Node 持有实际子进程句柄并等 EOF/close 退出，PID 差异本身不是权限或排空证据。第二个独立写入、候选 32、后继实际字节和原对象对照共同证明该局部未排空反例，最后候选 0 不意味着已发现所有外部写者。未判断真实部署身份/全部别名和写者/完整物理根、跨登录会话、崩溃持久性、不可伪造来源与最后原子动作；若错误推广，会导致生产误授权，故所有正式门控保持关闭。此为作者自审，不是独立审查，整分支独立复核仍未完成。
 
 最终精确资源/生产引用扫描及 diff 检查实际退出 0：测试/esbuild/helper 0，本轮 multi-view/unrelated 新目录 0，25466 全部端口记录 0；未启动 PG/建库。唯一旧 6cUGZR 实际仍存在且未触及，不报告全部临时目录零、不重试被拒清理或换 API 绕过。原集群/日志、既有附件、原权限 helper 和只读 broker/client/owner、生产 recorder/inspector、主检出/核心及正式依赖均未改。默认签名原子提交前精确核对暂存范围；不推送/合并/发布，不以此新增夹具替代未知结果协调、UUID 交付前发现、逐对象可用性或生产接入。
+
+## 206. 原目录句柄相对读取与文本根替换的隔离边界
+
+核实实际 HEAD=733edc793、功能分支及工作区干净、两份记录至 §205。Ruling: 本节选择尚未覆盖的原物理目录句柄相对解析，不重复映射/属性/硬链接或历史消息；只用新命名空间和固定子路径，保持只读，无生产接入。根身份来自真实 NtCreateFile 目录句柄和 Node 独立 stat，而不是把传入路径升级为可信来源。若误当生产根认证，会遗漏启动前来源伪造、完整部署身份与全部写者，故明确不予该判断。
+
+本轮简报：新增 removal-root-relative.test.ts 和固定 removal-root-relative.ps1。Node 自建 OS 临时目录直子 tego-removal-relative-*，只创建 root/data/probe.txt 与 replacement/data/probe.txt。helper 持有原 root 句柄，每次仅用 NtCreateFile RootDirectory 对 data、probe.txt 两个单组件相对打开，拒绝 reparse/目录类型/身份漂移。父测试只在本次新目录内替换目录名或建立指向本次新目录的 junction。原 root 文本名被另一目录替换后，旧句柄相对读取仍须命中原对象；root 内子目录被替换或成为 junction 则拒绝，不读取替代文件。所有正常/拒绝路径等待 EOF/真实 close，保留两份新字节和身份；无删除/disposition、任意命令或产品导出。
+
+测试要捕获的破坏：若相对读取退回旧绝对路径，会返回 decoy 的身份/字节；若漏掉中间目录身份或 reparse 检查，会错误读取替代对象。固定未知命令必须拒绝。预期最初缺 helper 的真实失败只算 fixture RED，不称产品缺陷；最小实现后完整新文件顺序验证，适当格式/lint/AST/源快照哈希及作者串行自审后才默认签名提交。只在已校验 snapshot 运行，不启 PG/建库，不重跑已完成的 §203—205 文件；整分支独立复核仍另行未完成。
+
+本节官方契约核查：两次 web 查询/open 未返回内容；随后通过只读 Invoke-WebRequest 实际读取 MicrosoftDocs/sdk-api 官方源仓库的 winternl/nf-winternl-ntcreatefile.md 与 ntdef/ns-ntdef-_object_attributes.md，核对 RootDirectory 相对名、同步 I/O 必须 SYNCHRONIZE 及 FILE_OPEN_REPARSE_POINT 不跟随最终 reparse 对象的说明。实现分别打开 data 与 probe.txt 两个固定单组件，每段都查询实际类型/reparse/身份，不把最终组件选项误当成任意多段路径的完整祖先保证。root/data 的权限仅 READ_ATTRIBUTES/TRAVERSE/SYNCHRONIZE，文件仅 READ_DATA/READ_ATTRIBUTES/SYNCHRONIZE，FILE_OPEN、share 7；没有 WRITE/DELETE/FILE_DELETE_ON_CLOSE、权限修改或旧删除函数调用。
+
+初始四项因缺 helper 实际失败、退出 1，4.84 秒，removal-relative-root-red.log；PowerShell usage 空行使 JSON 解析失败，未进入后继原生断言，不称实际获取了 helper 退出 64 或产品 RED。最小新 helper 后四项通过、实际退出 0，总 6.27 秒（测试 3.34 秒），removal-relative-root-green.log。作者追加原 root/data 不变的叶文件替换、不合规新命名空间和额外条目三项，已有检查直接通过，不冒称新增 RED；当轮七项完整文件通过、实际退出 0，总 17.18 秒（测试 10.78 秒），removal-relative-root-regression.log。
+
+作者按 requesting-code-review 模板继续串行自审，发现只校验原身份和固定未变化字节还不能排除回放首次快照，故补充同 inode/同大小下 Node 只对本次新文件固定改字节的行为用例；已有真实 ReadFile 检查直接拒绝，不改 helper，不称产品修复或缺实现 RED。最终完整新文件命令为 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-root-relative.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose，8 项全部通过、无跳过、实际退出 0，总 13.17 秒（测试 9.03 秒），removal-relative-root-final-regression.log。最初四项和中间七项均包含在八项内，各轮不相加，不是整分支回归。原 runner session75219、3820 都已取得实际退出 0 后才启动后继工作，不再等待或重跑。
+
+TS Prettier/check 及 oxlint 零错误警告，PS AST 通过；C# 在每个真实 helper 内实际编译执行。源/快照 SHA256 一致：测试 21549DBFC99D8F35A2D480FEBA72BB12173500E8DBA29502A9C34B0FC0349452，PS 161E7BA0AE3C61FCBBA671A427207B7185AB8592A5B4DC7D1C870DDE0C265F7F。源码在最终八项之后不改。只改两份原记录和新增两份测试/夹具，无依赖或产品输出变更，不跑无关包构建；Markdown 受忽略不声称实际格式化。
+
+作者自审结论：固定初始路径/namespace 静态检查后取得原 root；root 名字真实替换时不重新按旧绝对名选根。每次 data/file 相对打开的实际句柄用 using 关闭，唯一持久 root 在 finally 关闭；正常/拒绝均等待 EOF 和真实进程 close。中间目录身份漂移在叶读取前拒绝，叶身份漂移在 ReadFile 前拒绝；同对象固定内容变化由真实重新读取拒绝，Node 对新旧对象独立核对 dev/ino/nlink/大小和字节，不能凭返回 JSON 自证。若退回绝对路径、复用首次字节或只持根而不检查后继对象，各自有用例拒绝；没有缓存身份或任意 callback 充当动作。未判断启动前可信根选择/完整卷身份、路径检查竞争、全部写者/旧句柄映射排空、跨登录会话/权限和读取后的最终原子窗口；错误推广会导致生产误授权，全部正式门控仍关闭。此为作者自审，不是整分支独立审查。
+
+最终资源字段回读：测试/esbuild/helper 0，本轮 relative/unrelated 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0；本节未启 PG/建库。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理或换 API 绕过、不声称全部临时目录零。新 junction 仅指向本次新命名空间，随 Node 测试 teardown 一起收敛；日志和原集群保留，既有附件、主检出/核心、正式依赖、原权限/映射 helper、原 broker/client/owner 和生产 recorder/inspector 均未改。精确四文件 diff/暂存检查及默认英文签名提交结果以实际 Git 核实，不预写成功；不推送/合并/发布。

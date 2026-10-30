@@ -2962,3 +2962,19 @@ Ruling: 不重复 §188—194 的独立共享拒绝/互斥表征，先把显式�
 本夹具只注册 hello/observe/close；每帧至多 4096 字节、每次读取十秒，校验精确字段、规范 UUID、严格数字版本及重复 JSON 属性，错误终止而非回退。所有持有由 broker 主线程同步管理，文件 READ/DELETE 共享拒绝句柄与三层新目录句柄先关闭，再释放根 mutex；没有 SetFileInformationByHandle、旧 storage.delete 或任意外部动作。CurrentUserOnly/FirstPipeInstance 和原生 peer PID 只是本候选通道的局部事实，未完成跨用户/跨登录会话权限、生产双向应用身份、物理根别名/完整写者或可信因果来源证明。外部 expected JSON 在这里仅表示新夹具断言输入，不是生产原对象授权；held/observed/close 消息、随机 sessionId、PID 均不能转成执行能力，也未与 PostgreSQL 已提交预留/原 owned attempt 组合。
 
 下一项继续验证固定服务端过程在同一活原生会话中与真实原证据、已提交预留及原 owned attempt 的组合和失效顺序；不得把该 fixture 管道包装为可选执行器或以任意 callback/外部 JSON 替代实际来源。仅新夹具原型继续保留，正式 helper/selected executor/注册/路由/自动安装/规则保存启用仍关闭，既有附件字节保留。全写者/可信根/别名/跨会话权限、硬链接与原子动作、可信因果来源、真实网络 COMMIT 确认丢失、UUID 交付前崩溃关联、逐对象可用性、替换/其他入口/业务试点及整分支独立复核仍未完成。
+
+## 196. 仅新夹具的活原生会话与真实 owned attempt 组合边界
+
+Ruling: 承接 §195，不再重跑独立管道/原生/互斥表征，先以真实 PostgreSQL 验证同一活句柄横跨原 SQL 删除、明确已提交预留和 owned attempt 的具体组合。只在既有 authorized-local-read.test.ts 的真实 PG 层新增一个 Windows 分组，增加 fixtures/removal-session-client.ts 作为固定 hello/observe/close 测试客户端；复用原只读 PS broker，不改生产源码、协议或原生动作。新客户端只接受原有 OS 临时目录直子 tego-removal-session-*，自行捕获固定新夹具身份，启动失败时回收子进程；不接任意命令、执行 callback 或来自业务请求的授权 JSON。测试顺序为实际 broker 取得句柄→原 owned SQL 删除/真实对象日志→清理本次隔离夹具其余数据库引用→已提交预留→实际持久对象/目录身份断言→原 owned attempt 记录及历史观察。SQL 内完整 OLD 不经 JavaScript 重建。
+
+本轮只组合已有真实组件并记录可观察事实；不新增产品协调器，也不把客户端预期 JSON、实际 peer PID、历史观察或刚读到的原生身份当清理许可。新夹具的固定根/叶父目录与实际对象日志逐字段比对，额外持有新夹具锚点；这不是生产可信根来源或整个操作系统祖先链。固定组合仍未把活句柄/通道纳入 recordLocalCleanupAttempt 的原 owned 事务，也未解决“确认会话后立即死亡”的窗口。
+
+- [x] 初始完整新分组五项实际 PG 测试直接通过，退出 0，日志 removal-live-session-initial.log：同一活文件/目录句柄跨三个真实事务保持且实际对象日志身份一致；另一个同根 broker busy，原字节保留。原生获取因既有写句柄失败时尚无原删除/对象证据、预留或 attempt，业务行和永久行实际 xmin/ctid/payload 不变。此为集成表征，不伪称产品 RED/修复。
+- [x] 真实 afterCommit 异常时原会话仍可观察原对象，记录调用却报错；关闭原会话后，新独立池明确观察已提交 unresolved，第二次记录拒绝，协调行不更新、字节保留。这不是实际网络 COMMIT 确认丢失，不提供自动续做入口。
+- [x] 在实际 attempt UPDATE 的 afterQuery 中真实终止 broker 并等待 close，原 recordLocalCleanupAttempt 仍能正常提交，随后旧会话不能 observe；历史观察明确 committed，第二次记录仍拒绝。此为现有 recorder 不消费活会话的实际组合缺口，不声称数据库提交证明 broker 存活，不添加自动重连或新会话执行。
+- [x] 在实际 attempt UPDATE 后、其最终对象复核前，持有原生句柄期间真实 fs.link 成功；原 recorder 最终对象复核拒绝并回滚，永久行 xmin/ctid/payload 与记录前精确一致，broker 原会话也因 nlink/身份漂移拒绝观察，新原名和别名均保留原字节。该结果只覆盖插入的这一时点，不证明最后检查与不可逆动作间原子性。
+- [x] 最终完整 authorized-local-read.test.ts 在隔离快照串行运行，347 通过、269 跳过（SQLite 中 PG 专项分组，对应 PG 实际执行），总数 616，退出 0；日志 removal-live-session-regression.log，实际耗时 562.38 秒。五项新增包含于该完整文件结果，不与初始定向相加；不是整个分支回归。保留已有用例业务 INSERT 遭永久守卫拒绝的真实预期日志，不禁用日志或篡改正式依赖。
+- [x] 两 TS Prettier 检查通过，oxlint 零错误/警告；源码/快照 SHA256 一致：authorized-local-read.test.ts 为 B87DE75B62496FD6F23F9F313F9DBF3D220B93A2F23561050ECCE10AF962D0B7，removal-session-client.ts 为 5D0B490CC2AEE0D0374AC1DFA4BF71CCBB82C6D7B59F89B497B59DF7D04A5E5F；复用未改 PS broker 的源码/快照 SHA 均为 D2BE49FE582D7FB4AAAE8D3FDF09C7307CD5C04FA62FFB153ADAF3A64930FA7C。作者自审核对固定只读消息、实际数据库/原生对象的独立身份对照、真实进程死亡及 afterCommit 时序、无恢复/删除分支、所有客户端子进程 close 回收和完整目录链范围限制。Markdown 受仓库忽略不宣称实际 Prettier 格式化；只有测试/文档改动，不重跑无关包构建，作者自审不替代未完成的整分支独立复核。
+- [x] 测试进程实际退出后，首次最终清理进程守卫仍有匹配而安全拒绝，没有做数据库清理或终止未知 PID；随后只读精确盘点已无匹配，再次完整守卫确认 helper、验证进程和 tego-removal-session-* 新夹具目录均 0。没有据此推断首轮具体残留进程的原因。再次核对 PG 真实目录、tenant_test、127.0.0.1/32 与 25466、主库及零其他客户端和专用库所有者后，删除 tego_tenant_access_test_d19630e633，pg_database 计数确认 0；PG 正常停止，pg_ctl 无服务、25466 无监听，清理脚本实际退出 0。保留日志和集群目录，既有附件/主检出/核心/正式依赖未改。四文件 diff、暂存范围及英文默认签名原子提交由提交前后命令核实，不预填提交号、不推送。
+
+正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项仍须固定可信服务端自身拥有原会话及原尝试调用生命周期，明确异常无动作和发送前单次消费；在可信物理根/别名/完整写者/旧句柄排空、权限及硬链接/属性检查到动作窗口未满足前，不交付可删除产品执行器。真实网络 COMMIT 确认丢失、UUID 交付前崩溃发现、不可伪造因果来源、逐对象可用性、替换/其他入口/业务试点和整分支独立复核仍未完成。

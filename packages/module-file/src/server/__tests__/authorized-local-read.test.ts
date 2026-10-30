@@ -28,6 +28,7 @@ import { AccessQueryService } from '../../../../module-tenant/src/server/access-
 import { AccessRootMutationHandler } from '../../../../module-tenant/src/server/access-control/root-mutation-handler';
 import { AccessRootReadHandler } from '../../../../module-tenant/src/server/access-control/root-read-handler';
 import storageDefinition from '../collections/storages';
+import { openReadOnlyRemovalFixtureSession } from './fixtures/removal-session-client';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const fields = ['id', 'path', 'filename', 'size', 'storageId'];
@@ -1238,6 +1239,250 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                 { bind: { fields: ['binding', ...fields], value: JSON.stringify(value) } },
                               );
                             };
+
+                            // Integration characterization only: no product coordinator or irreversible command.
+                            describe.skipIf(process.platform !== 'win32')(
+                              'live fixture session and owned attempt composition',
+                              () => {
+                                let sessionDirectory: string;
+                                let sessionFile: string;
+                                const sessions = new Set<
+                                  Awaited<ReturnType<typeof openReadOnlyRemovalFixtureSession>>
+                                >();
+                                beforeEach(async () => {
+                                  sessionDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'tego-removal-session-'));
+                                  const sessionRoot = path.join(sessionDirectory, 'root');
+                                  await fs.mkdir(path.join(sessionRoot, 'nested'), { recursive: true });
+                                  sessionFile = path.join(sessionRoot, 'nested', 'attachment.txt');
+                                  await fs.writeFile(sessionFile, bytes, { flag: 'wx' });
+                                  await db
+                                    .getCollection('storages')
+                                    .model.update({ options: { documentRoot: sessionRoot } }, { where: { id: 18 } });
+                                  await docs.model.update(
+                                    { path: 'nested', filename: 'attachment.txt' },
+                                    { where: {} },
+                                  );
+                                });
+                                afterEach(async () => {
+                                  for (const session of sessions) await session.terminate();
+                                  sessions.clear();
+                                  if (sessionDirectory) await fs.rm(sessionDirectory, { recursive: true, force: true });
+                                });
+                                const hold = async () => {
+                                  const session = await openReadOnlyRemovalFixtureSession(sessionDirectory);
+                                  sessions.add(session);
+                                  return session;
+                                };
+                                const assertOriginalBinding = async (
+                                  id: string,
+                                  session: Awaited<ReturnType<typeof hold>>,
+                                ) => {
+                                  const bound = (await objects.model.findByPk(id)).getDataValue('payload').object;
+                                  const observed = await session.observe();
+                                  expect(observed.file).toMatchObject({
+                                    ...bound.object,
+                                    nlink: '1',
+                                    directory: false,
+                                    reparse: false,
+                                  });
+                                  expect(bound.directories).toHaveLength(2);
+                                  expect(bound.directories.map((value) => value.path)).toEqual(['', 'nested']);
+                                  for (const [index, value] of bound.directories.entries()) {
+                                    const { path: _relative, ...identity } = value;
+                                    expect(observed.directories[index + 1]).toMatchObject({
+                                      ...identity,
+                                      directory: true,
+                                      reparse: false,
+                                    });
+                                  }
+                                  return observed;
+                                };
+                                const begin = async () => {
+                                  const session = await hold();
+                                  const result = await reserved();
+                                  await assertOriginalBinding(result.id, session);
+                                  return { ...result, session };
+                                };
+                                const state = async () => {
+                                  const [rows] = await db.sequelize.query(
+                                    'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                  );
+                                  return rows;
+                                };
+
+                                it('retains the same live handles across actual removal, reservation and owned attempt commits', async () => {
+                                  const { id, reservation, session } = await begin();
+                                  const other = await coordinated();
+                                  try {
+                                    const recorded = await other.inspector.recordLocalCleanupAttempt(id);
+                                    expect(recorded).toMatchObject({
+                                      state: 'committed-cleanup-attempt-recorded',
+                                      operationId: id,
+                                      reservationTransactionId: reservation.transactionId,
+                                    });
+                                    const observed = await assertOriginalBinding(id, session);
+                                    expect(observed.file).toEqual(session.initial.file);
+                                    const payload = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                    expect(payload.attempt).toMatchObject({
+                                      state: 'unresolved',
+                                      attemptId: recorded.attemptId,
+                                      reservation: payload.binding,
+                                    });
+                                    const before = await state();
+                                    expect(await other.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                      state: 'committed-cleanup-attempt-observed',
+                                      attemptId: recorded.attemptId,
+                                      transactionId: recorded.transactionId,
+                                    });
+                                    expect(await state()).toEqual(before);
+                                    await expect(openReadOnlyRemovalFixtureSession(sessionDirectory)).rejects.toThrow(
+                                      'busy',
+                                    );
+                                    expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    await session.close();
+                                  } finally {
+                                    await other.db.close();
+                                  }
+                                });
+
+                                it('fails native acquisition before creating SQL evidence or reserving a cleanup attempt', async () => {
+                                  const before = await state();
+                                  const writer = await fs.open(sessionFile, 'r+');
+                                  try {
+                                    await expect(begin()).rejects.toThrow('native');
+                                    expect(await intents.model.count()).toBe(0);
+                                    expect(await objects.model.count()).toBe(0);
+                                    expect(await docs.model.count()).toBe(3);
+                                    expect(await state()).toEqual(before);
+                                    expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                  } finally {
+                                    await writer.close();
+                                  }
+                                });
+
+                                it('preserves committed unresolved after an actual afterCommit error while the original session is alive', async () => {
+                                  const { id, session } = await begin();
+                                  const other = await coordinated();
+                                  let registered = false;
+                                  other.db.sequelize.addHook(
+                                    'afterQuery',
+                                    'live-attempt-after-commit',
+                                    (options, query) => {
+                                      const sql = (query as unknown as { sql: string }).sql;
+                                      if (
+                                        !registered &&
+                                        sql.startsWith('UPDATE ') &&
+                                        sql.includes('attachment-removal-cleanup-attempt')
+                                      ) {
+                                        registered = true;
+                                        (options as { transaction: Transaction }).transaction.afterCommit(() => {
+                                          throw new Error('live fixture afterCommit failed');
+                                        });
+                                      }
+                                    },
+                                  );
+                                  try {
+                                    await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                      'live fixture afterCommit failed',
+                                    );
+                                    expect(registered).toBe(true);
+                                    await assertOriginalBinding(id, session);
+                                  } finally {
+                                    other.db.sequelize.removeHook('afterQuery', 'live-attempt-after-commit');
+                                    await other.db.close();
+                                    await session.close();
+                                  }
+                                  const fresh = await coordinated();
+                                  try {
+                                    const before = await state();
+                                    expect(await fresh.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                      state: 'committed-cleanup-attempt-observed',
+                                    });
+                                    await expect(fresh.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                      'already recorded',
+                                    );
+                                    expect(await state()).toEqual(before);
+                                    expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                  } finally {
+                                    await fresh.db.close();
+                                  }
+                                });
+
+                                it('does not mistake a committed attempt for broker survival when the broker really dies inside the transaction', async () => {
+                                  const { id, session } = await begin();
+                                  const other = await coordinated();
+                                  let terminated = false;
+                                  other.db.sequelize.addHook(
+                                    'afterQuery',
+                                    'live-attempt-death',
+                                    async (_options, query) => {
+                                      const sql = (query as unknown as { sql: string }).sql;
+                                      if (
+                                        !terminated &&
+                                        sql.startsWith('UPDATE ') &&
+                                        sql.includes('attachment-removal-cleanup-attempt')
+                                      ) {
+                                        terminated = true;
+                                        await session.terminate();
+                                      }
+                                    },
+                                  );
+                                  try {
+                                    // Existing recorder has no live-session input. This success is a gap, not execution authority.
+                                    const recorded = await other.inspector.recordLocalCleanupAttempt(id);
+                                    expect(terminated).toBe(true);
+                                    expect(recorded.state).toBe('committed-cleanup-attempt-recorded');
+                                    await expect(session.observe()).rejects.toThrow('session ended');
+                                    expect(await other.inspector.inspectLocalCleanupAttempt(id)).toMatchObject({
+                                      attemptId: recorded.attemptId,
+                                      state: 'committed-cleanup-attempt-observed',
+                                    });
+                                    await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                      'already recorded',
+                                    );
+                                    expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                  } finally {
+                                    other.db.sequelize.removeHook('afterQuery', 'live-attempt-death');
+                                    await other.db.close();
+                                  }
+                                });
+
+                                it('rolls back the attempt when an actual hardlink is introduced while the original native handles are held', async () => {
+                                  const { id, session } = await begin();
+                                  const before = await state();
+                                  const other = await coordinated();
+                                  const alias = path.join(sessionDirectory, 'fixture-alias.txt');
+                                  let linked = false;
+                                  other.db.sequelize.addHook(
+                                    'afterQuery',
+                                    'live-attempt-link',
+                                    async (_options, query) => {
+                                      const sql = (query as unknown as { sql: string }).sql;
+                                      if (
+                                        !linked &&
+                                        sql.startsWith('UPDATE ') &&
+                                        sql.includes('attachment-removal-cleanup-attempt')
+                                      ) {
+                                        linked = true;
+                                        await fs.link(sessionFile, alias);
+                                      }
+                                    },
+                                  );
+                                  try {
+                                    await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow();
+                                    expect(linked).toBe(true);
+                                    expect((await fs.stat(sessionFile, { bigint: true })).nlink).toBe(2n);
+                                    expect(await state()).toEqual(before);
+                                    await expect(session.observe()).rejects.toThrow('identity');
+                                    expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                    expect(await fs.readFile(alias)).toEqual(bytes);
+                                  } finally {
+                                    other.db.sequelize.removeHook('afterQuery', 'live-attempt-link');
+                                    await other.db.close();
+                                  }
+                                });
+                              },
+                            );
 
                             describe('owned unresolved cleanup attempt recording', () => {
                               it('records one unresolved attempt bound to actual committed evidence without touching bytes', async () => {

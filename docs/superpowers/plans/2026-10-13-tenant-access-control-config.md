@@ -2947,3 +2947,18 @@ Ruling: 承接 §193 第三门控，用 Windows/.NET named Mutex 作为仅测试
 - [x] 单 TS Prettier/oxlint 零错误/警告，PS AST 语法通过，两源码/快照 SHA256 精确一致（TS 1A35CADB3B2316A58D102FFAB55BE9673ACAEF243867EF9355B534AFB9147F7D；PS 7411F472BFAD01EBC071095597E799125BDFB4B5F532A1CB72751C0AEB52AC9D）。作者自审限定只写固定 CreateNew 新对象，消费先于可能副作用，mutex 在 broker 本线程持有，未知/弃锁不动作，finally 释放/关闭，控制门只属于本次新夹具。所有测试进程实际退出，所有跟踪子进程等待 close 后清理；核实剩余该命名空间夹具目录与 helper 均零。未启 PG/创建库或运行无关产品包构建，既有附件/正式依赖/运行时不变；四文件 diff 与默认签名英文原子提交及最终工作区由提交前后命令独立核实，不预填提交号，不推送。Markdown 受仓库忽略不宣称实际格式化，作者自审不替代整分支独立复核。
 
 下一项仍需固定 broker 的可验证控制通道/命令生命周期与真实原对象/完整目录链活句柄组合，再同已提交预留及原 owned attempt 组合；不能把此夹具 mutex、PID、held 消息或路径键包装成执行 token。生产写者完整覆盖、稳定独占目录/权限、同一执行者至动作结束的持有证明、跨会话/别名、硬链接/原子动作及持久未知结果仍是未满足门控。正式 helper/selected executor/注册/路由/规则启用保持关闭，不删除既有字节，整分支独立复核未完成。
+
+## 195. 仅新夹具的有界管道与同进程活句柄组合
+
+Ruling: 不重复 §188—194 的独立共享拒绝/互斥表征，先把显式控制通道、固定消息生命周期和活句柄放进同一个只读 fixture broker。新增 removal-session-characterization.test.ts 与 fixtures/removal-session.ps1（均在 packages/module-file/src/server/__tests__ 下）；只接受 OS 临时目录直子 tego-removal-session-*，固定 fixtureDirectory/root/nested/attachment.txt。文件和三层新夹具目录句柄由实际发出原生观察的 broker 线程在同一根 mutex 内持有，没有 disposition、unlink、rename、新业务文件、任意动作 callback 或生产入口。原生共享拒绝及精确十进制身份调用沿用已表征的 Win32 API；所有期望对象均为本次新夹具，不是可信生产对象/清理授权来源。
+
+控制候选为 CurrentUserOnly/FirstPipeInstance、单连接 NamedPipeServerStream，字节帧限制及读取期限明确；原生读取实际管道客户端 PID，不信任 JSON 自报 PID。hello 的 requestId/challenge、broker 新生 sessionId、后续不同 requestId 必须在原活连接严格关联，只接受 hello/observe/close 固定字段，错误、重复、旧会话、额外路径或断连均结束会话并关闭原句柄。PID/随机值/held 回复只用于夹具关联，不是身份认证、生产双向认证、租约、清理许可或已提交 attempt 的绑定。本轮不继续未经查明的 detached/stdout 候选，不把新管道正常通信解释为解决旧失败原因。
+
+- [x] 初始十项因客户端 String.raw 管道表达式将变量保留为字面量而全部连接失败，未取得 native session；退出 1，保留 removal-session-initial.log。用实际表达式求值核实精确错误端点后，只把客户端端点改为固定管道前缀与真实随机名称相接，没有改服务器授权/原生检查；正向握手一项通过、九项过滤跳过，退出 0，日志 removal-session-handshake.log。这是新夹具客户端缺陷，不伪称产品 RED 或物理互斥修复。
+- [x] 修正后完整十项通过、无跳过、退出 0，保留 removal-session-regression.log：实际原生 peer PID 匹配当前 Node 客户端进程，精确文件身份/三层新夹具目录链、关联 requestId/challenge/sessionId、busy 先于 native session、重复 requestId、实际 helper 终止后的旧会话拒绝、未知动作/额外路径、4096 字节帧界限、正常关闭/EOF、预先存在写句柄拒绝后重新取得根准入及中间目录 junction 拒绝均实际执行。每项读取保留新夹具原字节，没有物理删除或恢复动作。这里只覆盖新夹具锚点至叶父目录，不证明整个操作系统路径或生产可信锚点。
+- [x] 作者追加四项已有检查直接通过：字符串版本不强制转换、同一真实连接上错误 challenge、重复 JSON 属性及真实十秒读取期限的半帧拒绝；没有为制造 RED 修改服务端既有检查。最终完整新文件十四项通过、无跳过、退出 0，日志 removal-session-final-regression.log；四项不与前轮/定向计数相加。半帧用例包括实际等待期限、协议拒绝、进程退出及重新打开可写句柄，无任何动作/重试。
+- [x] 隔离快照 TS Prettier 与 oxlint 零错误/警告，PS AST 无错误；两源码/快照 SHA256 一致（TS 17F317034D36BC44753E860BE9236166B8D68EFD912E1F279C28F6C759D48465；PS D2BE49FE582D7FB4AAAE8D3FDF09C7307CD5C04FA62FFB153ADAF3A64930FA7C）。作者自审核实消息只到固定只读观察分支，原生 peer PID 不是自报字段，错误终止不恢复旧会话，文件/新夹具目录句柄逆序关闭后释放原 mutex；expected JSON/局部通道事实未被宣称可信生产来源或执行许可。所有测试/检查实际退出，跟踪子进程等待 close 后清理，剩余本命名空间目录和 helper 均零，清理/校验脚本退出 0。本批四文件 diff、暂存范围和默认签名英文原子提交/最终工作区由提交前后命令核实，不预填提交号、不推送。生产源码/注册/包/数据库不改，未启 PG/创建库/运行无关构建或旧表征套件；Markdown 受仓库忽略不宣称实际 Prettier 格式化，作者自审不替代未完成的整分支独立复核。
+
+本夹具只注册 hello/observe/close；每帧至多 4096 字节、每次读取十秒，校验精确字段、规范 UUID、严格数字版本及重复 JSON 属性，错误终止而非回退。所有持有由 broker 主线程同步管理，文件 READ/DELETE 共享拒绝句柄与三层新目录句柄先关闭，再释放根 mutex；没有 SetFileInformationByHandle、旧 storage.delete 或任意外部动作。CurrentUserOnly/FirstPipeInstance 和原生 peer PID 只是本候选通道的局部事实，未完成跨用户/跨登录会话权限、生产双向应用身份、物理根别名/完整写者或可信因果来源证明。外部 expected JSON 在这里仅表示新夹具断言输入，不是生产原对象授权；held/observed/close 消息、随机 sessionId、PID 均不能转成执行能力，也未与 PostgreSQL 已提交预留/原 owned attempt 组合。
+
+下一项继续验证固定服务端过程在同一活原生会话中与真实原证据、已提交预留及原 owned attempt 的组合和失效顺序；不得把该 fixture 管道包装为可选执行器或以任意 callback/外部 JSON 替代实际来源。仅新夹具原型继续保留，正式 helper/selected executor/注册/路由/自动安装/规则保存启用仍关闭，既有附件字节保留。全写者/可信根/别名/跨会话权限、硬链接与原子动作、可信因果来源、真实网络 COMMIT 确认丢失、UUID 交付前崩溃关联、逐对象可用性、替换/其他入口/业务试点及整分支独立复核仍未完成。

@@ -19,6 +19,17 @@ export interface AttachmentRemovalReferenceFenceBinding {
   readonly event: { readonly oid: string; readonly table: string; readonly key: string; readonly payload: string };
 }
 
+/** A durable denial of retries, not evidence of execution or a transferable cleanup permission. */
+export interface AttachmentRemovalCleanupAttempt {
+  readonly schemaVersion: 1;
+  readonly kind: 'attachment-removal-cleanup-attempt';
+  readonly state: 'unresolved';
+  readonly operationId: string;
+  readonly attemptId: string;
+  readonly transactionId: string;
+  readonly reservation: AttachmentRemovalReferenceFenceBinding;
+}
+
 /**
  * Explicit, conservative database write isolation, not ACL or cleanup permission. Installation is
  * opt-in schema work; construction does no SQL. A reservation permanently closes ALL registered
@@ -239,17 +250,55 @@ END`;
 
   private parseState(context: Awaited<ReturnType<AttachmentRemovalReferenceWriteFence['context']>>, rows: unknown) {
     const payload = (rows as { payload: Record<string, unknown> }[])[0]?.payload;
-    const { reservation, binding, ...base } = payload && typeof payload === 'object' ? payload : {};
+    const { reservation, binding, attempt, ...base } = payload && typeof payload === 'object' ? payload : {};
     if (
       !isDeepStrictEqual(base, context.base) ||
       !(reservation === null || (typeof reservation === 'string' && uuid.test(reservation)))
     )
       throw new TypeError('Removal reference fence state is invalid');
     if (binding !== undefined) this.assertBinding(binding, reservation as string);
+    if (attempt !== undefined) this.assertAttempt(attempt, binding);
     return {
       reservation: reservation as string | null,
       binding: binding as AttachmentRemovalReferenceFenceBinding | undefined,
+      attempt: attempt as AttachmentRemovalCleanupAttempt | undefined,
     };
+  }
+
+  private assertAttempt(value: unknown, binding: unknown): asserts value is AttachmentRemovalCleanupAttempt {
+    const attempt = value as AttachmentRemovalCleanupAttempt | undefined;
+    if (
+      !attempt ||
+      typeof attempt !== 'object' ||
+      Array.isArray(attempt) ||
+      !binding ||
+      attempt.schemaVersion !== 1 ||
+      attempt.kind !== 'attachment-removal-cleanup-attempt' ||
+      attempt.state !== 'unresolved' ||
+      typeof attempt.operationId !== 'string' ||
+      attempt.operationId.length !== 36 ||
+      !uuid.test(attempt.operationId) ||
+      typeof attempt.attemptId !== 'string' ||
+      attempt.attemptId.length !== 36 ||
+      !uuid.test(attempt.attemptId) ||
+      attempt.attemptId === attempt.operationId ||
+      typeof attempt.transactionId !== 'string' ||
+      !/^[1-9]\d{0,19}$/.test(attempt.transactionId) ||
+      !isDeepStrictEqual(attempt.reservation, binding) ||
+      attempt.operationId !== attempt.reservation.operationId ||
+      attempt.transactionId === attempt.reservation.transactionId ||
+      attempt.transactionId === attempt.reservation.completion.transactionId ||
+      !isDeepStrictEqual(Object.keys(attempt).sort(), [
+        'attemptId',
+        'kind',
+        'operationId',
+        'reservation',
+        'schemaVersion',
+        'state',
+        'transactionId',
+      ])
+    )
+      throw new TypeError('Removal cleanup attempt is invalid');
   }
 
   private assertBinding(value: unknown, operationId: string): asserts value is AttachmentRemovalReferenceFenceBinding {
@@ -322,6 +371,15 @@ END`;
 
   /** Locked durable data only; does not update state or verify the binding's evidence/commit claims. */
   async readBinding(transaction: Transaction): Promise<AttachmentRemovalReferenceFenceBinding | undefined> {
+    return (await this.readState(transaction)).binding;
+  }
+
+  /** Locked stored data, not verification of an attempt's causal origin, commit or permission to act. */
+  async readAttempt(transaction: Transaction): Promise<AttachmentRemovalCleanupAttempt | undefined> {
+    return (await this.readState(transaction)).attempt;
+  }
+
+  private async readState(transaction: Transaction) {
     const context = await this.context(transaction);
     await this.assertDefinition(context, transaction);
     const [rows] = await this.query(
@@ -331,7 +389,30 @@ END`;
     );
     const state = this.parseState(context, rows);
     await this.assertDefinition(context, transaction);
-    return state.binding;
+    return state;
+  }
+
+  /** Internal one-shot persistence; only the fixed owned inspector verifies the actual evidence. */
+  async persistAttempt(attempt: AttachmentRemovalCleanupAttempt, transaction: Transaction): Promise<void> {
+    const captured = structuredClone(attempt);
+    const context = await this.context(transaction);
+    await this.assertDefinition(context, transaction);
+    const before = await this.readState(transaction);
+    if (before.attempt) throw new TypeError('Removal cleanup attempt is already recorded');
+    this.assertAttempt(captured, before.binding);
+    const [rows] = await this.query('SELECT pg_catalog.txid_current()::text AS xid', transaction);
+    if ((rows as { xid: string }[])[0]?.xid !== captured.transactionId)
+      throw new TypeError('Removal cleanup attempt requires its original coordinating transaction');
+    await this.query(
+      `UPDATE ${context.table} SET ${context.payload}=
+       ${this.generator().escape(JSON.stringify({ ...context.base, reservation: before.reservation, binding: before.binding, attempt: captured }))}::jsonb
+       WHERE ${context.key}=${this.generator().escape(this.key)}`,
+      transaction,
+    );
+    const after = await this.readState(transaction);
+    if (!isDeepStrictEqual(after, { ...before, attempt: captured }))
+      throw new TypeError('Removal cleanup attempt evidence changed');
+    await this.assertDefinition(context, transaction);
   }
 
   /**

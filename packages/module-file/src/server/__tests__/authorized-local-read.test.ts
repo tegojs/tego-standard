@@ -1239,6 +1239,375 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                               );
                             };
 
+                            describe('owned unresolved cleanup attempt recording', () => {
+                              it('records one unresolved attempt bound to actual committed evidence without touching bytes', async () => {
+                                const { id, reservation } = await reserved();
+                                const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                const other = await coordinated();
+                                try {
+                                  const result = await other.inspector.recordLocalCleanupAttempt(id);
+                                  expect(result).toMatchObject({
+                                    state: 'committed-cleanup-attempt-recorded',
+                                    operationId: id,
+                                    reservationTransactionId: reservation.transactionId,
+                                    removalTransactionId: before.binding.completion.transactionId,
+                                  });
+                                  expect(result.attemptId).toMatch(/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/);
+                                  expect(Object.isFrozen(result)).toBe(true);
+                                  const after = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                  expect(after.binding).toEqual(before.binding);
+                                  expect(after.attempt).toEqual({
+                                    schemaVersion: 1,
+                                    kind: 'attachment-removal-cleanup-attempt',
+                                    state: 'unresolved',
+                                    operationId: id,
+                                    attemptId: result.attemptId,
+                                    transactionId: result.transactionId,
+                                    reservation: before.binding,
+                                  });
+                                  expect(result.transactionId).not.toBe(reservation.transactionId);
+                                  expect(result.transactionId).not.toBe(before.binding.completion.transactionId);
+                                  const [rows] = await db.sequelize.query(
+                                    'SELECT pg_xact_status($xid::xid8) AS status',
+                                    { bind: { xid: result.transactionId } },
+                                  );
+                                  expect(rows).toEqual([{ status: 'committed' }]);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it('does not replace or retry a recorded attempt from a new inspector pool', async () => {
+                                const { id } = await reserved();
+                                const first = await coordinated();
+                                try {
+                                  await first.inspector.recordLocalCleanupAttempt(id);
+                                } finally {
+                                  await first.db.close();
+                                }
+                                const [before] = await db.sequelize.query(
+                                  'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                );
+                                const second = await coordinated();
+                                try {
+                                  await expect(second.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'already recorded',
+                                  );
+                                  expect(
+                                    await db.sequelize
+                                      .query('SELECT xmin::text,ctid::text,payload FROM verified_reference_fence')
+                                      .then(([rows]) => rows),
+                                  ).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await second.db.close();
+                                }
+                              });
+
+                              it('preserves ordinary reservation inspection as non-updating after an attempt exists', async () => {
+                                const { id, reservation } = await reserved();
+                                const first = await coordinated();
+                                try {
+                                  await first.inspector.recordLocalCleanupAttempt(id);
+                                } finally {
+                                  await first.db.close();
+                                }
+                                const [before] = await db.sequelize.query(
+                                  'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                );
+                                const other = await coordinated();
+                                try {
+                                  expect(await other.inspector.inspectReferenceReservation(id)).toMatchObject({
+                                    state: 'committed-reference-reservation-observed',
+                                    operationId: id,
+                                    transactionId: reservation.transactionId,
+                                  });
+                                  const [after] = await db.sequelize.query(
+                                    'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                  );
+                                  expect(after).toEqual(before);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it.each(['open', 'bare'])('does not turn an %s fence into an attempt', async (kind) => {
+                                const id = await unreferenced();
+                                if (kind === 'bare')
+                                  await db.sequelize.transaction(
+                                    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+                                    (tx) => fence.reserve(id, tx),
+                                  );
+                                const other = await coordinated();
+                                try {
+                                  expect(await other.inspector.recordLocalCleanupAttempt(id)).toEqual({
+                                    state: 'unknown',
+                                  });
+                                  expect(
+                                    (await fenceJournal.model.findOne()).getDataValue('payload'),
+                                  ).not.toHaveProperty('attempt');
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it('keeps another operation unknown instead of borrowing an existing reservation', async () => {
+                                await reserved();
+                                const other = await coordinated();
+                                try {
+                                  expect(
+                                    await other.inspector.recordLocalCleanupAttempt(
+                                      '11111111-1111-1111-1111-111111111111',
+                                    ),
+                                  ).toEqual({ state: 'unknown' });
+                                  expect(
+                                    (await fenceJournal.model.findOne()).getDataValue('payload'),
+                                  ).not.toHaveProperty('attempt');
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it.each([
+                                { fields: ['event', 'oid'], value: '1' },
+                                { fields: ['objectBinding', 'object', 'object', 'size'], value: '999' },
+                              ])(
+                                'refuses altered stored evidence before recording an attempt: $fields',
+                                async ({ fields, value }) => {
+                                  const { id } = await reserved();
+                                  await changeBinding(fields, value);
+                                  const other = await coordinated();
+                                  try {
+                                    await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow();
+                                    expect(
+                                      (await fenceJournal.model.findOne()).getDataValue('payload'),
+                                    ).not.toHaveProperty('attempt');
+                                    expect(await fs.readFile(location())).toEqual(bytes);
+                                  } finally {
+                                    await other.db.close();
+                                  }
+                                },
+                              );
+
+                              it('rejects a current file replacement without writing any attempt', async () => {
+                                const { id } = await reserved();
+                                await fs.rename(location(), `${location()}.original`);
+                                await fs.writeFile(location(), bytes);
+                                const other = await coordinated();
+                                try {
+                                  await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'Removal reference object changed',
+                                  );
+                                  expect(
+                                    (await fenceJournal.model.findOne()).getDataValue('payload'),
+                                  ).not.toHaveProperty('attempt');
+                                  expect(await fs.readFile(`${location()}.original`)).toEqual(bytes);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it.each(['throw', 'replace object'])(
+                                'rolls back the actual attempt UPDATE after a write-time %s',
+                                async (failure) => {
+                                  const { id } = await reserved();
+                                  const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                  const other = await coordinated();
+                                  let changed = false;
+                                  other.db.sequelize.addHook(
+                                    'afterQuery',
+                                    'interrupt-cleanup-attempt',
+                                    async (_options, query) => {
+                                      const sql = (query as unknown as { sql: string }).sql;
+                                      if (
+                                        !changed &&
+                                        sql.startsWith('UPDATE ') &&
+                                        sql.includes('attachment-removal-cleanup-attempt')
+                                      ) {
+                                        changed = true;
+                                        if (failure === 'throw') throw new Error('abort after attempt SQL');
+                                        await fs.rename(location(), `${location()}.original`);
+                                        await fs.writeFile(location(), bytes);
+                                      }
+                                    },
+                                  );
+                                  try {
+                                    await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow();
+                                    expect(changed).toBe(true);
+                                    expect((await fenceJournal.model.findOne()).getDataValue('payload')).toEqual(
+                                      before,
+                                    );
+                                    expect(
+                                      await fs.readFile(failure === 'throw' ? location() : `${location()}.original`),
+                                    ).toEqual(bytes);
+                                  } finally {
+                                    other.db.sequelize.removeHook('afterQuery', 'interrupt-cleanup-attempt');
+                                    await other.db.close();
+                                  }
+                                },
+                              );
+
+                              it('retains the unresolved attempt after a real afterCommit failure and refuses a second attempt', async () => {
+                                const { id } = await reserved();
+                                const first = await coordinated();
+                                let registered = false;
+                                first.db.sequelize.addHook('afterQuery', 'attempt-after-commit', (options, query) => {
+                                  const sql = (query as unknown as { sql: string }).sql;
+                                  if (
+                                    !registered &&
+                                    sql.startsWith('UPDATE ') &&
+                                    sql.includes('attachment-removal-cleanup-attempt')
+                                  ) {
+                                    registered = true;
+                                    (options as { transaction: Transaction }).transaction.afterCommit(() => {
+                                      throw new Error('actual attempt afterCommit failure');
+                                    });
+                                  }
+                                });
+                                try {
+                                  await expect(first.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'actual attempt afterCommit failure',
+                                  );
+                                  expect(registered).toBe(true);
+                                } finally {
+                                  first.db.sequelize.removeHook('afterQuery', 'attempt-after-commit');
+                                  await first.db.close();
+                                }
+                                const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                expect(before.attempt.state).toBe('unresolved');
+                                const [status] = await db.sequelize.query(
+                                  'SELECT pg_xact_status($xid::xid8) AS status',
+                                  { bind: { xid: before.attempt.transactionId } },
+                                );
+                                expect(status).toEqual([{ status: 'committed' }]);
+                                const second = await coordinated();
+                                try {
+                                  await expect(second.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'already recorded',
+                                  );
+                                  expect((await fenceJournal.model.findOne()).getDataValue('payload')).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await second.db.close();
+                                }
+                              });
+
+                              it('allows at most one actual attempt across two independent inspector pools', async () => {
+                                const { id } = await reserved();
+                                const first = await coordinated();
+                                const second = await coordinated();
+                                try {
+                                  const results = await Promise.allSettled([
+                                    first.inspector.recordLocalCleanupAttempt(id),
+                                    second.inspector.recordLocalCleanupAttempt(id),
+                                  ]);
+                                  expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+                                  expect(results.filter(({ status }) => status === 'rejected')).toHaveLength(1);
+                                  const winner = results.find(
+                                    ({ status }) => status === 'fulfilled',
+                                  ) as PromiseFulfilledResult<files.AttachmentRemovalCleanupAttemptRecord>;
+                                  expect(winner.value.state).toBe('committed-cleanup-attempt-recorded');
+                                  if (winner.value.state !== 'committed-cleanup-attempt-recorded')
+                                    throw new Error('expected committed attempt');
+                                  expect(
+                                    (await fenceJournal.model.findOne()).getDataValue('payload').attempt.attemptId,
+                                  ).toBe(winner.value.attemptId);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await first.db.close();
+                                  await second.db.close();
+                                }
+                              });
+
+                              it.each([
+                                'state',
+                                'extra',
+                                'operation',
+                                'reservation xid',
+                                'removal xid',
+                                'binding',
+                                'null',
+                              ])('rejects a malformed stored attempt without updating it: %s', async (kind) => {
+                                const { id } = await reserved();
+                                const first = await coordinated();
+                                try {
+                                  await first.inspector.recordLocalCleanupAttempt(id);
+                                } finally {
+                                  await first.db.close();
+                                }
+                                const payload = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                const attempt = payload.attempt;
+                                if (kind === 'state') attempt.state = 'completed';
+                                if (kind === 'extra') attempt.permit = true;
+                                if (kind === 'operation') attempt.operationId = '11111111-1111-1111-1111-111111111111';
+                                if (kind === 'reservation xid') attempt.transactionId = payload.binding.transactionId;
+                                if (kind === 'removal xid')
+                                  attempt.transactionId = payload.binding.completion.transactionId;
+                                if (kind === 'binding') attempt.reservation.event.oid = '1';
+                                await db.sequelize.query(
+                                  `UPDATE verified_reference_fence SET payload=jsonb_set(payload,'{attempt}',$value::jsonb)`,
+                                  { bind: { value: JSON.stringify(kind === 'null' ? null : attempt) } },
+                                );
+                                const [before] = await db.sequelize.query(
+                                  'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                );
+                                const other = await coordinated();
+                                try {
+                                  await expect(other.inspector.inspectReferenceReservation(id)).rejects.toThrow(
+                                    'cleanup attempt is invalid',
+                                  );
+                                  await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'cleanup attempt is invalid',
+                                  );
+                                  const [after] = await db.sequelize.query(
+                                    'SELECT xmin::text,ctid::text,payload FROM verified_reference_fence',
+                                  );
+                                  expect(after).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(bytes);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it('does not reuse a recorded attempt after its old path is replaced', async () => {
+                                const { id } = await reserved();
+                                const first = await coordinated();
+                                try {
+                                  await first.inspector.recordLocalCleanupAttempt(id);
+                                } finally {
+                                  await first.db.close();
+                                }
+                                const before = (await fenceJournal.model.findOne()).getDataValue('payload');
+                                await fs.rename(location(), `${location()}.original`);
+                                const replacement = Buffer.from('A distinct object at a reused old name');
+                                await fs.writeFile(location(), replacement);
+                                const other = await coordinated();
+                                try {
+                                  await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'Removal reference object changed',
+                                  );
+                                  expect((await fenceJournal.model.findOne()).getDataValue('payload')).toEqual(before);
+                                  expect(await fs.readFile(location())).toEqual(replacement);
+                                  expect(await fs.readFile(`${location()}.original`)).toEqual(bytes);
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+
+                              it('requires an explicitly configured independent reference fence', async () => {
+                                const { id } = await reserved();
+                                const other = await references();
+                                try {
+                                  await expect(other.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                    'explicit independent fence',
+                                  );
+                                } finally {
+                                  await other.db.close();
+                                }
+                              });
+                            });
+
                             it('independently observes both committed transactions without updating the durable row or bytes', async () => {
                               const { id, reservation } = await reserved();
                               const [before] = await db.sequelize.query(

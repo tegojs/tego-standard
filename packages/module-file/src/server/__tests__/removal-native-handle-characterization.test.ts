@@ -4,6 +4,23 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+interface NativeIdentity {
+  dev: string;
+  ino: string;
+  birthtimeNs: string;
+  mtimeNs: string;
+  ctimeNs: string;
+  size: string;
+  nlink: string;
+  directory: boolean;
+  reparse: boolean;
+}
+
+interface NativeObservation {
+  file: NativeIdentity;
+  directories: NativeIdentity[];
+}
+
 // Windows dependency characterization, not a production helper, lease or removal implementation.
 describe.skipIf(process.platform !== 'win32')('native Windows attachment handle boundaries', () => {
   let directory: string;
@@ -34,7 +51,22 @@ describe.skipIf(process.platform !== 'win32')('native Windows attachment handle 
     if (directory) await fs.rm(directory, { recursive: true, force: true });
   });
 
-  async function guard(directories = [root, parent]) {
+  const nodeIdentity = async (filename: string): Promise<NativeIdentity> => {
+    const stat = await fs.lstat(filename, { bigint: true });
+    return {
+      dev: String(stat.dev),
+      ino: String(stat.ino),
+      birthtimeNs: String(stat.birthtimeNs),
+      mtimeNs: String(stat.mtimeNs),
+      ctimeNs: String(stat.ctimeNs),
+      size: String(stat.size),
+      nlink: String(stat.nlink),
+      directory: stat.isDirectory(),
+      reparse: stat.isSymbolicLink(),
+    };
+  };
+
+  async function guard(directories = [root, parent], nativeIdentity = false) {
     // Arguments/environment carry paths, never PowerShell source interpolation or user profiles.
     const fixture = fileURLToPath(new URL('./fixtures/removal-native-handle.ps1', import.meta.url));
     const child = spawn('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', fixture], {
@@ -44,6 +76,7 @@ describe.skipIf(process.platform !== 'win32')('native Windows attachment handle 
         ...process.env,
         TEGO_HANDLE_FIXTURE_FILE: file,
         TEGO_HANDLE_FIXTURE_DIRECTORIES: JSON.stringify(directories),
+        TEGO_HANDLE_FIXTURE_NATIVE_IDENTITY: nativeIdentity ? '1' : '0',
       },
     });
     children.add(child);
@@ -61,7 +94,7 @@ describe.skipIf(process.platform !== 'win32')('native Windows attachment handle 
       });
     });
     void completed.catch(() => {});
-    const ready = await new Promise<string>((resolve, reject) => {
+    const status = await new Promise<string>((resolve, reject) => {
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', (value: string) => {
         output += value;
@@ -72,8 +105,42 @@ describe.skipIf(process.platform !== 'win32')('native Windows attachment handle 
         if (!output.includes('\n')) reject(new Error('No native handle readiness: ' + diagnostics));
       });
     });
+    const ready = status.startsWith('held:') ? 'held' : status;
     return {
       ready,
+      observation: status.startsWith('held:') ? (JSON.parse(status.slice(5)) as NativeObservation) : undefined,
+      async observe(): Promise<NativeObservation> {
+        if (!nativeIdentity || ready !== 'held') throw new Error('No live native identity fixture');
+        return new Promise((resolve, reject) => {
+          let response = '';
+          const cleanup = () => {
+            child.stdout.off('data', data);
+            child.off('error', failed);
+            child.off('close', closed);
+          };
+          const failed = (error: Error) => {
+            cleanup();
+            reject(error);
+          };
+          const closed = () => failed(new Error('Native identity fixture closed before observation'));
+          const data = (value: string) => {
+            response += value;
+            if (!response.includes('\n')) return;
+            cleanup();
+            try {
+              resolve(JSON.parse(response.split(/\r?\n/)[0]));
+            } catch (error) {
+              reject(error);
+            }
+          };
+          child.stdout.on('data', data);
+          child.once('error', failed);
+          child.once('close', closed);
+          child.stdin.write('inspect\n', (error) => {
+            if (error) failed(error);
+          });
+        });
+      },
       async release() {
         if (ready === 'held') child.stdin.end('release\n');
         await completed;
@@ -184,5 +251,134 @@ describe.skipIf(process.platform !== 'win32')('native Windows attachment handle 
     await fs.writeFile(file, 'writes resume after helper exit');
     expect(await fs.readFile(file, 'utf8')).toBe('writes resume after helper exit');
     await fs.rename(parent, parent + '.moved');
+  });
+
+  it('reads exact decimal identity and timestamps from the held native file and directory handles', async () => {
+    const expected = {
+      file: await nodeIdentity(file),
+      directories: await Promise.all([root, parent].map(nodeIdentity)),
+    };
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation).toEqual(expected);
+      expect(await held.observe()).toEqual(expected);
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('identifies a same-content file substitution made before native acquisition', async () => {
+    const expected = await nodeIdentity(file);
+    const retained = path.join(parent, 'retained-original.txt');
+    await fs.rename(file, retained);
+    await fs.writeFile(file, original, { flag: 'wx' });
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation.file).toEqual(await nodeIdentity(file));
+      expect(held.observation.file.ino).not.toBe(expected.ino);
+      expect(await fs.readFile(retained)).toEqual(original);
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('identifies a parent directory substitution rather than trusting its unchanged path', async () => {
+    const expected = await nodeIdentity(parent);
+    const retained = parent + '.retained';
+    await fs.rename(parent, retained);
+    await fs.mkdir(parent);
+    await fs.writeFile(file, original, { flag: 'wx' });
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation.directories[1]).toEqual(await nodeIdentity(parent));
+      expect(held.observation.directories[1].ino).not.toBe(expected.ino);
+      expect(await fs.readFile(path.join(retained, 'attachment.txt'))).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('exposes existing hardlink count and excludes writes through another name for that object', async () => {
+    const alias = path.join(root, 'alias.txt');
+    await fs.link(file, alias);
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation.file.nlink).toBe('2');
+      expect(held.observation.file.ino).toBe((await nodeIdentity(alias)).ino);
+      await expect(fs.writeFile(alias, 'changed')).rejects.toMatchObject({ code: 'EBUSY' });
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('allows a new hardlink while held, so sharing denial is not stable single-link ownership', async () => {
+    const alias = path.join(root, 'new-alias.txt');
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation.file.nlink).toBe('1');
+      await fs.link(file, alias);
+      const observed = (await held.observe()).file;
+      expect(observed.nlink).toBe('2');
+      expect(observed.ino).toBe(held.observation.file.ino);
+      expect((await nodeIdentity(alias)).ino).toBe(observed.ino);
+      await expect(fs.writeFile(alias, 'changed')).rejects.toMatchObject({ code: 'EBUSY' });
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+    await fs.writeFile(alias, 'the extra link survives handle release');
+    expect(await fs.readFile(file, 'utf8')).toBe('the extra link survives handle release');
+  });
+
+  it('exposes a junction directory even when the final file still matches the original object', async () => {
+    const expected = await nodeIdentity(file);
+    const retained = parent + '.retained';
+    await fs.rename(parent, retained);
+    await fs.symlink(retained, parent, 'junction');
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      expect(held.observation.directories[1].reparse).toBe(true);
+      expect(held.observation.file.ino).toBe(expected.ino);
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('reobserves timestamp changes that sharing denial does not prevent', async () => {
+    const held = await guard([root, parent], true);
+    try {
+      expect(held.ready).toBe('held');
+      const before = held.observation.file;
+      await fs.utimes(file, new Date('2020-01-01T00:00:00Z'), new Date('2020-01-01T00:00:00Z'));
+      const after = (await held.observe()).file;
+      expect(after).toEqual(await nodeIdentity(file));
+      expect(after.ino).toBe(before.ino);
+      expect(after.birthtimeNs).toBe(before.birthtimeNs);
+      expect(after.mtimeNs).toBe('1577836800000000000');
+      expect(after.mtimeNs).not.toBe(before.mtimeNs);
+      expect(await fs.readFile(file)).toEqual(original);
+    } finally {
+      await held.release();
+    }
+  });
+
+  it('does not create or follow a missing final file when acquiring native handles', async () => {
+    const retained = path.join(parent, 'retained-original.txt');
+    await fs.rename(file, retained);
+    const held = await guard([root, parent], true);
+    expect(held.ready).toBe('rejected:2');
+    await held.release();
+    await expect(fs.stat(file)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await fs.readFile(retained)).toEqual(original);
   });
 });

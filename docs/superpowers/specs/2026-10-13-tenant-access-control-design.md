@@ -222,6 +222,10 @@ Inspector 可另行显式提供独立池的 fence 映射，并调用 reserveLoca
 
 §198 的仅测试所有者进一步约束同次调用：内部持有原只读 native 会话和独立池，首次 await 前同步 claim；只有原 recordLocalCleanupAttempt 正常返回、严格历史提交与同次全部标识相同、持久对象/目录绑定及原活身份仍一致，才在本地消费 final 标记并调用一次最终 observe。正常 close、异常终止和 finally 关池后不重入；真实 broker 在 attempt UPDATE 内死亡、真实 COMMIT 确认丢失或历史观察提交后新增硬链接，均不进入最终探测。其 finalProbeCalls 只是只读客户端调用计数，不证明 socket 交付、broker 不可逆命令最多一次或物理执行；原 PS 无新增动作，pool/operationId/映射仍来自外层隔离夹具，不是生产可信来源证明。该组合不填补最终核验后变化窗口、全部写者/权限或真正原子能力，未提供产品执行器或续做 token。
 
+§199 仅在该只读 fixture 的最终消费边界加入两个固定真实断线：最终 observe 写入前关闭原 named pipe；或收到并核对真实 observed 的 requestId/challenge/sessionId/peer PID/broker PID 后，丢弃应用交付并关闭原 pipe。后一断点明示实际回复已抵达客户端，不是“broker 未观察”或“消息未抵达”，更不是不可逆动作未知结果。两条失败路径都保留本地 consumed 和原 committed unresolved，原 owner 永不重入，finally 关闭实际会话/池；历史观察不提供续做分支。只读客户端将 socket close 传播到实际 readline，避免本地 destroy 没有 end 事件时待决读取不收敛；不伪造 broker 回包或改原 PS 协议。
+
+最终诊断中的 requestWritten 仅表示本地 socket write 回调完成，replyReceived 表示已相关的真实回包到达，replyConfirmed 表示客户端交付该只读结果；socketClosed/brokerClosed 来自真实 close 事件。它们不是内核不可逆动作计数、不可伪造因果证据、存活租约或执行 token。新会话获取只验证原资源释放，不恢复旧 attempt；broker 端单次不可逆处理、断线撤销未完成动作和完整原子动作仍没有实现。生产 recorder/inspector、注册/路由/selected executor/正式 helper/自动安装/规则保存启用不改，物理安全前提和后续放行条件仍全部保留。
+
 ### 关联读取与授权事实
 
 关联展开只处理本次请求实际使用的关系路径，由入口显式提交查询计划。已迁移目标表按自己的读取范围过滤；未迁移目标表保持原来的租户机制。隐藏的单值关联返回 `null`，多值关联只返回可读项；单纯展开关联不能因此丢掉本来可读的根记录。过滤应在数据库查询阶段完成，不能取出后再逐项查权限。

@@ -11,6 +11,7 @@ export async function openOwnedReadOnlyRemovalFixture(
   directory: string,
   pool: { db: Database; inspector: AttachmentRemovalCompletionInspector },
   objects: Collection,
+  finalObservationFault?: 'before-write' | 'after-reply',
 ) {
   const session = await openReadOnlyRemovalFixtureSession(directory).catch(async (error) => {
     await pool.db.close();
@@ -119,7 +120,7 @@ export async function openOwnedReadOnlyRemovalFixture(
         // This is only a local read-only send boundary, not a broker action or lease.
         finalConsumed = true;
         finalProbeCalls++;
-        checkNative(await session.observe(), object);
+        checkNative(await session.finalObserve(finalObservationFault), object);
         assertActive();
         finishedNormally = true;
         return Object.freeze({
@@ -137,6 +138,7 @@ export async function openOwnedReadOnlyRemovalFixture(
       await session.terminate();
     },
     snapshot: () => Object.freeze({ claimed, closed, finalConsumed, finalProbeCalls }),
+    finalTransportSnapshot: session.finalTransportSnapshot,
     close,
   };
 }

@@ -3017,3 +3017,35 @@ Ruling: 在既定固定执行契约之内，先实现仅测试的原会话/独�
 本轮 finalProbeCalls 是固定只读客户端 observe 调用计数，不是不可逆命令、底层 socket 交付或 broker 动作计数。局部 claim/finalConsumed 不能当执行 token；原 PS 仍允许只读 observe，不新增 broker 一次性动作分支。原 SQL 删除/已提交预留、完整映射由外层隔离夹具建立并传入实际独立池/对象表，不证明生产来源不可伪造、OS 完整祖先或完整部署写者。固定生产协调器及 broker 不可逆动作仍未交付，正式接入和规则启用保持关闭。
 
 下一项可承接最终只读消息在本地消费后发生真实通道失联/无确认时的同次不可重入与资源关闭，而非重复已完成的 COMMIT/早期 broker 死亡/硬链接表征；不得将只读演练改名为执行器或把诊断状态/历史标识序列化成能力。broker 端不可逆命令单次处理、最终核验到动作原子窗口、可信根/别名/跨会话权限/全部写者、来源不可伪造、UUID 交付前发现、逐对象可用性、替换/其他入口/业务试点和整分支独立复核仍未完成。
+
+## 199. 最终只读探测消费后的真实管道失联
+
+Ruling: 沿用 §198 的固定只读 owner，选择两个仅测试的固定断点：本地 final 消费后、最终 observe 写入前真实关闭原管道；以及实际相关 observed 回包到达客户端后、交付 owner 前丢弃并关闭原管道。后一断点只表示应用层确认被截断，不声称 broker 未执行只读观察或响应未抵达本机，更不是不可逆动作或网络 COMMIT 故障。保持同一实际 PS broker/原生句柄/相关性校验，不引入代理进程、任意消息、动作 callback、产品入口或物理删除。没有第二次发送或历史续做；诊断计数不是执行能力。
+
+- [x] 两项真实 PG/Windows 用例先固定 RED；缺的是测试 fixture 的可控失联，不是生产缺陷。
+- [x] 最小实现仅在最后只读 observe 选择固定故障，观察真实 socket/子进程关闭；正常及所有既有路径保持。
+- [x] 新库定向与完整受影响文件串行验证，核实关闭池、消费后不可重入、持久 unresolved 不改写、原字节/身份保留及句柄释放。
+- [x] 格式/lint、源/快照散列、作者自审、精确专用库清理/停服务和记录均有实际结果；英文默认签名原子提交由后继实际命令及 verify-commit 独立判定，不在文档预填提交号。不运行无关构建。
+- [ ] 中止轮次唯一新临时目录 tego-removal-session-6cUGZR 因工具策略拒绝删除而保留，需允许的人工清理；不是既有附件，不能报告全临时目录已清零。
+
+初始两项真实 PG RED 已确认：固定故障尚未实现，原调用 fulfilled 而非预期 rejected；两项失败、636 过滤/分组跳过、总 638、退出 1，日志 removal-final-pipe-red.log。实现故障后的首轮暴露测试客户端等待问题：真实 socket 已关闭、broker 已退出，但 readline 的待决 lines.next 未完成。依 systematic-debugging 在同一隔离 snapshot 的最小真实 loopback Socket 诊断观察到 socket-close 后 iterator 仍 pending，显式 reader.close 后才得到 done=true；并非生产 recorder 缺陷。该诊断在受影响 runner 尚待决时执行，虽只内存/loopback、无文件或数据库动作，仍不符合本轮严格串行验证约束，记录此流程偏差，不再并行诊断。
+
+只读核对自有 Vitest PID 14976、创建时间 2026-10-30T16:59:24、规范化 snapshot 命令与本轮精确过滤参数，以及 20 个 snapshot 子进程后，定向终止该树；原 session 52324 实际退出 1，没有杀未知 PID。首轮 removal-final-pipe-green.log 只含 RUN、没有通过结果，保留且不称 GREEN。最小修复仅在真实 socket close 事件中关闭其 readline，让 pending 消费者完成；最终故障仍来自原 pipe 的真实关闭，不伪造 native 回复或放宽身份校验。后续所有验证保持严格串行。
+
+修复后的第一轮仍使用中止库 b19930c637，实际在 seedConfigStore 的唯一约束前置准备失败，两项失败及后继未初始化 nativePlan 的清理错误、退出 1；日志 removal-final-pipe-reader-green.log 保留，不称 GREEN，未进入最终故障验证。改用新库而不是改断言或生产实现。首次进程守卫误匹配本次 -Command 自身而安全拒绝，未 DROP；只读逐项确认后按 ProcessId 排除当前守卫进程，仍检查全部其他验证/helper。
+
+清理中止新夹具的组合命令在执行前被工具策略拒绝，没有发生任何删除或建库；不通过其他 API 绕过。唯一残留 C:/Users/TomyJan/AppData/Local/Temp/tego-removal-session-6cUGZR 继续保留，尚需允许的人工清理，不能报告新会话目录零。随后独立核实 postmaster PID 72944/真实目录、全部 25466 端口记录、tenant_test、127.0.0.1 与 /32、主库、主实例、零其他客户端和专用库 owner，删除仅 b19930c637，确认旧库和尚未创建新库合计 count0，才创建符合正则的新库 tego_tenant_access_test_c19930d638。
+
+新库定向两项实际通过、636 过滤/分组跳过、总 638、退出 0，日志 removal-final-pipe-fresh-green.log。before-write 的本地写回调/相关回包/owner 交付计数为 0/0/0；after-reply 为 1/1/0：真实相关 observed 已到客户端，原管道关闭后未交付 owner。两者均 finalConsumed=true、finalProbeCalls=1，原调用及并发第二调用拒绝，真实 socket/子进程关闭、池 SELECT 1 因关闭拒绝。新独立池仍观察原 committed unresolved，拒绝再记录，永久行 xmin/ctid/payload 不变；原字节/物理身份保留，真实 r+ 重开与新只读 broker 获取证明句柄已释放。该新 broker 仅用于验证资源释放，不续做旧 attempt。正常路径追加 1/1/1 交付对照为已有实现检查，不伪称新增 RED。
+
+作者按 requesting-code-review 检查清单串行自审，不调用用户禁止的任何子智能体：五文件范围内，固定故障仅被原 owner 的消费后 finalObserve 使用；hello/前序 observe/close 保留原真实相关性和 native 校验，只有 socket 写回调改为 await；close 桥接只唤醒 reader，不制造协议响应。正常交付、两种失联、消费后并发/顺序再入、真实关闭池、持久 unresolved 不变和真实重开资源均有行为断言。变异检查：忽略故障会复现 initial fulfilled RED；移除 close→reader 桥接会复现待决读取；允许重入/重录或漏关池会分别破坏已加状态/SQL/资源断言。无新依赖/产品导出/注册/删除分支。
+
+不予判断项明确保留：broker 端不可逆命令单次处理、真实动作未确认时的完成协调、可信物理根/权限/全部写者/别名/旧句柄排空、最后核验到原子动作窗口、UUID 交付前发现和逐对象可用性均不在本次只读 fixture 交付范围，不因此视为完成；整分支独立复核仍未完成。不将本次作者自审冒称独立审查，不以其批准生产执行或正式放行。
+
+最终完整 authorized-local-read.test.ts 在已校验隔离 snapshot 串行运行：358 通过、280 跳过（SQLite 中 PG 专项分组，对应 PG 实际执行）、总 638、实际退出 0，总耗时 817.99 秒（测试 805.11 秒），日志 removal-final-pipe-regression.log。新增两项包含于完整结果，不与定向相加，不是整个分支回归；正常 final 交付 1/1/1 对照也实际通过。原真实 COMMIT 断线、永久守卫拒绝写入的预期 stderr 保留，没有禁日志或改正式依赖。
+
+最终三 TS Prettier 检查通过，oxlint 零警告/错误；源/快照 SHA256 一致：authorized-local-read.test.ts 为 6F5CAA054D6DE91CFB95716E267DFF89256BC1111983791170A7CD5E4FE54ACC，removal-owned-read-only.ts 为 B36992E9C2FB058F6B3A8B8F3352300985084750D61996250A6519147B4AE7D4，removal-session-client.ts 为 41239AF14A5E1199A59E9FD3BAEAB6696D9F3D19F799F4287B2694A5DCE1FA24。原 PS 未改，源/快照仍为 D2BE49FE582D7FB4AAAE8D3FDF09C7307CD5C04FA62FFB153ADAF3A64930FA7C。Markdown 受仓库忽略不称实际格式化，本批仅三 TS 测试 fixture/用例与两文档，不运行无关包构建。
+
+全部测试/格式/lint/helper 实际退出后，核实原 postmaster PID 72944/真实目录、全部 25466 端口记录、tenant_test、127.0.0.1 与 /32、主库/主实例、零其他客户端及 owner，删除仅最终专用库 c19930d638，确认与已删除的 b19930c637 合计 pg_database count0。原集群正常停止、pg_ctl 无服务、PID72944 消失、25466 全部端口记录 0，清理实际退出 0，其他 PG 服务未改，集群及日志保留。最终只读盘点唯一遗留目录仍为上述策略阻塞的 6cUGZR，创建于 17:00:39；内部仅 root/nested/attachment.txt 和本轮预期新夹具字节，无 helper 持有，不伪称目录零或删除完成。既有附件、主检出/核心和正式依赖未改。
+
+下一项若继续固定 broker 端终结型只读请求生命周期，应仍只限新隔离夹具、验证实际消息消费与资源释放，不据此声称不可逆动作最多一次；不能跳过可信根、全部写者/权限、硬链接/属性最终窗口及真实原子动作前提。正式 helper/selected executor/注册/路由/自动安装/规则保存启用继续关闭；不从已消费 owner、UUID 或历史 committed 恢复执行。

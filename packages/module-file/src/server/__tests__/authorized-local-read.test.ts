@@ -1504,12 +1504,15 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                       for (const owner of owners) await owner.close();
                                       owners.clear();
                                     });
-                                    const startOwned = async () => {
+                                    const startOwned = async (
+                                      finalObservationFault?: 'before-write' | 'after-reply',
+                                    ) => {
                                       const pool = await coordinated();
                                       const owner = await openOwnedReadOnlyRemovalFixture(
                                         sessionDirectory,
                                         pool,
                                         objects,
+                                        finalObservationFault,
                                       );
                                       owners.add(owner);
                                       const id = await unreferenced();
@@ -1532,6 +1535,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                         closed: true,
                                         finalConsumed: true,
                                         finalProbeCalls: 1,
+                                      });
+                                      expect(owner.finalTransportSnapshot()).toEqual({
+                                        requestWritten: 1,
+                                        replyReceived: 1,
+                                        replyConfirmed: 1,
+                                        socketClosed: true,
+                                        brokerClosed: true,
                                       });
                                       const before = await state();
                                       await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
@@ -1661,6 +1671,77 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
                                       }
                                       expect(await fs.readFile(sessionFile)).toEqual(bytes);
                                     });
+
+                                    it.each(['before-write', 'after-reply'] as const)(
+                                      'never resumes a consumed final probe after real pipe loss at %s',
+                                      async (mode) => {
+                                        const { owner, pool, id } = await startOwned(mode);
+                                        const original = await fs.lstat(sessionFile, { bigint: true });
+                                        const results = await Promise.allSettled([
+                                          owner.recordOnce(id),
+                                          owner.recordOnce(id),
+                                        ]);
+                                        expect(results[0]).toMatchObject({
+                                          status: 'rejected',
+                                          reason: expect.any(Error),
+                                        });
+                                        if (results[0].status === 'rejected')
+                                          expect(String(results[0].reason)).toContain('session ended');
+                                        expect(results[1]).toMatchObject({ status: 'rejected' });
+                                        if (results[1].status === 'rejected')
+                                          expect(String(results[1].reason)).toContain('already claimed');
+                                        expect(owner.snapshot()).toEqual({
+                                          claimed: true,
+                                          closed: true,
+                                          finalConsumed: true,
+                                          finalProbeCalls: 1,
+                                        });
+                                        expect(owner.finalTransportSnapshot()).toEqual({
+                                          requestWritten: mode === 'before-write' ? 0 : 1,
+                                          replyReceived: mode === 'before-write' ? 0 : 1,
+                                          replyConfirmed: 0,
+                                          socketClosed: true,
+                                          brokerClosed: true,
+                                        });
+                                        await expect(pool.db.sequelize.query('SELECT 1')).rejects.toThrow(/closed/i);
+                                        const fresh = await coordinated();
+                                        try {
+                                          const before = await state();
+                                          const observed = await fresh.inspector.inspectLocalCleanupAttempt(id);
+                                          const attempt = (await fenceJournal.model.findOne()).getDataValue(
+                                            'payload',
+                                          ).attempt;
+                                          expect(observed).toMatchObject({
+                                            state: 'committed-cleanup-attempt-observed',
+                                            operationId: id,
+                                            attemptId: attempt.attemptId,
+                                            transactionId: attempt.transactionId,
+                                          });
+                                          expect(attempt.state).toBe('unresolved');
+                                          await expect(owner.recordOnce(id)).rejects.toThrow('already claimed');
+                                          await expect(fresh.inspector.recordLocalCleanupAttempt(id)).rejects.toThrow(
+                                            'already recorded',
+                                          );
+                                          expect(await state()).toEqual(before);
+                                          expect(owner.snapshot().finalProbeCalls).toBe(1);
+                                          expect(await fs.readFile(sessionFile)).toEqual(bytes);
+                                          const retained = await fs.lstat(sessionFile, { bigint: true });
+                                          expect([
+                                            retained.dev,
+                                            retained.ino,
+                                            retained.birthtimeNs,
+                                            retained.nlink,
+                                          ]).toEqual([original.dev, original.ino, original.birthtimeNs, 1n]);
+                                          const writer = await fs.open(sessionFile, 'r+');
+                                          await writer.close();
+                                          const reopened = await hold();
+                                          await reopened.observe();
+                                          await reopened.close();
+                                        } finally {
+                                          await fresh.db.close();
+                                        }
+                                      },
+                                    );
 
                                     it('rechecks the original live object after historical observation actually commits', async () => {
                                       const { owner, pool, id } = await startOwned();

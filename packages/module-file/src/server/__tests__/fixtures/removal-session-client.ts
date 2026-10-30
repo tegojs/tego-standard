@@ -57,18 +57,24 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
     },
   );
   let diagnostics = '';
+  let brokerClosed = false;
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (value: string) => {
     diagnostics += value;
   });
   const closed = new Promise<void>((resolve, reject) => {
     child.once('error', reject);
-    child.once('close', () => resolve());
+    child.once('close', () => {
+      brokerClosed = true;
+      resolve();
+    });
   });
   void closed.catch(() => {});
   let socket: net.Socket | undefined;
   let reader: ReturnType<typeof createInterface> | undefined;
   let ended = false;
+  let socketClosed = false;
+  const finalTransport = { requestWritten: 0, replyReceived: 0, replyConfirmed: 0 };
   const dispose = async () => {
     ended = true;
     socket?.destroy();
@@ -99,16 +105,32 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
     socket.on('error', (error) => {
       diagnostics += String(error);
     });
+    socket.once('close', () => {
+      socketClosed = true;
+      // A destroyed Socket emits close, not necessarily end; wake the real pending line read.
+      reader?.close();
+    });
     reader = createInterface({ input: socket, crlfDelay: Infinity });
     const lines = reader[Symbol.asyncIterator]();
     const challenge = randomUUID();
     let sessionId: string | undefined;
-    const exchange = async (kind: 'hello' | 'observe' | 'close') => {
+    const exchange = async (
+      kind: 'hello' | 'observe' | 'close',
+      final?: { fault?: 'before-write' | 'after-reply' },
+    ) => {
       if (ended || child.exitCode !== null || child.signalCode !== null) throw new Error('Fixture session ended');
       const requestId = randomUUID();
-      socket!.write(
-        JSON.stringify({ version: 1, kind, requestId, challenge, ...(sessionId ? { sessionId } : {}) }) + '\n',
-      );
+      if (final?.fault === 'before-write') socket!.destroy();
+      else {
+        await new Promise<void>((resolve, reject) => {
+          socket!.write(
+            JSON.stringify({ version: 1, kind, requestId, challenge, ...(sessionId ? { sessionId } : {}) }) + '\n',
+            (error) => (error ? reject(error) : resolve()),
+          );
+        });
+        // Local write callback only; this alone does not prove broker receipt.
+        if (final) finalTransport.requestWritten++;
+      }
       const line = await lines.next();
       if (line.done) throw new Error('Fixture session ended: ' + diagnostics);
       const reply = JSON.parse(line.value);
@@ -123,6 +145,17 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
         throw new Error('Fixture reply correlation failed');
       if (kind !== 'close' && (reply.peerProcessId !== process.pid || reply.brokerProcessId !== child.pid))
         throw new Error('Fixture peer correlation failed');
+      if (final) {
+        finalTransport.replyReceived++;
+        if (final.fault === 'after-reply') {
+          // Real correlated read-only reply reached this client, but never reaches its owner.
+          socket!.destroy();
+          const end = await lines.next();
+          if (!end.done) throw new Error('Fixture received unexpected trailing reply');
+          throw new Error('Fixture session ended without final confirmation');
+        }
+        finalTransport.replyConfirmed++;
+      }
       return reply as { sessionId: string; observations: typeof expected };
     };
     const ready = await exchange('hello');
@@ -132,6 +165,11 @@ export async function openReadOnlyRemovalFixtureSession(directory: string) {
       async observe() {
         return (await exchange('observe')).observations;
       },
+      // Fixed test fault only, never an action or arbitrary message/callback.
+      async finalObserve(fault?: 'before-write' | 'after-reply') {
+        return (await exchange('observe', { fault })).observations;
+      },
+      finalTransportSnapshot: () => Object.freeze({ ...finalTransport, socketClosed, brokerClosed }),
       async close() {
         try {
           await exchange('close');

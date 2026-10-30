@@ -52,6 +52,17 @@ export type AttachmentRemovalCleanupAttemptRecord =
       removalTransactionId: string;
     }>;
 
+export type AttachmentRemovalCleanupAttemptObservation =
+  | Readonly<{ state: 'unknown' }>
+  | Readonly<{
+      state: 'committed-cleanup-attempt-observed';
+      operationId: string;
+      attemptId: string;
+      transactionId: string;
+      reservationTransactionId: string;
+      removalTransactionId: string;
+    }>;
+
 /**
  * Trusted-server outcome observation, from explicitly independent mappings/pool on the same primary.
  * Owns its transaction and reads/locks SQL evidence; explicit reference inspection also reads current
@@ -366,6 +377,18 @@ export class AttachmentRemovalCompletionInspector {
     return this.inspectEvidence(operationId, 'attempt');
   }
 
+  /**
+   * Historical attempt/reservation/evidence and explicit commit observation only. Never opens the
+   * old pathname: it may be absent or reused after an unknown action. Does not prove current object,
+   * references, causal unforgeability, action execution or success, and never permits a retry.
+   */
+  async inspectLocalCleanupAttempt(operationId: string): Promise<AttachmentRemovalCleanupAttemptObservation> {
+    if (!this.referenceFence)
+      throw new TypeError('Cleanup attempt inspection requires an explicit independent fence mapping');
+    this.references!.assertCurrent();
+    return this.inspectEvidence(operationId, 'attempt-observation');
+  }
+
   private inspectEvidence(operationId: string, mode: 'sql'): Promise<AttachmentRemovalCompletionObservation>;
   private inspectEvidence(operationId: string, mode: 'object'): Promise<AttachmentRemovalObjectObservation>;
   private inspectEvidence(
@@ -378,9 +401,13 @@ export class AttachmentRemovalCompletionInspector {
     mode: 'reservation',
   ): Promise<AttachmentRemovalReferenceReservationObservation>;
   private inspectEvidence(operationId: string, mode: 'attempt'): Promise<AttachmentRemovalCleanupAttemptRecord>;
+  private inspectEvidence(
+    operationId: string,
+    mode: 'attempt-observation',
+  ): Promise<AttachmentRemovalCleanupAttemptObservation>;
   private async inspectEvidence(
     operationId: string,
-    mode: 'sql' | 'object' | 'references' | 'reserve' | 'reservation' | 'attempt',
+    mode: 'sql' | 'object' | 'references' | 'reserve' | 'reservation' | 'attempt' | 'attempt-observation',
   ): Promise<
     | AttachmentRemovalCompletionObservation
     | AttachmentRemovalObjectObservation
@@ -388,12 +415,14 @@ export class AttachmentRemovalCompletionInspector {
     | AttachmentRemovalReferenceReservation
     | AttachmentRemovalReferenceReservationObservation
     | AttachmentRemovalCleanupAttemptRecord
+    | AttachmentRemovalCleanupAttemptObservation
   > {
     if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(operationId))
       throw new TypeError('Completion inspection requires an operation identifier');
     this.assertIndependentPool();
     const withObject = mode !== 'sql';
-    const withReservation = mode === 'reservation' || mode === 'attempt';
+    const historicalAttempt = mode === 'attempt-observation';
+    const withReservation = mode === 'reservation' || mode === 'attempt' || historicalAttempt;
     const options = { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, transaction: null };
     return this.database.sequelize.transaction(options, async (transaction) => {
       let scope: AttachmentRemovalReferenceScope | undefined;
@@ -440,10 +469,10 @@ export class AttachmentRemovalCompletionInspector {
         const object = bound?.object;
         await this.assertCurrent(transaction, true, scope);
         if (object && scope) {
-          const observed = await scope.observeLocalObject(object);
+          const observed = historicalAttempt ? undefined : await scope.observeLocalObject(object);
           await this.assertCurrent(transaction, true, scope);
           if (mode === 'reserve' || withReservation) {
-            if (observed.references !== 0)
+            if (!historicalAttempt && observed!.references !== 0)
               throw new TypeError('Removal reference reservation requires zero mapped references');
             if (payload.storage.retainContent !== false)
               throw new TypeError('Removal reference reservation cannot discard retained content');
@@ -496,11 +525,38 @@ export class AttachmentRemovalCompletionInspector {
                   !isDeepStrictEqual(await this.referenceFence!.readBinding(transaction), reservation)
                 )
                   throw new TypeError('Removal reference reservation evidence changed');
-                if ((await scope!.observeLocalObject(object)).references !== 0)
+                if (!historicalAttempt && (await scope!.observeLocalObject(object)).references !== 0)
                   throw new TypeError('Removal reference reservation requires zero mapped references');
                 await this.assertCurrent(transaction, true, scope);
               };
               await recheck();
+              if (historicalAttempt) {
+                const attempt = await this.referenceFence!.readAttempt(transaction);
+                if (!attempt) return Object.freeze({ state: 'unknown' as const });
+                if (attempt.transactionId === actual.xid)
+                  throw new TypeError('Removal cleanup attempt cannot belong to its observing transaction');
+                const [statuses] = await this.database.sequelize.query(
+                  'SELECT pg_catalog.pg_xact_status($xid::pg_catalog.xid8) AS status',
+                  { transaction, bind: { xid: attempt.transactionId } },
+                );
+                if (
+                  (statuses as { status: string }[]).length !== 1 ||
+                  (statuses as { status: string }[])[0]?.status !== 'committed'
+                )
+                  throw new TypeError('Removal cleanup attempt transaction is not explicitly committed');
+                await recheck();
+                if (!isDeepStrictEqual(await this.referenceFence!.readAttempt(transaction), attempt))
+                  throw new TypeError('Removal cleanup attempt evidence changed');
+                await this.assertCurrent(transaction, true, scope);
+                return Object.freeze({
+                  state: 'committed-cleanup-attempt-observed' as const,
+                  operationId,
+                  attemptId: attempt.attemptId,
+                  transactionId: attempt.transactionId,
+                  reservationTransactionId: reservation!.transactionId,
+                  removalTransactionId: expected.transactionId,
+                });
+              }
               if (mode === 'attempt') {
                 if (await this.referenceFence!.readAttempt(transaction))
                   throw new TypeError('Removal cleanup attempt is already recorded');
@@ -576,7 +632,7 @@ export class AttachmentRemovalCompletionInspector {
             state: 'committed-reference-observed' as const,
             operationId,
             transactionId: expected.transactionId,
-            references: observed.references,
+            references: observed!.references,
           });
         }
         if (reservation) throw new TypeError('Removal reference reservation object binding is unavailable');

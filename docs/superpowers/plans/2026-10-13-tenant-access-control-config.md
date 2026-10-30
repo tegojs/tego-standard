@@ -2892,3 +2892,20 @@ Ruling: 承接 §190 的动作后无确认与路径复用边界，先交付不�
 - [x] 测试/构建实际退出后重新核实 PG17 真实目录、角色 tenant_test、127.0.0.1:25466 及零其他客户端，删除本批专用库 tego_tenant_access_test_a19130b630 并核实 pg_database 计数 0；临时 PG 已停止并由 pg_ctl 确认无运行服务，目录及日志保留。删除的是可重建测试数据，未涉及业务库或既有附件。此六文件变更独立作英文默认签名原子提交，不推送。
 
 本批仍不安装或调用原生 helper，不移动/删除任何既有附件。正常返回 committed-cleanup-attempt-recorded 只说明本次记录事务正常完成，不说明动作已执行；返回丢失、提交结果不明或 afterCommit 错误不能推断回滚并自动重试。只有历史 attempt 数据读取也不是独立确定提交观察或执行许可；后续仍须单独实现实际尝试提交状态重读、活句柄/完整目录链/全部写者约束及固定执行器，且不能以缺路径或历史 UUID 触及已复用路径。当前无此物理执行、完成回执或恢复/重试入口。受控 schema/可信服务端前提、不可伪造因果来源缺口、全范围永久拒绝的可用性限制、真实网络 COMMIT 确认丢失、UUID 交付前崩溃关联、替换/其他入口及整分支独立复核仍未完成；正式入口/自动安装/规则启用保持关闭。
+
+## 192. 独立持久尝试的历史绑定与明确提交观察
+
+Ruling: 新增 inspectLocalCleanupAttempt，复用独立池、完整映射及固定原证据流水线，在自有主库 SERIALIZABLE 事务内以完整引用 LOCK 为首应用 SQL。此入口只观察历史提交，不复查旧路径的当前文件或当前引用；未知物理动作之后原路径可能消失或被另一对象复用，要求旧路径仍匹配会把历史提交观察与 live 清理前检查混为一谈。原 inspectReferenceReservation、预留和尝试记录的全部当前对象/零引用检查不变；如果调用方错误地把新结果当执行权，会触及替代对象，因此返回不包含路径/对象，且没有执行、释放或重试入口。
+
+严格重验原实际 v3、原事务明确 committed 的 SQL 内完整 OLD、历史原对象封装和物理来源、完整 reservation binding 及其明确 committed 的协调事务；readAttempt 仍由原永久行 SELECT FOR UPDATE 严格解析，精确核对原 UUID、完整嵌入 binding 及 unresolved 结构。本次尝试 xid 与原删除、预留、本观察 xid 必须互异，并实际调用 pg_xact_status(xid8) 要求 committed。返回前再次验证真实原证据/binding 及精确 attempt，没有 UPDATE 协调/业务行或文件 I/O；持有结构/行锁，不宣称 PostgreSQL READ ONLY。
+
+- [x] 十八项真实 PG 场景先因 inspectLocalCleanupAttempt 缺方法失败，退出 1，日志 removal-cleanup-attempt-inspection-red.log；最小实现后十八项通过、五百六十六项仅过滤/分组跳过，退出 0，日志 removal-cleanup-attempt-inspection-green.log。覆盖独立新池、冻结无路径结果、xmin/ctid/payload 不变、开放/裸预留/无 attempt/另一 UUID unknown、旧路径缺失或复用仍仅报告历史、真实 active/aborted/future xid 拒绝、观察事务自身 xid 注入回滚、匹配复制 claim 不能代替实际事件/对象、缺实际证据拒绝、提交状态读取后精确 attempt 漂移回滚及缺显式独立 fence 配置。
+- [x] 作者追加九项真实 PG 检查直接通过，不伪称新 RED：真实 afterCommit 失败后独立新池观察明确已提交但仍 unresolved，第二尝试拒绝；仅隔离夹具特权写者重新引入引用后，历史观察成功但原 live 预留观察仍拒绝；null/done/与 operation 相同 attemptId/与删除或预留相同 xid/数字 xid/额外字段七种畸形状态拒绝且不更新。最终定向二十七项通过、五百七十五项仅过滤/分组跳过，退出 0，日志 removal-cleanup-attempt-inspection-author-check.log；新增计数不与最终回归相加。
+- [x] 最终授权读取/HTTP/意图/独立观察/协调及原生完整捕获两个完整相关文件顺序三百八十九项通过、二百六十二项 SQLite 的 PG 专项分组跳过，对应实际 PG 均执行，退出 0；二十七项新增不与定向结果相加，保留 removal-cleanup-attempt-inspection-regression.log。原 scope/fence/native 捕获实现未改，本批没有重复无关的隔离夹具或整个单仓库回归；此次结果不代表整分支独立复核或 §150 正式 Koa 链退出已完成。
+- [x] 相关测试实际退出后顺序运行文件包客户端、服务端和声明构建，退出 0，保留 removal-cleanup-attempt-inspection-build-file.log；快照没有 Git 元数据时的既有版本提示保留，不改依赖或正式版本。
+- [x] 三 TS 源/快照 SHA256 一致，三 TS Prettier 与 oxlint 零错误/警告，当前五文件 diff 检查通过。作者自审核实新分支仅跳过历史入口的 live 对象/引用观察，readObject 仍只做持久封装/实际物理来源验证；原 SQL 捕获、引用 scope、fence 整文件未改，只有内部方法定义、没有正式运行时调用。只读核查本地旧 multer 写入/旧路径 unlink、staged upload 的 wx/pipeline/失败清理及取消恢复 unlink，均未被本观察接口包装、替换或授权调用；本批不能宣称这些写者已完成物理互斥协议。Markdown 按仓库忽略规则不宣称实际 Prettier 格式化；作者自审不替代未完成的整分支独立复核。
+- [x] 所有测试/构建实际退出后核对真实 PG17 目录、tenant_test、127.0.0.1:25466 及零其他客户端；删除本批专用库 tego_tenant_access_test_b19230c631 并核实 pg_database 计数 0，临时 PG 停止、pg_ctl 确认无服务且端口无监听，清理脚本退出 0。首次清理守卫把 inet_server_addr()::text 的 127.0.0.1/32 与裸 IP 比较而安全拒绝，未删库；按实际输出用 host() 精确提取地址，同时保留原 /32 值核对后才继续，未削弱目录/角色/端口/客户端检查。删除的是可重建测试库，目录及日志保留，业务库和既有附件不变。本批五文件采用独立英文默认签名原子提交，不推送；最终签名/工作区由提交后命令单独核实，不在记录中预填提交号。
+
+本批启动临时 PG 时曾遗漏原运行时 -h/-p 参数，日志表明它尝试默认 localhost:5432 并在创建本批数据库/执行 SQL 之前绑定失败；只读核实持久配置和端口后，以原明确 127.0.0.1:25466 覆盖启动成功，未改配置、角色或其他服务。该环境命令修正不是产品 RED；本批独立库为 tego_tenant_access_test_b19230c631。
+
+成功返回 committed-cleanup-attempt-observed 只包含原 operationId、attemptId 和尝试/预留/原删除事务标识；现存 attempt 不解释为动作已执行或成功，也不能以 afterCommit 错误、旧路径缺失或该结果重试。受控 schema/可信服务端及可信因果来源限制不变；仍无生产 helper、活文件系统租约、原子条件核验并删除、完整目录链/全部写者/硬链接边界协调、未知网络 COMMIT 协调、UUID 交付前崩溃发现、逐对象可用写者方案或正式接入。既有附件保留，正式 selected executor/路由/自动安装/规则保存启用继续关闭，整分支独立复核未完成。

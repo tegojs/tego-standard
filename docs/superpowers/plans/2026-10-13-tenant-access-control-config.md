@@ -3203,3 +3203,21 @@ TS Prettier/check 及 oxlint 零错误警告，PS AST 通过；C# 在每个真�
 作者自审结论：固定初始路径/namespace 静态检查后取得原 root；root 名字真实替换时不重新按旧绝对名选根。每次 data/file 相对打开的实际句柄用 using 关闭，唯一持久 root 在 finally 关闭；正常/拒绝均等待 EOF 和真实进程 close。中间目录身份漂移在叶读取前拒绝，叶身份漂移在 ReadFile 前拒绝；同对象固定内容变化由真实重新读取拒绝，Node 对新旧对象独立核对 dev/ino/nlink/大小和字节，不能凭返回 JSON 自证。若退回绝对路径、复用首次字节或只持根而不检查后继对象，各自有用例拒绝；没有缓存身份或任意 callback 充当动作。未判断启动前可信根选择/完整卷身份、路径检查竞争、全部写者/旧句柄映射排空、跨登录会话/权限和读取后的最终原子窗口；错误推广会导致生产误授权，全部正式门控仍关闭。此为作者自审，不是整分支独立审查。
 
 最终资源字段回读：测试/esbuild/helper 0，本轮 relative/unrelated 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0；本节未启 PG/建库。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理或换 API 绕过、不声称全部临时目录零。新 junction 仅指向本次新命名空间，随 Node 测试 teardown 一起收敛；日志和原集群保留，既有附件、主检出/核心、正式依赖、原权限/映射 helper、原 broker/client/owner 和生产 recorder/inspector 均未改。精确四文件 diff/暂存检查及默认英文签名提交结果以实际 Git 核实，不预写成功；不推送/合并/发布。
+
+## 207. 真实卷 GUID 别名与物理根标识的私有准入键
+
+核实实际 HEAD=80b9d108f、功能工作区干净、两份记录至 §206。Ruling: 选择卷/别名来源里可独立验证的路径归并，不重做根改名或只增加诊断标识。只对 Node 新建临时目录直子 tego-removal-root-alias-* 内 root/other 两目录打开原生只读句柄，以实际 GetFinalPathNameByHandleW(VOLUME_NAME_GUID) 结果重开同根，再用 GetFileInformationByHandleEx(FILE_ID_INFO) 的 64 位卷序号和 128 位目录 ID 核对。由实际句柄产生的卷 GUID/卷序号/目录 ID 生成私有 mutex 名，验证两种路径的真实竞争；不返回锁名/路径或执行 token，也不将哈希当认证。
+
+本轮简报：新增 removal-root-alias.test.ts 和 fixtures/removal-root-alias.ps1。三项先失败再实现：DOS holder 阻止 GUID contender、反向也阻止且正常实际退出后可取得；同卷不同实际目录不误合并，期间原根仍 busy。每个 contender 都在自身真实进程里实际重开目录/查询身份/尝试 mutex，Node 核对 legacy dev/ino 与两个新 marker 字节。helper 固定五种模式及 release-and-close，无文件写入/删除/disposition、账号/token/DACL 改动、任意路径/命令、产品导出或正式安装。根初始仍由测试路径选取，本机同登录会话的 Local 命名对象归并不是可信部署根、完整别名集合、跨会话权限、写者排空或最后原子条件；误推广会造成生产误授权，故正式门控继续关闭。
+
+官方契约：一次 web search 与一次 open 未返回内容，随后通过只读 Invoke-WebRequest 真实读取 MicrosoftDocs/sdk-api 官方源仓库的 fileapi/nf-fileapi-getfinalpathnamebyhandlew.md 与 winbase/ns-winbase-file_id_info.md，核对 VOLUME_NAME_GUID 返回格式、大小/错误规则及完整卷序号/128 位 ID 的同机对象比较。未用 caller 传入的 GUID/ID/锁名/别名或旧路径文本作 key；每次 GUID 模式都先从真实 DOS 目录句柄获得路径，再实际用 CreateFileW 重开并重新查询全部身份。原 discovery 句柄仍存活时核对第二句柄，两者相符后仅留下本次选中目录句柄，持续至 mutex 结局。目录访问仅 READ_ATTRIBUTES、OPEN_EXISTING/share READ|WRITE、OPEN_REPARSE_POINT/BACKUP_SEMANTICS，无 DELETE/写权限或文件内容读取。
+
+初始真实三项缺 helper 失败、退出 1，总 4.81 秒，removal-root-alias-red.log；PowerShell usage 空行令 JSON 解析失败，未进入原生竞争，不称已经捕获 helper 64 或产品 RED。首次 helper 后三项仍失败、实际退出 1，总 8.64 秒（测试 4.32 秒），removal-root-alias-green.log 实为失败，不称 GREEN：C# 卷路径正则把反斜杠解释成不合法的转义，实际异常明确为 Unrecognized escape sequence、offset 9，发生在发布根观察/WaitOne 前。按 systematic-debugging 读取真实日志和实际源码定位后，只把该错误 regex 改为固定前缀、精确 36 字符 D 格式 GUID 和闭合分隔符校验；未放宽原生权限、共享模式或互斥规则，无 DOS/path key 回退。修正后完整三项通过、退出 0，总 10.54 秒（测试 7.47 秒），removal-root-alias-corrected-green.log。这是本次 fixture 解析修正，不是产品缺陷修复。
+
+作者串行自审补未知模式/额外命名空间条目/未知命令后真实释放三项，既有守卫直接通过，不冒称 RED。未知命令的 holder 确实退出 2 且 EOF/close 后，新独立 GUID contender 能实际取得同根 mutex，两个新 marker 与根 dev/ino 保留；不是仅检查本地 closed 标记。最终完整新文件命令为 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-root-alias.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose，6 项全部通过、无跳过、实际退出 0，总 12.35 秒（测试 9.11 秒），removal-root-alias-regression.log。原三项包含在六项内，各轮不相加，不是整分支回归。原 session58439 实际退出 1，67396 和 49634 实际退出 0 后才启动下一阶段，不继续等待或重跑；未重复 §194 或 §203—206 已完成文件。
+
+TS Prettier/write/check 与 oxlint 零错误警告，最终 PS AST 通过；C# 在实际 helper 内编译执行。源/快照 SHA256 一致：测试 9BA7676D3696EE95C66FFA3A04B6E792738E1BCCA833FEF7D8364C1F26807C4B，PS BC5C99806990EC30E6AB3793A6FCB13571BFEC8E0CA18F50305AA9BE14A4A4B2。最终六项后源码不改；Markdown 被忽略，不声称实际格式化。只有新测试/夹具和两份记录，没有生产或依赖变更，不跑无关包构建，不启 PG/建库。
+
+作者按 requesting-code-review 模板串行自审四文件：固定 namespace/目录/模式先校验，legacy 与完整原生身份都来自实际句柄，SHA256 私有锁名只含真实卷 GUID/卷序号/全部 128 位 ID；实际 CreateFileW 的别名重开而非只回报 openedVia。若按 DOS/GUID 文本分锁，双向 busy 用例会失败；若按整个卷粗合并，other 独立取得及原 root 仍 busy 会失败；若未知命令漏释放，后继独立取得会失败。锁名不输出、不接受外部注入，输出只有身份/路径种类/竞争状态，不是执行能力。mutex 和根句柄在正常/异常 finally 中按所有权关闭；收到 held/busy/acquired 或 released 不是进程已退出，测试仍读 EOF/等真实 close。probe 返回给测试时其 mutex/根已经随进程关闭，不提供可继续执行的会话。未判断其他卷/文件系统、全部路径别名/挂载、128 位高位差异的实际覆盖、跨会话对象安全描述符与完整部署身份、外部全部写者、来源认证和最后原子动作；这些未判断项错误推广会造成生产误授权，故正式全部门控继续关闭。此为作者自审，不叫整分支独立复核。
+
+最终真实资源/生产引用/diff 检查整体退出 0：测试/esbuild/helper 0，本轮 root-alias 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理/换 API 绕过、不报告全部临时目录零；原日志/集群保留，无新 PG/数据库。既有附件、主检出/核心、正式依赖、原权限/映射/相对根 helper、原 broker/client/owner 及生产 recorder/inspector 不改。精确暂存/默认 GPG 英文原子提交及独立验签由实际 Git 核实，不预写成功，不推送/合并/发布。

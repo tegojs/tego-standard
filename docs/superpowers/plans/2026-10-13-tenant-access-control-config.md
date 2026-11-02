@@ -3977,3 +3977,19 @@ Ruling: 第一个delay已完成且生成B数据，但下游第二个delay使exec
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-stale-job-build.log，session17275已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction BA1E1ACF08BA4959DA2AEF350482AF390DD773E7E5BC2D2A9F632905BCE4573C；tenant-lifecycle.test 481F8F6086BA49F7C12AAF4218BE24A13F0B59306AEB03FD550ABDA1FF59A52A，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：只读取原job状态，不以历史execution STARTED替代当前待处理事实；恢复继续使用原执行的B身份，新增await后也核对原unload代次。无本项未修复Critical/Important。两次并发读取仍PENDING到实际入队之间没有原子认领，不提供持久租约、跨实例去重、已入队撤销或完整停止矩阵；新G正式消费者、业务试点和整分支独立复核仍未完成。本轮全为SQLite，未重跑PG/建库/物理附件。独立资源守卫实际0且已消费后才记录/提交，validation0、25466全部记录0；保留集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 256. 子工作流完成后按主库父状态与等待job恢复
+
+签名记录：默认git commit session32069实际退出1，GPG明确Timeout且未生成提交。事先捕获本次git29892/51572、gpg14720、pinentry80536（原调用输出确认）后，独立守卫实际0确认各PID消失、HEAD仍0728cf195、原staged tree 31b041964a7a462343b1b4f2825f848fee8f9258不变且无未暂存变更。依据用户既有授权，本次仅使用git -c commit.gpgsign=false提交，签名N；global commit.gpgsign仍true，不绕过活动调用，不称独立验签成功。
+
+Ruling: 子执行完成后的父execution与父jobs查询仍默认走读池。真实旧schema缺少主库等待job时，父执行停留STARTED且不生成数据；主库父执行已CANCELED而读池仍STARTED时，旧路径继续生成B数据并把取消覆盖为RESOLVED。两次读取均明确主库，有显式事务时保留原事务，没有时transaction:null；父job须绑定本次读取的parent，避免resume再用默认读池getExecution覆盖该事实。不新建或结束caller事务，不改变保存的租户身份。
+
+- [x] 原queue-primary-authority.test.ts新增两项，独立真实PG读写池以不同search_path制造旧executions/jobs事实，不是WAL replica。真实已持久父等待job及child QUEUEING经原dispatch/Processor/trigger-instruction恢复，断言父状态和实际B业务数据；分别明确核对旧池与主库差异。
+- [x] workflow-child-parent-primary-red.log：2失败6过滤/8总，实际1/9.39秒，session40826已退出；分别实际{status:0,rows:[]}和{status:1,rows:[[B,Child completion cancelled parent]]}，应为正常B完成及保持-4无数据。最初Prettier check退出1发生在测试前，仅格式化新测试后才运行该RED，不冒称产品失败轮。
+- [x] 仅修正两个读取后，完整PG文件7过1失败/实际1/17.12秒，workflow-child-parent-primary-green.log，session85329已退出，不称GREEN；取消反例仍失败。继续跟踪真实resume发现它在未绑定execution时默认getExecution，因此补job.execution=parent；不放宽取消断言或权限。
+- [x] 首次九文件回归169过1失败/实际1/23.47秒，workflow-child-parent-primary-regression.log，session44454已退出：本项PG八项均过，但§255的先启动1秒timer再暂停发现依赖并行时序，第一条业务数据尚未出现就断言，实际0期望1。只修夹具为0期限、先确认旧发现暂停再显式原schedule到期路径，并等待第一条持久业务数据出现后释放；最终§255此项不再声称依赖真实1秒timer触发，无假时钟。单文件8过/无跳过/实际0/17.38秒，workflow-delay-stale-job-deterministic.log，session33006已退出。
+- [x] 最终九文件170全通过/无跳过/实际0/23.17秒，workflow-child-parent-primary-final-regression.log，session51118已退出：SQLite八文件162与真实PG八项均实际执行，新增两项和修正夹具含于170，不累加前轮/§255数量，不是整分支回归。父取消保持-4且没有B业务行；主库等待job恢复生成一条B数据。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-child-parent-primary-build.log，session95718已退出。最终三TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin 405847B4D6FC16C8B229404F36159310CAA69AF20CCDDD755068A419DF5D4254；queue-primary-authority.test 903626EC5978C1D2A642385B8C15FF190062F6D58847D667ED3639C963C6B3AA；tenant-lifecycle.test C2623E8859E6317E0D82059FC3A818D67951DAEDEC280BAE84052910A37F3C1A，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：恢复源固定为本次实际父状态，不因子执行租户或旧读池重造父身份；原Processor的非STARTED拒绝保持。无本项未修复Critical/Important。读取后并发取消、已入队撤销、持久租约/跨实例原子恢复、完整停止矩阵、新G正式消费者、业务试点及整分支独立复核仍未完成。独立资源收敛session74599已消费实际0：核实postmaster27056/创建2026-11-02T21:07:56.4242970+08:00/原目录命令、全部25466记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_f25602d665并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/25466全部记录0/validation0。集群和日志保留，无新物理附件；不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

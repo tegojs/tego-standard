@@ -322,7 +322,7 @@ describe('tenant delay timer failure lifecycle', () => {
   });
 
   it('does not replay a completed delay from an older discovery while its execution waits downstream', async () => {
-    const { execution, pending, delay } = await createPendingTenantDelay(1000);
+    const { execution, pending, delay } = await createPendingTenantDelay(0);
     const consumer = await delay.getDownstream();
     const nextDelay = await execution.getWorkflow().then((workflow) =>
       workflow.createNode({
@@ -351,12 +351,13 @@ describe('tenant delay timer failure lifecycle', () => {
       outcomes.push(Promise.resolve(result).catch((error) => error));
       return result;
     });
-    instruction.schedule(pending);
     const loading = instruction.load();
     try {
       await waitForFastAssertion(() => expect(read).toBe(true));
+      instruction.schedule(pending);
       await waitForFastAssertion(async () => {
         expect((await pending.reload()).status).toBe(JOB_STATUS.RESOLVED);
+        expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(1);
       });
       await Promise.all(outcomes);
       await waitForWorkflowIdle(app);

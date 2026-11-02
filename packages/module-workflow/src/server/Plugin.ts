@@ -713,10 +713,15 @@ export default class PluginWorkflowServer extends Plugin {
         // 根据parentId找到parent
         const { database } = <typeof ExecutionModel>execution.constructor;
         const { model } = database.getCollection('executions');
-        const parent = (await model.findByPk(execution.parentId, options)) as ExecutionModel;
-        const jobs = await parent.getJobs();
+        const parent = (await model.findByPk(execution.parentId, {
+          ...options,
+          useMaster: true,
+          transaction: options.transaction ?? null,
+        })) as ExecutionModel;
+        const jobs = await parent.getJobs({ useMaster: true, transaction: options.transaction ?? null });
         const job = jobs.find((v) => v.status === JOB_STATUS.PENDING && v.nodeId === execution.parentNode);
         if (job) {
+          job.execution = parent;
           const lastSavedJob = processor.lastSavedJob;
           // 为了防止没有返回值导致错误, 取默认输入值
           job.set({

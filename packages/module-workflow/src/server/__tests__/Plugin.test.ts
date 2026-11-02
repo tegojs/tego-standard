@@ -1,6 +1,6 @@
 import { getApp } from '@tachybase/plugin-workflow-test';
 import { MockServer } from '@tachybase/test';
-import Database from '@tego/server';
+import Database, { type Transaction } from '@tego/server';
 
 import Plugin from '..';
 import { EXECUTION_STATUS } from '../constants';
@@ -552,6 +552,31 @@ describe('workflow > Plugin', () => {
   });
 
   describe('sync', () => {
+    it('leaves a caller transaction open after a real event-validation SQL failure', async () => {
+      const workflow = await WorkflowModel.create({ enabled: true, type: 'syncTrigger' });
+      const transaction = await db.sequelize.transaction();
+      const validation = vi
+        .spyOn(plugin.triggers.get('syncTrigger'), 'validateEvent')
+        .mockImplementation(async (_workflow, _context, options: { transaction?: Transaction }) => {
+          await db.sequelize.query('SELECT * FROM missing_workflow_validation_source', {
+            transaction: options.transaction,
+          });
+          return true;
+        });
+      try {
+        const post = await PostRepo.create({ values: { title: 'Caller owns this change' }, transaction });
+        expect(await plugin.trigger(workflow, {}, { transaction })).toBeNull();
+        expect(transaction.finished).toBeFalsy();
+        expect((await PostRepo.findOne({ filterByTk: post.id, transaction })).title).toBe('Caller owns this change');
+        await transaction.commit();
+        expect((await PostRepo.findOne({ filterByTk: post.id })).title).toBe('Caller owns this change');
+        expect(await workflow.countExecutions()).toBe(0);
+      } finally {
+        validation.mockRestore();
+        if (!transaction.finished) await transaction.rollback();
+      }
+    });
+
     it('sync on trigger class', async () => {
       const w1 = await WorkflowModel.create({
         enabled: true,

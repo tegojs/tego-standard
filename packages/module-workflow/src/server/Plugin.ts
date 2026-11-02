@@ -511,16 +511,16 @@ export default class PluginWorkflowServer extends Plugin {
     const { transaction = await this.db.sequelize.transaction() } = options;
     const sameTransaction = options.transaction === transaction;
     const trigger = this.triggers.get(workflow.type);
-    const valid = await trigger.validateEvent(workflow, context, { ...options, transaction });
-    if (!valid) {
-      if (!sameTransaction) {
-        await transaction.commit();
-      }
-      return null;
-    }
-
     let execution;
     try {
+      const valid = await trigger.validateEvent(workflow, context, { ...options, transaction });
+      if (!valid) {
+        if (!sameTransaction) {
+          await transaction.commit();
+        }
+        return null;
+      }
+
       const tenantContext = extractTenantContext(context, options);
       const authContext = extractAuthContext(context, options);
       const executionOrigin = getWorkflowExecutionOrigin(options);
@@ -554,35 +554,35 @@ export default class PluginWorkflowServer extends Plugin {
         },
         executionOptions,
       );
-    } catch (err) {
+
+      this.getLogger(workflow.id).info(`execution of workflow ${workflow.id} created as ${execution.id}`);
+
+      await workflow.increment(['executed', 'allExecuted'], { transaction });
+      // NOTE: https://sequelize.org/api/v6/class/src/model.js~model#instance-method-increment
+      if (this.db.options.dialect !== 'postgres') {
+        await workflow.reload({ transaction });
+      }
+
+      await (<typeof WorkflowModel>workflow.constructor).update(
+        {
+          allExecuted: workflow.allExecuted,
+        },
+        {
+          where: {
+            key: workflow.key,
+          },
+          transaction,
+        },
+      );
+
       if (!sameTransaction) {
+        await transaction.commit();
+      }
+    } catch (err) {
+      if (!sameTransaction && !transaction.finished) {
         await transaction.rollback();
       }
       throw err;
-    }
-
-    this.getLogger(workflow.id).info(`execution of workflow ${workflow.id} created as ${execution.id}`);
-
-    await workflow.increment(['executed', 'allExecuted'], { transaction });
-    // NOTE: https://sequelize.org/api/v6/class/src/model.js~model#instance-method-increment
-    if (this.db.options.dialect !== 'postgres') {
-      await workflow.reload({ transaction });
-    }
-
-    await (<typeof WorkflowModel>workflow.constructor).update(
-      {
-        allExecuted: workflow.allExecuted,
-      },
-      {
-        where: {
-          key: workflow.key,
-        },
-        transaction,
-      },
-    );
-
-    if (!sameTransaction) {
-      await transaction.commit();
     }
 
     execution.workflow = workflow;

@@ -3783,3 +3783,19 @@ tenant客户端/服务端/依赖/声明完整build实际0，owned-entry-pages-bu
 按requesting-code-review模板作者串行自审，非独立复核：权限操作仍为list，复用原operation隔离checker、角色条件编译和字段授权，未创建新的ACL授权来源；原底层ACL∩G∩启用租户实际归属及SQL分页不变，NULL不认领。无本项未修复Critical/Important。调用方仍必须提供受信执行身份、已准备phase和最终ACL resolver，此内部方法不自行认证、不是任务执行许可/租约，不接线正式新G调度或撤销既有任务。一次只读查找不存在旧entry-reads.test.ts/workflow.ts和Windows rg通配失败，随后聚焦定位实际文件，不算测试RED。
 
 本项PG未启动/未建库，无新物理附件、无旧目录清理；验证/构建均已实际退出，保留日志、原集群及旧目录。未改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，规则保存/启用及所有正式新模型接线继续关闭。
+
+## 242. 工作流创建执行的完整自有事务失败回滚
+
+Ruling: 日期任务进入原队列后，Plugin.createExecution先建立事务，但validateEvent及执行记录创建后的计数更新都在原catch保护之外。真实去重查询或计数SQL失败会留下未结束事务；后者已经插入执行记录并修改计数。将原保护范围扩至事件校验、执行记录、计数和自有提交；仅回滚本方法拥有且尚未结束的事务，保持原错误日志/调用方事务责任。不新增重试、租约、调度器或正式新G接线。
+
+- [x] 真实SQLite日期任务校验与计数SQL分别复现未回滚；两处故障后无执行/业务结果、持久计数为零，同一workflow实例后继显式分派仍生成H执行及H业务行。
+- [x] 原同步测试触发器执行真实缺表SQL，调用方已写事务保持开放且可自行提交；这是兼容控制，既有实现直接通过，不称新RED。
+- [x] 相关八文件回归、workflow完整包构建、格式/lint、源与snapshot一致及作者串行自审；无PG及物理附件。
+
+首轮schedule-validation-transaction-red.log实际1/20.31秒、后继diagnostic.log实际1/18.12秒，都是新夹具错误：关联countExecutions经HasMany.get/findAll，不调用beforeCount，未触发SQL故障。读实际Sequelize实现后仅改一次性beforeFind条件。干净schedule-validation-transaction-corrected-red.log：1失败7过滤8总/实际1/7.49秒，真实缺列COUNT由原validateEvent执行并记录，transaction.finished实际undefined、预期rollback；finally仅收回本测试捕获事务。最小校验保护后完整owner文件8通过/实际0/17.55秒，green.log；caller-control.log一项通过21过滤/实际0/8.01秒。首批八文件117全通过/无跳过/实际0/36.62秒，schedule-validation-transaction-regression.log，session75622已退出，早于计数保护扩展，不当作最终验证。
+
+作者沿同一事务检查补计数故障：counter-red.log实际1/14.76秒，真实UPDATE缺列后原队列从SQLite同连接观察到未提交execution，后继节点BEGIN失败、其回滚使测试finally报no transaction is active，不能称干净断言RED。仅计数夹具在事件已准入的beforeBulkUpdate时暂置原dispatcher.ready=false，隔离“创建准备”的事务责任，不宣称真实stop或跨连接可见性；正常完成与finally还原。counter-corrected-red.log：1失败8过滤9总/实际1/9.81秒，原事务仍undefined而非rollback。扩展原catch后最终八文件118全通过/无跳过/实际0/54.49秒，schedule-preparation-transaction-regression.log，session63536已退出。之后仅加强测试：用新模型读取持久计数，避免reload原workflow再重试；最终两故障项2通过7过滤/实际0/20.01秒，schedule-preparation-same-instance.log，session20916已退出，明确复用原workflow对象。两项含于118，不累加各轮，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，schedule-preparation-transaction-build.log，session43926已退出。三TS最终Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：Plugin 1A3193AA11D1AA04A63DA92B8D7A9F5D7637F53DEAAD98E1A5320A3D814E55E2；Plugin.test 329AB525C3C92CD1212642F53FDDA44B1DAD79AD4DACD6C47CC4672DCEC6E42D；owner-context.test EF36A252FBADE8A403AD14BEBB1D22BFD80922472A13BFEDC2454C47A39E8955。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：原验证false仍无execution，正常流程的计数/归属/提交次序不改，caller事务不提交或回滚；finished守卫避免对已终结COMMIT再次rollback。无本项未修复Critical/Important。未知COMMIT不因此获得重试权，未证明跨实例原子去重、PG故障/连接池耗尽矩阵或调用方错误后可继续事务（PG SQL错误仍要求caller回滚），未提供已入队撤销、新G正式调度、业务试点及整分支独立复核。本项仅本地SQLite，未启动PG、建库或处理物理文件；既有目录保留，不改主检出、核心、正式依赖或业务库，不推送合并发布。

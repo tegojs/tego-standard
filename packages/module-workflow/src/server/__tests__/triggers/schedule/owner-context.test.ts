@@ -1,4 +1,5 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
+import { Op, type Transaction } from '@tego/server';
 
 import { EXECUTION_STATUS } from '../../../constants';
 import type WorkflowPlugin from '../../../Plugin';
@@ -177,6 +178,77 @@ describe('date-field schedules retain the record owner', () => {
     expect(await trigger.validateEvent(workflow, { date, data: { id: null } }, {})).toBe(false);
     expect(await workflow.countExecutions()).toBe(0);
   });
+
+  it.each(['event validation', 'execution counters'])(
+    'rolls back failed %s before dispatching another owner task',
+    async (stage) => {
+      const plugin = app.pm.get('workflow') as WorkflowPlugin;
+      const dispatcher = plugin as unknown as { ready: boolean };
+      const ready = dispatcher.ready;
+      const executions = app.db.getCollection('executions').model;
+      const workflows = app.db.getCollection('workflows').model;
+      const logger = vi.spyOn(plugin.getLogger(workflow.id), 'error');
+      let validationTransaction: Transaction | undefined;
+      const failQuery = (options) => {
+        validationTransaction = options.transaction;
+        // Keep the real query and transaction; force a SQL failure, not a thrown fake error.
+        options.where = { [Op.and]: [options.where, { missingScheduleValidationColumn: true }] };
+      };
+      if (stage === 'event validation') {
+        executions.addHook('beforeFind', 'fail-schedule-validation', (options) => {
+          if (!options.plain || options.attributes?.[0]?.[1] !== 'count') return;
+          executions.removeHook('beforeFind', 'fail-schedule-validation');
+          failQuery(options);
+        });
+      } else {
+        workflows.addHook('beforeBulkUpdate', 'fail-schedule-counters', (options) => {
+          if (options.attributes.allExecuted === undefined) return;
+          workflows.removeHook('beforeBulkUpdate', 'fail-schedule-counters');
+          // Pause consumption after admission so SQLite's shared connection cannot process a partial execution.
+          dispatcher.ready = false;
+          failQuery(options);
+        });
+      }
+      try {
+        const record = await app.db
+          .getCollection('scheduledOwnerDocuments')
+          .model.create({ name: 'Child-owned document', tenantId: 'H' }, { hooks: false });
+        const trigger = new DateFieldScheduleTrigger(plugin);
+        const instant = new Date('2026-11-01T00:00:00.000Z').getTime();
+        await trigger.trigger(workflow, record, instant);
+        await waitForAssertion(() => {
+          expect(logger.mock.calls).not.toHaveLength(0);
+        });
+        await waitForWorkflowIdle(app);
+        expect(logger.mock.calls[0][1]?.message).toMatch(/no such column/);
+        expect(validationTransaction).toBeDefined();
+        expect(validationTransaction!.finished).toBe('rollback');
+        expect(await workflow.countExecutions()).toBe(0);
+        expect(await app.db.getCollection('scheduledOwnerResults').model.count()).toBe(0);
+        const persisted = await workflows.findByPk(workflow.id);
+        expect(persisted.get('executed')).toBe(0);
+        expect(persisted.get('allExecuted')).toBe(0);
+
+        dispatcher.ready = ready;
+        await trigger.trigger(workflow, record, instant);
+        await waitForAssertion(async () => {
+          const [execution] = await workflow.getExecutions();
+          expect(execution?.status).toBe(EXECUTION_STATUS.RESOLVED);
+        });
+        await waitForWorkflowIdle(app);
+        expect((await workflow.getExecutions()).map((row) => row.tenantId)).toEqual(['H']);
+        expect(
+          (await app.db.getCollection('scheduledOwnerResults').model.findAll()).map((row) => row.get('tenantId')),
+        ).toEqual(['H']);
+      } finally {
+        executions.removeHook('beforeFind', 'fail-schedule-validation');
+        workflows.removeHook('beforeBulkUpdate', 'fail-schedule-counters');
+        if (validationTransaction && !validationTransaction.finished) await validationTransaction.rollback();
+        dispatcher.ready = ready;
+        logger.mockRestore();
+      }
+    },
+  );
 
   it('rejects a cached legacy schedule after the persisted record has acquired another owner', async () => {
     const plugin = app.pm.get('workflow') as WorkflowPlugin;

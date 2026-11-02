@@ -70,6 +70,7 @@ export function createAccessMigrationPreview(app: Application) {
         where: { name: collectionName, ...(dataSourceKey === 'main' ? {} : { dataSourceKey }) },
         limit: 2,
         useMaster: true,
+        transaction: null,
       });
       assertSource();
       if (records?.length !== 1)

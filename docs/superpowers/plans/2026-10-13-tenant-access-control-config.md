@@ -3439,3 +3439,18 @@ Ruling: AccessMigrationPreviewService.readPersisted 两次主库查找仍未明�
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，migration-preview-primary-build.log，session32447 已退出。最终两 TS Prettier check 通过、oxlint 零错误警告，源/snapshot SHA256 一致：migration-preview 42E2BC1CE33E216F944D3FE8C75D45E1D9355DBB9DC265EA37E12FB821D573E8，migration-preview-primary FF964A6DB555D1BC2B13E694EAB9DDEA30893E8D76359E88FDF523263FEA255F；最终验证后代码未改。作者按 requesting-code-review 模板串行自审本项四文件：服务不接收 caller 事务，明确事务外主库读取符合原契约；报告前后守卫仍在，已配置/身份消失/模式分歧及未提交边界用实际结果覆盖，没有查询替身或授权扩张。无未修复 Critical/Important；不是整分支独立复核，也不声称跨两次查询的原子快照或真实外部物理库/WAL/故障切换已验证。
 
 验证实际退出后精确核实 snapshot validation0、原 postmaster87124/UTC ticks/原目录命令及全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及本库 owner，仅删 a219030649 并 count0；正常停止原集群、pg_ctl 无服务、PID 消失、全部端口记录0，session4216 实际退出 0。原集群/日志/旧夹具保留，主检出/核心/正式依赖/业务库/既有附件不改，不推送/合并/发布。下一独立项 admin-metadata-primary 测试已在功能树编写，尚未运行且不含本提交；核查管理动作按名称发现表身份时是否被旧连接或 caller 未提交删除错误拒绝，以实际 action 响应为依据，不将候选说成泄露。
+
+## 220. 管理动作发现表身份不得使用隐式旧元数据
+
+Ruling: inspectAccessConfig 与 createAccessMigrationPreview 的初次按名称发现 metadata 仍缺 transaction:null；即使后继配置/迁移服务已使用主库，初次发现也可能因旧读池缺失/重复元数据或 caller 未提交删除而错误拒绝当前有效表。新文件用两实际 action、main/external 分支及真实 CLS/独立连接，断言当前已提交 identity/config 或 draft 响应和零审计；不以 query 参数或错误文本代替行为。若复现，只改两处权威发现的事务选择，原身份唯一性/来源/ACL 与主库后继复核保持；不注册新动作或启用业务。
+
+- [x] 新专用库/原 snapshot 真实管理 action 结果 RED。
+- [x] 最小实现、相关管理读取/预览/历史/HTTP 回归、tenant 构建、作者串行自审、原两份记录和资源收敛；后继英文签名提交以实际 Git 为准。
+
+原 snapshot validation0/原集群停止/全部25466记录0 后明确本机地址端口启动，session47352 实际退出 0；核实原 postmaster87788/创建 2026-11-02T16:28:02.8128520+08:00/原目录命令和全部端口，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及库不存在后创建 tego_tenant_access_test_a220030650，身份创建实际退出 0 后才启动测试。真实 RED 新十二项全部失败、实际退出 1、10.20 秒（测试 6.46 秒），admin-metadata-primary-red.log，session54308 已退出：两实际 action 的 main/external、旧读池缺失或重复及 caller 未提交删除全部错误返回404/ACCESS_COLLECTION_NOT_FOUND，未能返回当前有效身份结果。不是数据泄露或纯参数断言。external 使用另一实际 Database 实例作为登记运行时，主库元数据仍由 routed 实例读取；同物理专用库，不冒称独立外部物理库或 WAL。
+
+最小实现仅两处 findAll 明确 transaction:null，不改请求/权限/唯一性/来源和后继检查。最终 admin-metadata-primary/config-read-action/config-read-http/config-validation-action/config-validation-http/config-revisions-action/config-revisions-http/migration-preview-action/migration-preview-http 九文件188全部通过、无跳过、实际退出 0、93.46 秒（测试62.10秒），admin-metadata-primary-regression.log，session89478 已退出。十二新用例含于188，不累加 RED，不是整分支回归。管理只读 HTTP 权限、身份错误、校验及历史恢复草案同时通过，没有开放保存/启用。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，admin-metadata-primary-build.log，session94043 已退出。最终三 TS Prettier check 通过、oxlint 零错误警告，源/snapshot SHA256 一致：config-inspection 0CA04DC1BB04B2516A67770D2DDF0BFD12B8A6D26DEBE80C44E8D7CC709CB865，preview-access-migration A4BEA3E10DB9A5EB9974FF37C6501F63AA6D8AF7FA90234BB80EBC36C55952C6，admin-metadata-primary CAD6B2D19727E4F12F5F2BB52EC01CA337BEF3BEA283A5B1B0F1380FE5164E11；最终验证后代码未改。作者按 requesting-code-review 模板串行自审五文件：两查询使用同一已提交权威语义，原选择捕获/元数据唯一性/完整稳定身份/实际数据源及后继复核保持；新测试实际执行原 action 而不伪造查询结果。没有未修复 Critical/Important；不是整分支独立复核。新历史界面加载/分页/草案准备/关闭与角色刷新路径另作只读作者核查，未发现本轮需修改问题，不冒称实际浏览器或新测试覆盖。
+
+验证实际退出后核实 snapshot validation0、原 postmaster87788/UTC ticks/原目录命令及全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及本库 owner，仅删 a220030650 并 count0；正常停原集群、pg_ctl 无服务、PID 消失、全部端口记录0，session54846 实际退出0。日志/集群/旧夹具保留，主检出/核心/正式依赖/业务库/现有附件未改，不推送/合并/发布。旧未完成清理和正式核心发布两条门控仍未变化，不重复 registry 查询或已通过验证冒充推进。

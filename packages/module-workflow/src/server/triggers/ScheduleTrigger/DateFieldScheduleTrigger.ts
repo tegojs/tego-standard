@@ -166,6 +166,14 @@ export default class ScheduleTrigger {
 
   private cache: Map<string, any> = new Map();
 
+  private cancellations = new Map<string, object>();
+
+  private captureCurrent(workflow: WorkflowModel) {
+    const key = `${workflow.id}`;
+    const token = this.cancellations.get(key);
+    return () => this.cancellations.get(key) === token;
+  }
+
   // caching workflows in range, default to 5min
   cacheCycle = 300_000;
 
@@ -193,6 +201,7 @@ export default class ScheduleTrigger {
   }
 
   async reload() {
+    const cancellations = new Map(this.cancellations);
     try {
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
@@ -200,7 +209,11 @@ export default class ScheduleTrigger {
       });
 
       // Keep live handles cancellable; schedule deduplicates and fired callbacks retire them.
-      await this.inspect(workflows);
+      await this.inspect(
+        workflows.filter(
+          (workflow) => this.cancellations.get(`${workflow.id}`) === cancellations.get(`${workflow.id}`),
+        ),
+      );
     } catch (error) {
       this.workflow.getLogger('dispatcher').error('failed to reload date-field schedules', error);
     }
@@ -211,9 +224,11 @@ export default class ScheduleTrigger {
 
     await Promise.all(
       workflows.map(async (workflow) => {
+        const isCurrent = this.captureCurrent(workflow);
         try {
           const records = await this.loadRecordsToSchedule(workflow, now);
           for (const record of records) {
+            if (!isCurrent()) return;
             const nextTime = this.getRecordNextTime(workflow, record, false, now);
             // Refresh only successfully discovered records; failed scans keep their live handles.
             this.schedule(workflow, record, nextTime, false);
@@ -436,18 +451,17 @@ export default class ScheduleTrigger {
 
       if (!this.cache.has(key)) {
         if (nextInterval) {
-          this.cache.set(
-            key,
-            setTimeout(async () => {
-              try {
-                await this.trigger(workflow, record, nextTime);
-              } catch (error) {
-                this.workflow.getLogger(workflow.id).error('failed to trigger scheduled record', error);
-              } finally {
-                this.cache.delete(key);
-              }
-            }, nextInterval),
-          );
+          const isCurrent = this.captureCurrent(workflow);
+          const timer = setTimeout(async () => {
+            try {
+              if (isCurrent()) await this.trigger(workflow, record, nextTime);
+            } catch (error) {
+              this.workflow.getLogger(workflow.id).error('failed to trigger scheduled record', error);
+            } finally {
+              if (this.cache.get(key) === timer) this.cache.delete(key);
+            }
+          }, nextInterval);
+          this.cache.set(key, timer);
         } else {
           return this.trigger(workflow, record, nextTime, options);
         }
@@ -463,6 +477,7 @@ export default class ScheduleTrigger {
   }
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
+    const isCurrent = this.captureCurrent(workflow);
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
     const collection = this.workflow.app.dataSourceManager.dataSources
       .get(dataSourceName)
@@ -485,7 +500,7 @@ export default class ScheduleTrigger {
           enabled: true,
         },
       });
-      if (!tenant) {
+      if (!tenant || !isCurrent()) {
         return;
       }
 
@@ -493,13 +508,14 @@ export default class ScheduleTrigger {
     } else {
       context = context || (await buildTenantContext(this.workflow.app.db, collection, record));
     }
+    if (!isCurrent()) return;
     const data = await repository.findOne({
       filterByTk: recordPk,
       appends: workflow.config.appends,
       context,
       transaction,
     });
-    if (!data) {
+    if (!data || !isCurrent()) {
       return;
     }
     if (tenantAware) {
@@ -510,8 +526,6 @@ export default class ScheduleTrigger {
       }
     }
     bindTenantContext(data, context);
-    const key = `${workflow.id}:${recordPk}@${nextTime}`;
-    this.cache.delete(key);
     this.workflow.trigger(
       workflow,
       {
@@ -533,6 +547,7 @@ export default class ScheduleTrigger {
   }
 
   on(workflow: WorkflowModel) {
+    const isCurrent = this.captureCurrent(workflow);
     const { collection } = workflow.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
@@ -549,6 +564,7 @@ export default class ScheduleTrigger {
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
       const tenantContext = context || (await buildEnabledTenantContext(this.workflow.app.db, collection, data));
+      if (!isCurrent()) return;
       if (isTenantCollection(collection) && !tenantContext) {
         return;
       }
@@ -564,6 +580,8 @@ export default class ScheduleTrigger {
   }
 
   off(workflow: WorkflowModel) {
+    // Invalidate calls already waiting on discovery, tenant facts or business data.
+    this.cancellations.set(`${workflow.id}`, {});
     for (const [key, timer] of this.cache.entries()) {
       if (key.startsWith(`${workflow.id}:`)) {
         clearTimeout(timer);

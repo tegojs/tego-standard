@@ -100,6 +100,139 @@ describe('date-field scheduling from an external database', () => {
     await external?.close();
   });
 
+  function installedDateTrigger() {
+    const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
+      modes: Map<number, DateFieldScheduleTrigger>;
+    };
+    return installed.modes.get(1)!;
+  }
+
+  async function observeThroughDeadline(trigger: DateFieldScheduleTrigger, due: number, action: () => Promise<void>) {
+    const original = trigger.trigger.bind(trigger);
+    const pending: Promise<unknown>[] = [];
+    const dispatch = vi.spyOn(trigger, 'trigger').mockImplementation((...args) => {
+      const result = original(...args);
+      pending.push(result);
+      return result;
+    });
+    try {
+      await action();
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 50));
+      await Promise.allSettled(pending);
+      await waitForWorkflowIdle(app);
+    } finally {
+      trigger.off(workflow);
+      await Promise.allSettled(pending);
+      dispatch.mockRestore();
+    }
+  }
+
+  it.each([false, true])('rejects the old business query after disable, even when re-enabled: %s', async (reEnable) => {
+    const trigger = installedDateTrigger();
+    const collection = external.getCollection('externalScheduleDocuments');
+    const record = await collection.model.findByPk(1);
+    const repository = collection.repository;
+    const original = repository.findOne.bind(repository);
+    let disabled = false;
+    const query = vi.spyOn(repository, 'findOne').mockImplementation(async (...args) => {
+      const result = await original(...args);
+      if (!disabled) {
+        disabled = true;
+        await workflow.update({ enabled: false });
+        if (reEnable) await workflow.update({ enabled: true });
+      }
+      return result;
+    });
+    try {
+      await trigger.trigger(workflow, record, Date.now());
+      await waitForWorkflowIdle(app);
+      expect(disabled).toBe(true);
+      expect(workflow.enabled).toBe(reEnable);
+      expect(await workflow.countExecutions()).toBe(0);
+      query.mockRestore();
+      if (!reEnable) await workflow.update({ enabled: true });
+      await trigger.trigger(workflow, record, Date.now());
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(await workflow.countExecutions()).toBe(1);
+      expect(execution.tenantId).toBe('B');
+      expect(execution.context.data.label).toBe('External B');
+    } finally {
+      query.mockRestore();
+      trigger.off(workflow);
+    }
+  });
+
+  it.each(['source scan', 'workflow discovery'])(
+    'does not recreate a timer after disabling during the real %s',
+    async (phase) => {
+      const trigger = installedDateTrigger();
+      const collection = external.getCollection('externalScheduleDocuments');
+      const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+      await collection.model.update({ scheduledAt: new Date(due) }, { where: {}, hooks: false });
+      let disabled = false;
+      const disable = async () => {
+        if (!disabled) {
+          disabled = true;
+          await workflow.update({ enabled: false });
+        }
+      };
+      const originalScan = collection.model.findAll.bind(collection.model);
+      const repository = app.db.getRepository('workflows');
+      const originalDiscovery = repository.find.bind(repository);
+      const query =
+        phase === 'source scan'
+          ? vi.spyOn(collection.model, 'findAll').mockImplementation(async (...args) => {
+              const rows = await originalScan(...args);
+              await disable();
+              return rows;
+            })
+          : vi.spyOn(repository, 'find').mockImplementation(async (...args) => {
+              const rows = await originalDiscovery(...args);
+              await disable();
+              return rows;
+            });
+      try {
+        await observeThroughDeadline(trigger, due, () => trigger.reload());
+        expect(disabled).toBe(true);
+        expect(workflow.enabled).toBe(false);
+        expect(await workflow.countExecutions()).toBe(0);
+      } finally {
+        query.mockRestore();
+        await collection.model.update({ scheduledAt }, { where: {}, hooks: false });
+      }
+    },
+  );
+
+  it('does not recreate a timer from a save listener waiting for real tenant facts when disabled', async () => {
+    const trigger = installedDateTrigger();
+    const collection = external.getCollection('externalScheduleDocuments');
+    const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+    await collection.model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+    const record = await collection.model.findByPk(1);
+    const repository = app.db.getRepository('tenants');
+    const original = repository.findOne.bind(repository);
+    let disabled = false;
+    const query = vi.spyOn(repository, 'findOne').mockImplementation(async (...args) => {
+      const tenant = await original(...args);
+      if (!disabled) {
+        disabled = true;
+        await workflow.update({ enabled: false });
+      }
+      return tenant;
+    });
+    try {
+      await observeThroughDeadline(trigger, due, () =>
+        external.emitAsync('externalScheduleDocuments.afterSaveWithAssociations', record, {}),
+      );
+      expect(disabled).toBe(true);
+      expect(await workflow.countExecutions()).toBe(0);
+    } finally {
+      query.mockRestore();
+      await collection.model.update({ scheduledAt }, { where: { id: 1 }, hooks: false });
+    }
+  });
+
   async function fireTimer(trigger: DateFieldScheduleTrigger, record, due: number) {
     const original = trigger.trigger.bind(trigger);
     let finish!: () => void;

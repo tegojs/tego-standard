@@ -3626,3 +3626,22 @@ Ruling: 承接§231实际定位的生命周期问题。旧reload直接替换Map�
 按requesting-code-review模板作者串行自审，非独立复核：句柄不失联，原finally终结回收保持；工作流发现或来源扫描失败保留原排程，只有实际成功发现的记录刷新，归属回读和原事务/ACL/G/V逻辑不变。无本项未修复Critical/Important。逐条取消复用原按记录前缀遍历，不声明新的规模性能或全扫描成本上限。重叠reload、在途查询/事件与off或停止的协调、跨实例原子去重及新G正式接线仍未完成，不据串行用例放行。
 
 最终资源检查实际0：snapshot验证/esbuild进程0、25466全部端口记录0；本项仅SQLite、未启PG/建库/新物理附件。保留schedule-reload-timers-*日志、原集群和旧夹具，不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G调度和规则保存启用继续关闭。本轮连续§229—232为四项独立交付，不代表整个配置计划或整分支独立复核完成；后继承接原计划剩余项，先核实实际Git/记录，不重复已通过验证。
+
+## 233. off 必须使停用前尚未分派的异步调用失效
+
+Ruling: 真实工作流停用只取消已登记timer和listener，等待中的发现/来源扫描/业务回读仍可继续排程或入队。按规范化workflow.id在本实例记录取消代次，off同步替换；reload在列表查询前固定代次，inspect、trigger、已注册listener和未来timer分别在异步边界复核。重新启用只允许新调用，不能复活旧查询。timer finally只回收自身句柄，旧回调不能删除新登记的同key timer；trigger不再提前删除不属于它的timer。没有新schema、API、运行时接线或权限解释。
+
+- [x] 原snapshot、实际安装插件实例、独立SQLite主/外库真实SQL，停用经过原workflow.update及Plugin.toggle/off，断言持久执行。
+- [x] 最小取消代次实现、重新启用/保存事件正向及负向控制、相关回归和workflow构建、作者串行自审和两份原记录；英文签名提交以实际Git为准。
+
+初始三个真实RED均预期0实际1：业务Repository查询返回后、外库来源扫描返回后、主库workflow发现返回后停用仍生成执行；3失败/11过滤/14总，实际退出1、14.43秒，schedule-disable-inflight-red.log，session16000已退出。边界spy透传实际SQL结果，真实Node deadline及原队列settlement后查持久执行，不伪造关闭状态或查询行。最小实现后完整external14通过、无跳过、实际0、22.12秒，schedule-disable-inflight-green.log，session44469已退出。
+
+作者补立即重新启用、后继全新调用实际生成External B/B，以及保存listener等待真实主库租户事实时停用的覆盖；新增控制已有实现直接通过，不冒称新RED。该组3通过/13过滤/16总、实际0、27.60秒，schedule-disable-inflight-reenable.log，session52635已退出。最终external/owner/listener/date/static/module-boundary/tenant-operation七文件88全通过、无跳过、实际0、32.85秒，schedule-disable-inflight-regression.log，session48771已退出；五个新增用例含于88，各轮不累加，不是整分支回归。
+
+显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-disable-inflight-build.log，session93014已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger 66E9FE3B421F6ADEB2ED668645202A814AE2C6E92C441E3BB2C5AA1FB73055B7；external test D1DCE7D5467B2649F993BDF6C91AEB5D6E287CCECA5A8951E92D46B24D1FF41D。之后代码未改。read_lints不可用，使用原聚焦CLI替代。一次规则参考相对路径不存在后定位真实resources目录，只读定位失败，非产品RED。
+
+按requesting-code-review模板作者串行自审，非独立复核：代次使用id而非Model对象，兼容Plugin.toggle用旧配置普通对象off；发现查询之前捕获，等待后阻止发布，取消不强行结束调用者事务或数据库查询。真实启用后新调用可执行，原实际归属/租户启用/ACL/G/V语义保持。无本项未修复Critical/Important。实例内代次不是持久租约、凭据或跨实例最多一次；不撤销已入工作流队列的事件，未覆盖应用停止、重叠reload完整顺序或正式新G扫描接线。下一项继续真实检查应用停止时在途调用的边界。
+
+只SQLite，未启PG/建库/新物理附件；保留日志、原集群及旧目录，不修改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式规则保存/启用继续关闭。
+
+本项默认签名调用session57455实际退出1，GPG明确signing failed: Timeout，未生成提交。独立核实HEAD仍5379a282c、原四文件暂存内容及diff/check不变、git/gpg/pinentry活动调用0后，按用户已有授权仅本次git -c commit.gpgsign=false提交；全局commit.gpgsign仍true。本项签名为N，不称独立验签G，不重复旧认证或绕过活动调用。

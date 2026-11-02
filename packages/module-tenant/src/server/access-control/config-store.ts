@@ -84,7 +84,8 @@ export class AccessConfigStore {
         ...(name === 'dataSourcesCollections' ? { dataSourceKey: identity.dataSourceKey } : {}),
       },
       useMaster: true,
-      transaction,
+      // Reads outside the owned save transaction must not inherit a caller's CLS connection.
+      transaction: transaction ?? null,
       ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
     });
     if (!record) {

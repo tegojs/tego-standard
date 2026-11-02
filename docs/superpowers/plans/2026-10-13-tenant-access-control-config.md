@@ -3377,3 +3377,18 @@ Ruling: 承接 §211 主库授权契约，读取已安装 Sequelize 源码发现
 显式 tenant 包客户端/服务端/依赖/声明全部构建通过，实际退出 0，tenant-context-ambient-build.log，session44863 已退出。最终 Prettier check 起初发现链式 findAll 排版需第二遍格式化，退出 1；只读格式差异确认仅空白与换行，第二遍 write/check 后通过，未重跑已通过测试/构建冒充推进。两 TS 最终 oxlint 零错误警告，源/snapshot SHA256 一致：context 360411F25AC456AC9A348A1D23C16EB879CB69F591CB85E3C50A9C84A4C1C4BD，测试 C0FABAE13D354729C2418A2C557DF7BFA61C11AE9458E4C075A6407D51679B64；最后验证后仅上述无语义格式调整。作者按 requesting-code-review 模板串行自审四文件，无未修复 Critical/Important；这是作者自审，不是独立复核。原写入事务/锁协议继续承担授权与业务 SQL 的隔离，不声称真实 WAL 或全部请求边界已放行。
 
 validation0 后精确核实 postmaster5804/创建 2026-11-02T15:48:17.540266+08:00/原命令和全部端口记录、SQL 原目录/角色/地址含 /32/端口/主库非恢复/零其他客户端及本库 owner，才删除 a215030645 并 count0；正常停止原集群、pg_ctl 无服务、PID 消失、25466 全部记录0，session84359 实际退出 0。原集群与日志保留，旧被拒清理目录/十月夹具未触及；主检出/核心/正式依赖/业务库/既有附件未改，不推送/合并/发布。下一项继续核查相同 ORM 默认事务语义是否影响配置主库读取，不重复已完成层级表征。
+
+## 216. 配置及历史身份读取不得继承异步读池事务
+
+Ruling: 配置存储 record() 的无事务读取同样传 undefined，可能继承 CLS 旧读连接，影响当前规则、历史草稿编辑基准及历史读取的存活表身份检查。将 §215 原生命名空间测试工具提取到同目录共享夹具；新真实 PG 测试保留版本 1 的独立读 schema，对照主库版本 3 和已删除表，先复现后只改 record 无显式事务时为 null。原 save 自己的事务仍显式传入，必须实测在 caller 读池事务存续时仍正确保存/审计并保持 caller 连接。此项不扩展正式入口或业务启用，错误沿用旧基准会误读配置，因此必须确认实际 SQL 与完整存储回归。
+
+- [x] 原 snapshot/全新专用库，真实 CLS 与读池配置/已删除身份 RED；不以参数或模拟查询代替。
+- [x] 最小修复，配置存储/历史及共享上下文夹具回归、tenant 构建、自审、两份记录及资源收敛；后继英文签名提交以实际 Git 为准。
+
+真实新专用库 tego_tenant_access_test_a216030646，启动前原集群停止/端口0，原目录/角色/127.0.0.1 含 /32/25466/postgres 主库非恢复/零其他客户端及库不存在已核实。新固定 schema 通过真实 LIKE/INSERT 保存版本 1 的元数据与历史，主库继续保存至版本 3；两个实际连接池 afterConnect 选择不同 search_path，不是 WAL replica。初始完整新文件 3 失败/1 通过、实际退出 1、7.46 秒（测试 3.42 秒），config-primary-ambient-red.log：当前规则错误返回版本 1/旧归属管理和旧规则，草稿基准也为 1，主库已删表仍可列出 3/2/1 历史；owned save 正向已通过，不称四项全 RED。只在 config-store.record 的无显式事务分支明确 null，仍保留原 save 事务及锁。
+
+最终 config-primary/context-primary/config-store/config-store-postgres/config-revisions 五文件 99 通过、1 SQLite 中 PG 专项跳过（对应 PG 实际执行）、100 总，实际退出 0、43.62 秒（测试 26.11 秒），config-primary-ambient-regression.log，session15438 已退出。新四项含于 99，不累加前轮，不是整分支回归。真实 caller 仍保持原旧 schema 连接且未被结束，内部 save 在独立自有事务保存到版本 4 并实际落下第 4 条审计；未把 caller 的读事务提交/回滚。共享原生命名空间夹具仅提取 §215 已执行代码，finally 恢复原 descriptor 并关闭原生 async storage，不替代任何 ORM/数据库调用。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，config-primary-ambient-build.log，session49407 已退出。四 TS Prettier check 通过、oxlint 零错误警告，四源/snapshot SHA256 一致：store 64866CED6DA40F9E85DF4CD89356ED930A0C02CA309E616C1895228292CB60EB，新测试 953D19F12856CA3BEB7CE97F2B1B7D337AD5D21F4A82F35BAD777912E8E5FD3F，context-primary 7874D368942A0077CD401402F948003489A593F3FB38D077AF35FFE2E72E4AEB，helper 0525BD346F7315CD4167884F5808287D8488C2A1245AF303A9B71F24D4F2C0AF。最终验证后未改代码。一次只读定位猜测 internal-query.ts/orm-query.ts 不存在，随后按实际 import 读取 write-support.ts；不是产品/测试 RED。
+
+作者按 requesting-code-review 模板串行自审六文件：最小生产改动只影响无显式事务时的主库元数据读取；完整身份、主库历史和返回前当前基准检查保持，保存锁/版本/审计仍在同一原事务，正反向实际行为覆盖。无未修复 Critical/Important；作者自审不是整分支独立复核。实际 WAL/故障切换、不受控 schema 与业务启用不由本项证明，原正式门控保持。资源检查 validation0 后，精确核实 postmaster71152/创建 2026-11-02T15:54:20.451453+08:00/原目录命令及全部端口、SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 主库非恢复/零其他客户端及本库 owner，仅删除 a216030646 并 count0；正常停原集群、pg_ctl 无服务、PID 消失、全部25466记录0，原日志/集群和旧夹具保留。未改主检出/核心/正式依赖/业务库/既有附件，不推送/合并/发布。下一项已发现同一默认事务语义也可影响内部读取执行器的最终 SQL，须先以真实行集验证，不重复上下文/配置表征。

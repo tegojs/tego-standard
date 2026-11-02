@@ -1,8 +1,8 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { Database } from '@tego/server';
 
 import { compileAccessScopes } from '../../access-control/compile';
 import { resolveAccessContext } from '../../access-control/context';
+import { withAmbientTransactions } from './ambient-transactions';
 import { isolatedPostgresDatabase, queryRows } from './database';
 import { configFor, documents, quoteIdentifier } from './fixtures';
 
@@ -12,33 +12,6 @@ const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
   let primary: Database;
   let routed: Database;
-
-  // Exercise Sequelize's actual CLS routing with native async context, without replacing queries or transactions.
-  async function withAmbientTransactions(work: () => Promise<void>) {
-    const storage = new AsyncLocalStorage<Map<string, unknown>>();
-    const namespace = {
-      get: (key: string) => storage.getStore()?.get(key),
-      set: (key: string, value: unknown) => storage.getStore()!.set(key, value),
-      run: (callback: () => unknown) => storage.run(new Map(), callback),
-      bind: (callback: (...args: unknown[]) => unknown) => {
-        const context = storage.getStore();
-        return (...args: unknown[]) => storage.run(context ?? new Map(), () => callback(...args));
-      },
-    };
-    const orm = routed.sequelize.constructor as unknown as {
-      useCLS: (value: typeof namespace) => void;
-      _cls?: unknown;
-    };
-    const previous = Object.getOwnPropertyDescriptor(orm, '_cls');
-    orm.useCLS(namespace);
-    try {
-      await work();
-    } finally {
-      if (previous) Object.defineProperty(orm, '_cls', previous);
-      else delete orm._cls;
-      storage.disable();
-    }
-  }
 
   function tenants(db: Database) {
     return db.collection({
@@ -166,7 +139,7 @@ describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
       tenant: { type: 'field', path: 'tenantId' },
       includeSelf: true,
     });
-    await withAmbientTransactions(async () => {
+    await withAmbientTransactions(routed, async () => {
       await routed.sequelize.transaction({ readOnly: true }, async (transaction) => {
         expect(await queryRows(routed, 'SELECT current_schema() AS schema', { transaction })).toEqual([
           { schema: 'tenant_context_stale' },
@@ -190,7 +163,7 @@ describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
       tenant: { type: 'field', path: 'tenantId' },
       includeSelf: true,
     });
-    await withAmbientTransactions(async () => {
+    await withAmbientTransactions(routed, async () => {
       await routed.sequelize.transaction({ readOnly: true }, async (transaction) => {
         expect((await routed.getCollection('tenants').model.findByPk('C', { transaction }))?.get('enabled')).toBe(true);
         await expect(resolveAccessContext(routed, config, { tenantId: 'C' })).rejects.toThrow(/missing or disabled/);
@@ -206,7 +179,7 @@ describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
       tenant: { type: 'field', path: 'tenantId' },
       includeSelf: true,
     });
-    await withAmbientTransactions(async () => {
+    await withAmbientTransactions(routed, async () => {
       await routed.sequelize.transaction(async (transaction) => {
         await routed.getCollection('tenants').model.update({ parentId: null }, { where: { id: 'B' }, transaction });
         expect(

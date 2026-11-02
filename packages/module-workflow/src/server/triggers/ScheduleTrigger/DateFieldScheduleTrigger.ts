@@ -500,6 +500,14 @@ export default class ScheduleTrigger {
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
     const tenantAware = isTenantCollection(collection);
+    // Savepoints keep the root connection; useMaster cannot move a read-pool transaction.
+    type RoutedTransaction = Transactionable['transaction'] & {
+      options?: { readOnly?: boolean };
+      parent?: RoutedTransaction;
+    };
+    let rootTransaction = transaction as RoutedTransaction;
+    while (rootTransaction?.parent) rootTransaction = rootTransaction.parent;
+    if (tenantAware && rootTransaction?.options?.readOnly && collection.model?.sequelize.options.replication) return;
     const recordedOwner = tenantAware ? (record.get?.('tenantId') ?? record.tenantId ?? null) : undefined;
     let context = getBoundTenantContext(record);
     if (tenantAware) {
@@ -530,7 +538,8 @@ export default class ScheduleTrigger {
       filterByTk: recordPk,
       appends: workflow.config.appends,
       context,
-      transaction,
+      transaction: tenantAware ? (transaction ?? null) : transaction,
+      ...(tenantAware ? { useMaster: true } : {}),
     });
     if (!data || !isCurrent()) {
       return;

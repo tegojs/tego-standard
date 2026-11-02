@@ -3482,3 +3482,16 @@ Ruling: 共享守卫建立时检查模型的 sequelize 归属，返回结果前�
 最小生产修改三行：共享守卫捕获原 db.sequelize，并在每项既有依赖复核时同时要求 db.sequelize/model.sequelize 仍为原实例。协调替换成同一新实例也拒绝，不仅比较当前两者相等。最终 metadata-snapshot/reads/query/config-validation-action/mutation/creation 六文件 547 通过/4 SQLite 不支持的层级写专项跳过/551 总、实际退出 0、84.37 秒，metadata-database-binding-regression.log，session71306 已退出。四个新增用例含于547，不累加 RED。新真实读取测试确认第二库实际读出999，守卫拒绝发布；不是证明外库 SQL 从未发生或将不可信服务器代码沙箱化。这里只验证应用运行时绑定生命周期，不代表真实部署跨库或跨租户业务验收。PG 分支未收集执行，不把这四项说成已经由 PG 运行。
 
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过、实际退出0，metadata-database-binding-build.log，session3870 已退出。最终三 TS Prettier check/oxlint通过，源/snapshot SHA256逐项一致；最终验证后源码未改。作者按 requesting-code-review 模板串行自审：原实例捕获防协调替换，检查在原 modelSnapshot 之前短路，无新增 SQL、事务所有权或 ACL/G/V 语义变化；真实读取和 root/through/协调换绑均有断言，finally恢复测试对象并关闭独立池。无未修复 Critical/Important，不是整分支独立复核。本轮只SQLite、不启PG/建库，保留日志与旧夹具，主检出/核心/正式依赖/业务库/既有附件均不动，不推送/合并/发布。后继只读发现多表 prepare 清单逐轮复制，需先验证其异步选择漂移，不将候选当已修复或停止等待定时。
+
+## 223. 多表准备清单须在首次等待前完整捕获
+
+Ruling: AccessAclScopeAdapter.preparePhase 逐轮复制 identity；调用方在前一张表实际查询等待期间改写后续身份、追加或移除清单，会使同一次准备的选择漂移。原 withPrepared 回调直接观察真实持久配置的准备结果：应始终保留初始完整选择，不能额外准备后加的表。最小修复只提前复制完整身份清单，原数据源唯一性、重复选择、请求阶段所有权和配置快照规则保持，不增加注册或启用。
+
+- [x] 原 snapshot/SQLite 三类真实 RED，原 owned phase 回调观察配置结果而非替身调用参数。
+- [x] 最小实现、阶段/委托/管理预览/工作流回归、tenant 构建、作者串行自审和两份原记录；签名提交以实际 Git 为准。
+
+新三项真实 SQLite RED 全失败/8 过滤跳过/11 总、实际退出 1、18.22 秒，acl-phase-selection-red.log，session31469 已退出。通过原 model.findOne 的真实返回边界只交错修改 caller 清单：改后续身份及移除使 reports 不再 prepared，追加使原本未选中的 other 被 prepared。实际 store 保存并读取两个不同规则配置，断言原 owned phase 回调看到的配置及 other 拒绝，不以替身调用次数代替选择结果。
+
+最小实现将原逐轮三字段复制移到第一个配置读取前，私有完整 selected 数组供原循环使用；原校验、快照和阶段释放不变。首轮回归参数误列不存在的 workflow-root-handler.test.ts，Vitest 实际只收集4文件，101全通过、无跳过、实际退出0、21.07秒，acl-phase-selection-regression.log，session7848 已退出；不能称该不存在文件已运行。退出后定位原实际 workflow-operation-authority.test.ts，独立追加实际工作流回归30全部通过、无跳过、实际退出0、20.25秒，acl-phase-selection-workflow-regression.log，session66332 已退出。两轮共5个不同文件131项，新3项含于101，不与RED累加，不是整分支回归。原预期拒绝的工作流错误日志保留，没有关闭日志造绿。PG分支未提供URL，未收集执行，不冒称有PG验证。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过、实际退出0，acl-phase-selection-build.log，session21932 已退出。最终两TS Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：acl-scope DDF546772A823E7908CE5A5B590F2AF083AC2A1AC554770584E277D73AA78BF6，phase test E8BE1079E5256F967002716641C4D93D3C954625B651A0E0936FCA141DAD43BB；最终代码未改。作者按requesting-code-review模板串行自审：复制为私有值，不冻结caller、不扩大准备清单；真实保存结果和原阶段回调观测，失败/替换阶段所有权回归保持。无未修复Critical/Important，不称独立复核。本轮仍只SQLite、未启PG/建库/新物理附件，主检出/核心/正式依赖/业务库及旧夹具不动，不推送合并发布。

@@ -38,6 +38,35 @@ describe('owned access preparation phases', () => {
     expect(() => adapter.configuration(ctx, mainIdentity)).toThrow();
   });
 
+  it.each(['later identity', 'append', 'remove'])(
+    'preserves the initially selected collections when the caller changes %s during a read',
+    async (change) => {
+      const reports = { ...mainIdentity, collectionName: 'reports', collectionKey: 'reports-key' };
+      const other = { ...mainIdentity, collectionName: 'other', collectionKey: 'other-key' };
+      await db.getRepository('collections').create({
+        values: [reports, other].map((identity) => ({ key: identity.collectionKey, name: identity.collectionName })),
+      });
+      const expected = await store.save(reports, { ...initialConfig(), rules: [] }, { userId: 28 });
+      await store.save(other, initialConfig(), { userId: 28 });
+      const selected = [{ ...mainIdentity }, { ...reports }];
+      const model = db.getCollection('collections').model;
+      const find = model.findOne.bind(model);
+      vi.spyOn(model, 'findOne').mockImplementationOnce(async (options) => {
+        const row = await find(options);
+        if (change === 'later identity') Object.assign(selected[1], other);
+        else if (change === 'append') selected.push(other);
+        else selected.pop();
+        return row;
+      });
+      const ctx = {};
+      await adapter.withPrepared(ctx, selected, () => {
+        // The callback must see the original complete selection, not the caller's later array contents.
+        expect(adapter.configuration(ctx, reports)).toEqual(expected);
+        expect(() => adapter.configuration(ctx, other)).toThrow(/not prepared/);
+      });
+    },
+  );
+
   it('preserves callback errors and still releases the phase', async () => {
     const ctx = {};
     const error = new Error('business failure');

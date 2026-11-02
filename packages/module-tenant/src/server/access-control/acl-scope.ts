@@ -123,14 +123,15 @@ export class AccessAclScopeAdapter {
     const phase: RequestPhase = {};
     this.requests.set(ctx, phase);
     try {
+      // Capture every selection before the first configuration read can yield.
+      const selected = identities.map((source) => ({
+        dataSourceKey: source.dataSourceKey,
+        collectionKey: source.collectionKey,
+        collectionName: source.collectionName,
+      }));
       const snapshot = this.store.snapshot();
       const configs: NonNullable<RequestPhase['configs']> = new Map();
-      for (const source of identities) {
-        const identity = {
-          dataSourceKey: source.dataSourceKey,
-          collectionKey: source.collectionKey,
-          collectionName: source.collectionName,
-        };
+      for (const identity of selected) {
         if (identity.dataSourceKey !== this.dataSourceKey || configs.has(identity.collectionName)) {
           throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Ambiguous access collection data source');
         }

@@ -4058,3 +4058,20 @@ Ruling: §259真实日志已暴露Processor.prepare的getWorkflow仍默认读池
 按requesting-code-review模板作者串行自审，非独立复核：修复真实配置缺失的来源，不把null当空工作流，也不从事件或人工身份重造租户；原显式事务及已缓存关联分支保持。无本项未修复Critical/Important。缺失主库工作流的错误语义、已缓存关联新鲜度、Plugin.resume补读execution来源、读取后并发变更、持久租约/跨实例去重、新G正式消费者、业务试点及整分支独立复核未由本项证明。
 
 独立资源收敛实际0：核实postmaster76088/创建2026-11-02T21:55:54.7036510+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_e26002c670并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。集群/日志及既有旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 261. 恢复入口不得由旧副本或缓存覆盖已取消执行
+
+签名记录：默认git commit session78971实际退出1，GPG明确Timeout且未生成提交。事先捕获本次git91272/53908、gpg74532、pinentry80928（原调用输出确认），独立守卫实际0核实四PID逐一消失、HEAD仍77019a91d9a286fc021f7495204bea7dfce7dca6、原staged tree 3cbb327cf4c428d1a5fedb5caabcd41d84b4dffd不变、无未暂存变更及global commit.gpgsign=true。按用户既有授权本次仅git -c commit.gpgsign=false提交，签名N，不绕过活动调用、不称独立验签成功。
+
+Ruling: Plugin.resume补读execution原默认读池；主库已有而副本缺行时null.workflowId失败，副本STARTED而主库CANCELED时实际继续生成B数据并将取消覆盖为RESOLVED。仅修无缓存分支还不足：调用者提供的缓存STARTED也能重放取消任务。最终每次resume均以原job关联从已提交主库回读execution（useMaster:true/transaction:null），交给原Processor非STARTED拒绝；job本身及其待保存result、latestUserJob等不替换。不新增权限、schema、事务API或自动重试。
+
+- [x] 原真实PG独立池/不同search_path新增主库独有正常执行、无缓存取消执行、有缓存取消执行三种持久场景。均保留原B上下文，经原resume/dispatcher/Processor及delay的resume进入真实下游create，断言实际execution状态与业务数据，不只断言查询选项。
+- [x] workflow-resume-execution-primary-red.log：最初无缓存两项2失败13过滤/15总，实际退出1/8.64秒；一项null.workflowId，另一项实际status1及B业务行、应为-4及空行。只补无缓存主库读取后九文件177全过/无跳过/实际0/26.12秒，workflow-resume-execution-primary-regression.log，session24653已退出；该阶段workflow完整build0，workflow-resume-execution-primary-build.log，session47744已退出，但均早于最终缓存分支修复。
+- [x] 作者串行自审检查人工/notice传入缓存关联，增补真实已读STARTED对象再持久取消的反例。workflow-resume-cached-execution-primary-red.log：1失败15过滤/16总，实际退出1/8.14秒，仍实际status1及B数据，应为-4及空。随后去除缓存跳过分支，统一回读主库。两次Prettier check失败均在runner前，格式化后才运行相应测试，不算产品RED。
+- [x] 最终包含请求/并行节点的十一文件202通过、1原有request inside loop显式skip/203总、实际退出0/27.52秒，workflow-resume-current-execution-regression.log，session56290已退出。命令另列了不存在的manual instruction路径，Vitest未执行它，不把它算覆盖；经rg确认实际路径后另行顺序运行manual mode与form-tenant两文件12全通过/无跳过/实际0/12.35秒，workflow-resume-current-execution-manual.log，session86231已退出。两个不重叠最终批次合计13文件214通过/1既有跳过；PG16项和本次新三项已包含，旧177等轮不累加，不是整分支回归。
+
+最终workflow客户端/服务端/依赖/声明完整build实际0，workflow-resume-current-execution-build.log，session19579已退出。最终两TS格式check及oxlint零错误警告，源/snapshot SHA256一致：Plugin 612D09F2DA009C2FA9019CF1E176255C3AB2692E846CE3649EA868CF6783BEF1；queue-primary-authority.test 914BEE8C630A60DB72CE43315E0431CDBABE3EE1545FB5FCEA6ACE27C208E455，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：resume进入持久异步队列，应依据当前已提交执行身份与状态；不能以缓存或CLS替代它，也不把人工角色改成自动权限。原job结果/人工表单内容保留，正常B执行、人工多分配、租户表单及并行/请求控制通过。无本项未修复Critical/Important。主库execution缺失时仍失败；回读后并发取消、两次resume同读STARTED、已入队撤销、持久租约/跨实例原子去重、完整停止矩阵、新G正式消费者、业务试点及整分支独立复核未完成，不声称最多一次或全程隔离。
+
+独立资源收敛实际0：核实postmaster88312/创建2026-11-02T22:03:55.7903280+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_f26102d671并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，保留集群/日志及旧目录，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

@@ -351,6 +351,74 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     ]);
   });
 
+  it.each([
+    ['primary-only execution', false],
+    ['cancelled execution', false],
+    ['cancelled execution', true],
+  ])('resumes a job against current primary state: %s, cached=%s', async (state, cached) => {
+    await waitForWorkflowIdle(app);
+    const workflow = await app.db.getRepository('workflows').create({
+      values: { type: 'collection', enabled: true, config: { collection: 'queuedTenantSources', mode: 1 } },
+    });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      config: { duration: 0, endStatus: JOB_STATUS.RESOLVED },
+    });
+    const label = `Current resume ${state}, cached=${cached}`;
+    const consumer = await workflow.createNode({
+      type: 'create',
+      upstreamId: delay.id,
+      config: { collection: 'queuedTenantResults', params: { values: { label } } },
+    });
+    await delay.setDownstream(consumer);
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    const pending = await execution.createJob({
+      nodeId: delay.id,
+      nodeKey: delay.key,
+      status: JOB_STATUS.PENDING,
+      result: null,
+    });
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.executions (LIKE public.executions INCLUDING ALL)');
+    const executions = app.db.getCollection('executions').model;
+    const cachedExecution = cached ? await executions.findByPk(execution.id, { useMaster: true }) : undefined;
+    if (state === 'cancelled execution') {
+      await app.db.sequelize.query('INSERT INTO stale_workflow_queue.executions SELECT * FROM public.executions');
+      await execution.update({ status: EXECUTION_STATUS.CANCELED });
+      expect((await executions.findByPk(execution.id)).status).toBe(EXECUTION_STATUS.STARTED);
+      expect((await executions.findByPk(execution.id, { useMaster: true })).status).toBe(EXECUTION_STATUS.CANCELED);
+    } else {
+      expect(await executions.findByPk(execution.id)).toBeNull();
+      expect((await executions.findByPk(execution.id, { useMaster: true })).status).toBe(EXECUTION_STATUS.STARTED);
+    }
+    const job = await app.db.getCollection('jobs').model.findByPk(pending.id, { useMaster: true });
+    expect(job.execution).toBeUndefined();
+    if (cached) job.execution = cachedExecution;
+
+    await app.pm.get('workflow').resume(job);
+    await waitForWorkflowIdle(app);
+
+    await execution.reload({ useMaster: true });
+    const rows = await app.db.getCollection('queuedTenantResults').model.findAll({ where: { label }, useMaster: true });
+    expect({ status: execution.status, rows: rows.map((row) => [row.get('tenantId'), row.get('label')]) }).toEqual(
+      state === 'cancelled execution'
+        ? { status: EXECUTION_STATUS.CANCELED, rows: [] }
+        : { status: EXECUTION_STATUS.RESOLVED, rows: [['B', 'Current resume primary-only execution, cached=false']] },
+    );
+  });
+
   it.each(['primary-only pending job', 'cancelled parent'])(
     'completes a child against current parent state: %s',
     async (state) => {

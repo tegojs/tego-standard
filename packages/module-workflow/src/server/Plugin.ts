@@ -484,9 +484,7 @@ export default class PluginWorkflowServer extends Plugin {
   }
 
   public async resume(job: JobModel) {
-    if (!job.execution) {
-      job.execution = await job.getExecution();
-    }
+    job.execution = await job.getExecution({ useMaster: true, transaction: null });
     this.getLogger(job.execution.workflowId).info(
       `execution (${job.execution.id}) resuming from job (${job.id}) added to pending list`,
     );

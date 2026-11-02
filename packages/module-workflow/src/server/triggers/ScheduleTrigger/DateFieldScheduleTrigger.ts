@@ -442,10 +442,12 @@ export default class ScheduleTrigger {
       .collectionManager.getCollection(collectionName);
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
+    const tenantAware = isTenantCollection(collection);
+    const recordedOwner = tenantAware ? (record.get?.('tenantId') ?? record.tenantId ?? null) : undefined;
     let context = getBoundTenantContext(record);
-    if (isTenantCollection(collection)) {
+    if (tenantAware) {
       // Inherited visibility at save time does not make the operator the task owner.
-      const tenantId = record.get?.('tenantId') ?? record.tenantId ?? context?.state?.currentTenantId;
+      const tenantId = recordedOwner ?? context?.state?.currentTenantId;
       if (tenantId === null || tenantId === undefined) {
         return;
       }
@@ -472,6 +474,13 @@ export default class ScheduleTrigger {
     });
     if (!data) {
       return;
+    }
+    if (tenantAware) {
+      const currentOwner = data.get?.('tenantId') ?? data.tenantId ?? null;
+      // A completed claim or ownership change invalidates the cached dispatch context.
+      if ((currentOwner === null ? null : `${currentOwner}`) !== (recordedOwner === null ? null : `${recordedOwner}`)) {
+        return;
+      }
     }
     bindTenantContext(data, context);
     const key = `${workflow.id}:${recordPk}@${nextTime}`;

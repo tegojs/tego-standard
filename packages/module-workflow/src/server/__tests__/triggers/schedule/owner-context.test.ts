@@ -67,7 +67,13 @@ describe('date-field schedules retain the record owner', () => {
       type: 'create',
       config: { collection: 'scheduledOwnerResults', params: { values: { name: 'Generated' } } },
     });
-    await workflow.update({ enabled: true });
+    // Save-event and explicit discovery tests own their dispatch boundaries.
+    const initialScan = vi.spyOn(DateFieldScheduleTrigger.prototype, 'inspect').mockImplementation(() => undefined);
+    try {
+      await workflow.update({ enabled: true });
+    } finally {
+      initialScan.mockRestore();
+    }
   });
 
   afterEach(async () => {
@@ -167,5 +173,48 @@ describe('date-field schedules retain the record owner', () => {
     expect(await trigger.validateEvent(workflow, { date }, {})).toBe(false);
     expect(await trigger.validateEvent(workflow, { date, data: { id: null } }, {})).toBe(false);
     expect(await workflow.countExecutions()).toBe(0);
+  });
+
+  it('rejects a cached legacy schedule after the persisted record has acquired another owner', async () => {
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    plugin.triggers.get('schedule')!.off(workflow);
+    const collection = app.db.getCollection('scheduledOwnerDocuments');
+    const originalLegacy = collection.options.legacyDataTenantIds;
+    collection.options.legacyDataTenantIds = ['B'];
+    try {
+      const now = new Date();
+      const instant = now.getTime() + 1000;
+      const record = await collection.model.create(
+        { name: 'Initially unassigned', tenantId: null, createdAt: new Date(instant) },
+        { hooks: false },
+      );
+      const trigger = new DateFieldScheduleTrigger(plugin);
+      const [cached] = await trigger.loadRecordsToSchedule(workflow, now);
+      expect(cached.get('id')).toBe(record.get('id'));
+      expect(cached.get('tenantId')).toBeNull();
+
+      // A completed ownership change after discovery, before the due-time Repository read.
+      await collection.model.update({ tenantId: 'H' }, { where: { id: record.get('id') }, hooks: false });
+      await trigger.trigger(workflow, cached, instant);
+      await waitForWorkflowIdle(app);
+      const staleExecutions = await workflow.getExecutions();
+      const staleGenerated = await app.db.getCollection('scheduledOwnerResults').model.findAll();
+      expect({
+        executions: staleExecutions.map((row) => [row.tenantId, row.context.data.tenantId]),
+        generated: staleGenerated.map((row) => row.get('tenantId')),
+      }).toEqual({ executions: [], generated: [] });
+      expect((await record.reload()).get('tenantId')).toBe('H');
+
+      const [fresh] = await trigger.loadRecordsToSchedule(workflow, now);
+      expect(fresh.get('tenantId')).toBe('H');
+      await trigger.trigger(workflow, fresh, instant);
+      await waitForWorkflowIdle(app);
+      const executions = await workflow.getExecutions();
+      expect(executions.map((row) => row.tenantId)).toEqual(['H']);
+      const generated = await app.db.getCollection('scheduledOwnerResults').model.findAll();
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['H']);
+    } finally {
+      collection.options.legacyDataTenantIds = originalLegacy;
+    }
   });
 });

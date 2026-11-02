@@ -3521,3 +3521,16 @@ Ruling: 原ScheduleTrigger.validateEvent仅按context.date查询已有执行；�
 最终5文件66全通过、无跳过、实际0、66.92秒，schedule-record-dedup-regression.log，session40089已退出：owner6、listener6、日期13、静态11、tenant实际工作流operation30。新3项含于66，各轮不相加；不是整分支回归，PG分支未提供URL而未收集，不称PG覆盖。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-record-dedup-build.log，session13737已退出。最终两TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：index C3AF5D361925E6E3A1C4A49D47001D51EB91569CF9107EFDAC01B37C958EA6A3，owner test E22DE34983F91719595FD9D9A7DCC24F8EAFC644087730266699E0C5923DDA29。最终验证后源码未改。
 
 作者按requesting-code-review模板串行自审，非独立复核：采用目标实际数据源/目标键而非硬编码id或tenantId；同记录后继串行重复仅一条、两租户及同租户不同记录均生成正确归属数据，static原行为保持。没有未修复Critical/Important。本项保留count-then-insert原机制，不证明并发多实例最多一次、崩溃恢复、修改主键后的历史身份或新G扫描完整接线；这些限制不可由串行样例放行。只SQLite、未启PG/建库/新物理附件，保留日志及旧目录，不触及主检出/核心/正式依赖/业务库，不推送合并发布。继续核对缓存记录与实际回读归属变化的独立问题，不把候选当已修复。
+
+## 226. 历史记录归属改变后不得沿用旧定时缓存上下文
+
+Ruling: 原实际扫描把NULL历史记录绑定到配置允许的B；扫描后真实持久行已变为H，旧缓存仍用B上下文回读H数据、创建B执行和B生成行。最小修复在首次异步校验前捕获原始tenantId，在原Repository回读后核对真实归属；不一致就拒绝本次缓存分派，后续真实新扫描按H执行。不修改记录/认领、不接新G、不加SQL或另开事务。若把新的H数据交给旧B自动处理，会错误归属生成数据，故不能保留旧缓存。共享表不读tenantId，NULL原回退与零值保持，字符串/数字ID按原租户身份的文本值比较。
+
+- [x] 原snapshot/真实SQLite、原扫描绑定、实际持久归属变化和实际Processor/CreateInstruction复现；拒绝后重新发现并正常处理。
+- [x] 聚焦与完整受影响调度/tenant工作流回归、workflow包构建、自审及两份原记录；签名提交以实际Git为准。
+
+初始1失败/6过滤、实际1、9.60秒，schedule-owner-drift-red.log，session63614已退出。虽然断言看到一条不应生成的执行，但原on()非等待inspect尚在运行，off()不撤销已发出的异步扫描；测试直接触发与其意外并发，SQLite出现嵌套事务及COMMIT错误，不能用该轮证明完整生成结果。依systematic-debugging核对日志和inspect源码后，仅fixture在启用期间暂时禁用初始自动inspect，恢复后仍实际调用原loadRecordsToSchedule、trigger和所有Repository/SQL，不伪造扫描或查询结果。原保存事件用例继续实际登记listener。修正后独立真实RED1失败/6过滤、实际1、6.97秒，schedule-owner-drift-corrected-red.log：真实执行[tenantId B, context.data.tenantId H]且实际生成tenantId B，无SQLite事务错误。测试归属变化是受控持久状态转换，不证明该认领已通过G/ACL。
+
+最小实现后owner/listener两文件13全通过、无跳过、实际0、11.71秒，schedule-owner-drift-green.log，session66131已退出。最终5文件61全通过、无跳过、实际0、59.55秒，schedule-owner-drift-regression.log，session97715已退出，含owner7、listener6、日期13、模块边界5、tenant实际工作流operation30。原新项包含于61，各轮不相加，不是整分支回归。过期缓存无执行/生成行，实际原行H保持；新扫描同一时点正常执行H且生成H。既有预期拒绝日志保留，未跑PG/真实登录/API。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-owner-drift-build.log，session94178已退出。
+
+最终两TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 7537EF280C852894BE6EC9CBE988204AFE5C3BE4FD4B27BEFD9BB8D2597A33F4，owner test 40320623543E8F62ADE2C31EF9D075DDFECFC0B65F77B58A58F069E0A003020D。最终回归后代码未改。作者按requesting-code-review模板串行自审，非独立复核：原始归属在await前复制，回读检查在绑定/执行/重复调度前，旧缓存不占用持久去重记录，新扫描仍能执行；不改变caller事务、权限/归属或legacy策略。无本项未修复Critical/Important。尚未封闭回读后至工作流写入的并发窗口，不提供原子任务租约；跨实例去重、新G调度接线仍未完成。只SQLite、未启PG/建库/新物理附件，旧目录/日志及主检出/核心/正式依赖/业务库不动，不推送合并发布。下一步核对实际外部数据源扫描，尚不称候选已完成。

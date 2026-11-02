@@ -109,7 +109,10 @@ async function buildTenantContext(db, collection, record, tenant?, descendantIds
   if (tenancyMode === 'tenantInherited' && db.getRepository('tenants')) {
     const cacheKey = `${tenantId}`;
     if (!descendantIdsCache.has(cacheKey)) {
-      descendantIdsCache.set(cacheKey, await getDescendantTenantIds(db, cacheKey, { enabledOnly: true }));
+      descendantIdsCache.set(
+        cacheKey,
+        await getDescendantTenantIds(db, cacheKey, { enabledOnly: true, useMaster: true, transaction: null }),
+      );
     }
     descendantIds = descendantIdsCache.get(cacheKey) || [];
   }
@@ -136,6 +139,8 @@ async function buildEnabledTenantContext(db, collection, record) {
   }
 
   const tenant = await db.getRepository('tenants').findOne({
+    useMaster: true,
+    transaction: null,
     filter: {
       id: tenantId,
       enabled: true,
@@ -363,6 +368,8 @@ export default class ScheduleTrigger {
     }
 
     const tenants = await db.getRepository('tenants').find({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: tenantIds,
         enabled: true,
@@ -503,6 +510,8 @@ export default class ScheduleTrigger {
       }
 
       const tenant = await this.workflow.app.db.getRepository('tenants').findOne({
+        useMaster: true,
+        transaction: null,
         filter: {
           id: tenantId,
           enabled: true,

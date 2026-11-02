@@ -3681,3 +3681,20 @@ Ruling: 两次reload可在同一工作流来源SQL边界交错。旧扫描已读
 本项默认签名session44567实际退出1，GPG明确Timeout，未生成提交。HEAD仍dc3148a53、原四文件暂存增删数/内容及diff/check不变；后继全机进程守卫因额外Git调用拒绝，但本次工具编排未消费该退出码，仍执行了单次git -c commit.gpgsign=false并生成6504e7907，签名N。这是流程错误，不能记作守卫通过或活动Git为0。后继只读观察有命令行null的Git进程85408/65996及父13888，无法可靠归属，不操作或终止它们；本次原签名调用已明确退出，不能把未知Git直接认定为原签名，也不声称其PID已逐一核销。全局commit.gpgsign保持true，无旧认证请求。用记录修订纠正原提交中的错误断言，不重复测试造绿。最终snapshot验证/esbuild进程0，25466全部端口记录0，旧目录未触及。
 
 记录修订默认amend签名session58471也实际Timeout退出1。此新调用的git79056/87084、gpg66736及pinentry85884已按父链/创建时间/精确amend命令实际定位，退出后逐一核实PID消失；HEAD仍6504e7907、仅原计划记录1增1删暂存及diff/check不变。此次先独立消费守卫实际退出0，再按已有授权单次git -c commit.gpgsign=false commit --amend --no-edit，纠正原子提交的记录。最终提交以Git为准，签名N，不称验签G；全局true保持。
+
+## 236. 原日期调度的租户事实须取主库且不继承隐式读池事务
+
+Ruling: §211/215的新AccessContext修复未覆盖原日期调度。候选扫描、到期trigger、保存listener的启用检查及下级路径查询走默认读池，真实旧事实可让主库已停用B继续生成任务，或把已迁出的C放入持久执行上下文。三处租户Repository读取显式useMaster:true/transaction:null；原getDescendantTenantIds增加可选useMaster参数，由日期调度同时明确null事务。其他调用原默认及显式事务行为保持，业务Repository查询的事务传递不改。没有正式新G接线或新生产schema。
+
+- [x] 新专用库tego_tenant_access_test_a23602e654、实际MockServer安装插件及真实读写PG池；read afterConnect在Database原public重置之后设置schedule_stale_tenants,public。真实读池C仍/B/C/、write池C为/C/，停用B后read仍true/write为false，非WAL replica。
+- [x] 四项真实RED、最小实现、CLS实际只读池事务控制、受影响九文件回归与workflow完整构建、作者串行自审和两份原记录；签名以Git为准。
+
+初始四项均为真实产品RED，无夹具启动错误：候选仍返回B行、缓存分派实际执行1而非0、持久context下级实际[C]而非[]、保存事件实际执行1而非0。4失败/无跳过/实际1、9.18秒，schedule-primary-authority-red.log，session34124已退出。最小实现后4全通过/无跳过/实际0、9.14秒，schedule-primary-authority-green.log，session24351已退出；正向实际生成行归B。使用withAmbientTransactions真实CLS与readOnly事务追加两项，原read事务current_schema仍旧schema、C旧路径仍可读，授权扫描却按主库拒绝禁用B或得到空下级；原事务未结束且原schema保持。新增两控制已有实现直接通过，不冒称新RED，后者验证准备上下文，不包装成该事务内的持久执行。
+
+首轮九文件120通过2失败/122总、实际1、34.13秒，schedule-primary-authority-regression.log，session20770已退出；仅原date-field-listener两项精确mock参数断言未包含新增useMaster/transaction，零键及历史读取结果断言仍保持。依堆栈核实后仅补两组选项，不放宽filter或记录数。最终九文件122全通过、无跳过、实际0、34.16秒，schedule-primary-authority-corrected-regression.log，session39571已退出；含原调度七文件、新PG六项及tenant-drift，不累加各轮，不是整分支回归。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全部通过、实际0，schedule-primary-authority-build.log，session58632已退出。
+
+最终四TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger 34154A5BDAECAF53D0D0E6655108F0E9EC31E8A45885FDEBEC33F05D5B4205B3；tenant-context FDB43349A79B4220C52E388F6A671B1804C3501C366C9C27D3F38E1939EA236F；primary-authority test DEAA8E5C6DF3E44A467C205EDAFEEE65F080AFAE374D15403ADA8176453FDCAF；listener test B9D6D546FC8B131ECD9A1E94232AEC45F59167735CC8FF62C94E80006717320E。代码之后未改。作者按requesting-code-review模板串行自审，非独立复核：改动仅选择租户事实连接，显式null防CLS重新绑定；helper未指定useMaster时行为保持。无本项未修复Critical/Important。不提供授权事实到业务写入的并发隔离，不证明真实WAL/failover，不改变业务回读池来源、调用方业务事务或已入队撤销；后继可先独立复现业务归属回读也落旧读池的候选。正式新G扫描/规则启用及整分支独立复核仍未完成。
+
+资源收敛实际0：确认原专用postmaster81348/创建2026-11-02T18:40:07.833908+08:00/精确原目录命令，25466全部记录仅该PID（State null，不用Listen过滤），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及专用库owner后，仅删a23602e654并pg_database count0。原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0，验证/esbuild0。保留集群及schedule-primary-*日志，旧目录和既有附件未触及。不动主检出、核心、正式依赖或业务库，不推送合并发布。早期只读查找不存在packages/test旧路径后定位实际安装helper，非产品RED。
+
+默认签名session36966实际Timeout退出128，未生成提交。事先由shell80132父链定位git91700/42328、gpg64616及同次创建pinentry93420的实际命令，调用退出后逐一核实PID消失，HEAD仍ce440a9b8、原六文件暂存内容/增删数及diff/check不变；独立检查实际退出0后，按已有授权仅git -c commit.gpgsign=false提交，签名N，全局true不改。等待期间后继业务归属旧读池测试只在本测试文件未暂存，不混入本项，snapshot仍本项已验证版本；无待答旧认证，不称验签G。

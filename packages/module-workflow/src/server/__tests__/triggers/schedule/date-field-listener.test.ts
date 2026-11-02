@@ -279,6 +279,8 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     );
 
     expect(tenantRepo.find).toHaveBeenCalledWith({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: [0],
         enabled: true,
@@ -342,6 +344,8 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     );
 
     expect(tenantRepo.find).toHaveBeenCalledWith({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: ['tenant-a'],
         enabled: true,

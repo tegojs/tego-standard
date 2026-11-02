@@ -57,7 +57,9 @@ export function assertEmptyMutationFilter(value: unknown): void {
 }
 
 export function internalQuery<T extends object>(options: T) {
-  return { ...options, hooks: false, useMaster: true };
+  // useMaster cannot move a query already attached to Sequelize's ambient CLS transaction.
+  const transaction = (options as { transaction?: Transaction }).transaction ?? null;
+  return { ...options, transaction, hooks: false, useMaster: true };
 }
 
 export const MAX_MUTATION_INPUT_NODES = 10000;

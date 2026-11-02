@@ -3392,3 +3392,18 @@ Ruling: 配置存储 record() 的无事务读取同样传 undefined，可能继�
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，config-primary-ambient-build.log，session49407 已退出。四 TS Prettier check 通过、oxlint 零错误警告，四源/snapshot SHA256 一致：store 64866CED6DA40F9E85DF4CD89356ED930A0C02CA309E616C1895228292CB60EB，新测试 953D19F12856CA3BEB7CE97F2B1B7D337AD5D21F4A82F35BAD777912E8E5FD3F，context-primary 7874D368942A0077CD401402F948003489A593F3FB38D077AF35FFE2E72E4AEB，helper 0525BD346F7315CD4167884F5808287D8488C2A1245AF303A9B71F24D4F2C0AF。最终验证后未改代码。一次只读定位猜测 internal-query.ts/orm-query.ts 不存在，随后按实际 import 读取 write-support.ts；不是产品/测试 RED。
 
 作者按 requesting-code-review 模板串行自审六文件：最小生产改动只影响无显式事务时的主库元数据读取；完整身份、主库历史和返回前当前基准检查保持，保存锁/版本/审计仍在同一原事务，正反向实际行为覆盖。无未修复 Critical/Important；作者自审不是整分支独立复核。实际 WAL/故障切换、不受控 schema 与业务启用不由本项证明，原正式门控保持。资源检查 validation0 后，精确核实 postmaster71152/创建 2026-11-02T15:54:20.451453+08:00/原目录命令及全部端口、SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 主库非恢复/零其他客户端及本库 owner，仅删除 a216030646 并 count0；正常停原集群、pg_ctl 无服务、PID 消失、全部25466记录0，原日志/集群和旧夹具保留。未改主检出/核心/正式依赖/业务库/既有附件，不推送/合并/发布。下一项已发现同一默认事务语义也可影响内部读取执行器的最终 SQL，须先以真实行集验证，不重复上下文/配置表征。
+
+## 217. 读取执行器的实际行集不得串入隐式事务
+
+Ruling: 原 internalQuery 只强制 hooks:false/useMaster:true，保留 transaction:undefined，最终 ORM SQL 仍可能继承 CLS 旧读连接。新真实 PG 文件以原完整配置/ACL scope adapter/query/read service 编译并执行，主库只有 B 的 id1 可读，旧 schema 将 C 的 id2 错留为 B；分别验证列表、带计数列表、详情、计数、求和、标量与分组汇总，另保留显式 caller 未提交行。若成立，在原统一内部查询选项处明确无显式 transaction 时 null，保留全部拥有事务的写入原对象；不做新路由或业务启用。共享 helper 改动可能影响写事务，因此除读取外还需原新增/修改回归与构建。
+
+- [x] 原 snapshot/新专用库真实最终行集 RED，非仅检查调用参数。
+- [x] 最小实现、相关读写回归、包构建/格式/lint/作者自审和资源收敛；后继英文原子签名提交以实际 Git 为准。
+
+本节启动时未等 PG startup session53518、端点检查 session16736 真实退出便启动 runner31842，违反严格串行；端点守卫安全拒绝 Unexpected endpoint、没有建库，首轮 8 失败/实际退出 1、12.73 秒（测试 1.71 秒），reads-primary-ambient-red.log，只是库不存在，不是产品 RED。三调用全部确认退出后，重新只读核实 postmaster71004/原目录及端口，正确端点/owner/零其他客户端及库不存在核实后才创建 tego_tenant_access_test_a217030647，session6589 实际退出 0；没有杀任何进程或绕过守卫。后继真正产品 RED 8 失败/实际退出 1、15.55 秒（测试 8.03 秒），reads-primary-ambient-created-red.log，session75460 已退出：列表错误包含 id2，隐藏详情返回原应不可读记录，计数 2 非 1，求和 910 非 10，最大值 900 非 10，分组汇总错误；caller 普通事务未显式选择时仍读到 Pending 非已提交 Owned。独立真实读写连接池通过 afterConnect/search_path 固定旧 schema，不是真实 WAL replica；新用例运行原配置、ACL scope adapter、query/read service，仅由可信 field-grant resolver 提供字段许可，不冒称覆盖完整最终 ACL 持久链。最小改动只在原 internalQuery 对缺少显式事务使用 null，原显式事务对象和 hooks:false/useMaster:true 保持。
+
+最终 reads-primary/reads/mutation/creation 四文件 954 通过、6 方言专项跳过、960 总，实际退出 0、509.54 秒（测试 461.08 秒），reads-primary-ambient-regression.log，session53664 已退出。六跳过为 SQLite 四项（层级相关）和 PostgreSQL 两项（仅 SQLite 不支持层级写入断言），不冒称全部六项都有相同 PG 对应执行。新八项含于 954，不累加 RED，不是整分支回归。显式 caller 事务保留自身 Pending，未显式选择时读取主库 Owned；真实 caller 保持活动。原写服务的显式事务、新增/修改/认领、并发撤权及回滚回归保持通过，没有改写事务所有权或锁协议。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，reads-primary-ambient-build.log，session18671 已退出。两最终 TS Prettier check 通过、oxlint 零错误警告，源/snapshot SHA256 一致：write-support 596F78C352458EDD59BF69ED7B3E7098D67EB41AC7D590B9B0A6AB5B8C450CB1，reads-primary 8968EAED6EA7E52A11C9CB2138299F7B0A97E41A99C8E7B1CE212C436CB09B3F；最终代码之后未改。作者按 requesting-code-review 模板串行自审本项四文件和 internalQuery 调用点：只有无显式事务分支变化；原写事务直接传入或经 scoped.query 保留，字段/元数据/ACL/G/V 检查未削弱，无未修复 Critical/Important。这是作者自审，不是整分支独立复核；授权读取到业务 SQL 的全程并发隔离及真实 WAL/故障切换不由本项证明。
+
+验证退出后精确核实 snapshot validation0、postmaster71004/创建 2026-11-02T16:01:39.228758+08:00 的 UTC ticks/原目录命令和全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及本库 owner，仅删除 a217030647 并 count0；正常停止原集群、pg_ctl 无服务、原 PID 消失、全部25466记录0，session22525 实际退出 0。保留日志/集群/旧夹具，既有附件、主检出、核心、正式依赖和业务库不动，不推送/合并/发布。下一独立项 acl-scope-primary 测试已在功能树编写并单独格式/lint，尚未运行且不包含本提交；它核查内置角色范围权威读取的相同隐式事务问题，后继先真实复现再决定实现，不停止等待下一定时。

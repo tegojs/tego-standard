@@ -3889,3 +3889,17 @@ Ruling: 普通QUEUEING任务已由§243固定主库，但STARTED执行中的PEND
 按requesting-code-review模板作者串行自审，非独立复核：启动恢复查询及关联在主库读取，原已保存tenantContext经原Processor恢复，B/H生成归属正确，不把可见性或人工root当调度身份。无本项未修复Critical/Important。当前只固定发现来源，不证明发现后到期前已撤销任务的全程协调、timer重叠/重复触发、跨实例原子恢复认领、最多一次或新G正式消费者；业务试点及整分支独立复核仍未完成。
 
 资源收敛session54552实际0：核实postmaster64504/创建2026-11-02 20:16:33/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端和owner后，仅删新库tego_tenant_access_test_d24802b663并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/25466全部记录0/validation0。原集群/日志及旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 249. 延迟任务到期不得用旧执行状态恢复已取消任务
+
+Ruling: DelayInstruction.trigger只在没有job.execution时默认读池加载执行，有缓存则直接信任；主库已取消的任务可能仍按旧STARTED继续，覆盖取消状态并生成业务数据。每次到期均用useMaster:true、transaction:null重新读取原执行，替换旧缓存，再按原STARTED条件决定是否交回队列；不修改取消任务、延迟任务或业务行，不新增重试。
+
+- [x] 真实PG独立读写池/schema，真实afterStart登记原timer；确认timer存在后，主库持久取消B执行，旧schema仍STARTED。实际timer触发透传原trigger，仅观察其Promise结局；等待原队列退出后联合断言持久状态与业务结果。
+- [x] 无缓存、有原STARTED模型缓存两场景真实RED：2失败4过滤6总/实际1/27.36秒，workflow-delay-cancel-primary-red.log，session70260已退出。两者实际均{status:1,resultCount:1}，期望{status:-4,resultCount:0}；不是只检查mock或查询选项。
+- [x] 最小替换后最终八文件160全通过/无跳过/实际0/98.05秒，workflow-delay-cancel-primary-regression.log，session24451已退出；PG6、其余SQLite154，原正常到期/错误/重启及业务归属继续通过。新增两项含于160，不累加各轮或§248的158，不是整分支回归，也不是WAL副本/故障切换。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-cancel-primary-build.log，session81246已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 8CFBDDEBA9AB2BE2B37C6FB6C1E3A033C6D867241D0FFE62D7D79B869A1E3FA1；queue-primary-authority.test 44BBB7695118C394310E0AC8B254D8BEC0DA0A1A16B130391EB46AF955976775。代码之后未改。一次apply_patch因Prettier已换行而未命中，工具在任何后继SQL/测试前终止；只读确认实际内容后修正，不算测试失败。
+
+按requesting-code-review模板作者串行自审，非独立复核：到期读取原executionId的当前持久状态，不沿用缓存状态或读池旧状态，保存的租户身份仍由原Processor使用；取消保持-4且没有业务行。无本项未修复Critical/Important。不声明状态读取到后续入队/SQL之间全程隔离、缺失执行/SQL失败的timer错误收敛、已入队任务撤销、持久租约或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。
+
+资源收敛session74301实际0：核实postmaster85408/创建2026-11-02 20:22:05/原目录命令、全部25466记录仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_e24902c664并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部25466记录0/validation0。集群/日志和旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

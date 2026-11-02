@@ -71,9 +71,7 @@ export default class extends Instruction {
   }
 
   async trigger(job) {
-    if (!job.execution) {
-      job.execution = await job.getExecution();
-    }
+    job.execution = await job.getExecution({ useMaster: true, transaction: null });
     if (job.execution.status === EXECUTION_STATUS.STARTED) {
       this.workflow.resume(job);
     }

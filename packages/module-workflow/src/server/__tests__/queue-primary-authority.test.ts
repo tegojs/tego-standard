@@ -308,4 +308,81 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
       ['H', 'Recovered delay task'],
     ]);
   });
+
+  it.each([false, true])('keeps a primary-cancelled tenant delay stopped when cached execution=%s', async (cached) => {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: {
+        type: 'collection',
+        enabled: true,
+        config: { collection: 'queuedTenantSources', mode: 1 },
+      },
+    });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      config: { duration: 3000, endStatus: JOB_STATUS.RESOLVED },
+    });
+    const label = `Cancelled delay task ${cached}`;
+    const consumer = await workflow.createNode({
+      type: 'create',
+      upstreamId: delay.id,
+      config: { collection: 'queuedTenantResults', params: { values: { label } } },
+    });
+    await delay.setDownstream(consumer);
+    await app.stop();
+    await app.db.reconnect();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    const pending = await execution.createJob({
+      nodeId: delay.id,
+      nodeKey: delay.key,
+      status: JOB_STATUS.PENDING,
+      result: null,
+    });
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.executions (LIKE public.executions INCLUDING ALL)');
+    await app.db.sequelize.query('INSERT INTO stale_workflow_queue.executions SELECT * FROM public.executions');
+    const plugin = app.pm.get('workflow');
+    const instruction = plugin.instructions.get('delay');
+    const original = instruction.trigger.bind(instruction);
+    let triggered: Promise<void> | undefined;
+    const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+      if (cached) job.execution = execution;
+      triggered = Promise.resolve(original(job));
+      triggered.catch(() => undefined);
+      return triggered;
+    });
+    try {
+      await app.start();
+      expect(instruction.timers.has(pending.id)).toBe(true);
+      const model = app.db.getCollection('executions').model;
+      await model.update({ status: EXECUTION_STATUS.CANCELED }, { where: { id: execution.id } });
+      expect((await model.findByPk(execution.id)).get('status')).toBe(EXECUTION_STATUS.STARTED);
+      expect((await model.findByPk(execution.id, { useMaster: true })).get('status')).toBe(EXECUTION_STATUS.CANCELED);
+      await waitForFastAssertion(() => expect(triggered).toBeDefined());
+      await triggered;
+      await waitForWorkflowIdle(app);
+      const status = (await model.findByPk(execution.id, { useMaster: true })).get('status');
+      const resultCount = await app.db.getCollection('queuedTenantResults').model.count({
+        where: { label },
+        useMaster: true,
+      });
+      expect({ status, resultCount }).toEqual({ status: EXECUTION_STATUS.CANCELED, resultCount: 0 });
+    } finally {
+      instruction.unload();
+      await triggered?.catch(() => undefined);
+      await waitForWorkflowIdle(app);
+      observe.mockRestore();
+    }
+  });
 });

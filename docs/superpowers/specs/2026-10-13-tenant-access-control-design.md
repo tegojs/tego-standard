@@ -260,6 +260,10 @@ Inspector 可另行显式提供独立池的 fence 映射，并调用 reserveLoca
 
 这是可信测试 launcher 已经选定根之后的机制表征，不是可信生产 bootstrap 或不可伪造因果来源。数值不是秘密、凭据或跨进程执行 token；当前进程可能复用句柄数值，本轮省略列表的结果不能推广所有进程。worker 仍以原账号/同登录会话运行，单句柄减少权限不沙箱整个进程或阻止其他句柄/路径；根继承不冻结子链、完整元数据、别名或写者，跨会话身份与 DACL、全部部署写者和旧映射排空、最终原子动作仍需各自证明。worker 在 JSON 前关闭实际根和叶；launcher 等 worker EOF 和真实退出后才转交快照，Node 后续仍等 launcher EOF/close。因此返回结果不持有可继续执行的根权利，也不解除 unresolved 或任何正式门控。helper 无文件内容写入/删除/disposition、任意命令、账号/token/DACL 变更或产品导出/安装；最初物理根来源、启动路径竞争、全部别名/卷及业务接入继续未解决。
 
+§209 增加内部独立检查器的 discoverIntents(limit=25, afterOperationId?)：不需要预先收到 operationId，只从原登记意图表分页读取候选 UUID。参数 limit 必须为 1—100 的整数，游标和实际读取的持久 id 必须为规范小写 UUID；原始 SQL 不受模型默认 scope 影响，比较与排序均使用 COLLATE "C"，多读一条决定 nextAfter。返回仅含 operationIds 和 nextAfter，不返回 payload、路径或完成状态。原独立池/同数据库 primary、owned SERIALIZABLE 事务和完整 schema/native-capture 校验在读取前后保持，不安装 schema，也不更新意图/事件或启动调度器、HTTP、重试、清理。
+
+prepared 候选也列入，必须逐项走原 inspect 等检查；prepared 的 inspect 仍为 unknown，发现到 id 不证明提交的 SQL 删除、可信因果来源、当前引用/ACL、物理根或清理资格。各页是各自事务中的快照，随机 UUID 的并发提交可以落在已过游标之前，维护者须从起点反复扫；nextAfter 不是持久消费进度，也不保证完整覆盖。实际测试覆盖丢弃成功返回值与 afterCommit 异常交付后发现并原检查、prepared 分页、未提交及回滚不可见，未实施真实生产者进程崩溃。此入口补齐 UUID 未交付场景的持久候选发现部分，不等于完整崩溃发现、未知结果协调或不可伪造来源，全部正式执行/部署门控继续关闭。
+
 ### 关联读取与授权事实
 
 关联展开只处理本次请求实际使用的关系路径，由入口显式提交查询计划。已迁移目标表按自己的读取范围过滤；未迁移目标表保持原来的租户机制。隐藏的单值关联返回 `null`，多值关联只返回可读项；单纯展开关联不能因此丢掉本来可读的根记录。过滤应在数据库查询阶段完成，不能取出后再逐项查权限。

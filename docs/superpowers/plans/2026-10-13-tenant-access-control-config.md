@@ -3246,3 +3246,33 @@ TS Prettier/write/check 与 oxlint 零错误警告，PS AST 通过，真实 laun
 最终资源/生产引用/diff 检查实际退出 0：测试/esbuild/launcher/worker 0，本轮 root-delegation 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理或换 API 绕过、不报告全部临时目录零。既有附件、主检出/核心、正式依赖、所有旧 helper/broker/client/owner、生产 recorder/inspector 均未改；日志/集群保留，全部正式安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。
 
 提交阶段实际记录：首次 git commit -m 'test(file): characterize inherited root handle delegation' 真正启动默认 GPG，实际 gpg.exe 与新 pinentry.exe 已按父子进程回读确认。原调用 session91428 最终实际退出 128，gpg 明确 signing failed: Timeout，Git failed to write commit object；当时没有本节新提交/验签成功，HEAD 为 §207 的 5cfe0fa3ba1a1a6e36e02ec96ab092ca353424e6，四文件保留暂存，未声称工作区干净。已就该次真实解锁通知一次，不操作认证窗口、不禁用签名，后继 heartbeat 条件未变时未重试。用户随后明确回复“已在 GPG 窗口完成解锁”，此为认证条件改变；恢复先核实原 HEAD、四文件精确暂存、无活动 git/gpg/pinentry 调用、两份记录与源码/快照 SHA256 不变，再更新此历史记录并用原默认签名重试一次。未重跑已完成八项测试或重做实现；后继提交/独立验签及工作区状态只以实际 Git 结果为准，不预写成功。
+
+## 209. 无需已知 UUID 的独立持久意图分页发现
+
+Ruling: 用户要求积极推进全流程，选择补齐独立检查器目前必须预先知道 UUID 的发现入口，交付实际内部能力，不再追加根/权限 fixture。此为预交付失联恢复的候选发现部分，不替代可信根/不可伪造因果来源、完整部署写者/跨会话权限或最终动作，也不宣布完整未知结果协调完成。用户新授权为先尝试默认签名，若再次实际超时可以临时跳过签名；不修改全局签名设置。
+
+简报：在 AttachmentRemovalCompletionInspector 增加 discoverIntents(limit=25, afterOperationId?)，显式独立池/同 primary、原 SERIALIZABLE 事务所有权和原 schema/capture 校验保持；原生 SQL 只分页读取所登记意图表 id（1—100 条，上界再读一条判断后继），COLLATE C 稳定游标，不受默认 scope 影响，不返回 payload/路径，不要求请求提供 UUID。输出 operationIds 与 nextAfter，全部只是候选，prepared 也列出但原 inspect 仍 unknown，来源/完整 v3/native OLD 和提交必须逐项走原检查器。没有调度器/HTTP/自动建表/清理/恢复/重试/状态升级；各页不是全局快照，随机 UUID 的并发新增可能落在已过游标之前，维护者须从起点重复扫，不能持久消费游标推断全量覆盖。
+
+- [x] 先在已有真实 PG 集成文件新增完整发现分组：空页、丢弃成功返回值后发现并原检查、afterCommit 失败丢弃错误后发现、prepared 跨页与默认 scope、未提交/回滚不可见、非法参数/非法持久 id 和元数据漂移拒绝。直接丢弃应用交付不冒称进程已崩溃。
+- [x] 原 snapshot 与全新专用库按顺序 RED→最小实现→完整新分组；复用原单项检查，不新增不可逆动作能力。
+- [x] 完整受影响文件、聚焦格式/lint、文件包构建、作者串行自审、两份记录、源/快照核对和本批库/PG收敛。后继英文原子提交/签名按用户最新授权和实际 Git 结果记录，不推送/合并/发布。
+
+已取得的定向证据：新专用库 tego_tenant_access_test_a20902b640，使用前实际核实原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库、非恢复及零其他客户端；只启动原隔离集群。初始完整新分组 9 项失败/647 过滤或分组跳过/656 总，实际退出 1，总 14.79 秒（测试 8.75 秒），removal-intent-discovery-red.log，失败为 discoverIntents 缺失；prepared 项的夹具准备已先遭原事务隔离拒绝，不能声称九项都到达缺方法或后续拒绝断言。最小实现首轮 7 通过/2 失败/647 跳过、退出 1，总 27.53 秒（测试 17.08 秒），removal-intent-discovery-green.log 实为失败：prepared 夹具沿用旧 IMMEDIATE helper，在当前关系 G 下不满足原 SERIALIZABLE；另一项错误文本不符。依 systematic-debugging 逐项读实际堆栈、原 helper 和 validateWriteTransaction 后，仅该新夹具改用原 captureAttachmentRemoval + 显式 SERIALIZABLE，未放宽产品事务/权限检查；产品错误文案匹配原负向断言。修正后完整新分组 9 通过/647 过滤或分组跳过/656 总，实际退出 0，总 20.53 秒（测试 12.53 秒），removal-intent-discovery-corrected-green.log。原 session54438、34241 均退出 1，14497 退出 0，再开始完整文件验证；各轮不相加，不冒称整分支回归。
+
+完整受影响文件在原 snapshot、上述新专用库顺序运行，实际 367 通过/289 SQLite 中 PG 专项分组跳过（对应 PG 实际执行）/656 总，退出 0，总 461.16 秒（测试 453.70 秒），removal-intent-discovery-regression.log，原 session54602 已实际退出。命令为 pnpm exec vitest run packages/module-file/src/server/__tests__/authorized-local-read.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 60000 --hookTimeout 60000 --reporter=verbose。原 9 项含于 367，不相加，不是整分支回归。该完整运行期间只在功能源文件补作者边界用例，未改执行中的 snapshot；退出后才同步。
+
+作者按 requesting-code-review 模板继续串行自审，补充游标末尾换行/大写 UUID，以及持久 id 末尾换行的拒绝；怀疑边界由真实测试裁决，原实现已直接拒绝，没有产品修复或新增 RED。removal-intent-discovery-uuid-red.log 名称虽含 red，实际 3 项全部通过/655 过滤或分组跳过/658 总，退出 0，总 12.38 秒（测试 3.09 秒），不能称 RED。随后完整最终发现分组 10 通过/648 过滤或分组跳过/658 总、退出 0，总 17.88 秒（测试 12.21 秒），removal-intent-discovery-final-targeted.log；session65729、67288 均实际退出 0。最终十项包含原九项；产品实现/index 在完整文件回归后未改，仅测试新增/扩展，所以不把 658 说成已全文件执行，也不把多轮结果相加。
+
+构建实录：尝试 pnpm exec tegod build --help 未返回帮助，实际意外启动无包过滤构建，已生成 snapshot 的 apps/desktop 和 packages/client 部分产物。只读核实原 node PID72836、父57640、创建时间 2026-11-02T14:04:33.477639+08:00 和精确 snapshot CLI build --help 后，定向终止该自有树及两个 esbuild 子32140/77840；原 session46401 实际退出 1，未称构建通过。记录在 removal-intent-discovery-help-aborted.log；两处输出目录实际普通目录，不是通往主检出/正式依赖的链接。随后读实际已安装 CLI 的 build.mjs、builder/index.mjs 和 get-packages.mjs 确认显式包名过滤，不再调用帮助启动。数次只读定位用了不存在路径/Windows rg 路径通配，未运行测试或改数据，不计产品 RED。
+
+首次显式 pnpm exec tegod build @tachybase/module-file 实际退出 1（session4816），removal-intent-discovery-file-build.log，失败于原客户端 SchemaComponentOptions/useCollection/Plugin 等导出声明缺失；误启动构建的客户端声明尚未完成，es 的 index.d.ts 当时也不存在。没有改客户端/依赖源码或关闭 dts 造绿，后继先明确构建 snapshot 客户端恢复其生成声明，再重跑文件包；后继结果只按实际退出记录。
+
+恢复结果：pnpm exec tegod build @tachybase/client 实际退出 0（session90412），removal-intent-discovery-client-build.log，客户端 esm/cjs、locale 和声明全部完成。之后 pnpm exec tegod build @tachybase/module-file 实际退出 0（session8766），removal-intent-discovery-file-corrected-build.log，包含客户端/服务端、打包依赖及声明。生成 dist/server/storages/removal-completion-inspector.d.ts 中存在公开发现页类型和 discoverIntents，dist/server/index.d.ts 也有对应类型导出。未修改正式依赖、客户端源码或用 --no-dts 绕过检查，未调用根 pnpm build/prebuild 版本脚本；构建产物只留 snapshot，不复制进功能源码。
+
+三 TS 最终 Prettier check/oxlint 零错误警告（read_lints 不可用，采用聚焦 CLI），Markdown 仍忽略，不称格式化。源/快照 SHA256 完全一致：测试 736F3A4CC5B1612FD4422015367E48C7EC1780B3DB5F47F2E3B1027CD7884CD8，检查器 DD6939377FF00DE3AAA08BFACFBCBEA2DD30B191EAD212B56EC7ADDEADDAB4F0，index 48587F6C06C7A0EBF26661946E717EF9EEF1557CCD730B539B6A5781F09E1227。最终十项后源码不变。功能分支实际 feat/tenant-access-control，仅本节五文件；生产 discoverIntents 引用仅实现本身，无路由/worker/调度器接入。
+
+作者串行自审（不是独立复核）：新查询只使用所登记物理表/列并经原结构锁与身份校验，游标/limit 为 bind 值；同 primary、transaction:null 的独立 owned SERIALIZABLE 事务在读取前后复核原 native/journal 和 pool。模型默认 scope 隐藏 prepared 行仍由真实分页发现，逐项原 inspect 仍 unknown；正常丢弃交付和实际 afterCommit 异常后发现均再经过原 v3/OLD/提交校验，原持久 xmin/ctid/payload 不变，字节保留。有限返回量不等于数据库扫描成本有界，没有声称索引/性能或全表完整覆盖已验证。不判断/裁决：真实进程崩溃、prepared 与完成间的持久消费协调、可信因果来源、生产 schema 所有者威胁、可信根/完整部署写者与旧映射/跨会话权限、最后原子动作及业务入口继续在本节之外；只增加候选发现，不从存在/未知状态推导任何重试或执行资格。整分支独立复核仍未完成。
+
+本轮资源收敛：确认测试/构建/esbuild/helper 活动调用 0 后，只读核实 postmaster PID32152/创建 2026-11-02T13:52:05.992802+08:00/原 data_directory 命令，25466 全部记录唯一该 PID（State 仍 null，不用 Listen 过滤），SQL 原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库、非恢复、零其他客户端及专用库 owner。只删除 tego_tenant_access_test_a20902b640，实际 pg_database count0；原临时 PG 正常停止、pg_ctl 无服务、原 PID 消失和 25466 全部记录 0，session6729 实际退出 0。集群、日志保留，其他 PG 服务不动。本轮新 authorized-local-read/session 目录无残留；读取还发现 5 个 10月29—30日既有 authorized-local-read 目录和旧 session-6cUGZR，均未触及，不报告全部临时目录零、不重试旧拒绝清理/换 API 绕过或重复请求。
+
+本节最终只五文件：原集成测试、removal-completion-inspector.ts、server/index.ts 和两份记录。既有附件、主检出/核心、正式依赖、所有原 native helper/broker/client/owner、生产 recorder 及原 inspect 路径未改；全部正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。签名/提交与干净状态以后继真实 Git 为准，不预写成功；最新用户允许新默认签名实际 Timeout 后临时无签名提交，不改全局配置。

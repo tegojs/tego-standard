@@ -20,6 +20,7 @@ export type {
 export type { AttachmentRemovalReferenceObservation } from './storages/removal-reference-observation';
 export type {
   AttachmentRemovalCompletionObservation,
+  AttachmentRemovalIntentDiscoveryPage,
   AttachmentRemovalObjectObservation,
   AttachmentRemovalCommittedReferenceObservation,
   AttachmentRemovalReferenceReservation,

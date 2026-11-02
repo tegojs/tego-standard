@@ -1156,6 +1156,189 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])(
               describe('optional SQL completion', () => {
                 describe('independent completion inspection', () => {
                   describe('recorded execution outcome correlation', () => {
+                    describe('bounded persistent intent discovery', () => {
+                      it('returns an empty discovery page from an independent primary pool', async () => {
+                        const other = await observer();
+                        try {
+                          expect(await other.inspector.discoverIntents()).toEqual({
+                            operationIds: [],
+                            nextAfter: null,
+                          });
+                        } finally {
+                          await other.db.close();
+                        }
+                      });
+
+                      it.each([false, true])(
+                        'discovers a committed operation without its discarded application delivery, afterCommitFailure=%s',
+                        async (failure) => {
+                          if (failure) sourceAfterCommitFailure();
+                          const { entry } = await execution();
+                          if (failure) {
+                            await expect(
+                              files.executeRecordedAttachmentRemoval(entry, journal, native),
+                            ).rejects.toThrow('Attachment removal outcome requires independent inspection');
+                          } else {
+                            await files.executeRecordedAttachmentRemoval(entry, journal, native).then(() => undefined);
+                          }
+                          // This consumer receives no id from the producer result/error.
+                          const before = await db.sequelize.query(
+                            'SELECT id, xmin::text, ctid::text, payload FROM attachment_removal_intents',
+                          );
+                          const other = await observer();
+                          try {
+                            const page = await other.inspector.discoverIntents(10);
+                            expect(page.operationIds).toHaveLength(1);
+                            expect(page.nextAfter).toBeNull();
+                            expect(page.operationIds[0]).toMatch(/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/);
+                            expect(await other.inspector.inspect(page.operationIds[0])).toMatchObject({
+                              state: 'committed-sql-observed',
+                              operationId: page.operationIds[0],
+                            });
+                            expect(
+                              (
+                                await db.sequelize.query(
+                                  'SELECT id, xmin::text, ctid::text, payload FROM attachment_removal_intents',
+                                )
+                              )[0],
+                            ).toEqual(before[0]);
+                            expect(await docs.model.findByPk(1)).toBeNull();
+                            expect(await fs.readFile(location())).toEqual(bytes);
+                          } finally {
+                            await other.db.close();
+                          }
+                        },
+                      );
+
+                      it('pages stored prepared candidates without upgrading them or applying the model default scope', async () => {
+                        for (let index = 0; index < 3; index++) {
+                          const entry = mutations.captureAttachmentRemoval(await context(1, {}, 'destroy'), {
+                            tenantId: 'B',
+                            roleName: 'reader',
+                            userId: 28,
+                          });
+                          await db.sequelize.transaction(
+                            { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+                            (transaction) => files.withAuthorizedAttachmentRemovalStorage(entry, transaction, persist),
+                          );
+                        }
+                        const expected = (await intents.model.unscoped().findAll())
+                          .map((row) => row.getDataValue('id') as string)
+                          .sort();
+                        const other = await observer();
+                        other.db
+                          .getCollection(intents.name)
+                          .model.addScope('defaultScope', { where: { id: 'hidden' } }, { override: true });
+                        try {
+                          const first = await other.inspector.discoverIntents(1);
+                          const second = await other.inspector.discoverIntents(1, first.nextAfter!);
+                          const third = await other.inspector.discoverIntents(1, second.nextAfter!);
+                          expect([first.operationIds, second.operationIds, third.operationIds]).toEqual(
+                            expected.map((id) => [id]),
+                          );
+                          expect([first.nextAfter, second.nextAfter, third.nextAfter]).toEqual([
+                            expected[0],
+                            expected[1],
+                            null,
+                          ]);
+                          expect(await other.inspector.discoverIntents(1, expected[2])).toEqual({
+                            operationIds: [],
+                            nextAfter: null,
+                          });
+                          for (const id of expected)
+                            expect(await other.inspector.inspect(id)).toEqual({ state: 'unknown' });
+                          expect(await docs.model.count()).toBe(3);
+                          expect(await events.model.count()).toBe(0);
+                          expect(await fs.readFile(location())).toEqual(bytes);
+                        } finally {
+                          await other.db.close();
+                        }
+                      });
+
+                      it.each([false, true])(
+                        'does not discover uncommitted intent rows, rollback=%s',
+                        async (rollback) => {
+                          const { entry, evidence } = await execution(1, true);
+                          const other = await observer();
+                          try {
+                            const run = entry.executeNativeRemoval({
+                              async prepare(proof) {
+                                const session = await evidence.prepare(proof);
+                                return {
+                                  ...session,
+                                  async complete() {
+                                    await session.complete();
+                                    expect(await other.inspector.discoverIntents()).toEqual({
+                                      operationIds: [],
+                                      nextAfter: null,
+                                    });
+                                    if (rollback) throw new Error('rollback undiscovered intent');
+                                  },
+                                };
+                              },
+                            });
+                            if (rollback) await expect(run).rejects.toThrow('rollback undiscovered intent');
+                            else await expect(run).resolves.toBe(1);
+                            expect((await other.inspector.discoverIntents()).operationIds).toHaveLength(
+                              rollback ? 0 : 1,
+                            );
+                            expect(await fs.readFile(location())).toEqual(bytes);
+                          } finally {
+                            await other.db.close();
+                          }
+                        },
+                      );
+
+                      it('rejects unbounded or malformed pagination without returning candidates', async () => {
+                        const other = await observer();
+                        try {
+                          for (const limit of [0, -1, 101, 1.5, NaN, Infinity]) {
+                            await expect(other.inspector.discoverIntents(limit)).rejects.toThrow(
+                              'bounded intent discovery',
+                            );
+                          }
+                          for (const cursor of [
+                            "' OR true --",
+                            '00000000-0000-4000-8000-000000000000\n',
+                            'ABCDEF00-0000-4000-8000-000000000000',
+                          ])
+                            await expect(other.inspector.discoverIntents(1, cursor)).rejects.toThrow(
+                              'discovery cursor',
+                            );
+                          expect(await intents.model.count()).toBe(0);
+                        } finally {
+                          await other.db.close();
+                        }
+                      });
+
+                      it.each(['not-an-operation', '00000000-0000-4000-8000-000000000000\n'])(
+                        'refuses a malformed stored identifier rather than publishing a partial discovery page: %j',
+                        async (id) => {
+                          await intents.model.create({ id, payload: { state: 'prepared' } });
+                          const other = await observer();
+                          try {
+                            await expect(other.inspector.discoverIntents()).rejects.toThrow(
+                              'stored operation identifier',
+                            );
+                            expect(await intents.model.count()).toBe(1);
+                            expect(await docs.model.count()).toBe(3);
+                          } finally {
+                            await other.db.close();
+                          }
+                        },
+                      );
+
+                      it('rejects source mapping drift before returning a discovery page', async () => {
+                        const other = await observer();
+                        other.db.getCollection(docs.name).options.template = 'general';
+                        try {
+                          await expect(other.inspector.discoverIntents()).rejects.toThrow(/source|capture|identity/i);
+                        } finally {
+                          await other.db.close();
+                        }
+                      });
+                    });
+
                     describe('optional bound local removal execution', () => {
                       let objects: Collection;
 

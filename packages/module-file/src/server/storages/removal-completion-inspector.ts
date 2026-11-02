@@ -15,6 +15,11 @@ export type AttachmentRemovalCompletionObservation =
   | Readonly<{ state: 'unknown' }>
   | Readonly<{ state: 'committed-sql-observed'; operationId: string; transactionId: string }>;
 
+export interface AttachmentRemovalIntentDiscoveryPage {
+  readonly operationIds: readonly string[];
+  readonly nextAfter: string | null;
+}
+
 export type AttachmentRemovalObjectObservation =
   | Readonly<{ state: 'unknown' }>
   | Readonly<{
@@ -327,6 +332,48 @@ export class AttachmentRemovalCompletionInspector {
         size: String(record.size),
       },
     };
+  }
+
+  /**
+   * Bounded persisted candidates, including prepared intents. Inspect each candidate independently;
+   * presence proves neither completion nor causal authenticity and grants no cleanup/retry right.
+   * Pages own separate snapshots: concurrent UUIDs can sort behind the cursor. Repeat sweeps from
+   * the beginning; nextAfter is not a durable consumption checkpoint or a coverage guarantee.
+   */
+  async discoverIntents(limit = 25, afterOperationId?: string): Promise<AttachmentRemovalIntentDiscoveryPage> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new TypeError('Invalid limit for bounded intent discovery: an integer from 1 to 100 is required');
+    const identifier = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/;
+    if (afterOperationId !== undefined && (typeof afterOperationId !== 'string' || !identifier.test(afterOperationId)))
+      throw new TypeError('Invalid intent discovery cursor: an operation identifier is required');
+    this.assertIndependentPool();
+    const options = { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE, transaction: null };
+    return this.database.sequelize.transaction(options, async (transaction) => {
+      const [connections] = await this.database.sequelize.query(
+        'SELECT pg_catalog.current_database() AS database, NOT pg_catalog.pg_is_in_recovery() AS primary',
+        { transaction },
+      );
+      const connection = (connections as { database: string; primary: boolean }[])[0];
+      if (connection?.database !== this.endpoint.database || connection.primary !== true)
+        throw new TypeError('Intent discovery requires the original database primary');
+      await this.assertCurrent(transaction);
+      const key = `"${this.intents.model.rawAttributes.id.field.replaceAll('"', '""')}"`;
+      const [rows] = await this.database.sequelize.query(
+        `SELECT ${key} AS id FROM ${this.table(this.intents.model)}
+         WHERE ($after::text IS NULL OR ${key} COLLATE "C" > $after::text COLLATE "C")
+         ORDER BY ${key} COLLATE "C" LIMIT $limit`,
+        { transaction, bind: { after: afterOperationId ?? null, limit: limit + 1 } },
+      );
+      const candidates = rows as { id: string }[];
+      if (candidates.some((row) => typeof row.id !== 'string' || !identifier.test(row.id)))
+        throw new TypeError('Intent discovery encountered an invalid stored operation identifier');
+      await this.assertCurrent(transaction);
+      const operationIds = Object.freeze(candidates.slice(0, limit).map((row) => row.id));
+      return Object.freeze({
+        operationIds,
+        nextAfter: candidates.length > limit ? operationIds[operationIds.length - 1] : null,
+      });
+    });
   }
 
   /** Explicit operation id from a trusted server source, not a deletion/recovery/cleanup token. */

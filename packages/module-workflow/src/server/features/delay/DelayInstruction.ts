@@ -1,6 +1,7 @@
 import WorkflowPlugin, { EXECUTION_STATUS, Instruction, JOB_STATUS, JobModel, Processor } from '../..';
 
 type ValueOf<T> = T[keyof T];
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 interface DelayConfig {
   endStatus: ValueOf<typeof JOB_STATUS>;
@@ -75,8 +76,8 @@ export default class extends Instruction {
     const createdAt = Date.parse(job.createdAt);
     const delay = createdAt + job.node.config.duration - now.getTime();
     if (delay > 0) {
-      const trigger = this.trigger.bind(this, job);
-      this.timers.set(job.id, setTimeout(trigger, delay));
+      const schedule = this.schedule.bind(this, job);
+      this.timers.set(job.id, setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_MS)));
     } else {
       this.trigger(job);
     }

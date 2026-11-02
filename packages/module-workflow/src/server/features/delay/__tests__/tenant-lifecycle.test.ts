@@ -277,4 +277,47 @@ describe('tenant delay timer failure lifecycle', () => {
       observe.mockRestore();
     }
   });
+
+  it('keeps a thirty-day tenant delay pending instead of overflowing into immediate execution', async () => {
+    const { execution, pending } = await createPendingTenantDelay(30 * 86400000);
+    const original = instruction.trigger.bind(instruction);
+    const outcomes: Promise<unknown>[] = [];
+    const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+      const result = original(job);
+      outcomes.push(Promise.resolve(result).catch((error) => error));
+      return result;
+    });
+    try {
+      instruction.schedule(pending);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(0);
+      expect((await execution.reload()).status).toBe(EXECUTION_STATUS.STARTED);
+
+      // Move only this fixture's persisted timestamp beyond the real deadline, then use the original loader.
+      const jobs = app.db.getCollection('jobs').model;
+      const queryGenerator = app.db.sequelize.getQueryInterface().queryGenerator;
+      const table = queryGenerator.quoteTable(jobs.getTableName());
+      const createdAt = queryGenerator.quoteIdentifier(jobs.rawAttributes.createdAt.field);
+      const id = queryGenerator.quoteIdentifier(jobs.primaryKeyField);
+      await app.db.sequelize.query(
+        `UPDATE ${table} SET ${createdAt} = datetime('now', '-31 days') WHERE ${id} = $jobId`,
+        { bind: { jobId: pending.id } },
+      );
+      await instruction.load();
+      await waitForFastAssertion(async () => {
+        expect((await execution.reload()).status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      const rows = await app.db.getCollection('delayFailureResults').model.findAll();
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Recovered B delay']]);
+    } finally {
+      instruction.unload();
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      observe.mockRestore();
+    }
+  });
 });

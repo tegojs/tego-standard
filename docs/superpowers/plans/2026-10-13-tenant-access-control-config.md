@@ -3953,3 +3953,15 @@ Ruling: unload代次不区分同一运行期重叠的load；早期SQL读到10秒
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-overlap-deadline-build.log，session48882已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 8270FC64438C522BA303E5EAFF0AD727D39E6CA761D413ED9B7CCC742F115153；tenant-lifecycle.test 81C92D21CDCAC48D63F9918CD223732ABA037BFF217D3B298644AEDEC8BFB582，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：load原本查询本实例全部待处理delay任务，因此发现标识按该完整查询范围替换，不按单个工作流误取消其他范围；与unload代次分离，后继load不撤销已有callback。无本项未修复Critical/Important。后继扫描失败也不发布更早未交付结果，原已登记timer保留，原SQL错误仍由调用者处理；未证明自动重扫、全部停止交错、已入队撤销、持久租约/跨实例原子恢复。新G正式消费者、业务试点及整分支独立复核仍未完成。本项仅SQLite，未启PG/建库/物理附件；提交前独立资源检查实际0、validation0、25466全部记录0，消费结果后才记录/提交。保留原集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 254. 长延迟不得溢出为立即执行
+
+Ruling: 客户端允许Days/Weeks且无此上限，合法30天duration超过Node单次timer的2147483647毫秒；原setTimeout实际发出TimeoutOverflowWarning并将延迟设为1ms，B任务提前生成业务数据。仅将每段等待限制为Node支持的最大值，唤醒后重新按原createdAt与duration核对截止时间，再决定继续等待或原trigger；不是截短总期限。
+
+- [x] 真实内存SQLite/Node timer新增30天用例，200ms观察窗内必须仍STARTED且业务结果0；随后只用绑定jobId的实际SQL把本测试job的createdAt移至31天前，原load恢复并生成[['B','Recovered B delay']]。无假timer或假时钟，未实际等待30天或24.8天，不称长期分段运行验收。
+- [x] workflow-delay-long-deadline-red.log：1失败6过滤/7总，实际退出1/8.33秒，session12249已退出；实际业务数1、预期0，原Node明确报告2591999387超限并设为1。无夹具诊断失败轮。
+- [x] 最小实现后八文件161全通过/无跳过/实际0/20.53秒，workflow-delay-long-deadline-regression.log，session79576已退出。新增一项含于161，不累加轮次或§253的160，不是整分支回归。本轮全为SQLite，未重跑PG。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-long-deadline-build.log，session21143已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 81E5807757162BBCD0E5367A3D61EF0C7DE295147101681C1331DDA84AF7B774；tenant-lifecycle.test CE4EA77A603ACB58EDB1FF5DA9066C4955DF0F641115C131D820700FF4F98F81，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：分段回调仍走原schedule替换句柄及原trigger主库状态检查；不新增身份/权限来源、不改变任务归属。无本项未修复Critical/Important。跨日真实运行、配置变动后的全部在途协调、持久租约/跨实例原子恢复及完整停止交错未由此证明，新G正式消费者、业务试点和整分支独立复核仍未完成。独立资源守卫实际0且已消费退出，validation0、25466全部记录0；未启PG/建库/物理附件。保留集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

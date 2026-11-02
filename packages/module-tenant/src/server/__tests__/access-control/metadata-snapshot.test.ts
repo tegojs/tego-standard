@@ -81,6 +81,28 @@ describe('access metadata dependencies', () => {
     runtime._schema = 'other';
     expect(verify).toThrow('metadata changed');
   });
+  it.each(['model', 'through model', 'database and model'])(
+    'rejects a changed database binding on the %s',
+    async (change) => {
+      const foreign = sqliteDatabase();
+      const collection = db.getCollection(change === 'through model' ? 'links' : 'documents');
+      const sequelize = db.sequelize;
+      const verify = guard('children.tags');
+      try {
+        collection.model.sequelize = foreign.sequelize;
+        if (change === 'database and model') {
+          db.sequelize = foreign.sequelize;
+          for (const name of ['children', 'tags', 'links']) db.getCollection(name).model.sequelize = foreign.sequelize;
+        }
+        expect(verify).toThrow('metadata changed');
+      } finally {
+        db.sequelize = sequelize;
+        collection.model.sequelize = sequelize;
+        for (const name of ['children', 'tags', 'links']) db.getCollection(name).model.sequelize = sequelize;
+        await foreign.close();
+      }
+    },
+  );
   it('rejects nested association replacement', () => {
     const verify = guard();
     db.getCollection('children').setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'targetId' });

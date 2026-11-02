@@ -34,6 +34,7 @@ export function accessMetadataGuard(
   roots: Array<{ model: ModelStatic<Model>; config: AccessConfig }>,
   paths: Array<{ model: ModelStatic<Model>; path: readonly string[] }> = [],
 ) {
+  const sequelize = db.sequelize;
   const checks: Array<() => boolean> = [];
   const models = new Set<ModelStatic<Model>>();
   const captureModel = (model: ModelStatic<Model>) => {
@@ -47,6 +48,8 @@ export function accessMetadataGuard(
     models.add(model);
     checks.push(
       () =>
+        db.sequelize === sequelize &&
+        model.sequelize === sequelize &&
         db.getCollection(collection.name) === collection &&
         collection.model === model &&
         db.modelCollection.get(model) === collection &&

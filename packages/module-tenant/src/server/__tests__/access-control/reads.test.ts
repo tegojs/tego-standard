@@ -4211,6 +4211,31 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
     expect(await get(2)).toEqual({ id: 2 });
     for (const id of [3, 6, 7, 999]) expect(await get(id)).toBeNull();
   });
+  it('withholds rows if the runtime model changes its database during the read', async () => {
+    const foreign = sqliteDatabase();
+    const originalSequelize = docs.model.sequelize;
+    const find = docs.model.findAll.bind(docs.model);
+    let observedIds: unknown[] = [];
+    try {
+      await foreign.sequelize.query(
+        'CREATE TABLE read_documents (record_id INTEGER PRIMARY KEY, tenant_id TEXT, display_name TEXT, ' +
+          'enabled BOOLEAN, deletedAt DATETIME)',
+      );
+      await foreign.sequelize.query("INSERT INTO read_documents VALUES (999, 'B', 'Other database', 1, NULL)");
+      vi.spyOn(docs.model, 'findAll').mockImplementationOnce(async (options) => {
+        // Keep the registered model/table intact, but execute its real query on another connection.
+        docs.model.sequelize = foreign.sequelize;
+        const rows = await find(options);
+        observedIds = rows.map((row) => row.getDataValue('id'));
+        return rows;
+      });
+      await expect(list()).rejects.toThrow(/metadata changed/);
+      expect(observedIds).toEqual([999]);
+    } finally {
+      docs.model.sequelize = originalSequelize;
+      await foreign.close();
+    }
+  });
   it('uses finalized role grants consistently without exposing role-filter fields', async () => {
     const acl = new ACL();
     acl.setAvailableAction('view', { aliases: ['get', 'list'] });

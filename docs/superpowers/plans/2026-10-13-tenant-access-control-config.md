@@ -3469,3 +3469,16 @@ Ruling: accessMetadataGuard 已检查注册对象、模型、列、关联和模�
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全通过、实际退出 0，metadata-key-build.log，session57624 已退出。最终四 TS Prettier check 通过、oxlint 零错误警告；源/snapshot SHA256 一致：metadata-snapshot 5CC436BA452236C17F0F641D86A2A380F4AA81353B894894740C1640958F29F4，validation test B80D76149F80DBE785641800B69DDE30D855F1D8DC07F95075C9C0BA73BD7D47，snapshot test 703C00F8EA03677A836DF056FFF6234A0C3718CDB24A53E40100CB7FA0A509BC，query test 1CF83FB1DD46AC99A23E2928BD72DB3185F1481FB1CE970A376667525FF9A424。最终验证后代码未改。作者按 requesting-code-review 模板串行自审：共用原依赖遍历，不扫描无关表、不要求原来缺省的键必须存在；原注册/模型/列/作用域/模板复核保持，未增加 SQL 或改变授权。无未修复 Critical/Important；不是整分支独立复核。首轮查找不存在的 config-validator/vitest/依赖路径和 Windows rg 通配只读失败不是产品 RED；已改读实际 validate.ts 和根 vitest.config.mts。
 
 本项只用原 snapshot 的独立内存 SQLite，没有启动 PG、建库或新物理文件夹具。日志保留，原旧夹具、既有附件、主检出、核心、正式依赖及业务库未改，不推送/合并/发布。后继继续核查数据库绑定生命周期，不把此提交完成当作整个计划完成。
+
+## 222. 等待后的模型及数据库连接归属复核
+
+Ruling: 共享守卫建立时检查模型的 sequelize 归属，返回结果前却未复核。用两个真实独立内存 SQLite 库、同名物理表和同一注册模型，在原 findAll 边界换绑实际连接；现有读服务错误返回另一库的 id999。再覆盖根模型、中间表模型及数据库和全部依赖模型同时换绑，避免仅比较二者当前相等而放过协调替换。最小修复须捕获原连接实例并复核，原查询及权限交集保持，不接入新入口或修改正式依赖。
+
+- [x] 真实读取跨库结果 RED；修正单元夹具后数据库绑定三类 RED。
+- [x] 最小实现、相关回归/构建、作者串行自审和原两份记录；默认签名英文原子提交以实际 Git 为准。
+
+首轮 metadata-database-binding-red.log 实际 5 失败/403 过滤跳过/408 总、退出 1、10.13 秒，session31135 已退出。其中真实 reads 用例明确错误返回 [{id:999}]，其余四项被 finally 对只读 collection.db 的赋值错误遮盖，不能称全部五项产品 RED。核查后移除该不可直接赋值的候选及错误恢复语句，保留真实可写的 model.sequelize/db.sequelize；修正后单元三项实际均因守卫不拒绝而失败，13 过滤跳过/16 总、退出 1、5.19 秒，metadata-database-binding-corrected-red.log，命令实际退出。首次试验未产生 PG/物理文件夹具，真实跨库读的模型始终在 finally 恢复、第二独立内存库关闭。
+
+最小生产修改三行：共享守卫捕获原 db.sequelize，并在每项既有依赖复核时同时要求 db.sequelize/model.sequelize 仍为原实例。协调替换成同一新实例也拒绝，不仅比较当前两者相等。最终 metadata-snapshot/reads/query/config-validation-action/mutation/creation 六文件 547 通过/4 SQLite 不支持的层级写专项跳过/551 总、实际退出 0、84.37 秒，metadata-database-binding-regression.log，session71306 已退出。四个新增用例含于547，不累加 RED。新真实读取测试确认第二库实际读出999，守卫拒绝发布；不是证明外库 SQL 从未发生或将不可信服务器代码沙箱化。这里只验证应用运行时绑定生命周期，不代表真实部署跨库或跨租户业务验收。PG 分支未收集执行，不把这四项说成已经由 PG 运行。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过、实际退出0，metadata-database-binding-build.log，session3870 已退出。最终三 TS Prettier check/oxlint通过，源/snapshot SHA256逐项一致；最终验证后源码未改。作者按 requesting-code-review 模板串行自审：原实例捕获防协调替换，检查在原 modelSnapshot 之前短路，无新增 SQL、事务所有权或 ACL/G/V 语义变化；真实读取和 root/through/协调换绑均有断言，finally恢复测试对象并关闭独立池。无未修复 Critical/Important，不是整分支独立复核。本轮只SQLite、不启PG/建库，保留日志与旧夹具，主检出/核心/正式依赖/业务库/既有附件均不动，不推送/合并/发布。后继只读发现多表 prepare 清单逐轮复制，需先验证其异步选择漂移，不将候选当已修复或停止等待定时。

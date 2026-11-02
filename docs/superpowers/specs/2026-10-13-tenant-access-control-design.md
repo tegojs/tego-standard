@@ -264,6 +264,10 @@ Inspector 可另行显式提供独立池的 fence 映射，并调用 reserveLoca
 
 prepared 候选也列入，必须逐项走原 inspect 等检查；prepared 的 inspect 仍为 unknown，发现到 id 不证明提交的 SQL 删除、可信因果来源、当前引用/ACL、物理根或清理资格。各页是各自事务中的快照，随机 UUID 的并发提交可以落在已过游标之前，维护者须从起点反复扫；nextAfter 不是持久消费进度，也不保证完整覆盖。实际测试覆盖丢弃成功返回值与 afterCommit 异常交付后发现并原检查、prepared 分页、未提交及回滚不可见，未实施真实生产者进程崩溃。此入口补齐 UUID 未交付场景的持久候选发现部分，不等于完整崩溃发现、未知结果协调或不可伪造来源，全部正式执行/部署门控继续关闭。
 
+§210 另以全新独立库和新文件验证真实 Node 生产者终止：固定 worker 运行原授权 captureAttachmentRemoval → executeRecordedAttachmentRemoval、Repository 钩子、owned SERIALIZABLE 和 full-row native capture。真实 afterDestroy 内暂停尚未提交的事务，或从该 hook 登记真实 afterCommit 回调，在 SQL 已提交但原 wrapper 尚未返回时暂停；IPC 仅发送固定阶段名，不交付 UUID、payload 或结果。父测试通过原 ChildProcess 发 SIGKILL，核实实际 close 为该信号且 stdout/stderr EOF 后，才创建独立观察池调用原 discoverIntents，再对发现的 id 逐项 inspect。提交前终止没有候选/事件且原归属行保留；提交后终止发现一个候选，原 inspect 确认 committed-sql-observed、原行消失且事件存在。读取前后原意图 xmin/ctid/payload 不变，两场景原新文件 dev/ino/大小与字节均保留。未知阶段在真实 IPC 存在时拒绝，不打开数据库或交付证据。
+
+该项直接覆盖既有行为，没有产品修复或人为 RED；这里的生产者仍是可信测试组件里的真实 SQL 执行器，不是已部署产品服务、主机崩溃或断电，强制终止不声称执行 finally。固定 IPC 只定位测试断点，提交事实由原检查器复核；不构成不可伪造因果来源、完整扫描/消费/未知结果协调或重试/清理权。正式调度器、helper 安装、selected executor、注册/路由、规则保存启用继续关闭，可信根、完整部署写者与旧句柄/映射、跨会话权限、最后原子动作和业务试点仍未完成。
+
 ### 关联读取与授权事实
 
 关联展开只处理本次请求实际使用的关系路径，由入口显式提交查询计划。已迁移目标表按自己的读取范围过滤；未迁移目标表保持原来的租户机制。隐藏的单值关联返回 `null`，多值关联只返回可读项；单纯展开关联不能因此丢掉本来可读的根记录。过滤应在数据库查询阶段完成，不能取出后再逐项查权限。

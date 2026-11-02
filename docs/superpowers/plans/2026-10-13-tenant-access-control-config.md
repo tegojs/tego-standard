@@ -3276,3 +3276,32 @@ Ruling: 用户要求积极推进全流程，选择补齐独立检查器目前必
 本轮资源收敛：确认测试/构建/esbuild/helper 活动调用 0 后，只读核实 postmaster PID32152/创建 2026-11-02T13:52:05.992802+08:00/原 data_directory 命令，25466 全部记录唯一该 PID（State 仍 null，不用 Listen 过滤），SQL 原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库、非恢复、零其他客户端及专用库 owner。只删除 tego_tenant_access_test_a20902b640，实际 pg_database count0；原临时 PG 正常停止、pg_ctl 无服务、原 PID 消失和 25466 全部记录 0，session6729 实际退出 0。集群、日志保留，其他 PG 服务不动。本轮新 authorized-local-read/session 目录无残留；读取还发现 5 个 10月29—30日既有 authorized-local-read 目录和旧 session-6cUGZR，均未触及，不报告全部临时目录零、不重试旧拒绝清理/换 API 绕过或重复请求。
 
 本节最终只五文件：原集成测试、removal-completion-inspector.ts、server/index.ts 和两份记录。既有附件、主检出/核心、正式依赖、所有原 native helper/broker/client/owner、生产 recorder 及原 inspect 路径未改；全部正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。签名/提交与干净状态以后继真实 Git 为准，不预写成功；最新用户允许新默认签名实际 Timeout 后临时无签名提交，不改全局配置。
+
+## 210. 生产者实际退出后独立发现未交付的持久意图
+
+简报与实现选择：承接 §209 明确允许的真实进程边界，在全新独立 PG 夹具中用固定 Node 子进程运行原 captureAttachmentRemoval → executeRecordedAttachmentRemoval。父测试拥有新目录/新字节/专用库；worker 只重新注册原映射并执行原授权/Repository/owned SERIALIZABLE/native 完整 OLD/完成校验，不接收 UUID 或任意 SQL/动作。实际 afterDestroy hook 暂停尚未提交的调用，或该 hook 登记的真实 afterCommit 回调暂停已提交但原 wrapper 尚未返回的调用；IPC 只发固定阶段名，不发 UUID。父测试以原 ChildProcess 强制结束并等真实 close/EOF 后，才用新独立池 discoverIntents，再走原 inspect。两阶段分别应保留原行且无意图，或发现真实提交的 v3 意图并验证原行已删除；原新文件身份/字节始终保留。
+
+此处“生产者”是可信测试组件里的真实原 SQL 执行器，不是已部署产品进程；强制进程终止不声称执行 finally 或主机崩溃/断电。固定阶段 IPC 只是定位测试断点，提交事实由后继原检查器核实，不是凭回包认定。测试应抓住把意图仅留内存/提交前发布候选、跳过真实完成证据或改由应用 UUID 续做的破坏；如既有产品已满足则如实记直接覆盖，不人为造产品 RED。不修改生产行为或加入清理/重试/调度器。
+
+- [x] 新独立测试及固定 worker/共享真实映射夹具，未知模式拒绝；真实子进程终止与 EOF/close 后才开独立观察池，相关验证只在原 snapshot/全新专用库严格顺序运行。
+- [x] 真实 PG 完整新文件验证、聚焦格式/lint、源/快照核对、作者串行自审和两份记录；实际资源/库/自有 PG 已收敛，后继英文原子提交及签名以实际 Git 结果为准，不预写成功，不推送/合并/发布。
+
+本节仅五文件：新 removal-process-crash.test.ts、fixtures/removal-crash-context.ts、fixtures/removal-crash-producer.ts 及两份记录。未改生产代码、原 inspect/discoverIntents/recorder/native helper/broker/client/owner、主检出/核心、正式依赖或既有附件。共享夹具使用原 config-store/ACL 最终决策/租户 G/Repository 执行器与 full-row native 实现，worker 只注册映射、不 sync/seed 或重建证据。没有持久角色 scope 委托，直接授予真实 documents:destroy，未模拟 ACL。esbuild 的 module-acl 别名仅指向真实 scope-provenance.ts 读取函数，非 mock；无动作 callback、任意 SQL/命令或生产接入。
+
+真实新专用库 tego_tenant_access_test_a21002c641，启用前原集群停止且 25466 全部记录 0；只启动原集群，明确 -h 127.0.0.1 -p 25466，实核原 data_directory、tenant_test、127.0.0.1 与 /32、postgres 主库/非恢复/零其他客户端。所有 runner 实际退出后才开始后继运行，没有并发 runner/诊断；本节无无关包构建或 registry 复查。
+
+初始新文件 2 失败、无跳过、退出 1、8.18 秒（测试 1.28 秒），removal-process-crash-initial.log，session64786 已实际退出。错误 Native removal capture requires physical location and evidence fields 在 worker 启动前发生，不是产品 RED 或崩溃结果。依 systematic-debugging 读原 native capture 和已有成功夹具，定位新 documents.id 漏 primaryKey，捕获器因此取不到物理主键；仅新映射补 primaryKey:true，不放宽原捕获器。后继 2 失败、退出 1、12.76 秒（测试 8.15 秒），removal-process-crash-primary-key.log，session59155 已实际退出；worker 在固定阶段前因缺 dayjs 退出，不是原 SQL 执行失败。只读生成 bundle 到 stdout，证实 root-mutation 的真实导入图包含 plugin-action-export 对 dayjs/node-xlsx 的依赖；仅给 worker NODE_PATH 加已有该包 node_modules，未安装/改依赖。CLI 定位改为先 realpath 原 devkit/package.json，避免依赖 Vitest 的测试解析补丁。
+
+同时新增未知阶段负向覆盖，首个完整三项实际 3 通过/无跳过、退出 0、13.85 秒（测试 8.95 秒），removal-process-crash-resolution.log，session2999 已实际退出。作者自审发现该负向启动没有 IPC，会同时命中 missing IPC，不能单独证明未知阶段守卫；只改该测试为真实 fork/IPC 配 invalid URL，严格断言退出 1、无 IPC 消息/标准输出及原阶段错误。还收紧两终止用例必须实际 code:null/signal:SIGKILL、两管道 readableEnded:true，提交前原行完整位置/归属保持。最终完整新文件 3 全通过、无跳过、实际退出 0、12.89 秒（测试 9.04 秒），removal-process-crash-final-regression.log，session77104 已实际退出。前轮三项含于最终三项，不相加；既有产品直接满足新边界，不制造产品 RED，不称整分支回归。
+
+三 TS 最终 Prettier check 和 oxlint 零错误警告（read_lints 不可用，采用聚焦 CLI）。本节仅测试/夹具，不改 runtime/API/依赖，真实子进程 bundle 已编译执行，不跑无关包构建；Markdown 仍被忽略，不称格式化。最终源/快照 SHA256 一致：测试 07857AF0CB04FAAE9B81943C461E508C4A98F15F9FFF6D8261F87001C9590357；context 703F478EF49C5198E0ED369F2154FB722C1A30C58A9552121539E21AEB62E289；producer 8FFACBFB22E25A725FA393899D1642B86222BB77D8CD0C1961C768B320935659。最终三项后代码不再改动。
+
+只读命令问题另行保留：首次 snapshot 非 Git 仓库上的 branch 查询失败，随后 pnpm shim 将 PowerShell 文件数组作为一个参数传递导致 Prettier 未找到文件，实际退出 2，未运行 lint/测试；改为显式三个参数后格式/lint 正常。只读定位曾使用 Windows rg 通配路径或猜测不存在的 packages/utils/src；普通 shell 的 devkit/esbuild 解析探针失败，后用真实已安装 esbuild CLI 输出 bundle 验证导入图。这些不是产品/测试 RED，没有修改正式依赖或生成生产输出。
+
+作者按 requesting-code-review 模板串行自审（不是独立复核）：从基线 5c0c4b5e7 检查全部新文件与计划，真实原 SQL 执行、提交前后断点、未交付 UUID、原 ChildProcess/EOF/close 后独立观察、持久行不变及字节保留均有实际断言；未知阶段负向不再依赖缺 IPC。所有 drop/rm 只针对本测试新专用库内已登记 schema 与本次 mkdtemp 目录，worker SIGKILL 不声称执行 finally；父测试等真实 close 后才清理。没有生产变更，不做正式放行结论；整分支独立复核仍未完成。
+
+本轮资源收敛实际退出 0：验证/esbuild/worker 活动进程 0，全部新 producer-crash 目录 0；只读核实 postmaster PID77308、创建 2026-11-02 14:39:24、精确原 data_directory 命令，25466 全部记录唯一该 PID（State 仍 null，不用 Listen 过滤），SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 主库非恢复/零其他客户端及专用库 owner 后，才删除 a21002c641 并确认 pg_database count0。原临时 PG 正常停止，pg_ctl 无服务、原 PID 消失、25466 全部记录 0。集群和本节四份测试日志/PG 日志保留；旧 session-6cUGZR 及十月既有 authorized-local-read 目录未触及，不称所有临时目录零。
+
+本节补齐“原 producer 真实进程终止、UUID 未交付之后发现并独立检查”的受控测试部分，不是生产部署崩溃消费/全量扫描协调、主机崩溃持久性或不可伪造因果证明。完整未知结果协调/实际消费、可信部署根与来源、完整部署写者旧句柄/映射排空、跨会话权限、最后原子动作、逐对象可用性/替换其他入口/业务试点和整分支独立复核继续未完成。所有正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项须选其中明确独立交付，不重复本节进程终止/发现或 §188—209 已有表征；部署事实缺失仅限制相应放行，不笼统阻塞独立开发。
+
+本节默认签名真实尝试：git commit session37440 实际退出 1，gpg 明确报告 signing failed: Timeout，Git 未写提交对象。只读核实 HEAD 仍为 5c0c4b5e7，原 commit PID53280/80528 和 gpg PID75444 已消失，五文件暂存范围保持。期间看到另一任务的无关 Git/GPG 调用，未触及、不误认为本调用或等待其结果。依用户已明确授权，仅在本调用超时退出后，后继可用 git -c commit.gpgsign=false 完成本批原子提交；不改全局配置、不操作认证窗口、不重复请求。临时跳过不称默认签名 G 或验签通过，最终提交以后继实际 Git 结果为准。

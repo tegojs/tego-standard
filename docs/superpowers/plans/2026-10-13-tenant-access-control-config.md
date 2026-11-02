@@ -3221,3 +3221,28 @@ TS Prettier/write/check 与 oxlint 零错误警告，最终 PS AST 通过；C# �
 作者按 requesting-code-review 模板串行自审四文件：固定 namespace/目录/模式先校验，legacy 与完整原生身份都来自实际句柄，SHA256 私有锁名只含真实卷 GUID/卷序号/全部 128 位 ID；实际 CreateFileW 的别名重开而非只回报 openedVia。若按 DOS/GUID 文本分锁，双向 busy 用例会失败；若按整个卷粗合并，other 独立取得及原 root 仍 busy 会失败；若未知命令漏释放，后继独立取得会失败。锁名不输出、不接受外部注入，输出只有身份/路径种类/竞争状态，不是执行能力。mutex 和根句柄在正常/异常 finally 中按所有权关闭；收到 held/busy/acquired 或 released 不是进程已退出，测试仍读 EOF/等真实 close。probe 返回给测试时其 mutex/根已经随进程关闭，不提供可继续执行的会话。未判断其他卷/文件系统、全部路径别名/挂载、128 位高位差异的实际覆盖、跨会话对象安全描述符与完整部署身份、外部全部写者、来源认证和最后原子动作；这些未判断项错误推广会造成生产误授权，故正式全部门控继续关闭。此为作者自审，不叫整分支独立复核。
 
 最终真实资源/生产引用/diff 检查整体退出 0：测试/esbuild/helper 0，本轮 root-alias 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理/换 API 绕过、不报告全部临时目录零；原日志/集群保留，无新 PG/数据库。既有附件、主检出/核心、正式依赖、原权限/映射/相对根 helper、原 broker/client/owner 及生产 recorder/inspector 不改。精确暂存/默认 GPG 英文原子提交及独立验签由实际 Git 核实，不预写成功，不推送/合并/发布。
+
+## 208. 显式继承列表交付已打开的测试根
+
+Ruling: 在 §207 之后选择跨进程根句柄交付，而非重做路径别名竞争。最初根仍由测试父进程的新路径选定，不认证生产来源；交付机制独立于部署配置，可以在隔离夹具中验证。仅新增 removal-root-delegation.test.ts、fixtures/removal-root-delegation.ps1 和两份原记录。无生产接入、删除/disposition、任意路径/命令、账号/token/DACL 改动。错误推广可能把不可信启动者当根授权者，全部正式门控继续关闭。
+
+本轮简报（单会话执行）：Node 只建立 OS 临时目录直子 tego-removal-root-delegation-*，固定 root/replacement 与 wx probe.txt。launcher 固定原 root 句柄后等待一次 delegate-and-close；通过 DuplicateHandle 减为 READ_ATTRIBUTES/TRAVERSE/SYNCHRONIZE，以 STARTUPINFOEX 的 PROC_THREAD_ATTRIBUTE_HANDLE_LIST 只交付固定管道及该根。实际 CreateProcessW 挂起启动同一脚本的固定 worker，launcher 关闭自身根/duplicate 后才 ResumeThread。worker 环境不含原目录/模式，只有继承句柄数值；通过该实际句柄相对打开固定 probe.txt，ReadFile 后关句柄并退出。测试数值不是凭据，launcher/worker 可执行文件和最初路径仍是假定可信的测试组件。
+
+- [x] 先写三项测试：源句柄关闭后子进程仍读取原对象；根名替换后仍读取原对象而 Node 确认旧路径为 decoy；从实际继承列表省略根时不因仅传数值而取得根。正向还须实际 SetFileTime 被减少后的句柄权限拒绝 5，Node 核对新字节/身份/时间。
+- [x] 在原 snapshot 执行缺 helper 的 fixture RED，记录真实失败阶段，不冒称产品 RED。
+- [x] 最小固定 helper 后顺序运行完整新文件，核对真实 EOF/两个进程退出及资源；追加边界覆盖并执行最终完整文件。
+- [x] 聚焦格式/lint、PS AST、源/快照 SHA256、作者串行自审和两份记录；精确暂存、默认 GPG 英文原子提交与独立验签结果另以真实 Git 核实，不预写成功。不启 PG、不跑无关包构建、不推送/合并/发布。
+
+初始三项缺 helper 实际失败/退出 1，总 7.85 秒（测试 433ms），removal-root-delegation-red.log；PowerShell usage 空行导致首个 JSON 解析失败，未到原生行为断言，不称已捕获 helper64 或产品 RED。最小 helper 后三项全部通过、退出 0，总 6.91 秒（测试 4.54 秒），removal-root-delegation-green.log。作者补未知命令/未知模式/嵌套 namespace/额外条目四项，已有守卫直接通过，不冒称 RED；当轮完整七项通过/退出 0，总 9.42 秒（测试 6.95 秒），removal-root-delegation-regression.log。自审再补同对象同大小变更为固定 decoy 字节的用例，确认 worker 拒绝 binding-change；helper 未改，已有检查直接通过，不冒称 RED 或产品修复。最终完整新文件 8 项全部通过、无跳过、实际退出 0，总 11.00 秒（测试 8.67 秒），removal-root-delegation-final-regression.log；原三项及中间七项均包括在八项内，各轮不相加，不是整分支回归。命令为 pnpm exec vitest run packages/module-file/src/server/__tests__/removal-root-delegation.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 30000 --reporter=verbose。原 session61963 退出 1、45442 和 71767 退出 0，首次 green 命令直接实际退出 0，均无继续等待项；所有验证只在原 snapshot 顺序执行，没有 PG/建库或重跑 §203—207 文件。
+
+通过只读 Invoke-WebRequest 实际读取 MicrosoftDocs/sdk-api 官方仓库的 DuplicateHandle、UpdateProcThreadAttribute 和 CreateProcessW 契约：不使用 DUPLICATE_SAME_ACCESS，显式减少源 0x1001a0 到 0x1000a0；列表只含可继承的 root duplicate 和固定 stdin/stdout 管道，CreateProcessW bInheritHandles=true，STARTUPINFOEX/EXTENDED_STARTUPINFO_PRESENT、CREATE_SUSPENDED/CREATE_UNICODE_ENVIRONMENT/CREATE_NO_WINDOW。omit-root 故意留下实际可继承 duplicate，却从列表省略，worker 拒绝 inherited-root；它不是通过传入 expected JSON 决定成功/失败。worker 环境移除原目录和模式，工作目录固定为 PowerShell 安装目录，不按旧文本名重新选根；ReadFile、SetFileTime 权限拒绝和父侧 Node 身份/字节/mtime 都实际执行。没有搜索空内容或文档抓取失败。
+
+TS Prettier/write/check 与 oxlint 零错误警告，PS AST 通过，真实 launcher/worker 的嵌入 C# 均编译执行；源/快照 SHA256 一致：测试 4C426AEA91461F4A390DC76AB9CB6C66F386DD42F6A4EF6E6D3054B8C44246A9，PS DBBFCEAAC07A85E9272C6AA76D44CA87C006E41A1065B687885587120278F6BB。源码在最终八项之后未改。两处早期只读定位使用了不存在的旧源码名/规则引用路径，未运行测试或改数据，不算产品 RED；后继使用实际枚举路径和规则正文。Markdown 仍被忽略，不称实际格式化；read_lints 不可用，以聚焦 oxlint/格式检查替代。
+
+作者按 requesting-code-review 模板串行自审：两份父根副本真实 Dispose 之后才 ResumeThread；原生 process/thread/pipe/attribute-list/environment 分别在 finally 收敛，启动后异常只终止本次 CreateProcessW 返回的实际 child handle，不按任意 PID 杀进程。正常 worker 先关闭根和叶，再返回对象给 PS 序列化并退出；launcher 读取 worker 输出 EOF、真实等待进程并读取退出码后才转交结果，Node 再读 launcher EOF/真实 close。因此最终快照不是仍存活的根权利或动作许可。未知 launcher 命令不建 worker，相关拒绝也实际退出；若删除继承白名单、意外 DUPLICATE_SAME_ACCESS、退回旧绝对路径或不真正读取，分别有省略列表、访问拒绝、路径替换及固定字节断言覆盖。此为作者自审，不叫独立复核。
+
+未判断项与裁决：最初 root 路径和 launcher/脚本/executable 来自测试边界，不认证可信生产部署来源/启动路径竞争；worker 同账号同登录会话，减少的只是单句柄访问，既不沙箱整个 worker，也不禁止其另开路径/复制其他权利。句柄数值在当前接收进程里可能被复用，单独数值不是秘密或跨进程凭据，省略列表的实际结果只覆盖本机本轮；没有据此宣称所有数值不可伪造。继承目录句柄不冻结子树、权限/完整元数据、别名或后继变化，也不排空全部写者或封闭最后原子动作。CreateProcessW 普通继承本身不覆盖跨登录会话；§207 的完整卷/128 位标识没有被本节 legacy dev/ino 快照替代为生产根认证。以上只限制对应放行，不阻止其他独立开发；完整未知结果协调/UUID 交付前发现、可信根与来源、部署写者和旧映射排空、跨会话权限、原子动作、逐对象可用性/其他入口/业务试点及整分支独立复核继续未完成。
+
+最终资源/生产引用/diff 检查实际退出 0：测试/esbuild/launcher/worker 0，本轮 root-delegation 新目录 0，25466 全部端口记录 0，生产源码对新 helper 引用 0。唯一旧 6cUGZR 仍存在且未触及，不重试被拒清理或换 API 绕过、不报告全部临时目录零。既有附件、主检出/核心、正式依赖、所有旧 helper/broker/client/owner、生产 recorder/inspector 均未改；日志/集群保留，全部正式安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。
+
+提交阶段实际记录：首次 git commit -m 'test(file): characterize inherited root handle delegation' 真正启动默认 GPG，实际 gpg.exe 与新 pinentry.exe 已按父子进程回读确认。原调用 session91428 最终实际退出 128，gpg 明确 signing failed: Timeout，Git failed to write commit object；当时没有本节新提交/验签成功，HEAD 为 §207 的 5cfe0fa3ba1a1a6e36e02ec96ab092ca353424e6，四文件保留暂存，未声称工作区干净。已就该次真实解锁通知一次，不操作认证窗口、不禁用签名，后继 heartbeat 条件未变时未重试。用户随后明确回复“已在 GPG 窗口完成解锁”，此为认证条件改变；恢复先核实原 HEAD、四文件精确暂存、无活动 git/gpg/pinentry 调用、两份记录与源码/快照 SHA256 不变，再更新此历史记录并用原默认签名重试一次。未重跑已完成八项测试或重做实现；后继提交/独立验签及工作区状态只以实际 Git 结果为准，不预写成功。

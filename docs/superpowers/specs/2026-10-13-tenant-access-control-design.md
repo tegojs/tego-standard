@@ -256,6 +256,10 @@ Inspector 可另行显式提供独立池的 fence 映射，并调用 reserveLoca
 
 两种路径的本机归并并不认证最初选中的根或其部署来源，不覆盖所有别名、挂载和文件系统、跨登录会话命名空间/DACL/身份、未知或不参加的写者及旧句柄排空。实际根句柄持续持有只绑定本次对象，标识/哈希不是秘密、凭据或执行 token，命名对象消失后的新获取不提供持久历史。helper 不写文件、无删除/disposition、产品导出/安装或业务接入；最终竞争结果不封闭核验到物理动作窗口，不解除既有 unresolved 或任何正式门控。
 
+§208 在全新隔离夹具中验证已打开根的跨进程交付。launcher 在最初测试路径固定 root 后，将目录句柄 DuplicateHandle 减为 READ_ATTRIBUTES/TRAVERSE/SYNCHRONIZE；通过 STARTUPINFOEX 的显式句柄列表及挂起 CreateProcessW 交给固定 worker，关闭自身原 root 和 duplicate 后才 ResumeThread。worker 环境不含原目录/模式，通过真实继承的目录句柄只相对打开固定 probe.txt 并 ReadFile，Node 独立核对原 dev/ino、新字节及 mtime。原 root 名被本轮 replacement 占据后仍读取原对象，旧文本名处的 decoy 由 Node 实际读取确认；故交付没有退回旧路径重新选根。实际可继承 duplicate 从列表省略时，worker 拒绝，只有数值没有在本轮取得根；减少后的继承句柄实际 SetFileTime 拒绝 5。
+
+这是可信测试 launcher 已经选定根之后的机制表征，不是可信生产 bootstrap 或不可伪造因果来源。数值不是秘密、凭据或跨进程执行 token；当前进程可能复用句柄数值，本轮省略列表的结果不能推广所有进程。worker 仍以原账号/同登录会话运行，单句柄减少权限不沙箱整个进程或阻止其他句柄/路径；根继承不冻结子链、完整元数据、别名或写者，跨会话身份与 DACL、全部部署写者和旧映射排空、最终原子动作仍需各自证明。worker 在 JSON 前关闭实际根和叶；launcher 等 worker EOF 和真实退出后才转交快照，Node 后续仍等 launcher EOF/close。因此返回结果不持有可继续执行的根权利，也不解除 unresolved 或任何正式门控。helper 无文件内容写入/删除/disposition、任意命令、账号/token/DACL 变更或产品导出/安装；最初物理根来源、启动路径竞争、全部别名/卷及业务接入继续未解决。
+
 ### 关联读取与授权事实
 
 关联展开只处理本次请求实际使用的关系路径，由入口显式提交查询计划。已迁移目标表按自己的读取范围过滤；未迁移目标表保持原来的租户机制。隐藏的单值关联返回 `null`，多值关联只返回可读项；单纯展开关联不能因此丢掉本来可读的根记录。过滤应在数据库查询阶段完成，不能取出后再逐项查权限。

@@ -118,6 +118,7 @@ export class AccessMigrationPreviewService {
           ...(name === 'dataSourcesCollections' ? { dataSourceKey: identity.dataSourceKey } : {}),
         },
         useMaster: true,
+        transaction: null,
       });
       if (!record)
         throw new AccessConfigError('ACCESS_COLLECTION_NOT_FOUND', 'Collection metadata identity is unavailable', 404);

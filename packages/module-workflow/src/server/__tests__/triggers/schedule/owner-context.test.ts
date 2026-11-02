@@ -68,7 +68,10 @@ describe('date-field schedules retain the record owner', () => {
       config: { collection: 'scheduledOwnerResults', params: { values: { name: 'Generated' } } },
     });
     // Save-event and explicit discovery tests own their dispatch boundaries.
-    const initialScan = vi.spyOn(DateFieldScheduleTrigger.prototype, 'inspect').mockImplementation(() => undefined);
+    const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
+      modes: Map<number, DateFieldScheduleTrigger>;
+    };
+    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockImplementation(() => undefined);
     try {
       await workflow.update({ enabled: true });
     } finally {

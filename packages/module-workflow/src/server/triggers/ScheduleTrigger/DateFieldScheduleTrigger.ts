@@ -242,6 +242,13 @@ export default class ScheduleTrigger {
     }
 
     const range = this.cacheCycle * 2;
+    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const targetCollection = this.workflow.app.dataSourceManager.dataSources
+      .get(dataSourceName)
+      ?.collectionManager.getCollection(collectionName);
+    if (!targetCollection) {
+      throw new Error('Scheduled collection is unavailable in its configured data source');
+    }
 
     const conditions: any[] = [
       {
@@ -256,7 +263,7 @@ export default class ScheduleTrigger {
       // when repeat is number, means repeat after startsOn
       // (now - startsOn) % repeat <= cacheCycle
       if (typeof repeat === 'number') {
-        const tsFn = DialectTimestampFnMap[db.options.dialect];
+        const tsFn = DialectTimestampFnMap[targetCollection.model.sequelize.getDialect()];
         if (repeat > range && tsFn) {
           const modExp = fn(
             'MOD',
@@ -297,7 +304,6 @@ export default class ScheduleTrigger {
       });
     }
 
-    const targetCollection = db.getCollection(collection);
     const { model } = targetCollection;
     const records = await model.findAll({
       where: {

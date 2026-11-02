@@ -3534,3 +3534,18 @@ Ruling: 原实际扫描把NULL历史记录绑定到配置允许的B；扫描后�
 最小实现后owner/listener两文件13全通过、无跳过、实际0、11.71秒，schedule-owner-drift-green.log，session66131已退出。最终5文件61全通过、无跳过、实际0、59.55秒，schedule-owner-drift-regression.log，session97715已退出，含owner7、listener6、日期13、模块边界5、tenant实际工作流operation30。原新项包含于61，各轮不相加，不是整分支回归。过期缓存无执行/生成行，实际原行H保持；新扫描同一时点正常执行H且生成H。既有预期拒绝日志保留，未跑PG/真实登录/API。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-owner-drift-build.log，session94178已退出。
 
 最终两TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 7537EF280C852894BE6EC9CBE988204AFE5C3BE4FD4B27BEFD9BB8D2597A33F4，owner test 40320623543E8F62ADE2C31EF9D075DDFECFC0B65F77B58A58F069E0A003020D。最终回归后代码未改。作者按requesting-code-review模板串行自审，非独立复核：原始归属在await前复制，回读检查在绑定/执行/重复调度前，旧缓存不占用持久去重记录，新扫描仍能执行；不改变caller事务、权限/归属或legacy策略。无本项未修复Critical/Important。尚未封闭回读后至工作流写入的并发窗口，不提供原子任务租约；跨实例去重、新G调度接线仍未完成。只SQLite、未启PG/建库/新物理附件，旧目录/日志及主检出/核心/正式依赖/业务库不动，不推送合并发布。下一步核对实际外部数据源扫描，尚不称候选已完成。
+
+## 227. 定时扫描须选择实际外部数据源，租户事实仍由主库裁决
+
+Ruling: 原loadRecordsToSchedule把another:table直接传给主库db.getCollection，已登记外部表因此无法扫描，而schedule/trigger已按限定名选择外库。最小修复复用相同parseCollectionName和dataSourceManager选择，缺目标明确拒绝不回退；周期表达式改取目标model.sequelize.getDialect。租户启用查询与buildTenantContext仍用原主库db，不让外库同名tenants替代权威。两个数据库同名表必须选择外部真实行；否则定时业务漏跑或处理错误来源。无新G调度接线、schema或默认启用。
+
+- [x] 两个真实独立内存SQLite数据库，同名表不同内容、同名租户相反enabled/path；tenantScoped/Inherited实际扫描和触发持久执行，以及无tenantId共享表、缺数据源不回退。
+- [x] 最小实现、受影响调度/tenant回归、workflow完整构建、作者串行自审及两份记录；提交签名以Git为准。
+
+初轮4失败并4个unhandled rejection、实际1、7.71秒，schedule-external-source-red.log。3个正向真实暴露主库找不到限定名；负向fixture改写真实workflow.config使teardown.off也访问缺source，不是第4个独立产品RED。还查明测试导入类与真实插件加载实例不相同，prototype inspect spy未抑制实际初始扫描；纠正§226“已禁用初始inspect”的保证：当轮虽有干净实际B/H与生成B反例，但该spy本身不能提供此保证。本节external与原owner夹具都改为spy真实plugin.triggers中schedule实例的modes.get(1).inspect，显式扫描/保存listener/Repository/SQL不mock。
+
+只修正实例spy后仍4失败、实际1、9.11秒，schedule-external-source-corrected-red.log，session37974已退出；负向teardown仍错。再把缺source请求改为副本、共享配置用真实update且仅抑制该次启动扫描，干净真实RED3失败1通过、无unhandled、实际1、7.76秒，schedule-external-source-fixture-red.log。正向都在原targetCollection.model解构失败，未知source已拒绝。原两个轻量listener扫描fixture补main数据源映射，不放宽断言。最小实现3文件17全通过、无跳过、实际0、17.09秒，schedule-external-source-green.log，session67902已退出。
+
+最终6文件65全通过、无跳过、实际0、60.49秒，schedule-external-source-regression.log，session15719已退出：external4、owner7、listener6、日期13、模块边界5、tenant实际workflow operation30。记录实际external B字节而非main decoy，禁用main H即使外库H启用也不扫描；inherited上下文来自main C后代而非外库关系，共享表没有tenantId列仍正常执行。原owner过期缓存及生成归属断言在真实实例抑制后继续通过。各轮不相加，不是整分支回归或真实登录/API、PG/WAL或跨方言部署验收。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-external-source-build.log，session33828已退出。
+
+最终四TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 95587BC0F4098963B5C6A8A8BE426107612A471B0FA537A376AAAB7E1F5785DC，external test F78AC54FE6CBAD7703D7FC82B6A908D15AF840B491094BE1D0021C7A55CA7266，owner test E5495E8B668E0AC4B759932FB2EB19CEEE0048198F292EF2A3083CC7FF409B33，listener test C4F64CD3795DC8B0AA26FDBED60CA0946188E302111EAF0F57D08D681C9E62A8。最终验证后代码未改。作者按requesting-code-review模板串行自审，非独立复核：目标来源与原触发一致，租户权威不跟随外部业务库迁移，不新增fallback或修改实际记录；共享分支继续不查询tenantId。无本项未修复Critical/Important。异步inspect的错误收敛、跨实例原子去重、新G扫描/正式接线及回读后并发窗口仍未完成；初轮unhandled暴露的生命周期问题下一项独立处理，不能用本项成功隐藏。未启PG/建库/新物理附件，保留日志/旧目录，不动主检出/核心/正式依赖/业务库，不推送合并发布。

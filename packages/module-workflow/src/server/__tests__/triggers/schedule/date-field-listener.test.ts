@@ -260,6 +260,9 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       app: {
         on: vi.fn(),
         db,
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: db.getCollection } }]]),
+        },
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
@@ -320,6 +323,9 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       app: {
         on: vi.fn(),
         db,
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: db.getCollection } }]]),
+        },
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);

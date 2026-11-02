@@ -3592,3 +3592,18 @@ Ruling: 承接§228明确未覆盖的独立到期timer。旧setTimeout直接交�
 显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-due-timer-build.log，session85826已退出。最终两TS Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 9B637EE8F0B6B13C6818B84ADE5CB49FA197C1A696EFF70B411FBDD194C8AA1F，external test 220F34140472C83413B6A73B43C94AF32D56788A246DE1964AA4DBA19F973F29。最终验证后代码未改。按requesting-code-review模板作者串行自审，非独立复核：异步回调覆盖全部原trigger路径，finally处理成功/错误/提前返回，即时事务不带入后续timer；logger仍实际输出，未改变原查询和分派规则。无本项未修复Critical/Important。任务列表发现失败、重叠reload及原子任务租约仍未覆盖；下一项继续实际任务列表发现异常，不把两次局部交付当整计划完成。
 
 本轮仅SQLite、未启PG/建库/新物理附件，保留日志、旧夹具和集群，不动主检出、核心、正式依赖、业务库或既有附件，不推送合并发布。一次Windows rg文件通配只读失败后改用实际目录，不计产品RED。正式新G调度/规则保存启用仍关闭。
+
+## 231. 周期 reload 的任务列表发现失败须记录并结束本轮
+
+Ruling: §228只覆盖每个工作流load失败，原reload在读取workflows列表时就可能拒绝，而启动/周期回调不接收它。最小修改在reload本身收敛原异常并交给既有dispatcher logger；成功路径仍等待inspect，发现失败时尚未替换cache，不伪造空工作流集合或自动建表。异常收敛只表示本轮处理结束，不表示扫描成功或全部任务完成。
+
+- [x] 原snapshot、真实内存主库workflows物理表短暂改名后原Repository查询RED；finally恢复原名，不触及业务库。
+- [x] 最小实现、真实恢复后的原扫描/Node timer/持久执行、相关回归与workflow构建、作者串行自审和两份原记录；提交签名以Git为准。
+
+新项真实RED1失败/7过滤、实际1、9.54秒，schedule-reload-discovery-red.log，session9828已退出：resolves实际得到原SequelizeDatabaseError/SQLITE_ERROR:no such table:workflows，未到达日志及恢复后断言。该轮显式等待拒绝，不冒称独立触发周期回调unhandled。表名在内层finally真实恢复。最小实现后完整external文件8全通过、无跳过、实际0、11.35秒，schedule-reload-discovery-green.log，session44415已退出：dispatcher实际输出原错误和SQL，恢复后原reload发现外库B记录，真实timer/Plugin队列实际持久化External B执行且tenantId B。
+
+最终external/owner/listener/date/static/module-boundary/tenant-operation七文件80全通过、无跳过、实际0、30.67秒，schedule-reload-discovery-regression.log，session66530已退出；新项包含于80，不与先前79、聚焦8或RED相加，不是整分支回归或PG/实际部署验收。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全部通过、实际0，schedule-reload-discovery-build.log，session95239已退出。
+
+最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger 7AE978EF91D31EAA216609D782DF94FBD4115D3E9E43952181A154A7231AA392，external test F178C49ECBDF7B5DD21463776940B0E846118359A37FF604386089759D90A870；最终验证后源码未改。按requesting-code-review模板作者串行自审，非独立复核：不把失败替换为空成功，保留实际logger异常，恢复后的执行真实核对归属；发现失败不提前清空cache，未增加重试或调度选择。无本项未修复Critical/Important。自审另定位成功reload直接替换cache可能丢失仍活动timer的引用，下一项须先真实复现，尚不把该候选称已修复；重叠reload和原子去重仍未完成。
+
+仅SQLite、不启PG/建库/新物理附件，保存schedule-reload-discovery-*日志、原集群和旧夹具。所有runner/build已实际退出，不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G调度与规则启用继续关闭。

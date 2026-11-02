@@ -3,7 +3,7 @@ import { mockDatabase, SequelizeDataSource, type Database } from '@tego/server';
 
 import type WorkflowPlugin from '../../../Plugin';
 import DateFieldScheduleTrigger from '../../../triggers/ScheduleTrigger/DateFieldScheduleTrigger';
-import { waitForWorkflowIdle } from '../../utils';
+import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
 describe('date-field scheduling from an external database', () => {
   let app: MockServer;
@@ -189,6 +189,39 @@ describe('date-field scheduling from an external database', () => {
       expect(await workflow.countExecutions()).toBe(1);
     } finally {
       trigger.off(workflow);
+    }
+  });
+
+  it('logs a real workflow discovery failure and can complete the next reload after recovery', async () => {
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const trigger = new DateFieldScheduleTrigger(plugin);
+    const errors = vi.spyOn(plugin.getLogger('dispatcher'), 'error');
+    const qi = app.db.sequelize.getQueryInterface();
+    const table = app.db.getCollection('workflows').model.getTableName();
+    const unavailable = 'unavailable_workflows_for_schedule_reload';
+    const model = external.getCollection('externalScheduleDocuments').model;
+    try {
+      await qi.renameTable(table, unavailable);
+      try {
+        await expect(trigger.reload()).resolves.toBeUndefined();
+        expect(errors).toHaveBeenCalledWith(
+          'failed to reload date-field schedules',
+          expect.objectContaining({ name: 'SequelizeDatabaseError' }),
+        );
+      } finally {
+        await qi.renameTable(unavailable, table);
+      }
+      await model.update({ scheduledAt: new Date(Date.now() + 1000) }, { where: {}, hooks: false });
+      await expect(trigger.reload()).resolves.toBeUndefined();
+      await waitForAssertion(async () => expect(await workflow.countExecutions()).toBe(1));
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution.context.data.label).toBe('External B');
+      expect(execution.tenantId).toBe('B');
+    } finally {
+      trigger.off(workflow);
+      errors.mockRestore();
+      await model.update({ scheduledAt }, { where: {}, hooks: false });
     }
   });
 

@@ -193,15 +193,19 @@ export default class ScheduleTrigger {
   }
 
   async reload() {
-    const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
-    const workflows = await WorkflowRepo.find({
-      filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
-    });
+    try {
+      const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
+      const workflows = await WorkflowRepo.find({
+        filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+      });
 
-    // NOTE: clear cached jobs in last cycle
-    this.cache = new Map();
+      // NOTE: clear cached jobs in last cycle
+      this.cache = new Map();
 
-    await this.inspect(workflows);
+      await this.inspect(workflows);
+    } catch (error) {
+      this.workflow.getLogger('dispatcher').error('failed to reload date-field schedules', error);
+    }
   }
 
   async inspect(workflows: WorkflowModel[]): Promise<void> {

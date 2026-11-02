@@ -14,7 +14,7 @@ import { aggregateGroupExpression, captureAggregateGroups } from './aggregate-gr
 import { captureAggregateMeasures, type AccessAggregateMeasure, type AggregateMethod } from './aggregate-measures';
 import { captureAggregateOrder } from './aggregate-order';
 import type { AccessCollectionIdentity } from './config-store';
-import type { AccessIdentity } from './context';
+import { resolveActiveAccessTenant, type AccessIdentity } from './context';
 import { AccessFilterTreeService } from './filter-tree';
 import { accessMetadataGuard } from './metadata-snapshot';
 import type { AccessQueryService } from './query';
@@ -163,6 +163,22 @@ export class AccessReadService {
     plan.assertCurrent();
     const count = await this.rootCount(plan);
     return { rows: rows.map((row) => this.project(row, plan.attributes)), count };
+  }
+
+  /** Internal task candidates: final ACL intersected with G and the active tenant's actual ownership. */
+  async listOwned(
+    ctx: object,
+    source: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: AccessListRequest,
+  ): Promise<ReadRecord[]> {
+    const plan = await this.plan(ctx, source, authenticated, request, 'list', false, true);
+    plan.assertCurrent();
+    const rows = await plan.model.findAll(
+      internalQuery({ ...plan.query, attributes: plan.attributes, limit: plan.limit, offset: plan.offset }),
+    );
+    plan.assertCurrent();
+    return rows.map((row) => this.project(row, plan.attributes));
   }
 
   async get(
@@ -400,6 +416,7 @@ export class AccessReadService {
     request: unknown,
     kind: ReadKind,
     allowEmptyAttributes = false,
+    owned = false,
   ) {
     const allowed = [
       'filter',
@@ -463,6 +480,7 @@ export class AccessReadService {
     const config = this.prepared.configuration(ctx, source);
     if (!collection || !config || !this.queries.isCurrentCollection(source, collection))
       invalid('Root reads require a current prepared configuration');
+    if (owned && !config.ownership.enabled) invalid('Task candidates require explicit ownership configuration');
     const model = collection.model;
     const metadataCurrent = accessMetadataGuard(this.db, [{ model, config }]);
     const grants = new Map<string, { collection: Collection; grant: AccessFilterReadGrant | null }>();
@@ -618,6 +636,24 @@ export class AccessReadService {
       sorting?.assertCurrent();
     };
     current();
+    if (owned) {
+      const tenantId = await resolveActiveAccessTenant(this.db, authenticated, { transaction });
+      current();
+      const ownership = await this.queries.scopeQuery(
+        ctx,
+        source,
+        authenticated,
+        {
+          ...filtered.query,
+          where: { [Op.and]: [filtered.query.where!, { tenantId }] },
+          reservedBindNames: sorting?.reservedBindNames,
+        },
+        'ownership',
+      );
+      current();
+      if (!ownership || ownership.config !== config) invalid('Task ownership phase changed');
+      filtered.query = ownership.query;
+    }
     const sorted = sorting
       ? await sorting.scopeRoots({ sourceWhere: filtered.query.where, sourceBind: filtered.query.bind })
       : undefined;

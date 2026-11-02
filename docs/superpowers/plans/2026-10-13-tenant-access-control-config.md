@@ -3562,3 +3562,18 @@ Ruling: 原inspect使用forEach(async)，同步返回undefined而异步SQL错误
 最终6文件66全通过、无跳过、实际0、58.66秒，schedule-inspection-failure-regression.log，session63841已退出，含external5、owner7、listener6、日期13、模块边界5、tenant实际workflow operation30。新1项含于66，各轮不相加，不是整分支回归；预期SQL与授权拒绝日志完整保留。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-inspection-failure-build.log，session39897已退出。
 
 最终四TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 3662518B1668F21078DD8EBAFF9FEB16901E4C637E59C14A619822B09DF271C7，external test 9F2303D23F001E082B43545A82B85F16DAB1D3A3A10D82DE7679FC6F70B92CA5，owner test FAC6009948C55256A787D0B7237AF8DBA97AE7A81D948B1B68FEF41694C7B995，listener test D9C57BF2D72D112A2275C932C77E7BB838DC3D59A44C568F13A8C4680B3A1B5E。最终验证后代码未改。作者按requesting-code-review模板串行自审，非独立复核：完成Promise覆盖每个原load及即时排程，catch使用原工作流logger保留原异常，不增加成功标记或重试；实际错误与其他工作流继续有断言。无本项未修复Critical/Important。未涵盖任务列表发现本身失败、独立到期timer拒绝、重叠reload、原子任务租约或新G归属扫描/正式接线，不据此宣告完整调度器完成。只SQLite、未启PG/建库/新物理附件，保留日志和旧目录，不动主检出/核心/正式依赖/业务库，不推送合并发布。接续原规格的内部ACL且G且真实归属读取页，仍不注册正式任务或开启规则。
+
+## 229. 内部任务候选页须同时满足 ACL、G 和实际归属
+
+Ruling: 承接原规格归属型定时任务要求和上一轮留下的未跟踪 owned-dispatch-reads.test.ts，不另开部署调查或物理清理方向。复用原读取计划，增加服务端独立 listOwned 方法，在原 ACL/G/V 查询上进一步与 G 和启用租户的实际 tenantId 相交，排序分页前完成约束。G 可以允许其他租户记录，仍不得作为当前租户的任务；V 不增加候选。显式 ownership.enabled=false 的共享配置拒绝，不猜测归属，不认领 NULL 历史记录。普通 list 契约保持。
+
+- [x] 先实际运行承接的9项测试，入口缺失RED；最小实现及真实查询、字段/角色/请求交集、分页、失效阶段和绑定冲突覆盖。
+- [x] 聚焦SQLite及真实独立PostgreSQL、相关读取回归、tenant包构建、作者串行自审及两份原记录；英文原子提交与签名以实际Git为准。
+
+初始9项均因listOwned缺失失败、实际退出1、6.62秒，owned-dispatch-reads-red.log，无待决session。最小实现8通过1失败、实际1、6.03秒，owned-dispatch-reads-green.log实为失败：原测试用未授权name作为请求筛选，正确被原解析器拒绝。依systematic-debugging核对授权字段后，只把新测试的请求筛选改为获准id，并另建同租户、符合G却被角色条件排除的真实行，不放宽产品字段权限。追加普通list仍可见全部五行及SQL分页断言后10全通过、实际0、6.29秒，owned-dispatch-reads-corrected-green.log。新增分页已有实现直接通过，不冒称新RED。
+
+最终owned/reads/filter-tree/sort/query五文件SQLite508全通过、无跳过、实际0、62.42秒，owned-dispatch-reads-regression.log，session36163已退出。新文件另外在真实新专用库tego_tenant_access_test_a22902f653执行SQLite10及PostgreSQL10，共20全通过、无跳过、实际0、14.35秒，owned-dispatch-reads-postgres-regression.log，session39569已退出。SQLite10重叠不累加，不是整分支回归。包含自定义物理record_id/tenant_id、隐藏归属字段、保留可信source SQL绑定、缺ACL/缺或禁用租户/共享配置拒绝、实际查询后释放阶段拒绝；不是实际登录、正式调度接线、并发租约或业务验收。
+
+显式pnpm exec tegod build @tachybase/module-tenant客户端/服务端/依赖/声明全通过、实际0，owned-dispatch-reads-build.log，session23909已退出。最终两TS Prettier check通过、oxlint零错误警告（read_lints不可用，聚焦CLI替代），源/snapshot SHA256一致：reads E542EC5BA49E1DF539B3F2CFA41F578C33AA08920ED8880ACA233A3160EE0300，owned test 04FB3231F6842BF080D1F33FAD6FF4000D354EFE8F50521CF139E2D5A82F4974。最终验证后代码未改。作者使用verification-before-completion并按requesting-code-review模板串行自审，遵守用户不联系子智能体的要求，非独立复核：新增限制在排序之前，复用原绑定预留、角色投影、事务传递和阶段/元数据守卫，没有将客户端参数升级为scope选择；最终主库启用检查使用原resolveActiveAccessTenant。没有本项未修复Critical/Important；原扫描完整性、跨实例去重、读取到执行之间的并发窗口及正式入口仍未完成。
+
+资源收敛实际0：核实postmaster85336、创建2026-11-02T17:45:03.4553730+08:00、精确原data_directory命令、25466全部记录唯一该PID及真实SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres主库非恢复/零其他客户端和专用库owner后，仅删除a22902f653并pg_database count0；原临时PG正常停止、PID消失、25466全部记录0。保留集群和owned-dispatch-reads-*日志，未触及其他PG服务、旧夹具、既有附件、主检出、核心、正式依赖或业务库，不推送合并发布。初轮读取错误小写schedule目录只读失败，随后定位实际ScheduleTrigger目录，不是产品RED。下一项独立处理原§228明确未覆盖的到期timer拒绝，不重复本节已完成读取表征。

@@ -34,42 +34,47 @@ describe('tenant delay timer failure lifecycle', () => {
 
   afterAll(() => app.destroy());
 
+  async function createPendingTenantDelay() {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: { type: 'collection', enabled: true, config: { collection: 'delayFailureSources', mode: 1 } },
+    });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      config: { duration: 1000, endStatus: JOB_STATUS.RESOLVED },
+    });
+    const consumer = await workflow.createNode({
+      type: 'create',
+      upstreamId: delay.id,
+      config: { collection: 'delayFailureResults', params: { values: { label: 'Recovered B delay' } } },
+    });
+    await delay.setDownstream(consumer);
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    const pending = await execution.createJob({
+      nodeId: delay.id,
+      nodeKey: delay.key,
+      status: JOB_STATUS.PENDING,
+      result: null,
+    });
+    pending.node = delay;
+    return { execution, pending };
+  }
+
   it.each(['missing execution', 'SQL failure'])(
     'finishes a real due timer after %s without generating tenant data',
     async (failure) => {
-      const workflow = await app.db.getRepository('workflows').create({
-        values: { type: 'collection', enabled: true, config: { collection: 'delayFailureSources', mode: 1 } },
-      });
-      const delay = await workflow.createNode({
-        type: 'delay',
-        config: { duration: 1000, endStatus: JOB_STATUS.RESOLVED },
-      });
-      const consumer = await workflow.createNode({
-        type: 'create',
-        upstreamId: delay.id,
-        config: { collection: 'delayFailureResults', params: { values: { label: 'Recovered B delay' } } },
-      });
-      await delay.setDownstream(consumer);
-      const execution = await workflow.createExecution({
-        key: workflow.key,
-        status: EXECUTION_STATUS.STARTED,
-        context: {},
-        tenantId: 'B',
-        tenantContext: {
-          currentTenant: { id: 'B' },
-          currentTenantId: 'B',
-          currentTenancyMode: 'tenantScoped',
-          currentTenantDescendantIds: [],
-          currentLegacyDataTenantIds: [],
-        },
-      });
-      const pending = await execution.createJob({
-        nodeId: delay.id,
-        nodeKey: delay.key,
-        status: JOB_STATUS.PENDING,
-        result: null,
-      });
-      pending.node = delay;
+      const { execution, pending } = await createPendingTenantDelay();
       const model = app.db.getCollection('executions').model;
       let faultInjected = false;
       const errors = vi.spyOn(plugin.getLogger('dispatcher'), 'error');
@@ -136,4 +141,40 @@ describe('tenant delay timer failure lifecycle', () => {
       }
     },
   );
+
+  it('cancels every pending timer after repeated real discovery and permits a fresh explicit load', async () => {
+    const { execution } = await createPendingTenantDelay();
+    const original = instruction.trigger.bind(instruction);
+    const outcomes: Promise<unknown>[] = [];
+    const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+      const result = original(job);
+      outcomes.push(Promise.resolve(result).catch((error) => error));
+      return result;
+    });
+    try {
+      await instruction.load();
+      await instruction.load();
+      instruction.unload();
+      // Real timers: this checkpoint expires after the original job's actual deadline.
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(0);
+      expect((await execution.reload()).status).toBe(EXECUTION_STATUS.STARTED);
+
+      await instruction.load();
+      await waitForFastAssertion(async () => {
+        expect((await execution.reload()).status).toBe(EXECUTION_STATUS.RESOLVED);
+      });
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      const rows = await app.db.getCollection('delayFailureResults').model.findAll();
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Recovered B delay']]);
+    } finally {
+      instruction.unload();
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      observe.mockRestore();
+    }
+  });
 });

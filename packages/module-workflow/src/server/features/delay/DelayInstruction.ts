@@ -59,6 +59,11 @@ export default class extends Instruction {
   };
 
   schedule(job) {
+    const previousTimer = this.timers.get(job.id);
+    if (previousTimer) {
+      clearTimeout(previousTimer);
+      this.timers.delete(job.id);
+    }
     const now = new Date();
     const createdAt = Date.parse(job.createdAt);
     const delay = createdAt + job.node.config.duration - now.getTime();

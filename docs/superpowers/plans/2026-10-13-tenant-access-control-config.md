@@ -3917,3 +3917,15 @@ workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-lif
 按requesting-code-review模板作者串行自审，非独立复核：仅异步delay到期边界收敛，原异常对象交给原logger，缺失记录安全结束，finally只处理原句柄；未把异常解释为成功任务/清理许可。无本项未修复Critical/Important。尚未证明重复load保留全部句柄、所有在途stop交错、已入队撤销、持久租约/跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项全为SQLite，未启PG/建库/物理附件；最终validation0、25466全部记录0。保留原集群/日志及旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
 
 流程补记：最后只读资源检查session96419返回待决session时，工具编排未先消费其实际退出结果就继续记录/提交，违反依赖检查必须等待成功的要求。随后独立消费确认实际0、validation0和全部25466记录0；没有重跑测试来掩盖流程偏差。此补记随原原子提交amend，代码及验证证据不变；后继依赖动作必须先检查exit_code，待决时只等待该调用，不继续变更。
+
+## 251. 重复发现延迟任务不能遗失可取消的旧timer
+
+Ruling: 原DelayInstruction.schedule对同一jobId直接覆盖Map中的timer，旧句柄未取消；两次真实load后unload只清除后一timer，旧timer仍实际生成B业务行。替换排程前同步clearTimeout并删除该jobId的原句柄，再按原期限登记新timer或立即触发；不永久取消持久任务、不改变租户身份或增加重试。
+
+- [x] 原真实SQLite夹具提取共用创建方法，旧两故障用例保持，新增两次原load→原unload→真实期限后观察。trigger仅透传并观察结局，等待所有实际触发及队列完成，再检查业务结果；不是只断言Map或clearTimeout调用。
+- [x] workflow-delay-reload-timers-red.log：1失败2通过/无跳过/实际1/25.38秒，session76226已退出；unload后业务数量实际1、期望0，前两故障控制通过。
+- [x] 最小实现后八文件157全通过/无跳过/实际0/27.78秒，workflow-delay-reload-timers-regression.log，session65226已退出。unload后原执行仍STARTED且无业务行，明确再次load恢复并生成B行。新项含于157，不累加轮次或§250的156，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-reload-timers-build.log，session25711已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 250FCCC8BB324A33A27FE030D1FEDB887A260FC8B78C818E5ABD05CD7C24F9D7；tenant-lifecycle.test A3F42C8835712DB63C0B23945DEDD3E58AEA41F226A2B060E80D357DB165D13B，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：原期限语义、立即到期路径与正常恢复保持；重复发现只替换原job的未触发timer，不按租户或工作流清除其他job。无本项未修复Critical/Important。没有证明已经开始回读的旧callback被撤销、在途load与unload交错、全停止/已入队撤销或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项仅SQLite，未启PG/建库/物理附件；提交前独立资源检查实际0、validation0、25466全部记录0，已消费实际退出结果才后继记录/提交。原集群/日志及旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

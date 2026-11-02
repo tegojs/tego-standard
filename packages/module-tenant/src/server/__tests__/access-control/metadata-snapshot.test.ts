@@ -12,6 +12,7 @@ describe('access metadata dependencies', () => {
     for (const name of ['documents', 'children', 'tenants', 'tags', 'links', 'unrelated'])
       db.collection({
         name,
+        key: `${name}-key`,
         timestamps: false,
         fields: [
           { name: 'id', type: 'integer', primaryKey: true },
@@ -56,6 +57,19 @@ describe('access metadata dependencies', () => {
   it('rejects in-place column changes on a third model used by a rule', () => {
     const verify = guard();
     db.getCollection('tenants').model.rawAttributes.name.field = 'tenantId';
+    expect(verify).toThrow('metadata changed');
+  });
+  it.each([
+    ['documents', 'children.owner'],
+    ['children', 'children.owner'],
+    ['tenants', 'children.owner'],
+    ['links', 'children.tags'],
+  ])('rejects stable identity changes on %s used by %s', (name, path) => {
+    const verify = guard(path);
+    expect(verify).not.toThrow();
+    db.getCollection('unrelated').options.key = 'unrelated-replacement';
+    expect(verify).not.toThrow();
+    db.getCollection(name).options.key = `${name}-replacement`;
     expect(verify).toThrow('metadata changed');
   });
   it('captures schema-qualified ORM tables without cloning their formatting function', () => {

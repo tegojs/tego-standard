@@ -43,6 +43,7 @@ export function accessMetadataGuard(
       invalid('Access rule model is not registered in this database');
     const snapshot = modelSnapshot(model);
     const template = collection.options.template;
+    const key = collection.options.key;
     models.add(model);
     checks.push(
       () =>
@@ -50,6 +51,7 @@ export function accessMetadataGuard(
         collection.model === model &&
         db.modelCollection.get(model) === collection &&
         collection.options.template === template &&
+        collection.options.key === key &&
         isDeepStrictEqual(snapshot, modelSnapshot(model)),
     );
   };

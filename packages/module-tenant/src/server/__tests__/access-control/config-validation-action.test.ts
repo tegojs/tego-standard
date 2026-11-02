@@ -220,39 +220,46 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('configuration v
     }
   });
 
-  it('also rechecks associations referenced by a disabled proposed rule', async () => {
-    const participants = db.collection({
-      name: 'participants',
-      key: 'participants-key',
-      timestamps: false,
-      fields: [
-        { name: 'tenantId', type: 'string' },
-        { name: 'documentId', type: 'bigInt' },
-      ],
-    });
-    collection.setField('participants', { type: 'hasMany', target: 'participants', foreignKey: 'documentId' });
-    const values = request();
-    values.config.rules[0].enabled = false;
-    values.config.rules[0].condition = {
-      type: 'exists',
-      path: 'participants',
-      condition: { type: 'isNull', operand: { type: 'field', path: 'tenantId' } },
-    };
-    const model = db.getCollection('collections').model;
-    const read = model.findOne.bind(model);
-    let reads = 0;
-    const original = participants.model.rawAttributes.tenantId.field;
-    vi.spyOn(model, 'findOne').mockImplementation(async (options) => {
-      const record = await read(options);
-      if (++reads === 2) participants.model.rawAttributes.tenantId.field = 'replacement_tenant';
-      return record;
-    });
-    try {
-      await expect(invoke(context(values))).rejects.toMatchObject({ status: 409 });
-    } finally {
-      participants.model.rawAttributes.tenantId.field = original;
-    }
-  });
+  it.each(['field', 'key'] as const)(
+    'also rechecks association %s referenced by a disabled proposed rule',
+    async (change) => {
+      const participants = db.collection({
+        name: 'participants',
+        key: 'participants-key',
+        timestamps: false,
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'documentId', type: 'bigInt' },
+        ],
+      });
+      collection.setField('participants', { type: 'hasMany', target: 'participants', foreignKey: 'documentId' });
+      const values = request();
+      values.config.rules[0].enabled = false;
+      values.config.rules[0].condition = {
+        type: 'exists',
+        path: 'participants',
+        condition: { type: 'isNull', operand: { type: 'field', path: 'tenantId' } },
+      };
+      const model = db.getCollection('collections').model;
+      const read = model.findOne.bind(model);
+      let reads = 0;
+      const original = participants.model.rawAttributes.tenantId.field;
+      vi.spyOn(model, 'findOne').mockImplementation(async (options) => {
+        const record = await read(options);
+        if (++reads === 2) {
+          if (change === 'key') participants.options.key = 'replacement-participants-key';
+          else participants.model.rawAttributes.tenantId.field = 'replacement_tenant';
+        }
+        return record;
+      });
+      try {
+        await expect(invoke(context(values))).rejects.toMatchObject({ status: 409 });
+      } finally {
+        participants.model.rawAttributes.tenantId.field = original;
+        participants.options.key = 'participants-key';
+      }
+    },
+  );
 
   it('rejects a replaced runtime identity and propagates unexpected database failures', async () => {
     collection.options.key = 'replacement';

@@ -207,26 +207,31 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('tenant access r
       }
     });
 
-    it.each(['phase', 'collection', 'association'])('rejects %s drift while resolving context', async (change) => {
-      const tenants = db.getCollection('tenants').model;
-      const findOne = tenants.findOne.bind(tenants);
-      vi.spyOn(tenants, 'findOne').mockImplementationOnce(async (options) => {
-        const row = await findOne(options);
-        if (change === 'phase') {
-          adapter.release(ctx);
-          await adapter.prepare(ctx, [mainIdentity]);
-        } else if (change === 'collection') {
-          db.removeCollection('documents');
-          db.collection({ name: 'documents', timestamps: false, fields: [{ name: 'tenantId', type: 'string' }] });
-        } else {
-          db.getCollection('participants').model.rawAttributes.canView.field = 'changed_column';
-        }
-        return row;
-      });
-      await expect(service.resolveNativeScopes(ctx, mainIdentity, { tenantId: 'B' })).rejects.toThrow(
-        /phase|identity|metadata/,
-      );
-    });
+    it.each(['phase', 'collection', 'association', 'association identity'])(
+      'rejects %s drift while resolving context',
+      async (change) => {
+        const tenants = db.getCollection('tenants').model;
+        const findOne = tenants.findOne.bind(tenants);
+        vi.spyOn(tenants, 'findOne').mockImplementationOnce(async (options) => {
+          const row = await findOne(options);
+          if (change === 'phase') {
+            adapter.release(ctx);
+            await adapter.prepare(ctx, [mainIdentity]);
+          } else if (change === 'collection') {
+            db.removeCollection('documents');
+            db.collection({ name: 'documents', timestamps: false, fields: [{ name: 'tenantId', type: 'string' }] });
+          } else if (change === 'association identity') {
+            db.getCollection('participants').options.key = 'replacement-participants-key';
+          } else {
+            db.getCollection('participants').model.rawAttributes.canView.field = 'changed_column';
+          }
+          return row;
+        });
+        await expect(service.resolveNativeScopes(ctx, mainIdentity, { tenantId: 'B' })).rejects.toThrow(
+          /phase|identity|metadata/,
+        );
+      },
+    );
 
     it('captures caller identity and alias before the context lookup awaits', async () => {
       const actor = { tenantId: 'B' };

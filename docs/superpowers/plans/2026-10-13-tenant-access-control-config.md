@@ -3454,3 +3454,18 @@ Ruling: inspectAccessConfig 与 createAccessMigrationPreview 的初次按名称�
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，admin-metadata-primary-build.log，session94043 已退出。最终三 TS Prettier check 通过、oxlint 零错误警告，源/snapshot SHA256 一致：config-inspection 0CA04DC1BB04B2516A67770D2DDF0BFD12B8A6D26DEBE80C44E8D7CC709CB865，preview-access-migration A4BEA3E10DB9A5EB9974FF37C6501F63AA6D8AF7FA90234BB80EBC36C55952C6，admin-metadata-primary CAD6B2D19727E4F12F5F2BB52EC01CA337BEF3BEA283A5B1B0F1380FE5164E11；最终验证后代码未改。作者按 requesting-code-review 模板串行自审五文件：两查询使用同一已提交权威语义，原选择捕获/元数据唯一性/完整稳定身份/实际数据源及后继复核保持；新测试实际执行原 action 而不伪造查询结果。没有未修复 Critical/Important；不是整分支独立复核。新历史界面加载/分页/草案准备/关闭与角色刷新路径另作只读作者核查，未发现本轮需修改问题，不冒称实际浏览器或新测试覆盖。
 
 验证实际退出后核实 snapshot validation0、原 postmaster87788/UTC ticks/原目录命令及全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及本库 owner，仅删 a220030650 并 count0；正常停原集群、pg_ctl 无服务、PID 消失、全部端口记录0，session54846 实际退出0。日志/集群/旧夹具保留，主检出/核心/正式依赖/业务库/现有附件未改，不推送/合并/发布。旧未完成清理和正式核心发布两条门控仍未变化，不重复 registry 查询或已通过验证冒充推进。
+
+## 221. 元数据依赖的稳定表身份也须前后复核
+
+Ruling: accessMetadataGuard 已检查注册对象、模型、列、关联和模板，但遗漏 collection.options.key；同一运行时对象在等待期间改变稳定键时，管理草案校验和原生授权条件仍可返回过期结果。沿用原真实管理动作和原生查询服务复现，并覆盖根表、嵌套目标、多对多中间表及无关表隔离。只在共享守卫捕获并比较稳定键，不添加注册、保存、启用或物理文件能力。此项是运行时元数据身份一致性修复，不以临时主键变化模拟实际物理重建或并发数据库迁移。
+
+- [x] 原 snapshot 严格串行真实 RED：管理 action 1 失败；原生解析和共享依赖 5 失败。
+- [x] 最小实现、受影响管理/原生/读路径回归、tenant 构建、作者串行自审和原两份记录；英文签名提交以实际 Git 为准。
+
+真实管理 action 的新键变化用例实际 1 失败/20 过滤跳过/21 总，退出 1、9.14 秒（测试 297ms），metadata-key-validation-red.log，session24577 已退出；原 action 错误 fulfilled。共享守卫四类依赖与原生解析新分支实际 5 失败/50 过滤跳过/55 总，退出 1、6.14 秒，metadata-key-dependencies-red.log，session83120 已退出；前四项漏拒绝，原生服务实际返回完整旧授权条件。只代理原查询以在真实查询返回时交错修改运行时键，不伪造数据库返回。未运行 PostgreSQL 分支，不把缺少 URL 导致未收集的 PG 用例说成执行或跳过。
+
+生产最小修改两行：捕获每个相关 collection.options.key，并在原守卫复核其未变。最终 metadata-snapshot/query/config-validation-action/config-read-action/config-revisions-action/reads 六文件 495 全通过、无跳过、实际退出 0、77.98 秒，metadata-key-regression.log，session7039 已退出。新六项含于495，不累加 RED，不是整分支回归。覆盖原生条件解析、停用候选关联、嵌套及中间表身份变化；无关表键变化不使当前守卫失效。这里只验证运行时元数据一致性，不宣称物理表重建/DDL 并发隔离或正式业务入口接入。
+
+显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全通过、实际退出 0，metadata-key-build.log，session57624 已退出。最终四 TS Prettier check 通过、oxlint 零错误警告；源/snapshot SHA256 一致：metadata-snapshot 5CC436BA452236C17F0F641D86A2A380F4AA81353B894894740C1640958F29F4，validation test B80D76149F80DBE785641800B69DDE30D855F1D8DC07F95075C9C0BA73BD7D47，snapshot test 703C00F8EA03677A836DF056FFF6234A0C3718CDB24A53E40100CB7FA0A509BC，query test 1CF83FB1DD46AC99A23E2928BD72DB3185F1481FB1CE970A376667525FF9A424。最终验证后代码未改。作者按 requesting-code-review 模板串行自审：共用原依赖遍历，不扫描无关表、不要求原来缺省的键必须存在；原注册/模型/列/作用域/模板复核保持，未增加 SQL 或改变授权。无未修复 Critical/Important；不是整分支独立复核。首轮查找不存在的 config-validator/vitest/依赖路径和 Windows rg 通配只读失败不是产品 RED；已改读实际 validate.ts 和根 vitest.config.mts。
+
+本项只用原 snapshot 的独立内存 SQLite，没有启动 PG、建库或新物理文件夹具。日志保留，原旧夹具、既有附件、主检出、核心、正式依赖及业务库未改，不推送/合并/发布。后继继续核查数据库绑定生命周期，不把此提交完成当作整个计划完成。

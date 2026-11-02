@@ -3965,3 +3965,15 @@ Ruling: 客户端允许Days/Weeks且无此上限，合法30天duration超过Node
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-long-deadline-build.log，session21143已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 81E5807757162BBCD0E5367A3D61EF0C7DE295147101681C1331DDA84AF7B774；tenant-lifecycle.test CE4EA77A603ACB58EDB1FF5DA9066C4955DF0F641115C131D820700FF4F98F81，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：分段回调仍走原schedule替换句柄及原trigger主库状态检查；不新增身份/权限来源、不改变任务归属。无本项未修复Critical/Important。跨日真实运行、配置变动后的全部在途协调、持久租约/跨实例原子恢复及完整停止交错未由此证明，新G正式消费者、业务试点和整分支独立复核仍未完成。独立资源守卫实际0且已消费退出，validation0、25466全部记录0；未启PG/建库/物理附件。保留集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 255. 旧发现结果不能重放已经完成的delay job
+
+Ruling: 第一个delay已完成且生成B数据，但下游第二个delay使execution仍STARTED；先前读到PENDING的发现查询最后交付，会重新恢复第一个job并再生成一条B业务行。原trigger只核对execution状态不足。恢复前从实际jobs主库/null读取当前status，仅原job仍PENDING才继续原执行状态复核与resume；缺失/已完成job结束本次处理，原错误收敛及timer finally保持。
+
+- [x] 原真实SQLite夹具增加第二个30天delay，暂停已经完成SQL的发现返回，等待第一段真实timer/Processor生成一条B数据后释放；最终只允许一条[['B','Recovered B delay']]及一个属于下游节点的PENDING job，不只断言私有Map。
+- [x] 初始workflow-delay-stale-job-red.log：1失败7过滤/8总，实际1/9.34秒，session32187已退出；真实生成两条相同B行。最小实现后整文件初轮7通过1超时/实际1/76.73秒，workflow-delay-stale-job-green.log，session52138已退出，不称GREEN。原新afterFind断点未区分新增job状态回读，不能保证暂停发现查询；将其限定带关联的发现查询，并将本测试期限改为1秒，未放宽业务断言或产品状态校验。
+- [x] 修正夹具定向1通过7过滤/实际0/8.92秒，workflow-delay-stale-job-fixture-green.log，session21039已退出；随后仅临时移除本项实现、同步snapshot重新证明修正夹具RED：仍两条B行，1失败7过滤/实际1/11.93秒，workflow-delay-stale-job-fixture-red.log，session24773已退出。恢复原实现后八文件162全通过/无跳过/实际0/21.93秒，workflow-delay-stale-job-regression.log，session60937已退出。新增一项含于162，不累加轮次/§254的161，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-stale-job-build.log，session17275已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction BA1E1ACF08BA4959DA2AEF350482AF390DD773E7E5BC2D2A9F632905BCE4573C；tenant-lifecycle.test 481F8F6086BA49F7C12AAF4218BE24A13F0B59306AEB03FD550ABDA1FF59A52A，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：只读取原job状态，不以历史execution STARTED替代当前待处理事实；恢复继续使用原执行的B身份，新增await后也核对原unload代次。无本项未修复Critical/Important。两次并发读取仍PENDING到实际入队之间没有原子认领，不提供持久租约、跨实例去重、已入队撤销或完整停止矩阵；新G正式消费者、业务试点和整分支独立复核仍未完成。本轮全为SQLite，未重跑PG/建库/物理附件。独立资源守卫实际0且已消费后才记录/提交，validation0、25466全部记录0；保留集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

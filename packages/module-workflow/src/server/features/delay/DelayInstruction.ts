@@ -87,6 +87,13 @@ export default class extends Instruction {
     const timer = this.timers.get(job.id);
     const generation = this.generation;
     try {
+      const { model } = this.workflow.app.db.getCollection('jobs');
+      const currentJob = await model.findByPk(job.id, {
+        attributes: ['status'],
+        useMaster: true,
+        transaction: null,
+      });
+      if (generation !== this.generation || currentJob?.status !== JOB_STATUS.PENDING) return;
       job.execution = await job.getExecution({ useMaster: true, transaction: null });
       if (generation !== this.generation) return;
       if (job.execution?.status === EXECUTION_STATUS.STARTED) {

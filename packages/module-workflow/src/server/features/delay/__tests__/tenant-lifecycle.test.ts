@@ -320,4 +320,64 @@ describe('tenant delay timer failure lifecycle', () => {
       observe.mockRestore();
     }
   });
+
+  it('does not replay a completed delay from an older discovery while its execution waits downstream', async () => {
+    const { execution, pending, delay } = await createPendingTenantDelay(1000);
+    const consumer = await delay.getDownstream();
+    const nextDelay = await execution.getWorkflow().then((workflow) =>
+      workflow.createNode({
+        type: 'delay',
+        upstreamId: consumer.id,
+        config: { duration: 30 * 86400000, endStatus: JOB_STATUS.RESOLVED },
+      }),
+    );
+    await consumer.setDownstream(nextDelay);
+    const model = app.db.getCollection('jobs').model;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let read = false;
+    model.addHook('afterFind', 'pause-completed-delay-discovery', async (_jobs, options) => {
+      if (!options.include?.length) return;
+      model.removeHook('afterFind', 'pause-completed-delay-discovery');
+      read = true;
+      await barrier;
+    });
+    const original = instruction.trigger.bind(instruction);
+    const outcomes: Promise<unknown>[] = [];
+    const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+      const result = original(job);
+      outcomes.push(Promise.resolve(result).catch((error) => error));
+      return result;
+    });
+    instruction.schedule(pending);
+    const loading = instruction.load();
+    try {
+      await waitForFastAssertion(() => expect(read).toBe(true));
+      await waitForFastAssertion(async () => {
+        expect((await pending.reload()).status).toBe(JOB_STATUS.RESOLVED);
+      });
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      expect((await execution.reload()).status).toBe(EXECUTION_STATUS.STARTED);
+      expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(1);
+      release();
+      await loading;
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      const rows = await app.db.getCollection('delayFailureResults').model.findAll();
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Recovered B delay']]);
+      const waiting = await model.findAll({ where: { executionId: execution.id, status: JOB_STATUS.PENDING } });
+      expect(waiting.map((job) => job.nodeId)).toEqual([nextDelay.id]);
+    } finally {
+      release();
+      model.removeHook('afterFind', 'pause-completed-delay-discovery');
+      await loading.catch(() => undefined);
+      instruction.unload();
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      observe.mockRestore();
+    }
+  });
 });

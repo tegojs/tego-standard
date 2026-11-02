@@ -357,6 +357,8 @@ export default class PluginWorkflowServer extends Plugin {
     this.app.on('beforeStart', async () => {
       const collection = db.getCollection('workflows');
       const workflows = await collection.repository.find({
+        useMaster: true,
+        transaction: null,
         filter: { enabled: true },
       });
 

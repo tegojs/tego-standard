@@ -4007,3 +4007,18 @@ Ruling: TriggerInstruction按workflowKey及enabled选择子工作流，但默认
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-child-selection-primary-build.log，session39799已退出。最终两TS Prettier格式及oxlint零错误警告，源/snapshot SHA256一致：TriggerInstruction C08B02F227D08687F5FE2C80EACB61E1FDF4D93CAA54CFD5893D2D450644BEB7；queue-primary-authority.test 505190021FF06246DC052BC82D5B04A69910C61BCD47E081F56D5D2128C464C3，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：只修复子工作流选择的权威读取，原workflowKey/enabled条件、同步/异步分支及上下文传递保持；主库已停用不能由旧副本生成新的子执行。无本项未修复Critical/Important。不证明选择后并发停用到业务SQL的全程隔离、已入队撤销、跨实例认领或完整停止矩阵，新G正式消费者、业务试点及整分支独立复核仍未完成。独立资源收敛session41096已消费实际0：核实postmaster46636/创建2026-11-02T21:19:55.5458900+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_a25702e666并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/端口全部0/validation0。不是实际WAL replica验收，日志和集群保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 258. 重启时通用工作流加载器必须按主库启用状态注册
+
+签名记录：默认git commit session79966实际退出1，GPG明确Timeout且未生成提交。事先捕获git92228/81456、gpg56384、pinentry47744（原调用输出确认），独立守卫实际0核实各PID消失、HEAD仍60d7c6839、原staged tree 93b890e003c2c10f6e4cbc6718c2413034018ac5不变、无未暂存变更、global commit.gpgsign=true后，仅按既有授权git -c commit.gpgsign=false提交。本项签名N，不绕过活动调用，不称独立验签成功。
+
+Ruling: DateFieldScheduleTrigger.reload已使用主库，但通用Plugin.beforeStart仍按旧读池读取enabled工作流并先行toggle/on；真实stop/start后，主库已停用的日期任务被旧enabled:true重新注册并实际执行。只将该启动列表查询明确useMaster:true/transaction:null，避免旧副本或CLS驱动通用注册；不恢复正式新G注册，不修改日期扫描、静态独立加载器或停止流程。
+
+- [x] 原真实PG读写池/不同search_path夹具新增真实app.stop→reconnect→主库model.update停用（hooks:false，不发本实例off）→app.start。到真实日期后原execution与B业务结果均应0；随后主库重新启用、再次真实重启并等待新时点，应正常得到一条B/Generated数据。没有只断言mock选项、Map或toggle调用。
+- [x] workflow-startup-primary-red.log：1失败17过滤/18总，实际1/13.35秒，session92159已退出；停用后真实执行数1而非0。无夹具诊断失败轮。
+- [x] 最小两选项后完整PG文件18全通过/无跳过/实际0/33.39秒，workflow-startup-primary-green.log，session37848已退出，含主库再启用的正常重启控制。
+- [x] 最终九文件180全通过/无跳过/实际0/35.60秒，workflow-startup-primary-regression.log，session41818已退出：SQLite八文件162及真实PG日期18项实际执行，新增一项含于180，不累加前轮/§257的172，不是整分支回归。本轮没有同时并行两个使用同一新PG库的force-install夹具；queue-primary文件未在本轮重跑。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-startup-primary-build.log，session45804已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin D95C6C27D09E6A7EA71CCB85C6E2A1DD37D0537E5ADF4B68C56E7F1B0CAA6D07；日期primary-authority.test 71C950F8FF834422F342118133835B140869C0FA27A9DC2C31C21B4010A650B7，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：启动仍只注册持久enabled列表，最新正常配置可恢复；不把旧副本或caller未提交事实作为启动依据，也不接管事务。无本项未修复Critical/Important。不声明独立静态调度afterStart、beforeStop列表来源、完整停止交错、读取后并发停用、已入队撤销、持久租约/跨实例原子恢复、新G正式消费者、业务试点或整分支独立复核完成。独立资源收敛session39219已消费实际0：核实postmaster18364/创建2026-11-02T21:27:33.2354420+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_b25802f667并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，集群和日志保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

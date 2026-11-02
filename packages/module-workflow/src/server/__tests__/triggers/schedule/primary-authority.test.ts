@@ -131,6 +131,44 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     expect(await trigger.loadRecordsToSchedule(workflow, new Date())).toEqual([]);
   });
 
+  it('does not register a primary-disabled tenant date schedule during a real restart', async () => {
+    await app.stop();
+    await app.db.reconnect();
+    const workflows = app.db.getCollection('workflows').model;
+    await app.db.sequelize.query('CREATE TABLE schedule_stale_tenants.workflows (LIKE public.workflows INCLUDING ALL)');
+    try {
+      await app.db.sequelize.query('INSERT INTO schedule_stale_tenants.workflows SELECT * FROM public.workflows');
+      await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+      expect((await workflows.findByPk(workflow.id))?.get('enabled')).toBe(true);
+      expect((await workflows.findByPk(workflow.id, { useMaster: true }))?.get('enabled')).toBe(false);
+      const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+      const documents = app.db.getCollection('primaryScheduleDocuments').model;
+      await documents.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+      await app.start();
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+      await waitForWorkflowIdle(app);
+      expect(await workflow.countExecutions({ useMaster: true })).toBe(0);
+      expect(await app.db.getCollection('primaryScheduleResults').model.count({ useMaster: true })).toBe(0);
+
+      // A later committed enable becomes eligible on the next actual startup.
+      await workflows.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+      await app.stop();
+      await app.db.reconnect();
+      const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+      await documents.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+      await app.start();
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextDue - Date.now()) + 100));
+      await waitForWorkflowIdle(app);
+      const executions = await workflow.getExecutions({ useMaster: true });
+      expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+      const rows = await app.db.getCollection('primaryScheduleResults').model.findAll({ useMaster: true });
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Generated']]);
+    } finally {
+      trigger.off(workflow);
+      await app.db.sequelize.query('DROP TABLE schedule_stale_tenants.workflows');
+    }
+  });
+
   it.each([false, true])(
     'discovers a tenant record newly due on the primary (ambient read pool: %s)',
     async (ambient) => {

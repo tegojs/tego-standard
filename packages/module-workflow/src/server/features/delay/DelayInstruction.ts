@@ -71,12 +71,16 @@ export default class extends Instruction {
   }
 
   async trigger(job) {
-    job.execution = await job.getExecution({ useMaster: true, transaction: null });
-    if (job.execution.status === EXECUTION_STATUS.STARTED) {
-      this.workflow.resume(job);
-    }
-    if (this.timers.get(job.id)) {
-      this.timers.delete(job.id);
+    const timer = this.timers.get(job.id);
+    try {
+      job.execution = await job.getExecution({ useMaster: true, transaction: null });
+      if (job.execution?.status === EXECUTION_STATUS.STARTED) {
+        await this.workflow.resume(job);
+      }
+    } catch (error) {
+      this.workflow.getLogger('dispatcher').error('failed to trigger delayed workflow execution', error);
+    } finally {
+      if (this.timers.get(job.id) === timer) this.timers.delete(job.id);
     }
   }
 

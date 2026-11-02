@@ -3903,3 +3903,17 @@ workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-can
 按requesting-code-review模板作者串行自审，非独立复核：到期读取原executionId的当前持久状态，不沿用缓存状态或读池旧状态，保存的租户身份仍由原Processor使用；取消保持-4且没有业务行。无本项未修复Critical/Important。不声明状态读取到后续入队/SQL之间全程隔离、缺失执行/SQL失败的timer错误收敛、已入队任务撤销、持久租约或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。
 
 资源收敛session74301实际0：核实postmaster85408/创建2026-11-02 20:22:05/原目录命令、全部25466记录仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_e24902c664并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部25466记录0/validation0。集群/日志和旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 250. 延迟任务的缺失执行与SQL故障必须收敛
+
+Ruling: 到期trigger在执行不存在时解引用null，SQL回读失败也直接拒绝；原timer缓存的删除在await之后，异常会留下消费过的句柄。仅在原trigger边界处理缺失执行、用原dispatcher记录原SQL错误，并在finally回收本次timer；等待期间若同id已登记另一句柄，不删除新句柄。原主库/null及STARTED条件保持，不自动重试、不改持久状态、不借错误生成数据。
+
+- [x] 新tenant-lifecycle.test.ts使用真实内存SQLite/Node timer、原DelayInstruction与队列。执行实际destroy，或一次beforeFind将原SELECT改为真实缺列SQL。fixture只透传trigger并观察Promise结局，避免RED资源无法收敛，不声称独立制造unhandled rejection。
+- [x] workflow-delay-lifecycle-red.log：2失败/无跳过/实际1/16.35秒，session89599已退出；分别得到真实null.status TypeError和SequelizeDatabaseError/no such column，本项无夹具诊断失败轮。
+- [x] 最小实现后八文件156全通过/无跳过/实际0/22.13秒，workflow-delay-lifecycle-regression.log，session30214已退出。两种失败都结束回调、释放timer且业务结果0；SQL故障后原execution仍STARTED、job仍PENDING，明确重新schedule才恢复并生成B业务行。新增两项含于156，不累加轮次或§249的160，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-lifecycle-build.log，session71196已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 019FA8DB0962565DDC5EA51E7CF7A7D38B39F56FD4F2FDA2D6E00799B8C717BC；tenant-lifecycle.test 78FE8F2975DD4AE8ABFBD68781009AC3344CDD15BC0A6D12620FA31EC76C428B，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：仅异步delay到期边界收敛，原异常对象交给原logger，缺失记录安全结束，finally只处理原句柄；未把异常解释为成功任务/清理许可。无本项未修复Critical/Important。尚未证明重复load保留全部句柄、所有在途stop交错、已入队撤销、持久租约/跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项全为SQLite，未启PG/建库/物理附件；最终validation0、25466全部记录0。保留原集群/日志及旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+流程补记：最后只读资源检查session96419返回待决session时，工具编排未先消费其实际退出结果就继续记录/提交，违反依赖检查必须等待成功的要求。随后独立消费确认实际0、validation0和全部25466记录0；没有重跑测试来掩盖流程偏差。此补记随原原子提交amend，代码及验证证据不变；后继依赖动作必须先检查exit_code，待决时只等待该调用，不继续变更。

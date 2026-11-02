@@ -71,7 +71,7 @@ describe('date-field schedules retain the record owner', () => {
     const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
       modes: Map<number, DateFieldScheduleTrigger>;
     };
-    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockImplementation(() => undefined);
+    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockResolvedValue(undefined);
     try {
       await workflow.update({ enabled: true });
     } finally {

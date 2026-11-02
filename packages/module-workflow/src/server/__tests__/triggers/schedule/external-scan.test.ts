@@ -84,7 +84,7 @@ describe('date-field scheduling from an external database', () => {
     const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
       modes: Map<number, DateFieldScheduleTrigger>;
     };
-    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockImplementation(() => undefined);
+    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockResolvedValue(undefined);
     try {
       await workflow.update({ enabled: true });
     } finally {
@@ -124,7 +124,7 @@ describe('date-field scheduling from an external database', () => {
     const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
       modes: Map<number, DateFieldScheduleTrigger>;
     };
-    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockImplementation(() => undefined);
+    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockResolvedValue(undefined);
     try {
       await workflow.update({ config: { ...workflow.config, collection: 'another:externalSharedSchedules' } });
     } finally {
@@ -152,5 +152,50 @@ describe('date-field scheduling from an external database', () => {
       ),
     ).rejects.toThrow();
     expect(await workflow.countExecutions()).toBe(0);
+  });
+
+  it('waits for inspection and logs a real scan failure while still scheduling another workflow', async () => {
+    external.collection({
+      name: 'unavailableScheduleDocuments',
+      fields: [{ name: 'scheduledAt', type: 'date' }],
+    });
+    const failed = await app.db.getRepository('workflows').create({
+      values: {
+        type: 'schedule',
+        enabled: false,
+        config: { ...workflow.config, collection: 'another:unavailableScheduleDocuments' },
+      },
+    });
+    const future = new Date(Date.now() + 60_000);
+    const model = external.getCollection('externalScheduleDocuments').model;
+    await model.update({ scheduledAt: future }, { where: {}, hooks: false });
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const trigger = new DateFieldScheduleTrigger(plugin);
+    const errors = vi.spyOn(plugin.getLogger(failed.id), 'error');
+    const schedule = vi.spyOn(trigger, 'schedule').mockImplementation(() => undefined);
+    const load = trigger.loadRecordsToSchedule.bind(trigger);
+    const pending: Promise<unknown>[] = [];
+    vi.spyOn(trigger, 'loadRecordsToSchedule').mockImplementation((...args) => {
+      const result = load(...args);
+      pending.push(result);
+      return result;
+    });
+    try {
+      await expect(trigger.inspect([failed, workflow])).resolves.toBeUndefined();
+      expect(errors).toHaveBeenCalledWith(
+        'failed to inspect scheduled records',
+        expect.objectContaining({
+          name: 'SequelizeDatabaseError',
+        }),
+      );
+      expect(schedule).toHaveBeenCalledTimes(1);
+      expect(schedule.mock.calls[0][0]).toBe(workflow);
+      expect(schedule.mock.calls[0][1].get('label')).toBe('External B');
+      expect(schedule.mock.calls[0][2]).toBe(future.getTime() - future.getMilliseconds());
+    } finally {
+      await Promise.allSettled(pending);
+      errors.mockRestore();
+      await model.update({ scheduledAt }, { where: {}, hooks: false });
+    }
   });
 });

@@ -3549,3 +3549,16 @@ Ruling: 原loadRecordsToSchedule把another:table直接传给主库db.getCollecti
 最终6文件65全通过、无跳过、实际0、60.49秒，schedule-external-source-regression.log，session15719已退出：external4、owner7、listener6、日期13、模块边界5、tenant实际workflow operation30。记录实际external B字节而非main decoy，禁用main H即使外库H启用也不扫描；inherited上下文来自main C后代而非外库关系，共享表没有tenantId列仍正常执行。原owner过期缓存及生成归属断言在真实实例抑制后继续通过。各轮不相加，不是整分支回归或真实登录/API、PG/WAL或跨方言部署验收。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-external-source-build.log，session33828已退出。
 
 最终四TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 95587BC0F4098963B5C6A8A8BE426107612A471B0FA537A376AAAB7E1F5785DC，external test F78AC54FE6CBAD7703D7FC82B6A908D15AF840B491094BE1D0021C7A55CA7266，owner test E5495E8B668E0AC4B759932FB2EB19CEEE0048198F292EF2A3083CC7FF409B33，listener test C4F64CD3795DC8B0AA26FDBED60CA0946188E302111EAF0F57D08D681C9E62A8。最终验证后代码未改。作者按requesting-code-review模板串行自审，非独立复核：目标来源与原触发一致，租户权威不跟随外部业务库迁移，不新增fallback或修改实际记录；共享分支继续不查询tenantId。无本项未修复Critical/Important。异步inspect的错误收敛、跨实例原子去重、新G扫描/正式接线及回读后并发窗口仍未完成；初轮unhandled暴露的生命周期问题下一项独立处理，不能用本项成功隐藏。未启PG/建库/新物理附件，保留日志/旧目录，不动主检出/核心/正式依赖/业务库，不推送合并发布。
+
+## 228. 定时检查须可等待并收敛每个工作流的真实扫描失败
+
+Ruling: 原inspect使用forEach(async)，同步返回undefined而异步SQL错误无人接收。真实外库模型已登记但物理表不存在时，SQLITE_ERROR:no such table成为unhandled rejection；调用方也无法等待同批有效工作流排程完成。最小修复令inspect返回Promise<void>并等待原并行工作流检查，每个工作流捕获/记录原错误，逐条等待即时schedule；reload等待inspect。保留工作流间并行，不回退旧查询、不把坏工作流伪装为空、不静默吞错或自动重试。
+
+- [x] 真实独立外库未建物理表SQL错误、同批有效外部表扫描与排程边界，原实例及原日志保持。
+- [x] 完整受影响调度/tenant回归、workflow包构建、自审和两份原记录；签名提交以Git为准。
+
+新项真实RED1失败/4过滤，另1个真实缺表SQL unhandled、实际1、7.30秒，schedule-inspection-failure-red.log。主断言在resolves收到undefined失败，不冒称已到达后续日志/有效排程断言；独立Vitest错误确证原SQL拒绝无人接收。fixture只spy原load并透传实际Promise以便finally等待底层查询退出，只截取schedule边界避免启动60秒timer，不伪造SQL结果；原logger.error spy仍调用实际日志。最小实现后3文件18全通过、无跳过/无unhandled、实际0、19.93秒，schedule-inspection-failure-green.log，session53761已退出：对应工作流实际日志含原SequelizeDatabaseError，有效B行已排程且仍是外部真实字节。原轻量inspect替身改为Promise返回契约，不修改授权。
+
+最终6文件66全通过、无跳过、实际0、58.66秒，schedule-inspection-failure-regression.log，session63841已退出，含external5、owner7、listener6、日期13、模块边界5、tenant实际workflow operation30。新1项含于66，各轮不相加，不是整分支回归；预期SQL与授权拒绝日志完整保留。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-inspection-failure-build.log，session39897已退出。
+
+最终四TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 3662518B1668F21078DD8EBAFF9FEB16901E4C637E59C14A619822B09DF271C7，external test 9F2303D23F001E082B43545A82B85F16DAB1D3A3A10D82DE7679FC6F70B92CA5，owner test FAC6009948C55256A787D0B7237AF8DBA97AE7A81D948B1B68FEF41694C7B995，listener test D9C57BF2D72D112A2275C932C77E7BB838DC3D59A44C568F13A8C4680B3A1B5E。最终验证后代码未改。作者按requesting-code-review模板串行自审，非独立复核：完成Promise覆盖每个原load及即时排程，catch使用原工作流logger保留原异常，不增加成功标记或重试；实际错误与其他工作流继续有断言。无本项未修复Critical/Important。未涵盖任务列表发现本身失败、独立到期timer拒绝、重叠reload、原子任务租约或新G归属扫描/正式接线，不据此宣告完整调度器完成。只SQLite、未启PG/建库/新物理附件，保留日志和旧目录，不动主检出/核心/正式依赖/业务库，不推送合并发布。接续原规格的内部ACL且G且真实归属读取页，仍不注册正式任务或开启规则。

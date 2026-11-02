@@ -30,7 +30,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-    vi.spyOn(trigger, 'inspect').mockImplementation(() => undefined);
+    vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
     const workflow = {
       id: 42,
       config: {
@@ -74,7 +74,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-    vi.spyOn(trigger, 'inspect').mockImplementation(() => {
+    vi.spyOn(trigger, 'inspect').mockImplementation(async () => {
       calls.push('inspect');
     });
     const workflow = {
@@ -203,7 +203,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
         },
       } as any;
       const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-      vi.spyOn(trigger, 'inspect').mockImplementation(() => undefined);
+      vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
       const schedule = vi.spyOn(trigger, 'schedule').mockImplementation(() => undefined);
       const workflow = {
         id: 42,

@@ -201,19 +201,25 @@ export default class ScheduleTrigger {
     // NOTE: clear cached jobs in last cycle
     this.cache = new Map();
 
-    this.inspect(workflows);
+    await this.inspect(workflows);
   }
 
-  inspect(workflows: WorkflowModel[]) {
+  async inspect(workflows: WorkflowModel[]): Promise<void> {
     const now = new Date();
 
-    workflows.forEach(async (workflow) => {
-      const records = await this.loadRecordsToSchedule(workflow, now);
-      records.forEach((record) => {
-        const nextTime = this.getRecordNextTime(workflow, record, false, now);
-        this.schedule(workflow, record, nextTime, Boolean(nextTime));
-      });
-    });
+    await Promise.all(
+      workflows.map(async (workflow) => {
+        try {
+          const records = await this.loadRecordsToSchedule(workflow, now);
+          for (const record of records) {
+            const nextTime = this.getRecordNextTime(workflow, record, false, now);
+            await this.schedule(workflow, record, nextTime, Boolean(nextTime));
+          }
+        } catch (error) {
+          this.workflow.getLogger(workflow.id).error('failed to inspect scheduled records', error);
+        }
+      }),
+    );
   }
 
   // 1. startsOn in range -> yes

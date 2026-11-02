@@ -107,6 +107,32 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it('resumes periodic discovery after a real application stop and restart', async () => {
+    const trigger = installedDateTrigger();
+    const cacheCycle = trigger.cacheCycle;
+    const collection = external.getCollection('externalScheduleDocuments');
+    try {
+      await app.stop();
+      trigger.cacheCycle = 1000;
+      await app.start();
+      // No save event: only the restarted periodic scanner can discover this change.
+      const due = Math.ceil((Date.now() + 2500) / 1000) * 1000;
+      await collection.model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+      await waitForAssertion(async () => {
+        expect(await workflow.countExecutions()).toBe(1);
+      }, 5500);
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution.tenantId).toBe('B');
+      expect(execution.context.data.label).toBe('External B');
+    } finally {
+      await app.stop();
+      trigger.cacheCycle = cacheCycle;
+      await collection.model.update({ scheduledAt }, { where: { id: 1 }, hooks: false });
+      await app.start();
+    }
+  });
+
   async function observeThroughDeadline(trigger: DateFieldScheduleTrigger, due: number, action: () => Promise<void>) {
     const original = trigger.trigger.bind(trigger);
     const pending: Promise<unknown>[] = [];

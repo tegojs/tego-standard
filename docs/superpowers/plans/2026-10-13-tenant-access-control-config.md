@@ -3645,3 +3645,20 @@ Ruling: 真实工作流停用只取消已登记timer和listener，等待中的�
 只SQLite，未启PG/建库/新物理附件；保留日志、原集群及旧目录，不修改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式规则保存/启用继续关闭。
 
 本项默认签名调用session57455实际退出1，GPG明确signing failed: Timeout，未生成提交。独立核实HEAD仍5379a282c、原四文件暂存内容及diff/check不变、git/gpg/pinentry活动调用0后，按用户已有授权仅本次git -c commit.gpgsign=false提交；全局commit.gpgsign仍true。本项签名为N，不称独立验签G，不重复旧认证或绕过活动调用。
+
+## 234. 应用停止后须释放轮询句柄状态，使重启恢复周期发现
+
+Ruling: 继续实际生命周期核查发现beforeStop只clearInterval但保留非空timer字段，afterStart据此提前返回，应用重启后不再周期扫描。最小修改在清除原interval后将本字段置null，复用原afterStart及重复启动守卫，不引入新调度系统、schema或权限状态。
+
+- [x] 真实app.stop/start、实际安装的日期字段trigger、SQLite外库及原Node interval，新增记录时不发save事件，只靠重启后的周期发现。
+- [x] 真实RED/GREEN、相关七文件回归、workflow完整构建、作者串行自审、两份原记录；英文提交和签名以Git为准。
+
+真实RED1失败/16过滤/17总、实际退出1、18.16秒，schedule-restart-polling-red.log，session72096已退出：实际停启后5.5秒内持久执行仍0，预期1。初始记录仍固定旧日期，启动后以原model.update/hook:false将新时点放到初始扫描窗口外，没有手动reload、伪造时间或save hook补偿。仅测试缩短cacheCycle至1000ms，finally真实stop、恢复原日期和周期、再start。最小一行修复后完整external17全通过、无跳过、实际0、25.50秒，schedule-restart-polling-green.log，session74377已退出，实际执行External B且tenantId B。
+
+最终external/owner/listener/date/static/module-boundary/tenant-operation七文件89全通过、无跳过、实际0、32.90秒，schedule-restart-polling-regression.log，session72066已退出；本项新用例包含于89，各轮不累加，不是整分支回归。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-restart-polling-build.log，session37286已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger C494B6DD295375F74FCF36EE0240733E41834793A13A9CBD87FAEE9E33761059；external test E18B9431C9F4F8E7A60541E38AAA0F9E157888F2629ADB3575F8C0D757AE0426。最终验证后代码未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：释放状态与实际clearInterval相邻，原afterStart非空守卫继续防重复启动；真实持久结果证明周期发现恢复，归属与外库选择保持。无本项未修复Critical/Important。本项不证明任意在途stop交错、重叠reload顺序、跨实例原子去重或新G正式接线；后继先复现旧扫描覆盖新归属排程的重叠边界。一次在非Git snapshot误运行双路径git diff，产生两个文件的只读no-index比较；随后在正确功能树审阅实际diff，不将误比较当代码审查。
+
+仅SQLite，未启PG/建库/新物理附件；保留日志、原集群及旧目录，不动主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G规则保存/启用继续关闭。
+
+本项默认签名session58922实际退出1，GPG明确Timeout，未生成提交。核实HEAD仍e9d50315b、原四文件暂存增删数/内容及diff/check不变、活动git/gpg/pinentry调用0后，按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true不改。等待期间下一项重叠扫描测试只在工作区未暂存，不混入本提交；无待答旧认证。

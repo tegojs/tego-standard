@@ -191,6 +191,7 @@ export default class ScheduleTrigger {
     workflow.app.on('beforeStop', () => {
       if (this.timer) {
         clearInterval(this.timer);
+        this.timer = null;
       }
 
       for (const [key, timer] of this.cache.entries()) {

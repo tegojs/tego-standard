@@ -393,6 +393,80 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     },
   );
 
+  it.each(['before stop', 'after stop'])(
+    'removes primary-only collection listeners when disabled %s',
+    async (phase) => {
+      await waitForWorkflowIdle(app);
+      await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+      await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.workflows (LIKE public.workflows INCLUDING ALL)');
+      await app.db.sequelize.query('INSERT INTO stale_workflow_queue.workflows SELECT * FROM public.workflows');
+      const workflow = await app.db.getRepository('workflows').create({
+        values: { type: 'collection', enabled: true, config: { collection: 'queuedTenantSources', mode: 1 } },
+      });
+      const label = `Restarted collection event ${phase}`;
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'queuedTenantResults', params: { values: { label } } },
+      });
+      const workflows = app.db.getCollection('workflows').model;
+      expect(await workflows.findByPk(workflow.id)).toBeNull();
+      expect((await workflows.findByPk(workflow.id, { useMaster: true })).enabled).toBe(true);
+      const context = {
+        state: {
+          currentTenant: { id: 'B' },
+          currentTenantId: 'B',
+          currentTenancyMode: 'tenantScoped',
+          currentTenantDescendantIds: [],
+          currentLegacyDataTenantIds: [],
+        },
+      };
+      try {
+        if (phase === 'before stop')
+          await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+        await app.stop();
+        await app.db.reconnect();
+        if (phase === 'after stop')
+          await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+        await app.start();
+        await app.db
+          .getRepository('queuedTenantSources')
+          .create({ values: { label: 'Disabled source event' }, context });
+        await waitForWorkflowIdle(app);
+        expect(await workflow.countExecutions({ useMaster: true })).toBe(0);
+        expect(
+          await app.db.getCollection('queuedTenantResults').model.count({
+            where: { label },
+            useMaster: true,
+          }),
+        ).toBe(0);
+
+        await workflows.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+        // Let this row catch up before the positive control; Processor's workflow lookup is a separate boundary.
+        await app.db.sequelize.query(
+          'INSERT INTO stale_workflow_queue.workflows SELECT * FROM public.workflows WHERE id = $workflowId',
+          { bind: { workflowId: workflow.id } },
+        );
+        await app.stop();
+        await app.db.reconnect();
+        await app.start();
+        await app.db
+          .getRepository('queuedTenantSources')
+          .create({ values: { label: 'Enabled source event' }, context });
+        await waitForWorkflowIdle(app);
+        const rows = await app.db.getCollection('queuedTenantResults').model.findAll({
+          where: { label },
+          useMaster: true,
+        });
+        expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', label]]);
+        expect(await workflow.countExecutions({ useMaster: true })).toBe(1);
+      } finally {
+        await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+        app.pm.get('workflow').toggle(workflow, false);
+        await waitForWorkflowIdle(app);
+      }
+    },
+  );
+
   it.each([false, true])('does not select a primary-disabled child workflow with sync=%s', async (sync) => {
     await waitForWorkflowIdle(app);
     const workflows = app.db.getRepository('workflows');

@@ -4022,3 +4022,22 @@ Ruling: DateFieldScheduleTrigger.reload已使用主库，但通用Plugin.beforeS
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-startup-primary-build.log，session45804已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin D95C6C27D09E6A7EA71CCB85C6E2A1DD37D0537E5ADF4B68C56E7F1B0CAA6D07；日期primary-authority.test 71C950F8FF834422F342118133835B140869C0FA27A9DC2C31C21B4010A650B7，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：启动仍只注册持久enabled列表，最新正常配置可恢复；不把旧副本或caller未提交事实作为启动依据，也不接管事务。无本项未修复Critical/Important。不声明独立静态调度afterStart、beforeStop列表来源、完整停止交错、读取后并发停用、已入队撤销、持久租约/跨实例原子恢复、新G正式消费者、业务试点或整分支独立复核完成。独立资源收敛session39219已消费实际0：核实postmaster18364/创建2026-11-02T21:27:33.2354420+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_b25802f667并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，集群和日志保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 259. 停止时卸载本实例实际登记的工作流
+
+签名记录：默认git commit session78570实际退出1，GPG明确Timeout且未生成提交。事先捕获git84768/92732、gpg62400、pinentry37108，独立守卫实际0确认四PID逐一消失、HEAD仍4a695710063dd78a9e1e913594c0312c001000ff、原staged tree c5c40459d18b9d28b1a5fbb2c34dc18763d518fc不变、无未暂存变更及global commit.gpgsign=true。按用户既有授权，本次仅git -c commit.gpgsign=false提交，签名N，不绕过活动调用，不称独立验签成功。
+
+Ruling: 原beforeStop从数据库enabled列表选择off对象；读池漏行会遗留本实例集合事件监听器，即使停机期间主库已停用、下次启动主库列表也不再加载，该旧监听器仍能触发执行。把该列表改为主库仍不足：若停用早于stop，最新enabled列表同样排除仍登记的监听器。最终直接快照现有enabledCache.values并逐个原toggle(false)，使用本实例登记时的配置卸载资源，随后原ready/队列收敛保持。没有新增注册表、schema或持久取消状态。
+
+- [x] 真实PG独立池中先复制旧workflows表，再本实例正常创建启用集合工作流；先确认读池缺行、primary启用。原app.stop/reconnect/start后用当前Repository真实保存事件，覆盖停用在stop前/后、均不发本实例停用hook；最终本workflow execution和对应B业务行均0。
+- [x] 初始workflow-stop-primary-red.log：1失败10过滤/11总，实际1/11.31秒，session55756已退出；停机后停用仍实际执行1、预期0。第一次只改主库查询的九文件候选回归172过1失败/173总、实际1/27.90秒，workflow-stop-primary-regression.log，session31453已退出；负向通过，但正向结果[]，不称GREEN。
+- [x] 增补stop前停用反例，workflow-stop-primary-inventory-red.log：2失败10过滤/12总、实际1/11.80秒，session51575已退出；前项执行1证实主库enabled列表也不足，后项同label混入前项结果，不把两项都算独立产品RED。修正label隔离、每次启动后取当前Repository后，workflow-stop-primary-isolated-red.log仍前项实际执行1，另一项第二次app.start前漏reconnect，产生连接池关闭及teardown错误；2失败10过滤/实际1/9.54秒，session34202已退出，不当作新产品失败。一次apply_patch上下文不匹配在写入/runner前失败，随后读取实际格式修正，无验证结果。
+- [x] 为避免复用teardown失败库，在核实本轮postmaster、SQL身份、零其他客户端及owner后，仅删c25902a668并count0，再建全新d25902b669。最终按本实例登记项卸载后，workflow-stop-owned-registration-green.log：10过2失败/12总、实际1/20.19秒，session92198已退出；两负向通过，两正向因Processor.prepare默认getWorkflow从缺行读池取得null，真实日志为null.getNodes。该既有配置回读缺口另行处理，本项不冒称已修复。
+- [x] 正向控制明确在主库重新启用后，将该workflow行真实复制到测试读池，再reconnect并实际启动，隔离上述另一边界；没有放宽停用阶段的旧池事实或零结果断言。完整PG12过/无跳过/实际0/18.96秒，workflow-stop-owned-registration-corrected-green.log，session28818已退出。
+- [x] 最终九文件174全通过/无跳过/实际0/24.71秒，workflow-stop-owned-registration-regression.log，session19654已退出：SQLite162及真实PG12均执行，新两项含于174，不累加各轮或§258的180，不是整分支回归。两条路径在停用阶段均无执行，明确再启用/实际重启/读池该行补齐后的控制各仅生成一条B业务数据。finally仅关闭本测试工作流登记并持久停用，避免跨用例残留。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-stop-owned-registration-build.log，session90596已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin AA925525436EF8C967CB3D30B11604E6E903D84BABC44D18E6C75966AC338F7D；queue-primary-authority.test AD06272D8DD4E218DE88A2C333CDFE2DD957E62E027E29964663E73FB89393EB，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：停止资源选择属于本实例登记生命周期，应使用原配置off，不能依赖可能缺行或已停用的持久enabled列表；快照Map后删除登记不会漏遍历。原调度取消代次及已存在队列收敛保持，不新增自动重试或改租户归属。无本项未修复Critical/Important。上文Processor workflow回读是明确下一项，尚无其新实现；完整停止交错、停止后新登记、已入队撤销、第三方独立注册、持久租约/跨实例去重、新G正式消费者、业务试点及整分支独立复核仍未完成。
+
+最终独立资源收敛实际0且已消费：核实postmaster94716/创建2026-11-02T21:36:40.6322810+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删d25902b669；本项c25902a668/d25902b669合计pg_database count0。原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非WAL replica验收，集群和日志保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

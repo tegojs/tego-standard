@@ -375,14 +375,9 @@ export default class PluginWorkflowServer extends Plugin {
     });
 
     this.app.on('beforeStop', async () => {
-      const repository = db.getRepository('workflows');
-      const workflows = await repository.find({
-        filter: { enabled: true },
-      });
-
-      workflows.forEach((workflow: WorkflowModel) => {
+      for (const workflow of Array.from(this.enabledCache.values())) {
         this.toggle(workflow, false);
-      });
+      }
 
       this.ready = false;
       if (this.events.length) {

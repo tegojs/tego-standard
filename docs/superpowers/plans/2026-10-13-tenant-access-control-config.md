@@ -3319,3 +3319,18 @@ Ruling: 用户要求积极推进全流程，选择补齐独立检查器目前必
 按 requesting-code-review 模板作者串行自审：G/V 集合、主库启用状态、旧祖先/后代、普通事务自有变更、读池根事务及保存点、共享规则兼容均有真实行为断言；无新增 SQL 拼接输入、schema/API/依赖变更或全表业务扫描，不修改 tenantId/ACL 语义。未发现本批需修正的问题；此为作者自审，不叫独立复核。不予判断的项及裁决：真实 WAL 延迟/故障切换不在本夹具范围，不据此宣称部署覆盖；主库读取与后继业务 SQL 之间的并发原子性继续依赖原写事务/锁协议，本节不扩大其保证；物理附件清理及正式接入不在本批范围，原门控继续关闭。用户不要求部署事实不阻断本项独立修复，不新建规划文档。
 
 全程原 snapshot/新库 tego_tenant_access_test_a21102d642 严格串行，所有前驱实际退出才启动后继。最初宽进程守卫因其他项目 Donate 的 Vitest 安全拒绝，未杀进程；缩小到精确 snapshot 后，又因 null CommandLine 安全拒绝，补非空判断后正常；均非产品失败。最终 validation 0 后核实 postmaster44800/创建 2026-11-02T14:56:47.205929+08:00/原目录命令及全部 25466 记录仅该 PID；真实 SQL 核实原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库非恢复、零其他客户端及 owner。仅删本轮专用库且 pg_database count0，原临时集群正常停止、pg_ctl 无服务、PID 消失、端口全部记录 0，资源收敛 session66028 实际退出 0。集群及 tenant-context-primary-* 日志保留，旧 session-6cUGZR/十月既有目录未触及。未修改主检出/核心/正式依赖/既有附件，未推送/合并/发布；精确四文件提交和签名以后继实际 Git 结果为准。
+
+## 212. 历史规则版本的只读发现与恢复草案
+
+Ruling: 承接 §1 的版本恢复契约及 §98 未接入的专用历史管理。先扩展现有 AccessConfigStore，按完整持久表身份从主库读取默认 20、最多 100 条的倒序历史摘要，严格正整数 revision 游标、多读一条；不把整份配置加入列表。revisionDraft(identity, revision) 只将指定历史内容校验为当前元数据可接受的草案，编辑基准使用当前已保存 revision，源版本单独返回，读取期间配置变化拒绝。旧配置已不适合当前结构时拒绝生成草案，保留原历史；缺失/删除重建表不沿用旧历史。此项不写配置/审计、不开放保存或启用，后继独立步骤再接只读管理接口和页面；错误恢复会放大权限，故不绕过原验证器或版本冲突检查。
+
+- [x] 新 config-revisions.test.ts 先验证分页/身份隔离/当前编辑基准及零写入、非法参数、历史与当前元数据不兼容、并发保存与删除重建，在原 snapshot/新专用库真实 RED。
+- [x] 最小实现 listRevisions 与 revisionDraft，完整新文件及原配置存储回归、tenant 包构建、格式/lint/源快照一致、作者串行自审及资源收敛；后继英文原子提交和签名以真实 Git 为准。
+
+真实新库 tego_tenant_access_test_a21202e643。首轮 44 项全部失败/退出 1、10.31 秒（测试 7.49 秒），config-revisions-red.log，均到达缺 listRevisions/revisionDraft；非法参数项尚未独立验证参数拒绝，不称产品安全漏洞。最小实现后 44 通过/退出 0、10.32 秒。作者补实际显式保存恢复草案会创建版本 4 且保留版本 1、历史行版本与 payload 不符拒绝、真实独立读/写池的旧历史不影响主库结果；旧读池实测只一条，服务仍返回 3/2/1 和基准 3，非 WAL 复制实例。三文件首次回归 85 通过/1 SQLite 中 PG 专项跳过（对应 PG 已实际执行）/86 总、退出 0、19.95 秒。
+
+首次 tenant 包 build 实际退出 1，config-revisions-build.log：已安装 ORM 的 FindOptions 声明没有 hooks 属性，两个查询对象字面量触发 excess-property 错误；不删除 hooks:false 或修改依赖，参照已有 context 查询选项变量写法，仅提取查询变量并为 order 保留元组类型。最终完整相同三文件 85 通过/1 跳过/86 总、实际退出 0、19.45 秒（测试 12.13 秒），config-revisions-final-regression.log，session50242 已退出；新文件 49 通过/1 跳过包括此前 44，不累加，不是整分支回归。后继 pnpm exec tegod build @tachybase/module-tenant 全部客户端/服务端/依赖/声明实际退出 0，config-revisions-corrected-build.log，session84148 已退出。两 TS Prettier check 通过、oxlint 零错误警告；最终源/快照 SHA256：store AF55B7D09729ACB93FE8C491C0087374D99065EF2B682B484D04B7CEB5DA72CC，测试 1004BBE3055DEBEA828CA2CE784F06C641ED3972285213FC00911A08FFF81699。最终回归后代码不改。
+
+作者串行自审四文件：摘要仅选 revision/actorUserId/savedAt，无整份规则或 previousConfig；完整身份和主库读取前后复核，原生绑定游标、倒序、多读一条；草案验证全部旧规则，保持源版本、使用当前基准，二次读取发现中途保存。冻结构不返回可变 Date；来源缺失/重建、非法参数及旧结构不兼容均拒绝，缺历史不会伪造空配置。显式测试保存仅为验证原 store 契约，实际草案/摘要方法没有写入。无新 HTTP/业务启用；后继管理入口须独立授权并复用当前元数据守卫，草案不构成并发锁或保存许可。本次是作者自审，不称独立复核；未判断实际 WAL 故障切换或不受控 schema/直接 SQL 篡改，不据此扩大原信任前提。一次猜测不存在的 Plugin.ts/locale.ts 及 Windows rg 通配是只读定位失败，非测试 RED。
+
+严格串行验证后 validation0；核实 postmaster39024/创建 2026-11-02T15:15:49.814567+08:00/原 data_directory 命令，全部 25466 记录仅该 PID，SQL 原目录、tenant_test、127.0.0.1 及 /32、25466、postgres 主库非恢复、零其他客户端和本库 owner 后，仅删除 a21202e643 并 count0；正常停原集群、pg_ctl 无服务、PID 消失及全部端口记录0，资源收敛 session1079 实际退出 0。保留原集群与 config-revisions-* 日志，旧被拒清理目录未触及。主检出/核心/正式依赖/业务库/既有附件不改，未推送/合并/发布。接下来继续只读历史管理接口和页面，不以本提交结束连续开发。

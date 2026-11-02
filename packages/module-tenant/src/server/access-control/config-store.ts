@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { Database, Model, Transaction } from '@tego/server';
+import { Op, type Database, type Model, type Transaction } from '@tego/server';
 
 import { AccessConfigError } from './config-errors';
 import { beginConfigWrite, endConfigWrite } from './config-mutation-guard';
@@ -16,6 +16,17 @@ export interface AccessCollectionIdentity {
 
 type MetadataResolver = (identity: AccessCollectionIdentity) => CollectionMetadata | Promise<CollectionMetadata>;
 export { registerAccessConfigGuards } from './config-mutation-guard';
+
+export interface AccessConfigRevisionPage {
+  readonly revisions: readonly { readonly revision: number; readonly actorUserId: string; readonly savedAt: string }[];
+  readonly nextBefore: number | null;
+}
+
+function positiveRevision(value: number) {
+  if (!Number.isSafeInteger(value) || value < 1)
+    throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid configuration revision');
+  return value;
+}
 
 function assertIdentity(identity: AccessCollectionIdentity) {
   if (
@@ -99,6 +110,77 @@ export class AccessConfigStore {
     identity = this.identity(identity);
     const { record } = await this.record(identity);
     return this.config(storedOptions(record), await this.collectionMetadata(identity));
+  }
+
+  /** Primary-only audit summaries. The adapter must authorize the management operation separately. */
+  async listRevisions(
+    identity: AccessCollectionIdentity,
+    limit = 20,
+    beforeRevision?: number,
+  ): Promise<AccessConfigRevisionPage> {
+    identity = this.identity(identity);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid revision page size');
+    if (beforeRevision !== undefined) positiveRevision(beforeRevision);
+    await this.record(identity);
+    const model = this.db.getCollection('tenantAccessRevisions')?.model;
+    if (!model) throw new AccessConfigError('ACCESS_COLLECTION_NOT_FOUND', 'Configuration history is unavailable', 404);
+    const query = {
+      attributes: ['revision', 'actorUserId', 'savedAt'],
+      where: { ...identity, ...(beforeRevision === undefined ? {} : { revision: { [Op.lt]: beforeRevision } }) },
+      order: [['revision', 'DESC'] as [string, string]],
+      limit: limit + 1,
+      useMaster: true,
+      transaction: null,
+      hooks: false,
+    };
+    const rows = await model.unscoped().findAll(query);
+    await this.record(identity);
+    const revisions = rows.slice(0, limit).map((row) => {
+      const revision = positiveRevision(Number(row.getDataValue('revision')));
+      const actorUserId = normalizeAccessContextValue('user.id', row.getDataValue('actorUserId')) as string;
+      const savedAt = row.getDataValue('savedAt');
+      if (!(savedAt instanceof Date) || !Number.isFinite(savedAt.getTime()))
+        throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid configuration history timestamp');
+      return { revision, actorUserId, savedAt: savedAt.toISOString() };
+    });
+    return immutable({ revisions, nextBefore: rows.length > limit ? revisions.at(-1)!.revision : null });
+  }
+
+  /** Restore content into a disposable current-base draft; this never saves or enables it. */
+  async revisionDraft(
+    identity: AccessCollectionIdentity,
+    revision: number,
+  ): Promise<{ readonly sourceRevision: number; readonly config: AccessConfig }> {
+    identity = this.identity(identity);
+    positiveRevision(revision);
+    const current = await this.read(identity);
+    const model = this.db.getCollection('tenantAccessRevisions')?.model;
+    const query = {
+      attributes: ['config'],
+      where: { ...identity, revision },
+      useMaster: true,
+      transaction: null,
+      hooks: false,
+    };
+    const row = await model?.unscoped().findOne(query);
+    if (!current || !row)
+      throw new AccessConfigError('ACCESS_COLLECTION_NOT_FOUND', 'Configuration revision is unavailable', 404);
+    const historical = validateAccessConfig(
+      structuredClone(row.getDataValue('config')),
+      await this.collectionMetadata(identity),
+    );
+    if (historical.revision !== revision || revision > current.revision)
+      throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Configuration history revision does not match');
+    const config = { ...historical, revision: current.revision };
+    const latest = await this.read(identity);
+    if (!isDeepStrictEqual(current, latest))
+      throw new AccessConfigError(
+        'ACCESS_CONFIG_CONFLICT',
+        'Access configuration changed; reload before restoring',
+        409,
+      );
+    return immutable({ sourceRevision: revision, config: structuredClone(config) });
   }
 
   /** The input revision is the editor's base revision, including zero for first migration. */

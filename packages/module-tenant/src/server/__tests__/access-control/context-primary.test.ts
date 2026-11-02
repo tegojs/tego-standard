@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Database } from '@tego/server';
 
 import { compileAccessScopes } from '../../access-control/compile';
@@ -11,6 +12,33 @@ const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
   let primary: Database;
   let routed: Database;
+
+  // Exercise Sequelize's actual CLS routing with native async context, without replacing queries or transactions.
+  async function withAmbientTransactions(work: () => Promise<void>) {
+    const storage = new AsyncLocalStorage<Map<string, unknown>>();
+    const namespace = {
+      get: (key: string) => storage.getStore()?.get(key),
+      set: (key: string, value: unknown) => storage.getStore()!.set(key, value),
+      run: (callback: () => unknown) => storage.run(new Map(), callback),
+      bind: (callback: (...args: unknown[]) => unknown) => {
+        const context = storage.getStore();
+        return (...args: unknown[]) => storage.run(context ?? new Map(), () => callback(...args));
+      },
+    };
+    const orm = routed.sequelize.constructor as unknown as {
+      useCLS: (value: typeof namespace) => void;
+      _cls?: unknown;
+    };
+    const previous = Object.getOwnPropertyDescriptor(orm, '_cls');
+    orm.useCLS(namespace);
+    try {
+      await work();
+    } finally {
+      if (previous) Object.defineProperty(orm, '_cls', previous);
+      else delete orm._cls;
+      storage.disable();
+    }
+  }
 
   function tenants(db: Database) {
     return db.collection({
@@ -128,6 +156,65 @@ describe.skipIf(!postgresUrl)('tenant hierarchy uses primary authority', () => {
     expect(await resolveAccessContext(routed, config, { tenantId: 'C' })).toEqual({
       'tenant.id': 'C',
       'tenant.ancestorIds': [],
+    });
+  });
+
+  it('does not inherit a read-pool transaction when no authorization transaction was supplied', async () => {
+    const config = configFor({
+      type: 'tenantRelation',
+      relation: 'ancestor',
+      tenant: { type: 'field', path: 'tenantId' },
+      includeSelf: true,
+    });
+    await withAmbientTransactions(async () => {
+      await routed.sequelize.transaction({ readOnly: true }, async (transaction) => {
+        expect(await queryRows(routed, 'SELECT current_schema() AS schema', { transaction })).toEqual([
+          { schema: 'tenant_context_stale' },
+        ]);
+        const context = await resolveAccessContext(routed, config, { tenantId: 'H' });
+        expect(context['tenant.descendantIds']).toEqual(['B']);
+        expect(transaction.finished).toBeFalsy();
+        // The caller's managed transaction still uses its own original connection.
+        expect(await queryRows(routed, 'SELECT current_schema() AS schema', { transaction })).toEqual([
+          { schema: 'tenant_context_stale' },
+        ]);
+      });
+    });
+  });
+
+  it('does not let ambient stale tenant status bypass a primary disable', async () => {
+    await primary.getCollection('tenants').model.update({ enabled: false }, { where: { id: 'C' } });
+    const config = configFor({
+      type: 'tenantRelation',
+      relation: 'same',
+      tenant: { type: 'field', path: 'tenantId' },
+      includeSelf: true,
+    });
+    await withAmbientTransactions(async () => {
+      await routed.sequelize.transaction({ readOnly: true }, async (transaction) => {
+        expect((await routed.getCollection('tenants').model.findByPk('C', { transaction }))?.get('enabled')).toBe(true);
+        await expect(resolveAccessContext(routed, config, { tenantId: 'C' })).rejects.toThrow(/missing or disabled/);
+        expect(transaction.finished).toBeFalsy();
+      });
+    });
+  });
+
+  it('uses uncommitted caller facts only when its transaction is passed explicitly', async () => {
+    const config = configFor({
+      type: 'tenantRelation',
+      relation: 'ancestor',
+      tenant: { type: 'field', path: 'tenantId' },
+      includeSelf: true,
+    });
+    await withAmbientTransactions(async () => {
+      await routed.sequelize.transaction(async (transaction) => {
+        await routed.getCollection('tenants').model.update({ parentId: null }, { where: { id: 'B' }, transaction });
+        expect(
+          (await resolveAccessContext(routed, config, { tenantId: 'H' }, { transaction }))['tenant.descendantIds'],
+        ).toEqual([]);
+        expect((await resolveAccessContext(routed, config, { tenantId: 'H' }))['tenant.descendantIds']).toEqual(['B']);
+        expect(transaction.finished).toBeFalsy();
+      });
     });
   });
 

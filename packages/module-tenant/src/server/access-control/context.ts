@@ -35,7 +35,8 @@ export async function resolveActiveAccessTenant(
   const query = {
     where: { id: tenantId, enabled: true },
     attributes: ['id'],
-    transaction: options.transaction,
+    // Undefined inherits Sequelize's ambient CLS transaction, including a stale read connection.
+    transaction: options.transaction ?? null,
     useMaster: true,
     hooks: false,
     ...(options.lock && options.transaction ? { lock: options.transaction.LOCK.SHARE } : {}),
@@ -123,9 +124,12 @@ export async function resolveAccessContext(
   if (!paths.has('tenant.ancestorIds') && !paths.has('tenant.descendantIds')) return context;
 
   // Read authorization facts in the supplied transaction; do not reuse middleware path caches.
-  const records = await model
-    .unscoped()
-    .findAll({ attributes: ['id', 'parentId', 'enabled'], limit: 10001, transaction, useMaster: true });
+  const records = await model.unscoped().findAll({
+    attributes: ['id', 'parentId', 'enabled'],
+    limit: 10001,
+    transaction: transaction ?? null,
+    useMaster: true,
+  });
   if (records.length > 10000)
     throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Tenant hierarchy exceeds supported size');
   const tenants = new Map(

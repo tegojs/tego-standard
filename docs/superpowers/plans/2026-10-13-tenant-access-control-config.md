@@ -3362,3 +3362,18 @@ Ruling: 承接 §1/§98 和 §212—213，在原已保存规则抽屉中懒加�
 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，config-history-ui-build.log，session51597 已退出。三 TSX Prettier check 通过、oxlint 零错误警告，双语 216 个键及顺序一致；语言键排序仅机械格式调整。五份代码/语言源与 snapshot SHA256 一致：history 271AB1A16B73650CE12AE53926DE44F96126255440995DD822089E3CC3E9FDD7，view 22A731AF7C1EABC6460347CAEE8EB9F4328849628E9EC17F19D76917DD7644A0，测试 895270B2765A5BC5812075AD7C16D61BFDBB94B63848BF33DCF435202F4D51E6。最终回归后未改代码；本轮没有启 PG/建库，snapshot validation0、25466 全部记录0，原日志/集群/旧夹具保留。
 
 作者按 requesting-code-review 模板串行自审七文件：历史组件只访问两个只读管理 API，恢复后仍只校验；分页有界替换、身份/版本/基准及游标检查、错误重试、取消后不发布、普通/历史草稿互斥均有真实交互断言。未知错误不泄露细节，已知 4xx 保留服务端翻译，用户文字通过 React 转义。无未修复 Critical/Important；这是作者自审，不是整分支独立复核。主数据源页面范围保持，外部来源只读管理 API 已在 §213 验证，不扩大本页选择范围；无实际业务浏览器或保存/启用验收，不据此放行。未推送/合并/发布。原组件回归期间只在功能源写了下一项 context-primary 的新复现测试，没有同步或运行 snapshot，也不混入本界面提交；下一项继续核查隐式异步事务能否使主库授权事实串入旧读连接。
+
+## 215. 授权事实不得隐式继承异步事务
+
+Ruling: 承接 §211 主库授权契约，读取已安装 Sequelize 源码发现 query 的 transaction:undefined 会继承 CLS 当前事务，useMaster 仍不能迁移该连接。新测试以 Node 原生 AsyncLocalStorage 提供 ORM 支持的命名空间，调用真实 useCLS/managed transaction，不替换 ORM 查询或事务；沿用真实独立读写连接池与不同 search_path。先复现旧层级、主库已禁用租户及未显式传递的自有未提交事实；若成立，无显式事务时明确 transaction:null，显式事务仍严格原样使用和检查。helper 不能提交/回滚 caller 事务，namespace 在测试 finally 恢复；错误改变事务约定会破坏写入原子性，因此原事务与保存点回归必须保持。
+
+- [x] 原 snapshot/全新专用库真实 RED，确认实际隐式读池连接和错误授权。
+- [x] 最小修复、原上下文/授权查询回归、tenant 包构建、作者自审及资源收敛。后继英文原子签名提交以实际 Git 为准；不改依赖或业务接入。
+
+新专用库 tego_tenant_access_test_a215030645，启用前核实集群停止及端口0；明确原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库非恢复及零其他客户端后创建。真实 ORM managed transaction/原生 AsyncLocalStorage 命名空间及两独立读写池，读池使用旧 schema（不是 WAL replica）。初始完整文件 3 失败/7 通过、实际退出 1、9.23 秒（测试 5.11 秒），tenant-context-ambient-red.log，session99543 已退出。实际 current_schema 为 tenant_context_stale，错误后代返回 B/C，主库已禁用 C 仍返回 tenant.id=C，无显式参数时也错误读取 caller 未提交层级；不是缺夹具或纯参数 RED。
+
+最小生产改动只在原启用校验和层级查询将未提供事务明确为 null；显式 transaction、原读池根/保存点拒绝及共享规则语义保持。最终原 context-primary/context/query 三文件 108 全通过、无跳过、实际退出 0、38.13 秒（测试 30.05 秒），tenant-context-ambient-regression.log，session2391 已退出。新三项包含于 108，不与原 §211 的 105 相加，不称整分支回归。原 caller managed transaction 在授权读取后仍存活且真实旧连接未改变，提交/回滚只由测试 caller 的原 ORM 生命周期完成；namespace 在 finally 恢复原 descriptor 并 disable。
+
+显式 tenant 包客户端/服务端/依赖/声明全部构建通过，实际退出 0，tenant-context-ambient-build.log，session44863 已退出。最终 Prettier check 起初发现链式 findAll 排版需第二遍格式化，退出 1；只读格式差异确认仅空白与换行，第二遍 write/check 后通过，未重跑已通过测试/构建冒充推进。两 TS 最终 oxlint 零错误警告，源/snapshot SHA256 一致：context 360411F25AC456AC9A348A1D23C16EB879CB69F591CB85E3C50A9C84A4C1C4BD，测试 C0FABAE13D354729C2418A2C557DF7BFA61C11AE9458E4C075A6407D51679B64；最后验证后仅上述无语义格式调整。作者按 requesting-code-review 模板串行自审四文件，无未修复 Critical/Important；这是作者自审，不是独立复核。原写入事务/锁协议继续承担授权与业务 SQL 的隔离，不声称真实 WAL 或全部请求边界已放行。
+
+validation0 后精确核实 postmaster5804/创建 2026-11-02T15:48:17.540266+08:00/原命令和全部端口记录、SQL 原目录/角色/地址含 /32/端口/主库非恢复/零其他客户端及本库 owner，才删除 a215030645 并 count0；正常停止原集群、pg_ctl 无服务、PID 消失、25466 全部记录0，session84359 实际退出 0。原集群与日志保留，旧被拒清理目录/十月夹具未触及；主检出/核心/正式依赖/业务库/既有附件未改，不推送/合并/发布。下一项继续核查相同 ORM 默认事务语义是否影响配置主库读取，不重复已完成层级表征。

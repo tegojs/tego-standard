@@ -153,6 +153,67 @@ describe('date-field scheduling from an external database', () => {
     }
   }
 
+  it.each([
+    { scope: 'the same workflow', owner: 'C' },
+    { scope: 'another workflow', owner: 'B' },
+  ])(
+    'keeps the correct owner when a newer scan covers $scope and the earlier scan finishes last',
+    async ({ owner }) => {
+      const trigger = installedDateTrigger();
+      const model = external.getCollection('externalScheduleDocuments').model;
+      const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+      await model.update({ scheduledAt: new Date(due) }, { where: {}, hooks: false });
+      let release!: () => void;
+      let reached!: () => void;
+      const hold = new Promise<void>((resolve) => (release = resolve));
+      const loaded = new Promise<void>((resolve) => (reached = resolve));
+      const original = model.findAll.bind(model);
+      let held = false;
+      const query = vi.spyOn(model, 'findAll').mockImplementation(async (...args) => {
+        const records = await original(...args);
+        if (!held) {
+          held = true;
+          reached();
+          await hold;
+        }
+        return records;
+      });
+      let earlier: Promise<void> | undefined;
+      try {
+        await observeThroughDeadline(trigger, due, async () => {
+          earlier = trigger.reload();
+          await loaded;
+          if (owner === 'C') {
+            // Controlled fixture transition, not a tenant reassignment API.
+            await model.update({ tenantId: 'C' }, { where: { id: 1 }, hooks: false });
+            await trigger.reload();
+          } else {
+            const other = await app.db.getRepository('workflows').create({
+              values: {
+                type: 'schedule',
+                enabled: false,
+                config: { ...workflow.config, collection: 'another:externalSharedSchedules' },
+              },
+            });
+            await trigger.inspect([other]);
+          }
+          release();
+          await earlier;
+        });
+        expect(await workflow.countExecutions()).toBe(1);
+        const [execution] = await workflow.getExecutions();
+        expect(execution.tenantId).toBe(owner);
+        expect(execution.context.data.tenantId).toBe(owner);
+      } finally {
+        release();
+        await earlier;
+        query.mockRestore();
+        await model.update({ tenantId: 'B', scheduledAt }, { where: { id: 1 }, hooks: false });
+        await model.update({ scheduledAt }, { where: { id: 2 }, hooks: false });
+      }
+    },
+  );
+
   it.each([false, true])('rejects the old business query after disable, even when re-enabled: %s', async (reEnable) => {
     const trigger = installedDateTrigger();
     const collection = external.getCollection('externalScheduleDocuments');

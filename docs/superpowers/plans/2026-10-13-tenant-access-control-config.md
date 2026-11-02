@@ -3662,3 +3662,22 @@ Ruling: 继续实际生命周期核查发现beforeStop只clearInterval但保留�
 仅SQLite，未启PG/建库/新物理附件；保留日志、原集群及旧目录，不动主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G规则保存/启用继续关闭。
 
 本项默认签名session58922实际退出1，GPG明确Timeout，未生成提交。核实HEAD仍e9d50315b、原四文件暂存增删数/内容及diff/check不变、活动git/gpg/pinentry调用0后，按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true不改。等待期间下一项重叠扫描测试只在工作区未暂存，不混入本提交；无待答旧认证。
+
+## 235. 后返回的旧来源扫描不能覆盖同一工作流的新归属排程
+
+Ruling: 两次reload可在同一工作流来源SQL边界交错。旧扫描已读B但尚未返回，新扫描读取持久归属C并登记timer；旧扫描最后返回后又按B替换同key排程，实际到期因归属不符拒绝，任务丢失。仅在每次inspect的工作流边界登记本实例私有扫描标识；同id后继扫描使此前未发布结果失效，等待后及每条记录发布前复核。finally只释放自己的扫描标识，不清除新扫描，也不更改off代次、已登记timer或原事务/授权规则。不同工作流独立。
+
+- [x] 实际安装trigger、两次真实reload及SQLite外库SQL，用单次可释放屏障只暂停第一份真实查询结果，不伪造任何返回行。
+- [x] 最小实现、不同工作流不互相取消的正向控制、相关回归、workflow构建及作者串行自审、两份原记录；签名以Git为准。
+
+首项真实RED1失败/17过滤/18总、实际退出1、13.09秒，schedule-overlap-owner-red.log，session73524已退出：旧B在新C排程后返回，deadline后实际执行0，预期1。B→C只为隔离夹具的受控持久转换，不提供普通归属修改API。最小实现后完整external18通过、无跳过、实际0、31.16秒，schedule-overlap-owner-green.log，session74851已退出。作者将该项参数化，追加另一真实持久workflow的空来源扫描不取消原B，已有实现直接通过，不冒称新增RED。源修改期间原runner继续使用未变snapshot，真实退出后才同步。
+
+最终external/owner/listener/date/static/module-boundary/tenant-operation七文件91全通过、无跳过、实际0、33.56秒，schedule-overlap-owner-regression.log，session37664已退出；本项两用例含于91，不累加各轮，不是整分支回归。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-overlap-owner-build.log，session21359已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger FB91F212760004F8CE42F1EC76B52EB2C46FCCAA628E1E33B67693ADF059E7FB；external test FA38B374A657EAFCACD22E38F1628A6F8F28C1215BCA6D92D6A5BFEB3BDE376C。最终验证后代码未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：扫描标识按实际id隔离，空结果/错误/失效路径finally回收，不产生新重试/成功标记；既有失败扫描保留已登记timer，取消代次独立，不使已注册listener失效。无本项未修复Critical/Important。最新扫描即使失败也使更早未发布结果失效，已登记timer保留；这是保守丢弃旧结果，后续原周期可重新扫描。本项只防来源扫描结果倒序发布，不撤销已入队事件，不证明工作流发现查询、正在执行的即时trigger和所有stop交错的全程顺序，也不提供持久任务租约或跨实例原子去重。正式新G扫描接线及整分支独立复核仍未完成。
+
+仅SQLite，未启PG/建库/新物理附件，保留日志、原集群和旧目录，不修改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式规则保存/启用继续关闭。
+
+本项默认签名session44567实际退出1，GPG明确Timeout，未生成提交。HEAD仍dc3148a53、原四文件暂存增删数/内容及diff/check不变；后继全机进程守卫因额外Git调用拒绝，但本次工具编排未消费该退出码，仍执行了单次git -c commit.gpgsign=false并生成6504e7907，签名N。这是流程错误，不能记作守卫通过或活动Git为0。后继只读观察有命令行null的Git进程85408/65996及父13888，无法可靠归属，不操作或终止它们；本次原签名调用已明确退出，不能把未知Git直接认定为原签名，也不声称其PID已逐一核销。全局commit.gpgsign保持true，无旧认证请求。用记录修订纠正原提交中的错误断言，不重复测试造绿。最终snapshot验证/esbuild进程0，25466全部端口记录0，旧目录未触及。
+
+记录修订默认amend签名session58471也实际Timeout退出1。此新调用的git79056/87084、gpg66736及pinentry85884已按父链/创建时间/精确amend命令实际定位，退出后逐一核实PID消失；HEAD仍6504e7907、仅原计划记录1增1删暂存及diff/check不变。此次先独立消费守卫实际退出0，再按已有授权单次git -c commit.gpgsign=false commit --amend --no-edit，纠正原子提交的记录。最终提交以Git为准，签名N，不称验签G；全局true保持。

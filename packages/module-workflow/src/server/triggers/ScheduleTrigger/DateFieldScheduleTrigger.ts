@@ -168,6 +168,8 @@ export default class ScheduleTrigger {
 
   private cancellations = new Map<string, object>();
 
+  private inspections = new Map<string, object>();
+
   private captureCurrent(workflow: WorkflowModel) {
     const key = `${workflow.id}`;
     const token = this.cancellations.get(key);
@@ -226,10 +228,13 @@ export default class ScheduleTrigger {
     await Promise.all(
       workflows.map(async (workflow) => {
         const isCurrent = this.captureCurrent(workflow);
+        const key = `${workflow.id}`;
+        const inspection = {};
+        this.inspections.set(key, inspection);
         try {
           const records = await this.loadRecordsToSchedule(workflow, now);
           for (const record of records) {
-            if (!isCurrent()) return;
+            if (!isCurrent() || this.inspections.get(key) !== inspection) return;
             const nextTime = this.getRecordNextTime(workflow, record, false, now);
             // Refresh only successfully discovered records; failed scans keep their live handles.
             this.schedule(workflow, record, nextTime, false);
@@ -237,6 +242,8 @@ export default class ScheduleTrigger {
           }
         } catch (error) {
           this.workflow.getLogger(workflow.id).error('failed to inspect scheduled records', error);
+        } finally {
+          if (this.inspections.get(key) === inspection) this.inspections.delete(key);
         }
       }),
     );

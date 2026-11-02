@@ -225,6 +225,93 @@ describe('date-field scheduling from an external database', () => {
     }
   });
 
+  it('keeps pending timers cancellable across a successful reload', async () => {
+    const trigger = new DateFieldScheduleTrigger(app.pm.get('workflow') as WorkflowPlugin);
+    const model = external.getCollection('externalScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+    const original = trigger.trigger.bind(trigger);
+    const pending: Promise<unknown>[] = [];
+    const dispatch = vi.spyOn(trigger, 'trigger').mockImplementation((...args) => {
+      const result = original(...args);
+      pending.push(result);
+      return result;
+    });
+    try {
+      await model.update({ scheduledAt: new Date(due) }, { where: {}, hooks: false });
+      const record = await model.findByPk(1);
+      trigger.schedule(workflow, record, due);
+      await trigger.reload();
+      trigger.off(workflow);
+      // A real deadline barrier lets any orphaned native timer fire before checking persisted executions.
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 50));
+      await Promise.allSettled(pending);
+      await waitForWorkflowIdle(app);
+      expect(await workflow.countExecutions()).toBe(0);
+    } finally {
+      trigger.off(workflow);
+      await Promise.allSettled(pending);
+      dispatch.mockRestore();
+      await model.update({ scheduledAt }, { where: {}, hooks: false });
+    }
+  });
+
+  it('retains an already scheduled timer when a reload temporarily cannot scan its source', async () => {
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const trigger = new DateFieldScheduleTrigger(plugin);
+    const model = external.getCollection('externalScheduleDocuments').model;
+    const qi = external.sequelize.getQueryInterface();
+    const table = model.getTableName();
+    const unavailable = 'unavailable_source_during_schedule_reload';
+    const errors = vi.spyOn(plugin.getLogger(workflow.id), 'error');
+    const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+    try {
+      await model.update({ scheduledAt: new Date(due) }, { where: {}, hooks: false });
+      const record = await model.findByPk(1);
+      trigger.schedule(workflow, record, due);
+      await qi.renameTable(table, unavailable);
+      try {
+        await trigger.reload();
+        expect(errors).toHaveBeenCalledWith(
+          'failed to inspect scheduled records',
+          expect.objectContaining({ name: 'SequelizeDatabaseError' }),
+        );
+      } finally {
+        await qi.renameTable(unavailable, table);
+      }
+      await waitForAssertion(async () => expect(await workflow.countExecutions()).toBe(1), 4000);
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution.context.data.label).toBe('External B');
+      expect(execution.tenantId).toBe('B');
+    } finally {
+      trigger.off(workflow);
+      errors.mockRestore();
+      await model.update({ scheduledAt }, { where: {}, hooks: false });
+    }
+  });
+
+  it('refreshes a pending record owner from the successful reload instead of suppressing the new context', async () => {
+    const trigger = new DateFieldScheduleTrigger(app.pm.get('workflow') as WorkflowPlugin);
+    const model = external.getCollection('externalScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+    try {
+      await model.update({ scheduledAt: new Date(due) }, { where: {}, hooks: false });
+      const record = await model.findByPk(1);
+      trigger.schedule(workflow, record, due);
+      await model.update({ tenantId: 'C' }, { where: { id: 1 }, hooks: false });
+      await trigger.reload();
+      await waitForAssertion(async () => expect(await workflow.countExecutions()).toBe(1), 4000);
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution.tenantId).toBe('C');
+      expect(execution.context.data.tenantId).toBe('C');
+    } finally {
+      trigger.off(workflow);
+      await model.update({ tenantId: 'B' }, { where: { id: 1 }, hooks: false });
+      await model.update({ scheduledAt }, { where: {}, hooks: false });
+    }
+  });
+
   it.each(['tenantScoped', 'tenantInherited'])(
     'scans %s rows from the selected source using primary tenant authority',
     async (tenancy) => {
@@ -313,10 +400,11 @@ describe('date-field scheduling from an external database', () => {
           name: 'SequelizeDatabaseError',
         }),
       );
-      expect(schedule).toHaveBeenCalledTimes(1);
-      expect(schedule.mock.calls[0][0]).toBe(workflow);
-      expect(schedule.mock.calls[0][1].get('label')).toBe('External B');
-      expect(schedule.mock.calls[0][2]).toBe(future.getTime() - future.getMilliseconds());
+      const additions = schedule.mock.calls.filter((call) => call[3] === true);
+      expect(additions).toHaveLength(1);
+      expect(additions[0][0]).toBe(workflow);
+      expect(additions[0][1].get('label')).toBe('External B');
+      expect(additions[0][2]).toBe(future.getTime() - future.getMilliseconds());
     } finally {
       await Promise.allSettled(pending);
       errors.mockRestore();

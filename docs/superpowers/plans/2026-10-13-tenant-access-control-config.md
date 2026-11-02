@@ -3607,3 +3607,22 @@ Ruling: §228只覆盖每个工作流load失败，原reload在读取workflows列
 最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger 7AE978EF91D31EAA216609D782DF94FBD4115D3E9E43952181A154A7231AA392，external test F178C49ECBDF7B5DD21463776940B0E846118359A37FF604386089759D90A870；最终验证后源码未改。按requesting-code-review模板作者串行自审，非独立复核：不把失败替换为空成功，保留实际logger异常，恢复后的执行真实核对归属；发现失败不提前清空cache，未增加重试或调度选择。无本项未修复Critical/Important。自审另定位成功reload直接替换cache可能丢失仍活动timer的引用，下一项须先真实复现，尚不把该候选称已修复；重叠reload和原子去重仍未完成。
 
 仅SQLite、不启PG/建库/新物理附件，保存schedule-reload-discovery-*日志、原集群和旧夹具。所有runner/build已实际退出，不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G调度与规则启用继续关闭。
+
+## 232. reload 必须保留活动 timer 的取消能力并刷新成功发现的归属
+
+Ruling: 承接§231实际定位的生命周期问题。旧reload直接替换Map，没有取消原Node timer；成功reload结束后off只能取消新Map中的timer，旧句柄已失联，仍实际生成执行。不能一律取消全部旧timer来修复：单个工作流扫描短暂失败时会丢掉已经有效排好的任务。最终保留原活动Map，只对成功发现的记录使用原schedule(false)取消旧排程，再按最新记录安排下一时点；失败工作流原timer仍被登记、可取消并在到期时真实回读。成功发现的归属必须刷新，不能让同key去重继续沿用过期B上下文。
+
+- [x] 原snapshot/真实SQLite、真实Node deadline、实际Repository及Plugin持久执行：reload后off、短暂扫描失败、归属刷新三个边界。
+- [x] 最小最终实现、相关调度/tenant工作流回归与workflow构建、作者串行自审和两份原记录；英文签名提交以实际Git为准。
+
+首项真实RED1失败/8过滤、实际1、10.20秒，schedule-reload-timers-red.log，session86625已退出：off后预期0，实际持久执行1。fixture仅代理原trigger并透传真实Promise，实际deadline后等原查询及队列退出，不使用假timer或伪造执行计数。最初候选在Map替换前clearTimeout全部旧句柄，完整external9通过、实际0、12.54秒，schedule-reload-timers-green.log，session87828已退出；该候选尚未提交，不能以此宣布最终修复。
+
+作者自审追加临时真实改名外库来源表、原inspect失败日志保留、恢复后不重新扫描仍应到期执行。该候选真实RED1失败/9过滤、实际1、12.36秒，schedule-reload-timers-preservation-red.log，session49802已退出：4秒内实际执行仍0。改为保留Map后完整external10通过、实际0、14.44秒，schedule-reload-timers-preserved-green.log，session86598已退出。再自审追加同一真实记录B变C后的成功reload，单纯保留Map被真实RED证伪：1失败/10过滤、实际1、11.98秒，schedule-reload-timers-owner-red.log，session17636已退出，旧上下文导致实际执行0。此归属变化是隔离夹具的受控持久状态转换，不代表普通更新可转移归属。
+
+最终在原inspect逐条成功发现后调用原取消协议并重新排程，没有增加SQL、权限解释或新的运行状态表。原§228的边界spy仅把新增排程和取消调用分开核对，真实SQL与新三个持久行为不mock。完整external11通过、无跳过、实际0、16.42秒，schedule-reload-timers-final-green.log，session39454已退出：off后0、来源恢复后External B且B、成功刷新归属后C且原context.data.tenantId C。
+
+最终external/owner/listener/date/static/module-boundary/tenant-operation七文件83全通过、无跳过、实际0、30.05秒，schedule-reload-timers-regression.log，session88557已退出。三个新项含于83，各候选/RED/聚焦不累加，不是整分支回归。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全部通过、实际0，schedule-reload-timers-build.log，session46875已退出。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger 222C932CF47A6948B6B363FC7F6345D24C758114BEF7D8EBA4C0A181A528DCC4，external test 63C6E71EF49711015403B16E3C12DE7B704CDD7C2A2BA6AF834697D8EF236EDA；最终验证后源码未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：句柄不失联，原finally终结回收保持；工作流发现或来源扫描失败保留原排程，只有实际成功发现的记录刷新，归属回读和原事务/ACL/G/V逻辑不变。无本项未修复Critical/Important。逐条取消复用原按记录前缀遍历，不声明新的规模性能或全扫描成本上限。重叠reload、在途查询/事件与off或停止的协调、跨实例原子去重及新G正式接线仍未完成，不据串行用例放行。
+
+最终资源检查实际0：snapshot验证/esbuild进程0、25466全部端口记录0；本项仅SQLite、未启PG/建库/新物理附件。保留schedule-reload-timers-*日志、原集群和旧夹具，不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，正式新G调度和规则保存启用继续关闭。本轮连续§229—232为四项独立交付，不代表整个配置计划或整分支独立复核完成；后继承接原计划剩余项，先核实实际Git/记录，不重复已通过验证。

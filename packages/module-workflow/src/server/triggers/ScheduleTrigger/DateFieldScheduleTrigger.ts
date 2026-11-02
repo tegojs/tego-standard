@@ -199,9 +199,7 @@ export default class ScheduleTrigger {
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
       });
 
-      // NOTE: clear cached jobs in last cycle
-      this.cache = new Map();
-
+      // Keep live handles cancellable; schedule deduplicates and fired callbacks retire them.
       await this.inspect(workflows);
     } catch (error) {
       this.workflow.getLogger('dispatcher').error('failed to reload date-field schedules', error);
@@ -217,7 +215,9 @@ export default class ScheduleTrigger {
           const records = await this.loadRecordsToSchedule(workflow, now);
           for (const record of records) {
             const nextTime = this.getRecordNextTime(workflow, record, false, now);
-            await this.schedule(workflow, record, nextTime, Boolean(nextTime));
+            // Refresh only successfully discovered records; failed scans keep their live handles.
+            this.schedule(workflow, record, nextTime, false);
+            if (nextTime) await this.schedule(workflow, record, nextTime, true);
           }
         } catch (error) {
           this.workflow.getLogger(workflow.id).error('failed to inspect scheduled records', error);

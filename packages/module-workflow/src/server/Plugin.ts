@@ -646,6 +646,8 @@ export default class PluginWorkflowServer extends Plugin {
         this.getLogger(next[0].workflowId).info(`pending execution (${next[0].id}) ready to process`);
       } else {
         const execution = (await this.db.getRepository('executions').findOne({
+          useMaster: true,
+          transaction: null,
           filter: {
             status: EXECUTION_STATUS.QUEUEING,
             'workflow.enabled': true,

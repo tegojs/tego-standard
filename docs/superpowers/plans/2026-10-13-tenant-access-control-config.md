@@ -3799,3 +3799,18 @@ Ruling: 日期任务进入原队列后，Plugin.createExecution先建立事务�
 workflow客户端/服务端/依赖/声明完整build实际0，schedule-preparation-transaction-build.log，session43926已退出。三TS最终Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：Plugin 1A3193AA11D1AA04A63DA92B8D7A9F5D7637F53DEAAD98E1A5320A3D814E55E2；Plugin.test 329AB525C3C92CD1212642F53FDDA44B1DAD79AD4DACD6C47CC4672DCEC6E42D；owner-context.test EF36A252FBADE8A403AD14BEBB1D22BFD80922472A13BFEDC2454C47A39E8955。最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：原验证false仍无execution，正常流程的计数/归属/提交次序不改，caller事务不提交或回滚；finished守卫避免对已终结COMMIT再次rollback。无本项未修复Critical/Important。未知COMMIT不因此获得重试权，未证明跨实例原子去重、PG故障/连接池耗尽矩阵或调用方错误后可继续事务（PG SQL错误仍要求caller回滚），未提供已入队撤销、新G正式调度、业务试点及整分支独立复核。本项仅本地SQLite，未启动PG、建库或处理物理文件；既有目录保留，不改主检出、核心、正式依赖或业务库，不推送合并发布。
+
+## 243. 持久工作流队列从主库发现待执行任务
+
+Ruling: §239只覆盖日期工作流发现，原Plugin.dispatch对executions的持久队列读取仍默认读池。应用重启后，主库已有任务而读池尚无时，任务留在QUEUEING，原租户上下文从未恢复。仅该后台发现查询明确useMaster:true及transaction:null，读取主库已提交任务并阻止隐式CLS连接替换；原enabled/status条件、排序、pending优先及Processor身份恢复不变，不增加轮询、任务注册或新G权限来源。
+
+- [x] 真实独立PG读写连接池，不同search_path下原executions空表与主库两条B/H任务；实际app.stop/reconnect/start，先确认读池0、主库2，再检查执行状态和实际生成行归属。
+- [x] 新文件真实RED/GREEN、相关六文件回归、workflow完整包构建、格式/lint与作者串行自审及原两份记录。
+
+专用新库tego_tenant_access_test_a24302d659。workflow-queue-primary-red.log：1失败/无跳过/实际1/23.25秒（测试10.06），session57244已退出；实际两条状态仍[null,null]（QUEUEING），期望[1,1]（RESOLVED），不是mock选项断言。最小两选项后green.log：1通过/无跳过/实际0/18.35秒（测试8.71），session21426已退出；实际结果为B/H各一条Recovered owner task。最终六文件74全通过/无跳过/实际0/21.42秒，workflow-queue-primary-regression.log，session52512已退出，其中新文件PG1、其余SQLite73；新项含于74，不与§242的118及其他轮次相加，不是整分支回归。连接池/schema夹具不是WAL副本或故障切换测试。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-primary-build.log，session45907已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin 8A42E6BA59D452FB4A6CBA01E18F9160A518E5414434E04873FBEAE1AB95A837；queue-primary-authority.test 1769441A6313C4B057C1EAD822D548D338D25D1EC8D524BBBE5383C0189C5F60。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：只固定既有持久任务发现的连接选择，原工作流启用条件与已保存tenantContext/authContext恢复保持；无本项未修复Critical/Important。不声明发现到执行之间的全程隔离、跨实例任务认领或最多一次，不撤销已入队事件，不替代正式新G消费者的最终ACL/执行身份契约；持久租约、跨实例原子去重、业务试点及整分支独立复核仍未完成。
+
+资源收敛实际0（session73121）：核实新postmaster93160/创建2026-11-02T19:42:37.5588900+08:00/原目录命令，25466全部记录唯一原PID（State null），SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及专用库owner后，仅删a24302d659并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部25466记录0/验证及esbuild0。日志和集群、所有旧目录保留，未修改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

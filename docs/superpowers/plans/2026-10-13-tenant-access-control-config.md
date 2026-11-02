@@ -3734,3 +3734,20 @@ Ruling: 显式普通写事务也可来自另一个Sequelize实例，即使连接
 资源收敛实际0：核实本项postmaster60120/创建2026-11-02T19:00:19.651917+08:00/原目录命令、25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/专用库owner后，仅删a23802a656并pg_database count0，原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-foreign-transaction-*日志及旧目录；主检出、核心、正式依赖、业务库和既有附件未触及，不推送合并发布，规则保存/启用继续关闭。
 
 默认签名session6688实际Timeout退出128，未生成提交。事先由shell18352父链捕获git85480/26660、gpg24488及同次创建pinentry84848；退出后逐一核实PID消失、HEAD仍5faffdff8、暂存tree f55d69ca986ff10ec914891f14946b35638a6955和diff/check不变，独立守卫实际0后按已有授权单次git -c commit.gpgsign=false提交，签名N，全局true保持。等待时后继工作流发现测试只未暂存，不混入本项；不重复旧认证或验签未签名提交。
+
+## 239. 日期任务发现不能从旧读池重新登记主库已停用的工作流
+
+Ruling: 原日期reload的WorkflowRepo.find仍走默认读池。另一个实例已提交停用而本实例未收到off时，旧读池的enabled:true工作流仍被发现并真实生成任务。仅该发现查询显式useMaster:true、transaction:null，既从主库读配置也不继承隐式CLS读池事务；不增加跨实例事件、任务租约或新运行时注册。
+
+- [x] 新专用库tego_tenant_access_test_a23902b657、实际PG独立读写池，在旧schema复制真实workflows表；primary停用用受控fixture hooks:false模拟其他实例提交，不触发本实例off。
+- [x] 普通调用和实际ambient readOnly事务两项真实RED，最小两选项实现，主库重新启用后的真实周期候选/timer/队列正向控制，相关回归、构建、作者串行自审及原两份记录。
+
+真实RED2失败/13过滤/15总、实际1、11.15秒，schedule-discovery-primary-red.log，session24577已退出：确认同workflow读池true/主库false后，deadline后实际执行1而非0。最小实现后完整PG文件15全通过/无跳过/实际0、15.47秒，schedule-discovery-primary-green.log，session29607已退出；caller ambient事务仍活动，由fixture退出。随后追加primary重新启用、更新下次时点且不发save事件的正向控制，最终实际生成B执行及Primary owner内容；不是后台修复元数据或伪造查询结果。
+
+最终原调度七文件、tenant-drift和PG文件共九文件131全通过/无跳过/实际0、33.45秒，schedule-discovery-primary-regression.log，session78991已退出；本项两例含于131，各轮不累加，不是整分支回归。workflow客户端/服务端/依赖/声明完整build实际0，schedule-discovery-primary-build.log，session54327已退出。最终两TS格式化/oxlint零错误警告，源/snapshot SHA256一致：DateFieldScheduleTrigger FD25C6EA0AC8F65A741DC7B729C809B5B9A2E10D7BDBBA57BE9D035411215AF6；primary-authority test 9897106789F0CFB01801F5D7BBED05DCCC737E2DC6DA042EAE0B2FF99A36D1FB。代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：原筛选/取消代次/inspect和每工作流错误收敛不变，主库读取只修发现来源。无本项未修复Critical/Important。该项不撤销其他实例已登记timer或已入队事件，不保证查询返回后的停用并发、全生命周期停止顺序或跨实例最多一次。核读Plugin.beforeStop已对启用工作流toggle/off，不把一般停止流程猜成新bug；业务候选扫描的默认读池可能漏新到期记录，仍只是后继待真实验证候选。新G正式接线和整分支独立复核未完成。
+
+资源收敛实际0：核实postmaster84040/创建2026-11-02T19:04:48.020715+08:00/原目录命令、25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/库owner后，仅删a23902b657并pg_database count0，原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-discovery-primary-*日志及旧目录，不改主检出、核心、正式依赖、业务库或既有附件；不推送合并发布，正式规则保存/启用继续关闭。
+
+默认签名session75784实际Timeout退出128，未生成提交；按shell71592父链事先捕获git93868/94668、gpg2852、同次创建pinentry94152，退出后逐一确认PID消失、HEAD仍4e28774ca、暂存tree cec6e65165262a07c5cba90c069e6a7c3f867829及diff/check不变，独立守卫实际0后按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true保持。后继新到期候选测试仅未暂存，不混入本项；不重复旧认证。

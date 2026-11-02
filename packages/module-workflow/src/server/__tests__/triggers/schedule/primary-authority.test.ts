@@ -131,6 +131,57 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     expect(await trigger.loadRecordsToSchedule(workflow, new Date())).toEqual([]);
   });
 
+  it.each([false, true])(
+    'does not discover a workflow disabled on the primary (ambient read pool: %s)',
+    async (ambient) => {
+      const workflows = app.db.getCollection('workflows').model;
+      const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+      await app.db
+        .getCollection('primaryScheduleDocuments')
+        .model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+      await app.db.sequelize.query(
+        'CREATE TABLE schedule_stale_tenants.workflows (LIKE public.workflows INCLUDING ALL)',
+      );
+      try {
+        await app.db.sequelize.query('INSERT INTO schedule_stale_tenants.workflows SELECT * FROM public.workflows');
+        // Simulate a committed change observed by another application, without this instance's off hook.
+        await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+        expect((await workflows.findByPk(workflow.id))?.get('enabled')).toBe(true);
+        expect((await workflows.findByPk(workflow.id, { useMaster: true }))?.get('enabled')).toBe(false);
+        if (ambient) {
+          await withAmbientTransactions(app.db, async () => {
+            await app.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
+              expect((await workflows.findByPk(workflow.id, { transaction }))?.get('enabled')).toBe(true);
+              await trigger.reload();
+              expect(transaction.finished).toBeFalsy();
+            });
+          });
+        } else {
+          await trigger.reload();
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+        await waitForWorkflowIdle(app);
+        expect(await workflow.countExecutions()).toBe(0);
+        expect(await app.db.getCollection('primaryScheduleResults').model.count()).toBe(0);
+        await workflows.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+        const nextDue = Math.ceil((Date.now() + 500) / 1000) * 1000;
+        await app.db
+          .getCollection('primaryScheduleDocuments')
+          .model.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+        await trigger.reload();
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextDue - Date.now()) + 100));
+        await waitForWorkflowIdle(app);
+        expect(await workflow.countExecutions()).toBe(1);
+        const [execution] = await workflow.getExecutions();
+        expect(execution.tenantId).toBe('B');
+        expect(execution.context.data.label).toBe('Primary owner');
+      } finally {
+        trigger.off(workflow);
+        await app.db.sequelize.query('DROP TABLE schedule_stale_tenants.workflows');
+      }
+    },
+  );
+
   it.each([false, true])('does not inherit ambient read-pool authorization (disabled owner: %s)', async (disabled) => {
     if (disabled) await disablePrimaryOwner();
     await withAmbientTransactions(app.db, async () => {

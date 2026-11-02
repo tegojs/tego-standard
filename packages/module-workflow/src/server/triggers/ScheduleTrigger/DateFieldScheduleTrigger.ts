@@ -213,6 +213,8 @@ export default class ScheduleTrigger {
     try {
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
+        useMaster: true,
+        transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
       });
 

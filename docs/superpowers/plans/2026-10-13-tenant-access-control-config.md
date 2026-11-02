@@ -3768,3 +3768,18 @@ Ruling: 原业务候选model.findAll仍走默认读池，即使§237已保证分
 资源收敛实际0：核实新postmaster9796/创建2026-11-02T19:08:46.572193+08:00/原目录命令，25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/库owner后，仅删a24002c658并pg_database count0；原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-candidates-primary-*日志和旧目录，未改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，规则保存/启用继续关闭。
 
 默认签名session11336实际Timeout退出128，未生成提交；事先按shell89860父链捕获git90744/87848、gpg66776、同次创建pinentry91132，退出后逐一确认PID消失、HEAD仍f918579cb、暂存tree 4530d0bcde269d87f083d6246a50ec01c7ce559a及diff/check不变、无未暂存变更，独立守卫实际0后按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true保持，不重复旧认证。一次只读端口枚举无记录使组合命令退出1，不当作cleanup失败或端口身份验证通过；本项此前独立收敛已实际0。
+
+## 241. 归属性候选分页复用现有入口的最终角色读权限
+
+Ruling: §229已提供底层listOwned，但现有AccessEntryReadService没有对应入口；后继任务消费者不应自行重建最终角色filter、字段及关联路径授权。沿已批准“任务按实际归属且符合G处理”的规格，在该内部入口类增加明确listOwned方法，复用原list operation的角色编译/权限快照/阶段检查，再调用原底层listOwned。普通list仍G或V，不加客户端开关，不注册HTTP、调度器或selected executor，不建立另一套任务系统。
+
+- [x] 原独立SQLite fixture真实SQL，先验证缺入口的五项RED，H/B/C各自实际owner、最终角色排除在SQL分页前、操作/字段限制；普通可见读取及NULL历史不认领控制。
+- [x] 最小入口组合、相关权限四文件回归、tenant完整构建/声明、作者串行自审及原两份记录；无本项PG或物理附件。
+
+初始5失败/10过滤/15总、实际1、5.36秒，owned-entry-pages-red.log：TypeError entries.listOwned is not a function；前三项先实际完成普通list查询，新入口缺失才失败，不冒称产品既有授权泄露RED。最小实现后完整文件15全通过/无跳过/实际0、7.23秒，owned-entry-pages-green.log。最终owned/final-read-permission/read-grants/role-filter四文件127全通过/无跳过/实际0、7.80秒，owned-entry-pages-regression.log，session34066已退出；新增五项包含于127，不累加各轮或§240的133，不是整分支回归。本项无SQL dialect改动，仅SQLite验证入口组合；§229的既有PG覆盖不冒称本项另跑。
+
+tenant客户端/服务端/依赖/声明完整build实际0，owned-entry-pages-build.log，session33999已退出；在snapshot生成entry-reads.d.ts实际核实listOwned签名。最终两TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：entry-reads E8B1FC2FDA36D06DFCA5878C9B2AE01B4D476C07CC08ACDC0250F7C377F290F6；owned test 8F109204790279D61A2323F0D8DDDC1BAB126BB3B80B7210062235B4E4E501F3。最终代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：权限操作仍为list，复用原operation隔离checker、角色条件编译和字段授权，未创建新的ACL授权来源；原底层ACL∩G∩启用租户实际归属及SQL分页不变，NULL不认领。无本项未修复Critical/Important。调用方仍必须提供受信执行身份、已准备phase和最终ACL resolver，此内部方法不自行认证、不是任务执行许可/租约，不接线正式新G调度或撤销既有任务。一次只读查找不存在旧entry-reads.test.ts/workflow.ts和Windows rg通配失败，随后聚焦定位实际文件，不算测试RED。
+
+本项PG未启动/未建库，无新物理附件、无旧目录清理；验证/构建均已实际退出，保留日志、原集群及旧目录。未改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，规则保存/启用及所有正式新模型接线继续关闭。

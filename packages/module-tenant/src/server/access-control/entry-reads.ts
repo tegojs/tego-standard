@@ -251,6 +251,11 @@ export class AccessEntryReadService {
     return this.reader('list', ctx, source, authenticated).list(ctx, source, authenticated, request);
   }
 
+  /** Internal task pages reuse final list permissions, then require G and the active tenant's actual ownership. */
+  listOwned(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessListRequest) {
+    return this.reader('list', ctx, source, authenticated).listOwned(ctx, source, authenticated, request);
+  }
+
   get(ctx: object, source: AccessCollectionIdentity, authenticated: AccessIdentity, request: AccessGetRequest) {
     return this.reader('get', ctx, source, authenticated).get(ctx, source, authenticated, request);
   }

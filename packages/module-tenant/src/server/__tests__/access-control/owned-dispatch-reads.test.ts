@@ -2,6 +2,7 @@ import { ACL, literal, type Collection, type Database } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
 import { resolveModelMetadata } from '../../access-control/model-metadata';
 import { AccessQueryService } from '../../access-control/query';
 import { AccessReadGrantAdapter, type AccessEntryReadPermission } from '../../access-control/read-grants';
@@ -19,6 +20,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('ownership-dispa
   let store: AccessConfigStore;
   let prepared: AccessAclScopeAdapter;
   let reads: AccessReadService;
+  let entries: AccessEntryReadService;
   let permission: AccessEntryReadPermission;
   let constraint: AccessRootReadConstraint | undefined;
   const phase = {};
@@ -94,6 +96,13 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('ownership-dispa
       undefined,
       async () => constraint!,
     );
+    entries = new AccessEntryReadService(
+      db,
+      prepared,
+      new AccessQueryService(db, prepared, key),
+      (collection) => (collection === docs ? mainIdentity : undefined),
+      () => permission,
+    );
   });
   afterEach(async () => {
     prepared?.release(phase);
@@ -109,6 +118,42 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('ownership-dispa
   });
 
   const request = () => ({ attributes: ['id', 'name'], sort: ['id'], limit: 100 });
+
+  it.each([
+    { tenantId: 'H', id: 1 },
+    { tenantId: 'B', id: 2 },
+    { tenantId: 'C', id: 3 },
+  ])('offers only actual $tenantId ownership through the final entry permission bridge', async ({ tenantId, id }) => {
+    expect((await entries.list(phase, mainIdentity, { tenantId }, request())).map((row) => row.id)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+    expect((await entries.listOwned(phase, mainIdentity, { tenantId }, request())).map((row) => row.id)).toEqual([id]);
+    expect((await docs.model.findByPk(5))!.get('tenantId')).toBeNull();
+  });
+
+  it('applies entry role restrictions before paginating owned task candidates', async () => {
+    await docs.model.create({ id: 6, tenantId: 'B', name: 'Second', state: 'ready' });
+    permission = { allowed: true, params: { fields: ['id', 'name'], filter: { id: { $ne: 2 } } } };
+    expect(await entries.listOwned(phase, mainIdentity, { tenantId: 'B' }, { ...request(), limit: 1 })).toEqual([
+      { id: 6, name: 'Second' },
+    ]);
+    expect(
+      await entries.listOwned(phase, mainIdentity, { tenantId: 'B' }, { ...request(), limit: 1, offset: 1 }),
+    ).toEqual([]);
+    expect((await entries.list(phase, mainIdentity, { tenantId: 'B' }, request())).map((row) => row.id)).toEqual([
+      1, 3, 4, 5, 6,
+    ]);
+  });
+
+  it('keeps final entry action and field permissions on owned pages', async () => {
+    permission = { allowed: false, params: {} };
+    await expect(entries.listOwned(phase, mainIdentity, { tenantId: 'B' }, request())).rejects.toThrow();
+    permission = { allowed: true, params: { fields: ['id'], filter: { name: 'Owned' } } };
+    expect(
+      await entries.listOwned(phase, mainIdentity, { tenantId: 'B' }, { ...request(), attributes: ['id'] }),
+    ).toEqual([{ id: 2 }]);
+    await expect(entries.listOwned(phase, mainIdentity, { tenantId: 'B' }, request())).rejects.toThrow();
+  });
 
   it.each([
     { tenantId: 'H', id: 1 },

@@ -3993,3 +3993,17 @@ Ruling: 子执行完成后的父execution与父jobs查询仍默认走读池。�
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-child-parent-primary-build.log，session95718已退出。最终三TS Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin 405847B4D6FC16C8B229404F36159310CAA69AF20CCDDD755068A419DF5D4254；queue-primary-authority.test 903626EC5978C1D2A642385B8C15FF190062F6D58847D667ED3639C963C6B3AA；tenant-lifecycle.test C2623E8859E6317E0D82059FC3A818D67951DAEDEC280BAE84052910A37F3C1A，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：恢复源固定为本次实际父状态，不因子执行租户或旧读池重造父身份；原Processor的非STARTED拒绝保持。无本项未修复Critical/Important。读取后并发取消、已入队撤销、持久租约/跨实例原子恢复、完整停止矩阵、新G正式消费者、业务试点及整分支独立复核仍未完成。独立资源收敛session74599已消费实际0：核实postmaster27056/创建2026-11-02T21:07:56.4242970+08:00/原目录命令、全部25466记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_f25602d665并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/25466全部记录0/validation0。集群和日志保留，无新物理附件；不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 257. 子工作流选择不得从旧读池恢复已撤销的启用状态
+
+签名记录：默认git commit session12396实际退出1，GPG明确Timeout且未生成提交。事先定位本次git83216/57632、gpg77928、pinentry46876（原调用输出确认）后，独立守卫实际0核实各PID消失、HEAD仍9285913fd、原staged tree cf8979afc60a5ecb6e3674e3946cd9aff7f2e25a不变、无未暂存变更及global commit.gpgsign=true。依据用户既有授权，本次仅git -c commit.gpgsign=false提交，签名N，不绕过活动调用，不称独立验签成功。
+
+Ruling: TriggerInstruction按workflowKey及enabled选择子工作流，但默认读池旧enabled:true能继续触发主库已停用的同步/异步子工作流。选择查询明确useMaster:true，没有显式Processor事务时transaction:null；有显式事务时保留原Processor事务，不开/提交/回滚caller事务。未找到或已停用继续原FAILED结果，不引入新权限来源、自动重试或正式新G注册。
+
+- [x] 原真实PG独立读写池夹具新增sync=false/true两项，旧schema.workflows保存enabled:true，primary实际model.update停用且不发本实例配置hook；先核对两池差异，再仅原持久parent QUEUEING经dispatcher/Processor/trigger-instruction执行，断言父FAILED、child execution0及B业务数据0。
+- [x] workflow-child-selection-primary-red.log：2失败8过滤/10总，实际1/10.33秒，session83858已退出；两路径实际{status:1,children:1,resultCount:1}，应为{-1,0,0}。无夹具诊断失败轮。
+- [x] 最小查询选项后九文件172全通过/无跳过/实际0/23.86秒，workflow-child-selection-primary-regression.log，session44451已退出：SQLite162及真实PG10项均执行，新两项含于172，不累加前轮/§256的170，不是整分支回归。原正常子工作流及保存的租户身份控制保持。首次实现后的Prettier check退出1发生在runner之前，只格式化该TS后才实际运行，不冒称产品RED或回归失败。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-child-selection-primary-build.log，session39799已退出。最终两TS Prettier格式及oxlint零错误警告，源/snapshot SHA256一致：TriggerInstruction C08B02F227D08687F5FE2C80EACB61E1FDF4D93CAA54CFD5893D2D450644BEB7；queue-primary-authority.test 505190021FF06246DC052BC82D5B04A69910C61BCD47E081F56D5D2128C464C3，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：只修复子工作流选择的权威读取，原workflowKey/enabled条件、同步/异步分支及上下文传递保持；主库已停用不能由旧副本生成新的子执行。无本项未修复Critical/Important。不证明选择后并发停用到业务SQL的全程隔离、已入队撤销、跨实例认领或完整停止矩阵，新G正式消费者、业务试点及整分支独立复核仍未完成。独立资源收敛session41096已消费实际0：核实postmaster46636/创建2026-11-02T21:19:55.5458900+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_a25702e666并pg_database count0；原PG正常停止、pg_ctl无服务/PID消失/端口全部0/validation0。不是实际WAL replica验收，日志和集群保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

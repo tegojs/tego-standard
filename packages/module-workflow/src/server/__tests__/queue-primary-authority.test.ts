@@ -393,6 +393,49 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     },
   );
 
+  it.each([false, true])('does not select a primary-disabled child workflow with sync=%s', async (sync) => {
+    await waitForWorkflowIdle(app);
+    const workflows = app.db.getRepository('workflows');
+    const config = { collection: 'queuedTenantSources', mode: 1 };
+    const child = await workflows.create({ values: { type: 'collection', enabled: true, sync, config } });
+    const label = `Disabled child ${sync}`;
+    await child.createNode({
+      type: 'create',
+      config: { collection: 'queuedTenantResults', params: { values: { label } } },
+    });
+    const parent = await workflows.create({ values: { type: 'collection', enabled: true, config } });
+    await parent.createNode({ type: 'trigger-instruction', config: { workflowKey: child.key } });
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.workflows (LIKE public.workflows INCLUDING ALL)');
+    await app.db.sequelize.query('INSERT INTO stale_workflow_queue.workflows SELECT * FROM public.workflows');
+    const model = app.db.getCollection('workflows').model;
+    // Simulate another writer's committed disable without emitting a local workflow hook.
+    await model.update({ enabled: false }, { where: { id: child.id } });
+    expect((await model.findByPk(child.id)).enabled).toBe(true);
+    expect((await model.findByPk(child.id, { useMaster: true })).enabled).toBe(false);
+    const execution = await parent.createExecution({
+      key: parent.key,
+      status: EXECUTION_STATUS.QUEUEING,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    app.pm.get('workflow').dispatch();
+    await waitForWorkflowIdle(app);
+    const actual = {
+      status: (await execution.reload({ useMaster: true })).status,
+      children: await child.countExecutions({ useMaster: true }),
+      resultCount: await app.db.getCollection('queuedTenantResults').model.count({ where: { label }, useMaster: true }),
+    };
+    expect(actual).toEqual({ status: EXECUTION_STATUS.FAILED, children: 0, resultCount: 0 });
+  });
+
   it.each([false, true])('keeps a primary-cancelled tenant delay stopped when cached execution=%s', async (cached) => {
     const workflow = await app.db.getRepository('workflows').create({
       values: {

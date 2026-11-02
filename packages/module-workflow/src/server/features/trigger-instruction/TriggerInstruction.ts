@@ -9,7 +9,11 @@ export class TriggerInstruction extends Instruction {
   async run(node, input, processor: Processor) {
     const { workflowKey, sourceArray = [], model } = node.config;
     const wfRepo = this.workflow.db.getRepository('workflows');
-    const wf = await wfRepo.findOne({ filter: { key: workflowKey, enabled: true } });
+    const wf = await wfRepo.findOne({
+      filter: { key: workflowKey, enabled: true },
+      useMaster: true,
+      transaction: processor.transaction ?? null,
+    });
 
     if (!wf) {
       return {

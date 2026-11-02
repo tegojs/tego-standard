@@ -3941,3 +3941,15 @@ Ruling: load发现SQL或trigger执行回读已经完成，但ORM返回仍在等�
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-unload-inflight-build.log，session66472已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction A32CA117A969A4EFBE105833924783AD4A4B345C63C71AF4281F71BE83CF9062；tenant-lifecycle.test 4730B548A8C08D37BB46C7FAA20DABEFBB26556040BE93CCE37DA19237690294，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：代次仅作用于本实例的unload前旧调用，新load和正常延迟恢复仍按原上下文；不把一次取消变为持久任务删除或自动重试。无本项未修复Critical/Important。此为原unload方法的受控交错，不声称完整app.stop事件矩阵、已入队撤销、重叠load最新结果顺序、持久租约或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项全为SQLite，未启PG/建库/物理附件；独立资源检查session30354实际0、validation0、25466全部记录0，消费退出结果后才记录/提交。原集群/日志和旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 253. 较早延迟发现结果不得覆盖后继扫描的持久期限
+
+Ruling: unload代次不区分同一运行期重叠的load；早期SQL读到10秒配置后暂停，主库更新为3秒且后继load已登记新timer，旧结果最后返回会取消新timer并重排到旧10秒，预期期限内没有业务结果。每次全范围load在首次await前登记独立发现标识，返回后同unload代次一起复核；后继load使旧未发布结果失效，不修改已经登记的timer，也不使在途trigger失效。
+
+- [x] 真实SQLite节点config更新与两个load，afterFind暂停原已读结果，确认新timer实际登记后才释放旧结果。按新持久期限用真实Node timer观察业务行，finally回收旧10秒timer，不等待或伪造时钟。
+- [x] workflow-delay-overlap-deadline-red.log：1失败5通过/无跳过/实际1/21.47秒，session50784已退出；新期限后实际结果[]，期望[['B','Recovered B delay']]。无夹具诊断失败轮。
+- [x] 最小标识核对后八文件160全通过/无跳过/实际0/27.39秒，workflow-delay-overlap-deadline-regression.log，session83644已退出；新期限按原B上下文完成，原unload及故障控制保持。新项含于160，不累加轮次或§252的159，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-overlap-deadline-build.log，session48882已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 8270FC64438C522BA303E5EAFF0AD727D39E6CA761D413ED9B7CCC742F115153；tenant-lifecycle.test 81C92D21CDCAC48D63F9918CD223732ABA037BFF217D3B298644AEDEC8BFB582，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：load原本查询本实例全部待处理delay任务，因此发现标识按该完整查询范围替换，不按单个工作流误取消其他范围；与unload代次分离，后继load不撤销已有callback。无本项未修复Critical/Important。后继扫描失败也不发布更早未交付结果，原已登记timer保留，原SQL错误仍由调用者处理；未证明自动重扫、全部停止交错、已入队撤销、持久租约/跨实例原子恢复。新G正式消费者、业务试点及整分支独立复核仍未完成。本项仅SQLite，未启PG/建库/物理附件；提交前独立资源检查实际0、validation0、25466全部记录0，消费结果后才记录/提交。保留原集群/日志和旧目录，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

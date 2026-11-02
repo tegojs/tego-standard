@@ -34,13 +34,13 @@ describe('tenant delay timer failure lifecycle', () => {
 
   afterAll(() => app.destroy());
 
-  async function createPendingTenantDelay() {
+  async function createPendingTenantDelay(duration = 1000) {
     const workflow = await app.db.getRepository('workflows').create({
       values: { type: 'collection', enabled: true, config: { collection: 'delayFailureSources', mode: 1 } },
     });
     const delay = await workflow.createNode({
       type: 'delay',
-      config: { duration: 1000, endStatus: JOB_STATUS.RESOLVED },
+      config: { duration, endStatus: JOB_STATUS.RESOLVED },
     });
     const consumer = await workflow.createNode({
       type: 'create',
@@ -68,7 +68,7 @@ describe('tenant delay timer failure lifecycle', () => {
       result: null,
     });
     pending.node = delay;
-    return { execution, pending };
+    return { execution, pending, delay };
   }
 
   it.each(['missing execution', 'SQL failure'])(
@@ -231,4 +231,50 @@ describe('tenant delay timer failure lifecycle', () => {
       }
     },
   );
+
+  it('keeps the newer persisted deadline when an older real discovery finishes last', async () => {
+    const { execution, pending, delay } = await createPendingTenantDelay(10000);
+    const model = app.db.getCollection('jobs').model;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let read = false;
+    model.addHook('afterFind', 'pause-older-delay-discovery', async () => {
+      model.removeHook('afterFind', 'pause-older-delay-discovery');
+      read = true;
+      await barrier;
+    });
+    const original = instruction.trigger.bind(instruction);
+    const outcomes: Promise<unknown>[] = [];
+    const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+      const result = original(job);
+      outcomes.push(Promise.resolve(result).catch((error) => error));
+      return result;
+    });
+    const older = instruction.load();
+    try {
+      await waitForFastAssertion(() => expect(read).toBe(true));
+      await delay.update({ config: { duration: 3000, endStatus: JOB_STATUS.RESOLVED } });
+      await instruction.load();
+      expect(instruction.timers.has(pending.id)).toBe(true);
+      release();
+      await older;
+      const checkpointDelay = Math.max(0, Date.parse(pending.createdAt) + 3000 - Date.now()) + 100;
+      await new Promise((resolve) => setTimeout(resolve, checkpointDelay));
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      const rows = await app.db.getCollection('delayFailureResults').model.findAll();
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Recovered B delay']]);
+      expect((await execution.reload()).status).toBe(EXECUTION_STATUS.RESOLVED);
+    } finally {
+      release();
+      model.removeHook('afterFind', 'pause-older-delay-discovery');
+      await older.catch(() => undefined);
+      instruction.unload();
+      await Promise.all(outcomes);
+      await waitForWorkflowIdle(app);
+      observe.mockRestore();
+    }
+  });
 });

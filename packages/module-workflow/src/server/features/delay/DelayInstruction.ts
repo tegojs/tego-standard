@@ -10,6 +10,7 @@ interface DelayConfig {
 export default class extends Instruction {
   timers: Map<number, NodeJS.Timeout> = new Map();
   private generation = {};
+  private discovery = {};
 
   constructor(public workflow: WorkflowPlugin) {
     super(workflow);
@@ -20,6 +21,8 @@ export default class extends Instruction {
 
   load = async () => {
     const generation = this.generation;
+    const discovery = {};
+    this.discovery = discovery;
     const { model } = this.workflow.app.db.getCollection('jobs');
     const jobs = (await model.findAll({
       useMaster: true,
@@ -47,7 +50,7 @@ export default class extends Instruction {
       ],
     })) as JobModel[];
 
-    if (generation !== this.generation) return;
+    if (generation !== this.generation || discovery !== this.discovery) return;
     jobs.forEach((job) => {
       this.schedule(job);
     });

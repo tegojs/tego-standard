@@ -4075,3 +4075,19 @@ Ruling: Plugin.resume补读execution原默认读池；主库已有而副本缺�
 按requesting-code-review模板作者串行自审，非独立复核：resume进入持久异步队列，应依据当前已提交执行身份与状态；不能以缓存或CLS替代它，也不把人工角色改成自动权限。原job结果/人工表单内容保留，正常B执行、人工多分配、租户表单及并行/请求控制通过。无本项未修复Critical/Important。主库execution缺失时仍失败；回读后并发取消、两次resume同读STARTED、已入队撤销、持久租约/跨实例原子去重、完整停止矩阵、新G正式消费者、业务试点及整分支独立复核未完成，不声称最多一次或全程隔离。
 
 独立资源收敛实际0：核实postmaster88312/创建2026-11-02T22:03:55.7903280+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_f26102d671并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，保留集群/日志及旧目录，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 262. 静态定时任务的独立启动发现使用主库
+
+签名记录：默认git commit session67560实际退出1，GPG明确Timeout且未生成提交。事先捕获本次git83360/90580、gpg84964、pinentry89592（原调用输出确认），独立守卫实际0核实四PID消失、HEAD仍1466411459f42e2ca1302de8045b26cbc881bd77、原staged tree 3052d8c8e19bc5628691f4acf77ed1e2e635190d不变、无未暂存变更及global commit.gpgsign=true。按用户既有授权本次仅git -c commit.gpgsign=false提交，签名N，不绕过活动调用、不称独立验签成功。
+
+Ruling: §258修正通用beforeStart，但StaticScheduleTrigger自己的afterStart仍从读池发现enabled列表，能绕过通用加载器重新登记主库已停用的静态任务。只在该独立查询增加useMaster:true/transaction:null；不为静态任务创建租户扫描，不强行加入新G模型，也不改变共享表语义。
+
+- [x] 新static-primary-authority.test.ts在独立真实PG读写池以不同search_path保留enabled副本，主库hooks:false停用，真实app.stop/reconnect/start后等原到期点并核实持久执行与业务行均0。修复前static-schedule-primary-red.log：1失败/无跳过/实际退出1/9.91秒，session69210已退出；execution实际1而非0，断言在业务行检查前停止，不声称本轮已断言业务数据。
+- [x] 最小查询选项后追加启动完成仍早于到期点的夹具守卫，避免错过时点使负向虚假通过。正向在主库重新启用并持久保存新startsOn，不同步旧副本、无本实例保存事件；真实再次重启后须只生成一条Current static task共享行和一条execution。共享目标表实际无tenantId列。
+- [x] 最终static新PG、原mode-static、Plugin、tenant-module-boundary四文件41全通过/无跳过/实际退出0/23.42秒，static-schedule-primary-regression.log，session38307已退出；新项含于41，不累加前轮或§261，不是整分支回归。workflow客户端/服务端/依赖/声明完整build实际0，static-schedule-primary-build.log，session83793已退出。
+
+两TS最终Prettier check通过、oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger BF4E22B2220B05AE395D8F6A0B3BD8E35EF74ABC146FF5E8F2A8D07BF68A6B38；static-primary-authority.test A0919B7FDF508B66BEC4E783771F170DB05D0A1C44C80B7C57017A302E78C4CA，最终代码后未改。夹具链式更新及原生产文件首次格式检查退出1均发生在相应runner前，格式化后才运行；一次旧路径读取及Windows rg通配只读失败不是测试RED。
+
+按requesting-code-review模板作者串行自审，非独立复核：通用与静态独立发现都必须以已提交主库启停状态为准；原STATIC筛选、日期计算、repeat/limit及正常共享写入保持，不添加角色或租户权限来源。无本项未修复Critical/Important。查询后并发停用、在途静态发现与off交错、跨实例去重/租约、新G正式消费者、业务试点和整分支独立复核仍未完成。
+
+独立资源收敛实际0：核实postmaster66428/创建2026-11-02T22:13:42.6382570+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_a26202e672并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，集群/日志及旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

@@ -12,6 +12,8 @@ export default class StaticScheduleTrigger {
     workflow.app.on('afterStart', async () => {
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
+        useMaster: true,
+        transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
       });
 

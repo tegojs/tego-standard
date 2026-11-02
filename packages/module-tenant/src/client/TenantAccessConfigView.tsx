@@ -6,6 +6,7 @@ import { Alert, Button, Card, Descriptions, Drawer, Space, Spin, Tag, Typography
 import type { AccessCondition, AccessConfig, AccessOperand, ContextPath } from '../server/access-control/types';
 import { useTenantTranslation } from './locale';
 import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
+import { TenantAccessConfigHistory } from './TenantAccessConfigHistory';
 import { TenantFileAccessNotice } from './TenantFileAccessNotice';
 
 interface SavedConfig {
@@ -117,8 +118,10 @@ export function TenantAccessConfigView({
   const role = api.auth?.role || undefined;
   const [refresh, setRefresh] = useState(0);
   const [editingKey, setEditingKey] = useState<string>();
+  const [historyKey, setHistoryKey] = useState<string>();
   const key = JSON.stringify([collection.name, role, refresh]);
   useEffect(() => setEditingKey(undefined), [key]);
+  useEffect(() => setHistoryKey(undefined), [key]);
   const [result, setResult] = useState<{ key: string; report?: SavedConfig; error?: string }>();
   const current = result?.key === key ? result : undefined;
   const loading = !current;
@@ -200,7 +203,14 @@ export function TenantAccessConfigView({
         ) : null}
         {config ? (
           <>
-            {editingKey === key ? (
+            {historyKey === key ? (
+              <TenantAccessConfigHistory
+                key={key}
+                identity={current!.report!.identity}
+                baseRevision={config.revision}
+                onClose={() => setHistoryKey(undefined)}
+              />
+            ) : editingKey === key ? (
               <TenantAccessConfigDraft
                 key={key}
                 identity={current!.report!.identity}
@@ -208,7 +218,10 @@ export function TenantAccessConfigView({
                 onClose={() => setEditingKey(undefined)}
               />
             ) : (
-              <Button onClick={() => setEditingKey(key)}>{t('Edit rule draft')}</Button>
+              <Space>
+                <Button onClick={() => setEditingKey(key)}>{t('Edit rule draft')}</Button>
+                <Button onClick={() => setHistoryKey(key)}>{t('View rule history')}</Button>
+              </Space>
             )}
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label={t('Configuration revision')}>{config.revision}</Descriptions.Item>

@@ -13,6 +13,7 @@ export async function readBuiltinTenantScopeId(db: Database, dataSourceKey: stri
     where: { dataSourceKey: 'main', key: 'tenant' },
     limit: 2,
     useMaster: true,
+    transaction: null,
   });
   if (scopes.length !== 1) return;
   const scope = scopes[0];

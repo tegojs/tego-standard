@@ -3407,3 +3407,20 @@ Ruling: 原 internalQuery 只强制 hooks:false/useMaster:true，保留 transact
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，reads-primary-ambient-build.log，session18671 已退出。两最终 TS Prettier check 通过、oxlint 零错误警告，源/snapshot SHA256 一致：write-support 596F78C352458EDD59BF69ED7B3E7098D67EB41AC7D590B9B0A6AB5B8C450CB1，reads-primary 8968EAED6EA7E52A11C9CB2138299F7B0A97E41A99C8E7B1CE212C436CB09B3F；最终代码之后未改。作者按 requesting-code-review 模板串行自审本项四文件和 internalQuery 调用点：只有无显式事务分支变化；原写事务直接传入或经 scoped.query 保留，字段/元数据/ACL/G/V 检查未削弱，无未修复 Critical/Important。这是作者自审，不是整分支独立复核；授权读取到业务 SQL 的全程并发隔离及真实 WAL/故障切换不由本项证明。
 
 验证退出后精确核实 snapshot validation0、postmaster71004/创建 2026-11-02T16:01:39.228758+08:00 的 UTC ticks/原目录命令和全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及本库 owner，仅删除 a217030647 并 count0；正常停止原集群、pg_ctl 无服务、原 PID 消失、全部25466记录0，session22525 实际退出 0。保留日志/集群/旧夹具，既有附件、主检出、核心、正式依赖和业务库不动，不推送/合并/发布。下一独立项 acl-scope-primary 测试已在功能树编写并单独格式/lint，尚未运行且不包含本提交；它核查内置角色范围权威读取的相同隐式事务问题，后继先真实复现再决定实现，不停止等待下一定时。
+
+## 218. 内置角色范围委托及管理员检查读取已提交权威身份
+
+Ruling: readBuiltinTenantScopeId 仍只指定 useMaster，可能继承 CLS 旧读池；这会把已删除/替换/改写/不唯一的范围误认作仍可委托，并移除原角色 filter，管理员检查也可能误报可委托。新测试以原 seedAclScopes/grantStoredScope 通过真实持久角色配置加载来源，原 adapter.prepare/resolve 和 previewRoleScope 实际结果为断言，保留未变化内置范围正向，以及 caller 未提交改写不改变已提交权威的边界。先在新专用库复现，成立后只在权威查询明确 transaction:null，不新建授权或启用入口。若错误委托会放宽角色限制，因此不能仅测 query 参数或 helper ID。
+
+- [x] 真实 CLS/独立读写连接与原角色来源的实际委托/检查结果 RED。
+- [x] 最小实现、委托/管理检查及迁移预览回归、tenant 构建、作者串行自审、原两份记录和资源收敛；后继英文签名提交以实际 Git 为准。
+
+原集群停止/全部25466记录0、snapshot validation0 后明确 -h127.0.0.1/-p25466 启动，实际退出 0；核实 postmaster92336/创建 2026-11-02T16:15:38.3869680+08:00/原目录命令和全部端口，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端及库不存在后创建 tego_tenant_access_test_a218030648，实际退出 0，之后才启动唯一 runner。真实新文件 6 失败/1 通过、实际退出 1、11.79 秒（测试 7.50 秒），acl-scope-primary-red.log，session86081 已退出：四种主库失效仍删除角色 filter，管理员误报 delegate-builtin-scope，caller 未提交改写又错误使已提交内置范围不能委托；未变化正向原已通过，不称全部七项 RED。实际角色来自普通持久 action.writeToACL 和原 provenance；旧事实是独立读池真实 search_path/schema，不是 WAL 副本。
+
+最小实现只在 readBuiltinTenantScopeId 的主库查询明确 transaction:null，重复/精确内容/真实 scope ID/字段及来源检查保持。首次 Prettier check 给出格式警告退出 1，实际 write 后 check 通过且 Git 生产 diff 仍仅新增一行，oxlint 零错误警告。
+
+最终 acl-scope-primary/acl-scope/acl-scope-phase/acl-scope-preview/migration-preview/migration-preview-action/migration-preview-http 七文件 224 全通过、无跳过、实际退出 0、115.35 秒（测试 83.01 秒），acl-scope-primary-regression.log，session17806 已退出。七新用例含于 224，不累加 RED，不是整分支回归。原角色来源、alias/字段限制、定制/重复范围保留、异步 phase 生命周期、管理员权限及实际 HTTP 错误信封均回归通过；不是业务模型正式接入或全权限链放行。显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过，实际退出 0，acl-scope-primary-build.log，session90745 已退出。最终两 TS Prettier check/oxlint 通过，源/snapshot SHA256 一致：builtin-tenant-scope 276BB8F4DB1E8DD5F494FD636AB62F10F066E143CB9B4A65BBC2A356AD62DDE3，acl-scope-primary 31B447161B1C5DAF53FFF497049C5C528DBB76C79D301925B137C25199041C3F；最终验证后代码未改。
+
+作者按 requesting-code-review 模板串行自审本项四文件：原普通持久角色写者和来源加载真实执行；四类主库失效与未变化正向、未提交 caller 边界覆盖，不模拟 query/pool/事务；生产只改权威查询的事务选择，不改变委托的精确识别条件或释放 caller 事务。无未修复 Critical/Important，作者自审不是整分支独立复核；跨读取的并发撤权、真实 WAL/故障切换及完整业务入口验收仍不由本项证明。
+
+测试/构建实际退出后核实 snapshot validation0、原 postmaster92336/UTC ticks/原目录命令及全部25466记录，SQL 原目录/tenant_test/127.0.0.1 与 /32/25466/postgres 非恢复/零其他客户端和本库 owner，仅删 a218030648 并 count0；正常停原集群、pg_ctl 无服务、PID 消失、全部端口记录0，session35627 实际退出 0。保留日志/集群/旧夹具，不触及主检出/核心/正式依赖/业务库/现有附件，不推送/合并/发布。下一独立项 migration-preview-primary 测试已在功能树编写，尚未运行且不含本提交；以实际只读报告核查相同隐式事务是否绕过已配置或已删除表的迁移预览守卫，后继先复现再修复。

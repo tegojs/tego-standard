@@ -132,6 +132,50 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
   });
 
   it.each([false, true])(
+    'discovers a tenant record newly due on the primary (ambient read pool: %s)',
+    async (ambient) => {
+      const model = app.db.getCollection('primaryScheduleDocuments').model;
+      const oldDue = new Date(Date.now() + 86_400_000);
+      await model.update({ scheduledAt: oldDue }, { where: { id: 1 }, hooks: false });
+      await app.db.sequelize.query(
+        'CREATE TABLE schedule_stale_tenants."primaryScheduleDocuments" (LIKE public."primaryScheduleDocuments" INCLUDING ALL)',
+      );
+      try {
+        await app.db.sequelize.query(
+          'INSERT INTO schedule_stale_tenants."primaryScheduleDocuments" SELECT * FROM public."primaryScheduleDocuments"',
+        );
+        const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
+        await model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+        expect((await model.findByPk(1))?.get('scheduledAt')).toEqual(oldDue);
+        expect((await model.findByPk(1, { useMaster: true }))?.get('scheduledAt')).toEqual(new Date(due));
+        if (ambient) {
+          await withAmbientTransactions(app.db, async () => {
+            await app.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
+              expect((await model.findByPk(1, { transaction }))?.get('scheduledAt')).toEqual(oldDue);
+              await trigger.reload();
+              expect(transaction.finished).toBeFalsy();
+            });
+          });
+        } else {
+          await trigger.reload();
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+        await waitForWorkflowIdle(app);
+        expect(await workflow.countExecutions()).toBe(1);
+        const [execution] = await workflow.getExecutions();
+        expect(execution.tenantId).toBe('B');
+        expect(execution.context.data.scheduledAt).toBe(new Date(due).toISOString());
+        expect(
+          (await app.db.getCollection('primaryScheduleResults').model.findAll()).map((row) => row.get('tenantId')),
+        ).toEqual(['B']);
+      } finally {
+        trigger.off(workflow);
+        await app.db.sequelize.query('DROP TABLE schedule_stale_tenants."primaryScheduleDocuments"');
+      }
+    },
+  );
+
+  it.each([false, true])(
     'does not discover a workflow disabled on the primary (ambient read pool: %s)',
     async (ambient) => {
       const workflows = app.db.getCollection('workflows').model;

@@ -3751,3 +3751,20 @@ Ruling: 原日期reload的WorkflowRepo.find仍走默认读池。另一个实例�
 资源收敛实际0：核实postmaster84040/创建2026-11-02T19:04:48.020715+08:00/原目录命令、25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/库owner后，仅删a23902b657并pg_database count0，原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-discovery-primary-*日志及旧目录，不改主检出、核心、正式依赖、业务库或既有附件；不推送合并发布，正式规则保存/启用继续关闭。
 
 默认签名session75784实际Timeout退出128，未生成提交；按shell71592父链事先捕获git93868/94668、gpg2852、同次创建pinentry94152，退出后逐一确认PID消失、HEAD仍4e28774ca、暂存tree cec6e65165262a07c5cba90c069e6a7c3f867829及diff/check不变，独立守卫实际0后按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true保持。后继新到期候选测试仅未暂存，不混入本项；不重复旧认证。
+
+## 240. 租户任务候选不能因旧业务读池漏掉主库的新到期记录
+
+Ruling: 原业务候选model.findAll仍走默认读池，即使§237已保证分派回读主库，也无法补回从未进入候选的记录。旧池仍显示明天到期、主库已更新为当前到期时，实际reload/timer/队列不生成任务。仅租户表候选查询指定useMaster:true、transaction:null，按实际targetCollection选择目标主库并阻止隐式CLS；共享表原连接行为保持。不新建扫描器或正式新G接线。
+
+- [x] 新专用库tego_tenant_access_test_a24002c658、真实PG独立池和旧schema业务表；实际同键查询确认旧时点/主库新时点，不发save事件，只由原reload发现。
+- [x] 普通调用及ambient readOnly事务两项真实漏执行RED，最小一行实现、相关回归、workflow完整构建、作者串行自审和两份原记录。
+
+真实RED2失败/15过滤/17总、实际1、14.93秒，schedule-candidates-primary-red.log，session50217已退出：到期后持久执行实际0，预期1，无启动错误或unhandled。最小实现后完整PG文件17全通过/无跳过/实际0、21.57秒，schedule-candidates-primary-green.log，session72654已退出：实际execution B、context.data原主库时点、生成行B；ambient原事务保持活动并由fixture退出，不假造当前时钟或返回行。
+
+最终原调度七文件、tenant-drift和PG文件共九文件133全通过/无跳过/实际0、34.67秒，schedule-candidates-primary-regression.log，session70961已退出；新增两项包含于133，不累加各轮，不是整分支回归。显式workflow客户端/服务端/依赖/声明完整构建实际0，schedule-candidates-primary-build.log，session67255已退出。最终两TS Prettier check通过、oxlint零错误警告、源/snapshot SHA256一致：DateFieldScheduleTrigger 8AE8F57704FEC17A5E79C057ED915C28A22ABC322C4A6AA7866061E3883EC81B；primary-authority test 36EE34B520E30284C04F1D0B843E9E6E39B029C54ED5401E2CB6538B3B493D76。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：原时间SQL、目标数据源dialect、上下文绑定/启用租户查询及扫描代次不变；连接选择只作用于生效tenantScoped/tenantInherited。无本项未修复Critical/Important。本项不保证扫描至触发的全程一致性、任意积压/崩溃补偿、已入队撤销或跨实例去重；旧历史候选兼容契约不在本项更改，新G正式扫描与整分支独立复核仍未完成。
+
+资源收敛实际0：核实新postmaster9796/创建2026-11-02T19:08:46.572193+08:00/原目录命令，25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/库owner后，仅删a24002c658并pg_database count0；原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-candidates-primary-*日志和旧目录，未改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，规则保存/启用继续关闭。
+
+默认签名session11336实际Timeout退出128，未生成提交；事先按shell89860父链捕获git90744/87848、gpg66776、同次创建pinentry91132，退出后逐一确认PID消失、HEAD仍f918579cb、暂存tree 4530d0bcde269d87f083d6246a50ec01c7ce559a及diff/check不变、无未暂存变更，独立守卫实际0后按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true保持，不重复旧认证。一次只读端口枚举无记录使组合命令退出1，不当作cleanup失败或端口身份验证通过；本项此前独立收敛已实际0。

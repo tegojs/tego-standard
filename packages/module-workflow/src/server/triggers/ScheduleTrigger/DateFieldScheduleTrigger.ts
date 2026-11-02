@@ -346,6 +346,7 @@ export default class ScheduleTrigger {
 
     const { model } = targetCollection;
     const records = await model.findAll({
+      ...(isTenantCollection(targetCollection) ? { useMaster: true, transaction: null } : {}),
       where: {
         [Op.and]: conditions,
       },

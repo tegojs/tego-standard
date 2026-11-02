@@ -177,4 +177,58 @@ describe('tenant delay timer failure lifecycle', () => {
       observe.mockRestore();
     }
   });
+
+  it.each(['discovery', 'due execution'])(
+    'discards a real %s read completed before unload but delivered afterward',
+    async (stage) => {
+      const { execution } = await createPendingTenantDelay();
+      const model = app.db.getCollection(stage === 'discovery' ? 'jobs' : 'executions').model;
+      let release!: () => void;
+      const barrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let read = false;
+      model.addHook('afterFind', 'pause-delay-discovery', async () => {
+        model.removeHook('afterFind', 'pause-delay-discovery');
+        read = true;
+        await barrier;
+      });
+      const original = instruction.trigger.bind(instruction);
+      const outcomes: Promise<unknown>[] = [];
+      const observe = vi.spyOn(instruction, 'trigger').mockImplementation((job) => {
+        const result = original(job);
+        outcomes.push(Promise.resolve(result).catch((error) => error));
+        return result;
+      });
+      const loading = instruction.load();
+      try {
+        await waitForFastAssertion(() => expect(read).toBe(true));
+        instruction.unload();
+        release();
+        await loading;
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+        await Promise.all(outcomes);
+        await waitForWorkflowIdle(app);
+        expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(0);
+        expect((await execution.reload()).status).toBe(EXECUTION_STATUS.STARTED);
+
+        await instruction.load();
+        await waitForFastAssertion(async () => {
+          expect((await execution.reload()).status).toBe(EXECUTION_STATUS.RESOLVED);
+        });
+        await Promise.all(outcomes);
+        await waitForWorkflowIdle(app);
+        const rows = await app.db.getCollection('delayFailureResults').model.findAll();
+        expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Recovered B delay']]);
+      } finally {
+        release();
+        model.removeHook('afterFind', 'pause-delay-discovery');
+        await loading.catch(() => undefined);
+        instruction.unload();
+        await Promise.all(outcomes);
+        await waitForWorkflowIdle(app);
+        observe.mockRestore();
+      }
+    },
+  );
 });

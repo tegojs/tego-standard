@@ -9,6 +9,7 @@ interface DelayConfig {
 
 export default class extends Instruction {
   timers: Map<number, NodeJS.Timeout> = new Map();
+  private generation = {};
 
   constructor(public workflow: WorkflowPlugin) {
     super(workflow);
@@ -18,6 +19,7 @@ export default class extends Instruction {
   }
 
   load = async () => {
+    const generation = this.generation;
     const { model } = this.workflow.app.db.getCollection('jobs');
     const jobs = (await model.findAll({
       useMaster: true,
@@ -45,12 +47,14 @@ export default class extends Instruction {
       ],
     })) as JobModel[];
 
+    if (generation !== this.generation) return;
     jobs.forEach((job) => {
       this.schedule(job);
     });
   };
 
   unload = () => {
+    this.generation = {};
     for (const timer of this.timers.values()) {
       clearTimeout(timer);
     }
@@ -77,8 +81,10 @@ export default class extends Instruction {
 
   async trigger(job) {
     const timer = this.timers.get(job.id);
+    const generation = this.generation;
     try {
       job.execution = await job.getExecution({ useMaster: true, transaction: null });
+      if (generation !== this.generation) return;
       if (job.execution?.status === EXECUTION_STATUS.STARTED) {
         await this.workflow.resume(job);
       }

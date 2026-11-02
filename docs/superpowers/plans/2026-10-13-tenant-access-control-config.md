@@ -3929,3 +3929,15 @@ Ruling: 原DelayInstruction.schedule对同一jobId直接覆盖Map中的timer，�
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-reload-timers-build.log，session25711已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction 250FCCC8BB324A33A27FE030D1FEDB887A260FC8B78C818E5ABD05CD7C24F9D7；tenant-lifecycle.test A3F42C8835712DB63C0B23945DEDD3E58AEA41F226A2B060E80D357DB165D13B，代码之后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：原期限语义、立即到期路径与正常恢复保持；重复发现只替换原job的未触发timer，不按租户或工作流清除其他job。无本项未修复Critical/Important。没有证明已经开始回读的旧callback被撤销、在途load与unload交错、全停止/已入队撤销或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项仅SQLite，未启PG/建库/物理附件；提交前独立资源检查实际0、validation0、25466全部记录0，已消费实际退出结果才后继记录/提交。原集群/日志及旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 252. unload使延迟任务尚未发布的异步读取失效
+
+Ruling: load发现SQL或trigger执行回读已经完成，但ORM返回仍在等待时，unload只清除现有timer；旧结果随后返回可重新schedule或入队，实际生成B业务行。增加本实例私有代次：load和trigger在首次await前捕获，unload同步替换，等待后发布timer或resume前核对；旧结果直接结束，原trigger finally仍只收回自身句柄。不取消已入队执行，不修改持久状态，也不永久禁用后续显式load。
+
+- [x] 真实SQLite afterFind在实际SQL完成后暂停返回，先原unload再释放；分别覆盖jobs发现和executions到期回读，原trigger透传并观察结局，真实期限后等待实际callback及队列，再检查持久业务结果。
+- [x] 首个discovery单例RED：1失败3通过/实际1/26.12秒，workflow-delay-unload-discovery-red.log，session32278已退出。扩展两路径真实RED：2失败3通过/无跳过/实际1/25.85秒，workflow-delay-unload-inflight-red.log，session61278已退出；两路径业务数都实际1、期望0，无夹具诊断失败轮。
+- [x] 最小代次核对后八文件159全通过/无跳过/实际0/32.61秒，workflow-delay-unload-inflight-regression.log，session73078已退出。两路径unload后原执行仍STARTED且业务0，后继显式load均恢复并仅生成一条B业务行。新增两项含于159，不累加轮次或§251的157，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-unload-inflight-build.log，session66472已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：DelayInstruction A32CA117A969A4EFBE105833924783AD4A4B345C63C71AF4281F71BE83CF9062；tenant-lifecycle.test 4730B548A8C08D37BB46C7FAA20DABEFBB26556040BE93CCE37DA19237690294，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：代次仅作用于本实例的unload前旧调用，新load和正常延迟恢复仍按原上下文；不把一次取消变为持久任务删除或自动重试。无本项未修复Critical/Important。此为原unload方法的受控交错，不声称完整app.stop事件矩阵、已入队撤销、重叠load最新结果顺序、持久租约或跨实例原子恢复；新G正式消费者、业务试点及整分支独立复核仍未完成。本项全为SQLite，未启PG/建库/物理附件；独立资源检查session30354实际0、validation0、25466全部记录0，消费退出结果后才记录/提交。原集群/日志和旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

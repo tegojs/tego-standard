@@ -3875,3 +3875,17 @@ Ruling: Processor.prepare的jobs仍默认读池；真实暂停任务恢复时，
 按requesting-code-review模板作者串行自审，非独立复核：只改变原结果查询的连接选择，已完成上游任务未重跑，最终数据归属B且输入来自主库已提交结果；显式事务继续保留。无本项未修复Critical/Important。没有证明结果不可变、原子恢复认领/最多一次、全部恢复读取主库化或完整准备快照隔离；新G正式消费者、业务试点及整分支独立复核仍未完成。
 
 资源收敛session42705实际0：核实postmaster90860/创建2026-11-02 20:10:18/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后仅删c24702a662，两本轮库合计count0；原PG正常停止，pg_ctl无服务/PID消失/25466全部记录0/validation0。保留集群/日志和旧目录；无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 248. 重启后从主库恢复各租户的延迟任务
+
+Ruling: 普通QUEUEING任务已由§243固定主库，但STARTED执行中的PENDING delay任务由另一条afterStart查询恢复，旧池缺少jobs时不会登记timer或恢复执行。仅DelayInstruction.load原findAll增加useMaster:true、transaction:null；原PENDING/STARTED/type条件、关联、期限计算及恢复协议保持，不新增调度系统或自动重试。
+
+- [x] 真实PG独立读写池/schema，读池jobs空、主库B/H各一条已到期delay任务；原应用stop/reconnect/start，不由测试手动resume。主库每条执行必须RESOLVED并各自生成B/H业务行。
+- [x] workflow-delay-primary-red.log：1失败3过滤4总/实际1/30.53秒，session27258已退出；主库实际状态[0,0]（STARTED）而非[1,1]，不是选项mock或WAL副本测试。
+- [x] 最小两选项后最终八文件158全通过/无跳过/实际0/24.18秒，workflow-delay-primary-regression.log，session95447已退出，其中PG4、其余SQLite154，包含原delay正常/失败/重启/错过期限五项。新项含于158，不累加各轮或§247的152，不是整分支回归。
+
+首次格式检查实际1，已停止后继runner，未产生该次测试；格式化原文件后实际diff仍仅新增两选项，最终两TS Prettier check通过、oxlint零错误警告。workflow客户端/服务端/依赖/声明完整build实际0，workflow-delay-primary-build.log，session10660已退出。最终源/snapshot SHA256一致：DelayInstruction 66F341BD7BE079A0D96EEA56A7645EFB476CC3B0F56891BEECA02D949D408A0B；queue-primary-authority.test 60F35A2454C5C131BF69DBA985E0A082624E4EEDEF583FA4D31272D4D23AC0C5，代码之后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：启动恢复查询及关联在主库读取，原已保存tenantContext经原Processor恢复，B/H生成归属正确，不把可见性或人工root当调度身份。无本项未修复Critical/Important。当前只固定发现来源，不证明发现后到期前已撤销任务的全程协调、timer重叠/重复触发、跨实例原子恢复认领、最多一次或新G正式消费者；业务试点及整分支独立复核仍未完成。
+
+资源收敛session54552实际0：核实postmaster64504/创建2026-11-02 20:16:33/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端和owner后，仅删新库tego_tenant_access_test_d24802b663并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/25466全部记录0/validation0。原集群/日志及旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

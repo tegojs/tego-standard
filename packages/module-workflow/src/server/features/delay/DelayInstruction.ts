@@ -20,6 +20,8 @@ export default class extends Instruction {
   load = async () => {
     const { model } = this.workflow.app.db.getCollection('jobs');
     const jobs = (await model.findAll({
+      useMaster: true,
+      transaction: null,
       where: {
         status: JOB_STATUS.PENDING,
       },

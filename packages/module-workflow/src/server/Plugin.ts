@@ -645,19 +645,26 @@ export default class PluginWorkflowServer extends Plugin {
         next = this.pending.shift() as Pending;
         this.getLogger(next[0].workflowId).info(`pending execution (${next[0].id}) ready to process`);
       } else {
-        const execution = (await this.db.getRepository('executions').findOne({
-          useMaster: true,
-          transaction: null,
-          filter: {
-            status: EXECUTION_STATUS.QUEUEING,
-            'workflow.enabled': true,
-            'workflow.id': {
-              [Op.not]: null,
+        let execution: ExecutionModel;
+        try {
+          execution = (await this.db.getRepository('executions').findOne({
+            useMaster: true,
+            transaction: null,
+            filter: {
+              status: EXECUTION_STATUS.QUEUEING,
+              'workflow.enabled': true,
+              'workflow.id': {
+                [Op.not]: null,
+              },
             },
-          },
-          appends: ['workflow'],
-          sort: 'createdAt',
-        })) as ExecutionModel;
+            appends: ['workflow'],
+            sort: 'createdAt',
+          })) as ExecutionModel;
+        } catch (error) {
+          this.getLogger('dispatcher').error('failed to discover queued workflow executions', error);
+          this.executing = null;
+          return;
+        }
         if (execution) {
           this.getLogger(execution.workflowId).info(`execution (${execution.id}) fetched from db`);
           next = [execution];

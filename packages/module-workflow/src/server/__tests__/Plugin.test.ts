@@ -252,6 +252,85 @@ describe('workflow > Plugin', () => {
   });
 
   describe('dispatcher', () => {
+    it('releases a failed durable queue scan and resumes the persisted tenant task on the next restart', async () => {
+      db.collection({
+        name: 'queueFailureTenantResults',
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'title', type: 'string' },
+        ],
+      });
+      await db.sync();
+      const workflow = await WorkflowModel.create({ enabled: true, type: 'asyncTrigger' });
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'queueFailureTenantResults', params: { values: { title: 'Recovered tenant task' } } },
+      });
+      await app.stop();
+      await db.reconnect();
+      const execution = await workflow.createExecution({
+        key: workflow.key,
+        status: EXECUTION_STATUS.QUEUEING,
+        context: {},
+        tenantId: 'B',
+        tenantContext: {
+          currentTenant: { id: 'B' },
+          currentTenantId: 'B',
+          currentTenancyMode: 'tenantScoped',
+          currentTenantDescendantIds: [],
+          currentLegacyDataTenantIds: [],
+        },
+      });
+      const model = db.getCollection('executions').model;
+      let queryIntercepted = false;
+      model.addHook('beforeFind', 'fail-durable-queue', (options) => {
+        if (!options.include) return;
+        queryIntercepted = true;
+        model.removeHook('beforeFind', 'fail-durable-queue');
+        options.where = { missingQueueDiscoveryColumn: true };
+      });
+      const errors = vi.spyOn(plugin.getLogger('dispatcher'), 'error');
+      const scans: Promise<unknown>[] = [];
+      const original = plugin.dispatch.bind(plugin);
+      // Observe the actual scan's settlement so the RED does not create an unhandled rejection in the runner.
+      const observe = vi.spyOn(plugin, 'dispatch').mockImplementation(() => {
+        original();
+        if (plugin.executing) scans.push(Promise.resolve(plugin.executing).catch((error) => error));
+      });
+      try {
+        await app.start();
+        const outcomes = await Promise.all(scans);
+        expect(queryIntercepted).toBe(true);
+        const queryFailure =
+          errors.mock.calls[0]?.[1] ??
+          outcomes.find((value) => (value as { name?: string })?.name === 'SequelizeDatabaseError');
+        expect(queryFailure).toMatchObject({ name: 'SequelizeDatabaseError' });
+        expect((queryFailure as Error).message).toMatch(/no such column/);
+        expect(errors).toHaveBeenCalledWith(
+          'failed to discover queued workflow executions',
+          expect.objectContaining({ name: 'SequelizeDatabaseError' }),
+        );
+        expect(plugin.executing).toBeFalsy();
+        expect((await execution.reload()).status).toBe(EXECUTION_STATUS.QUEUEING);
+        expect(await db.getCollection('queueFailureTenantResults').model.count()).toBe(0);
+
+        await app.stop();
+        await app.start();
+        await waitForWorkflowIdle(app);
+        expect((await execution.reload()).status).toBe(EXECUTION_STATUS.RESOLVED);
+        const results = await db.getCollection('queueFailureTenantResults').model.findAll();
+        expect(results.map((row) => [row.get('tenantId'), row.get('title')])).toEqual([['B', 'Recovered tenant task']]);
+      } finally {
+        model.removeHook('beforeFind', 'fail-durable-queue');
+        await Promise.allSettled(scans);
+        // Only discard this fixture's already settled observation, including the pre-fix rejected promise.
+        plugin.executing = null;
+        observe.mockRestore();
+        errors.mockRestore();
+      }
+    });
+
     it('multiple triggers in same event', async () => {
       const w1 = await WorkflowModel.create({
         enabled: true,

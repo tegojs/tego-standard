@@ -3814,3 +3814,21 @@ workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-pri
 按requesting-code-review模板作者串行自审，非独立复核：只固定既有持久任务发现的连接选择，原工作流启用条件与已保存tenantContext/authContext恢复保持；无本项未修复Critical/Important。不声明发现到执行之间的全程隔离、跨实例任务认领或最多一次，不撤销已入队事件，不替代正式新G消费者的最终ACL/执行身份契约；持久租约、跨实例原子去重、业务试点及整分支独立复核仍未完成。
 
 资源收敛实际0（session73121）：核实新postmaster93160/创建2026-11-02T19:42:37.5588900+08:00/原目录命令，25466全部记录唯一原PID（State null），SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及专用库owner后，仅删a24302d659并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部25466记录0/验证及esbuild0。日志和集群、所有旧目录保留，未修改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 244. 持久队列SQL发现失败须记录并释放忙碌状态
+
+Ruling: 原dispatch把持久发现Promise留在executing；实际查询拒绝时，异常没有被原dispatcher记录，Promise仍占据busy状态，后续启动/停止无法正常收敛。仅包围原持久Repository查询，捕获原SQL异常、记录dispatcher日志、清除本轮executing并结束，不伪造空候选、不自动重试任务。原pending优先、主库/null、status/enabled条件及已保存租户身份恢复不变。
+
+- [x] 真实SQLite应用stop/reconnect/start及真实缺列SELECT；原dispatch透传调用，测试只观察原Promise结局以便RED可安全清理，不宣称独立制造unhandled rejection。
+- [x] 故障时原B任务仍QUEUEING且无业务行；去掉本测试一次性故障后，下次真实stop/start持久恢复并生成B业务行。
+- [x] 原Plugin完整23项及相关九文件123项回归、格式/lint与作者串行自审及原两份记录。
+
+workflow-queue-failure-{red,confirmed-red,cross-realm-red,observation-diagnostic}.log依次实际1/13.79、13.05、12.70、12.48秒，都是夹具没有命中实际查询：错误要求beforeFind有plain标记；diagnostic确认samePlugin=true、scans=2但queryIntercepted=false。中间跨realm猜测未证实，不称产品根因。只读实际Repository.findOne发现它调用find(limit:1)，不设plain；去掉该条件后，corrected-red.log实际1/11.64秒、1失败22过滤23总，queryIntercepted和实际SequelizeDatabaseError/no such column断言均已通过，原dispatcher日志仍0才失败。session8352已退出，产品代码此前未改。
+
+最小查询catch后完整Plugin23通过/无跳过/实际0/16.29秒，workflow-queue-failure-green.log，session72781已退出。最终九文件123全通过/无跳过/实际0/36.99秒，workflow-queue-failure-regression.log，session61788已退出；新项含于123，不累加各轮或§243的74，不是整分支回归。本项未启动PG，既有§243真实PG不冒称本项重跑。
+
+两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin CF3ED842A196A8624194918AF282E444FB972F5C0177C019156931E20F331701；Plugin.test 084CF156DABCCE458D37674C2FF02A26F6E9201C473B60DD8C1096F0C99C0064。最终代码后未改。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-failure-build.log，session74345已退出；本项没有新增物理附件或启动PG/新建库，原集群及日志保留。
+
+按requesting-code-review模板作者串行自审，非独立复核：故障不改变任务持久状态、不创建execution或业务行、不借错误重试执行；夹具通过下次真实生命周期调用重扫。无本项未修复Critical/Important。该项只收敛已安装Repository的SQL发现失败，不声明任意Processor故障/所有停止交错/外部池故障矩阵、持久租约或跨实例原子去重；正式新G接线、业务试点及整分支独立复核仍未完成。所有旧目录/附件保留，未改主检出、核心、正式依赖或业务库，不推送合并发布或启用新规则。

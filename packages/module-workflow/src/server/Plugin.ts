@@ -671,7 +671,13 @@ export default class PluginWorkflowServer extends Plugin {
         }
       }
       if (next) {
-        await this.process(...next);
+        try {
+          await this.process(...next);
+        } catch (error) {
+          this.getLogger(next[0].workflowId).error('failed to process queued workflow execution', error);
+          this.executing = null;
+          return;
+        }
       }
 
       this.executing = null;

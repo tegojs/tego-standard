@@ -3832,3 +3832,17 @@ workflow-queue-failure-{red,confirmed-red,cross-realm-red,observation-diagnostic
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-failure-build.log，session74345已退出；本项没有新增物理附件或启动PG/新建库，原集群及日志保留。
 
 按requesting-code-review模板作者串行自审，非独立复核：故障不改变任务持久状态、不创建execution或业务行、不借错误重试执行；夹具通过下次真实生命周期调用重扫。无本项未修复Critical/Important。该项只收敛已安装Repository的SQL发现失败，不声明任意Processor故障/所有停止交错/外部池故障矩阵、持久租约或跨实例原子去重；正式新G接线、业务试点及整分支独立复核仍未完成。所有旧目录/附件保留，未改主检出、核心、正式依赖或业务库，不推送合并发布或启用新规则。
+
+## 245. 持久任务启动失败须释放队列忙碌状态
+
+Ruling: §244只捕获持久发现查询；process的STARTED更新与Processor构造在其内部try之前，启动失败仍可使dispatch的Promise拒绝并占住executing。仅包围原await process，向原工作流logger记录原异常、释放本轮busy并结束；不自动重试、不修改任务持久状态，不替换保存的租户上下文。
+
+- [x] 原SQL发现失败用例参数化，新增真实execution.beforeUpdate一次性钩子，在STARTED更新前执行缺表SELECT；真实SQL错误，不伪造错误或查询结果。
+- [x] 原dispatch仅透传并观察Promise结局，避免RED资源无法收敛，不宣称独立制造unhandled rejection；故障后B任务仍QUEUEING、结果0，下次实际stop/start恢复为RESOLVED并生成B业务行。
+- [x] 相关九文件回归124全通过/无跳过/实际0/37.61秒，workflow-queue-start-failure-regression.log，session82033已退出。新启动故障项含于124，不累加各轮或§244的123，不是整分支回归。
+
+workflow-queue-start-failure-red.log：1失败23过滤24总/实际1/10.96秒，session82039已退出；真实故障已注入，SequelizeDatabaseError及no such table断言通过，原工作流logger仍0才失败。本项无新夹具诊断失败轮。最小实现后直接运行上述完整相关回归，未改最终代码。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-start-failure-build.log，session11687已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin 57F9F17EEDB70822A9F799C48D14D9D75828E79C1931023F07C5B8BFF9184A5C；Plugin.test AB0529191D271D54C73E3793DF0B1DE3859DAFF97DC49090EBD170DAB6AC4656。
+
+按requesting-code-review模板作者串行自审，非独立复核：原process正常返回仍按原顺序继续分派，拒绝时结束当前轮、不把错误当成功、不接管caller事务；真实覆盖为STARTED更新前SQL故障，不声称Processor构造或任意节点错误均已独立验证。无本项未修复Critical/Important。未完成的持久租约、跨实例原子去重、全停止交错/已入队撤销、新G正式消费者、业务试点及整分支独立复核继续保留。本项仅SQLite，未启PG、建库或物理附件；旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

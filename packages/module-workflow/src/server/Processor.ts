@@ -88,7 +88,8 @@ export default class Processor {
 
     const jobs = await execution.getJobs({
       order: [['id', 'ASC']],
-      transaction,
+      useMaster: true,
+      transaction: transaction ?? null,
     });
 
     this.makeJobs(jobs);

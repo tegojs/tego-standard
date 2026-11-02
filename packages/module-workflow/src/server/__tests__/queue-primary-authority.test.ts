@@ -1,7 +1,7 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 
 import { isolatedPostgresDatabase } from '../../../../module-tenant/src/server/__tests__/access-control/database';
-import { EXECUTION_STATUS } from '../constants';
+import { EXECUTION_STATUS, JOB_STATUS } from '../constants';
 import { waitForWorkflowIdle } from './utils';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
@@ -158,5 +158,82 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
       useMaster: true,
     });
     expect(results.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Current operation']]);
+  });
+
+  it('resumes a tenant task using committed primary results from earlier nodes', async () => {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: {
+        type: 'collection',
+        enabled: true,
+        config: { collection: 'queuedTenantSources', mode: 1 },
+      },
+    });
+    const producer = await workflow.createNode({
+      type: 'create',
+      config: { collection: 'queuedTenantResults', params: { values: { label: 'Producer' } } },
+    });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      upstreamId: producer.id,
+      config: { duration: 86400000, endStatus: JOB_STATUS.RESOLVED },
+    });
+    const consumer = await workflow.createNode({
+      type: 'create',
+      upstreamId: delay.id,
+      config: {
+        collection: 'queuedTenantResults',
+        params: { values: { label: `{{$jobsMapByNodeKey.${producer.key}.label}}` } },
+      },
+    });
+    await producer.setDownstream(delay);
+    await delay.setDownstream(consumer);
+    await app.stop();
+    await app.db.reconnect();
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    const previous = await execution.createJob({
+      nodeId: producer.id,
+      nodeKey: producer.key,
+      status: JOB_STATUS.RESOLVED,
+      result: { label: 'Obsolete input' },
+    });
+    const pending = await execution.createJob({
+      nodeId: delay.id,
+      nodeKey: delay.key,
+      upstreamId: previous.id,
+      status: JOB_STATUS.PENDING,
+      result: null,
+    });
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.jobs (LIKE public.jobs INCLUDING ALL)');
+    await app.db.sequelize.query('INSERT INTO stale_workflow_queue.jobs SELECT * FROM public.jobs');
+    await previous.update({ result: { label: 'Committed input' } });
+    const jobs = app.db.getCollection('jobs').model;
+    expect((await jobs.findByPk(previous.id)).get('result')).toEqual({ label: 'Obsolete input' });
+    expect((await jobs.findByPk(previous.id, { useMaster: true })).get('result')).toEqual({ label: 'Committed input' });
+
+    await app.start();
+    const plugin = app.pm.get('workflow');
+    pending.execution = execution;
+    await plugin.resume(pending);
+    await waitForWorkflowIdle(app);
+    await execution.reload({ useMaster: true });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    const results = await app.db.getCollection('queuedTenantResults').model.findAll({
+      where: { label: ['Obsolete input', 'Committed input'] },
+      useMaster: true,
+    });
+    expect(results.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Committed input']]);
   });
 });

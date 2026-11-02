@@ -3860,3 +3860,18 @@ workflow客户端/服务端/依赖/声明完整build实际0，workflow-node-prim
 按requesting-code-review模板作者串行自审，非独立复核：原同步、异步、子工作流、暂停恢复及数据操作authority/事务相关回归保持；读取当前主库节点符合原动态prepare契约，不建立新工作流版本模型。无本项未修复Critical/Important。工作流、jobs及其他恢复读取没有因此自动获得主库保证，不声称全准备快照隔离、所有caller事务来源校验、租约/跨实例原子去重或新G正式接线；业务试点及整分支独立复核仍未完成。
 
 资源收敛session96518实际0：核实postmaster2740/创建2026-11-02 20:04:00/原目录命令、25466全部记录只归原PID（State null）、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_a24602e660并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部端口记录0/validation0。集群/日志和旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 247. 暂停任务恢复须读取主库已提交的上游结果
+
+Ruling: Processor.prepare的jobs仍默认读池；真实暂停任务恢复时，上游结果已在主库提交，但旧池结果进入jobsMapByNodeKey，后继节点实际生成错误业务内容。仅原getJobs指定useMaster:true及无显式事务时transaction:null；保留原id排序、Map重建、显式caller事务和原暂停/恢复协议，不重放已经完成的上游节点。
+
+- [x] 真实PG独立读写池/schema：创建真实STARTED/B执行、已完成producer和待恢复delay任务，旧schema保存Obsolete input，主库保存Committed input；原plugin.resume恢复真实delay，原create节点解析上游变量并持久写业务行。
+- [x] workflow-resume-results-primary-red.log：1失败2过滤3总/实际1/10.10秒，session73776已退出，实际[['B','Obsolete input']]而非[['B','Committed input']]，不是mock选项断言或WAL副本测试。
+
+最小实现后的首轮七文件回归regression.log：1失败151通过/实际1/18.41秒，session17032已退出；业务断言已通过，但新测试末尾app.stop关闭池后，原afterEach/afterAll DROP SCHEMA真实失败。只删该多余stop，由原app.destroy终结timer与池。后继final-regression.log实际1/16.89秒、1失败151通过，session78627已退出：误复用前轮未清理schema的库，首项CREATE SCHEMA冲突，不能称GREEN或产品RED。核实原端点/角色/零其他客户端及owner后，仅删b24702f661并核实旧库/新库合计count0，才新建c24702a662。
+
+最终七文件152全通过/无跳过/实际0/17.77秒，workflow-resume-results-primary-fresh-regression.log，session19657已退出；PG3、其余SQLite149，新项含于152，不累加各轮或§246的151，不是整分支回归。workflow客户端/服务端/依赖/声明完整build实际0，workflow-resume-results-primary-build.log，session83105已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Processor CF92253DC083D60E8A83203C5C9DBE639DC58C23F2588D22487E5450F9DB18FE；queue-primary-authority.test C1F6410881DDFFA8C6AA60FFE1E34CF98FBF02BDF6BF1CDAD137CADB6FF9890D。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：只改变原结果查询的连接选择，已完成上游任务未重跑，最终数据归属B且输入来自主库已提交结果；显式事务继续保留。无本项未修复Critical/Important。没有证明结果不可变、原子恢复认领/最多一次、全部恢复读取主库化或完整准备快照隔离；新G正式消费者、业务试点及整分支独立复核仍未完成。
+
+资源收敛session42705实际0：核实postmaster90860/创建2026-11-02 20:10:18/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后仅删c24702a662，两本轮库合计count0；原PG正常停止，pg_ctl无服务/PID消失/25466全部记录0/validation0。保留集群/日志和旧目录；无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

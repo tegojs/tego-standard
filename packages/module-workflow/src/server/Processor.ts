@@ -82,7 +82,7 @@ export default class Processor {
       execution.workflow = await execution.getWorkflow({ transaction });
     }
 
-    const nodes = await execution.workflow.getNodes({ transaction });
+    const nodes = await execution.workflow.getNodes({ useMaster: true, transaction: transaction ?? null });
 
     this.makeNodes(nodes);
 

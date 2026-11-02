@@ -51,6 +51,10 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     }
   });
 
+  afterEach(async () => {
+    await app.db.sequelize.query('DROP SCHEMA IF EXISTS stale_workflow_queue CASCADE');
+  });
+
   it('resumes primary-only queued executions under each persisted tenant after a real restart', async () => {
     const workflow = await app.db.getRepository('workflows').create({
       values: {
@@ -104,5 +108,55 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
       ['B', 'Recovered owner task'],
       ['H', 'Recovered owner task'],
     ]);
+  });
+
+  it('loads current primary node configuration for a recovered tenant task', async () => {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: {
+        type: 'collection',
+        enabled: true,
+        config: { collection: 'queuedTenantSources', mode: 1 },
+      },
+    });
+    const node = await workflow.createNode({
+      type: 'create',
+      config: { collection: 'queuedTenantResults', params: { values: { label: 'Obsolete operation' } } },
+    });
+    await app.stop();
+    await app.db.reconnect();
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.flow_nodes (LIKE public.flow_nodes INCLUDING ALL)');
+    await app.db.sequelize.query('INSERT INTO stale_workflow_queue.flow_nodes SELECT * FROM public.flow_nodes');
+    await node.update({
+      config: { collection: 'queuedTenantResults', params: { values: { label: 'Current operation' } } },
+    });
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.QUEUEING,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    const nodes = app.db.getCollection('flow_nodes').model;
+    expect((await nodes.findByPk(node.id)).get('config').params.values.label).toBe('Obsolete operation');
+    expect((await nodes.findByPk(node.id, { useMaster: true })).get('config').params.values.label).toBe(
+      'Current operation',
+    );
+
+    await app.start();
+    await waitForWorkflowIdle(app);
+    await execution.reload({ useMaster: true });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    const results = await app.db.getCollection('queuedTenantResults').model.findAll({
+      where: { label: ['Obsolete operation', 'Current operation'] },
+      useMaster: true,
+    });
+    expect(results.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', 'Current operation']]);
   });
 });

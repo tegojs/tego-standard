@@ -3846,3 +3846,17 @@ workflow-queue-start-failure-red.log：1失败23过滤24总/实际1/10.96秒，s
 workflow客户端/服务端/依赖/声明完整build实际0，workflow-queue-start-failure-build.log，session11687已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Plugin 57F9F17EEDB70822A9F799C48D14D9D75828E79C1931023F07C5B8BFF9184A5C；Plugin.test AB0529191D271D54C73E3793DF0B1DE3859DAFF97DC49090EBD170DAB6AC4656。
 
 按requesting-code-review模板作者串行自审，非独立复核：原process正常返回仍按原顺序继续分派，拒绝时结束当前轮、不把错误当成功、不接管caller事务；真实覆盖为STARTED更新前SQL故障，不声称Processor构造或任意节点错误均已独立验证。无本项未修复Critical/Important。未完成的持久租约、跨实例原子去重、全停止交错/已入队撤销、新G正式消费者、业务试点及整分支独立复核继续保留。本项仅SQLite，未启PG、建库或物理附件；旧目录保留，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 246. 恢复的租户任务按主库节点配置执行
+
+Ruling: §243固定持久队列发现，但Processor.prepare仍从默认读池加载flow_nodes；主库节点已改配置时，恢复的B任务实际按旧节点创建了过期业务结果。仅节点加载指定useMaster:true，并在无显式事务时transaction:null；显式caller事务原样传递，不结束或另开事务，不改变节点图结构、工作流版本或权限来源。
+
+- [x] 复用真实独立PG读写池/schema夹具，在读池保存旧flow_nodes，主库更新同节点的真实config。真实stop/reconnect/start后，检查持久执行状态及实际生成行，不只检查查询选项。
+- [x] workflow-node-primary-red.log：1失败1过滤2总/实际1/10.30秒，session48205已退出，实际结果[['B','Obsolete operation']]而非[['B','Current operation']]。本项无夹具诊断失败轮；不同search_path不是WAL副本/故障切换。
+- [x] 最小一行实现后完整文件2通过/无跳过/实际0/10.81秒，workflow-node-primary-green.log，session68362已退出；最终七文件151全通过/无跳过/实际0/18.51秒，workflow-node-primary-regression.log，session59405已退出。PG2、其余SQLite149；新项含于151，不累加各轮或§245的124，不是整分支回归。
+
+workflow客户端/服务端/依赖/声明完整build实际0，workflow-node-primary-build.log，session47711已退出。两TS最终Prettier check通过、oxlint零错误警告，源/snapshot SHA256一致：Processor 486D7866E749AE08D972C653CA4F00294FBE801F639E8020B34832237ABC9213；queue-primary-authority.test 230C2B8368E1D45094E02EA6A074B2A5A58D104BCBDC249F3894EAC914926D27。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：原同步、异步、子工作流、暂停恢复及数据操作authority/事务相关回归保持；读取当前主库节点符合原动态prepare契约，不建立新工作流版本模型。无本项未修复Critical/Important。工作流、jobs及其他恢复读取没有因此自动获得主库保证，不声称全准备快照隔离、所有caller事务来源校验、租约/跨实例原子去重或新G正式接线；业务试点及整分支独立复核仍未完成。
+
+资源收敛session96518实际0：核实postmaster2740/创建2026-11-02 20:04:00/原目录命令、25466全部记录只归原PID（State null）、SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后，仅删新库tego_tenant_access_test_a24602e660并pg_database count0；原PG正常停止，pg_ctl无服务/PID消失/全部端口记录0/validation0。集群/日志和旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

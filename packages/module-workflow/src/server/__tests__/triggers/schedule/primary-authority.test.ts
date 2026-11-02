@@ -161,73 +161,85 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     expect(await app.db.getCollection('primaryScheduleResults').model.count()).toBe(0);
   });
 
-  it.each(['unbound', 'ambient read pool', 'read-pool transaction', 'read-pool savepoint'])(
-    'rejects an obsolete record owner from the read pool (%s)',
-    async (mode) => {
-      const model = app.db.getCollection('primaryScheduleDocuments').model;
-      const cached = await model.findByPk(1);
-      let parent: Transaction | undefined;
-      let transaction: Transaction | undefined;
+  it.each([
+    'unbound',
+    'ambient read pool',
+    'read-pool transaction',
+    'read-pool savepoint',
+    'foreign write transaction',
+    'foreign write savepoint',
+  ])('rejects an obsolete record owner from the read pool (%s)', async (mode) => {
+    const model = app.db.getCollection('primaryScheduleDocuments').model;
+    const cached = await model.findByPk(1);
+    let parent: Transaction | undefined;
+    let transaction: Transaction | undefined;
+    let foreign: ReturnType<typeof isolatedPostgresDatabase> | undefined;
+    await app.db.sequelize.query(
+      'CREATE TABLE schedule_stale_tenants."primaryScheduleDocuments" (LIKE public."primaryScheduleDocuments" INCLUDING ALL)',
+    );
+    try {
       await app.db.sequelize.query(
-        'CREATE TABLE schedule_stale_tenants."primaryScheduleDocuments" (LIKE public."primaryScheduleDocuments" INCLUDING ALL)',
+        'INSERT INTO schedule_stale_tenants."primaryScheduleDocuments" SELECT * FROM public."primaryScheduleDocuments"',
       );
-      try {
-        await app.db.sequelize.query(
-          'INSERT INTO schedule_stale_tenants."primaryScheduleDocuments" SELECT * FROM public."primaryScheduleDocuments"',
-        );
-        // A controlled persisted transition, not permission to reassign ordinary records.
-        await model.update({ tenantId: 'C' }, { where: { id: 1 }, hooks: false });
-        expect((await model.findByPk(1))?.get('tenantId')).toBe('B');
-        expect((await model.findByPk(1, { useMaster: true }))?.get('tenantId')).toBe('C');
+      // A controlled persisted transition, not permission to reassign ordinary records.
+      await model.update({ tenantId: 'C' }, { where: { id: 1 }, hooks: false });
+      expect((await model.findByPk(1))?.get('tenantId')).toBe('B');
+      expect((await model.findByPk(1, { useMaster: true }))?.get('tenantId')).toBe('C');
 
-        const attempt = async () => {
-          await trigger.trigger(workflow, cached, Date.now(), { transaction });
-          await waitForWorkflowIdle(app);
-          expect(await workflow.countExecutions()).toBe(0);
-          expect(await app.db.getCollection('primaryScheduleResults').model.count()).toBe(0);
-        };
-        if (mode === 'ambient read pool') {
-          await withAmbientTransactions(app.db, async () => {
-            await app.db.sequelize.transaction({ readOnly: true }, async (ambient) => {
-              expect((await model.findByPk(1, { transaction: ambient }))?.get('tenantId')).toBe('B');
-              await attempt();
-              expect(ambient.finished).toBeFalsy();
-            });
-          });
-        } else {
-          if (mode !== 'unbound') {
-            parent = await app.db.sequelize.transaction({ readOnly: true });
-            transaction =
-              mode === 'read-pool savepoint' ? await app.db.sequelize.transaction({ transaction: parent }) : parent;
-            expect((await model.findByPk(1, { transaction }))?.get('tenantId')).toBe('B');
-          }
-          await attempt();
-          if (transaction) expect(transaction.finished).toBeFalsy();
-        }
-        if (transaction && transaction !== parent) await transaction.rollback();
-        if (parent) await parent.rollback();
-        transaction = undefined;
-        parent = undefined;
-
-        const fresh = await model.findByPk(1, { useMaster: true });
-        await trigger.trigger(workflow, fresh, Date.now());
+      const attempt = async () => {
+        await trigger.trigger(workflow, cached, Date.now(), { transaction });
         await waitForWorkflowIdle(app);
-        const [execution] = await workflow.getExecutions();
-        expect(await workflow.countExecutions()).toBe(1);
-        expect(execution.tenantId).toBe('C');
-        expect(execution.context.data.tenantId).toBe('C');
-        const generated = await app.db.getCollection('primaryScheduleResults').model.findAll();
-        expect(generated.map((row) => row.get('tenantId'))).toEqual(['C']);
-      } finally {
-        try {
-          if (transaction && transaction !== parent && !transaction.finished) await transaction.rollback();
-        } finally {
-          if (parent && !parent.finished) await parent.rollback();
-          await app.db.sequelize.query('DROP TABLE schedule_stale_tenants."primaryScheduleDocuments"');
+        expect(await workflow.countExecutions()).toBe(0);
+        expect(await app.db.getCollection('primaryScheduleResults').model.count()).toBe(0);
+      };
+      if (mode === 'ambient read pool') {
+        await withAmbientTransactions(app.db, async () => {
+          await app.db.sequelize.transaction({ readOnly: true }, async (ambient) => {
+            expect((await model.findByPk(1, { transaction: ambient }))?.get('tenantId')).toBe('B');
+            await attempt();
+            expect(ambient.finished).toBeFalsy();
+          });
+        });
+      } else {
+        if (mode !== 'unbound') {
+          if (mode.startsWith('foreign')) {
+            foreign = isolatedPostgresDatabase(postgresUrl!);
+            foreign.sequelize.addHook('afterConnect', async (client) => {
+              await client.query('SET search_path TO schedule_stale_tenants, public');
+            });
+          }
+          const sequelize = foreign?.sequelize ?? app.db.sequelize;
+          parent = await sequelize.transaction({ readOnly: !foreign });
+          transaction = mode.endsWith('savepoint') ? await sequelize.transaction({ transaction: parent }) : parent;
+          expect((await model.findByPk(1, { transaction }))?.get('tenantId')).toBe('B');
         }
+        await attempt();
+        if (transaction) expect(transaction.finished).toBeFalsy();
       }
-    },
-  );
+      if (transaction && transaction !== parent) await transaction.rollback();
+      if (parent) await parent.rollback();
+      transaction = undefined;
+      parent = undefined;
+
+      const fresh = await model.findByPk(1, { useMaster: true });
+      await trigger.trigger(workflow, fresh, Date.now());
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(await workflow.countExecutions()).toBe(1);
+      expect(execution.tenantId).toBe('C');
+      expect(execution.context.data.tenantId).toBe('C');
+      const generated = await app.db.getCollection('primaryScheduleResults').model.findAll();
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['C']);
+    } finally {
+      try {
+        if (transaction && transaction !== parent && !transaction.finished) await transaction.rollback();
+      } finally {
+        if (parent && !parent.finished) await parent.rollback();
+        await foreign?.close();
+        await app.db.sequelize.query('DROP TABLE schedule_stale_tenants."primaryScheduleDocuments"');
+      }
+    }
+  });
 
   it('preserves an explicit write transaction and sees its uncommitted owner', async () => {
     const model = app.db.getCollection('primaryScheduleDocuments').model;

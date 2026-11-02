@@ -3717,3 +3717,20 @@ Ruling: §236只固定租户启用/层级，业务Repository回读仍默认读�
 资源收敛session45250实际退出0：核实新postmaster91416/创建2026-11-02T18:50:13.102567+08:00/原目录命令，25466全部记录唯一该PID（State null），真实SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端及owner后，仅删a23702f655并count0，原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0，验证/esbuild0。未复用§236旧PID或清理其他库/服务。保留集群、schedule-record-primary-*日志及旧目录，未触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布，规则保存/启用继续关闭。
 
 默认签名session47303实际Timeout退出128，未生成提交。事先按shell18368父链定位本次git90176/84396、gpg91344及同次创建pinentry84972，退出后逐一核实PID消失，HEAD仍a8861695c、原四文件暂存增删数/内容及diff/check不变；独立检查实际退出0后，按已有授权仅本次git -c commit.gpgsign=false提交，签名N，全局true保持，不重复旧认证或对未签名提交验签。
+
+## 238. 日期任务不能用其他数据库实例的事务回读租户归属
+
+Ruling: 显式普通写事务也可来自另一个Sequelize实例，即使连接同一专用库，实际search_path指向旧业务表。useMaster不能替换该事务的连接；主库同键已归C，旧B仍通过owner比较并生成B执行。仅租户表在原根事务校验处核对根sequelize与实际目标collection.model.sequelize身份，不一致沿原无分派路径返回；共享表保持原行为，合法目标写事务及其未提交事实保持，不接管调用方事务。
+
+- [x] 新专用库tego_tenant_access_test_a23802a656、真实独立Database连接、普通写事务及真实savepoint；实际查询确认旧B/主库C，使用已安装trigger和持久执行断言。
+- [x] 两项真实RED、最小两行实现、相关九文件回归、workflow完整构建、作者串行自审和两份原记录；英文提交及签名以Git为准。
+
+真实RED2失败/11过滤/13总、实际退出1、8.59秒，schedule-foreign-transaction-red.log，session76604已退出：两项持久执行预期0实际1，无夹具启动失败或unhandled。最小实现后完整PG文件13全通过/无跳过/实际0、11.46秒，schedule-foreign-transaction-green.log，session88020已退出。原普通目标写事务控制继续读取自身未提交C且不分派旧B；外来事务拒绝后仍活动，由fixture自行回滚，新主库C仍能实际生成C执行和结果。B→C仅为隔离fixture受控转换，不提供普通改归属API。
+
+最终原调度七文件、tenant-drift和PG文件共九文件129全通过/无跳过/实际0、34.29秒，schedule-foreign-transaction-regression.log，session88872已退出；新增两项含于129，各轮及§237不累加，不是整分支回归。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全部通过、实际0，schedule-foreign-transaction-build.log，session14854已退出。两TS Prettier格式化及oxlint零错误警告；最终源/snapshot SHA256一致：DateFieldScheduleTrigger D3BC1363ED608F922E6C4E03B32027165F6F94CFE604AD8D5C2A13B0BC5A24AA；primary-authority test 5C54EAF303FA518BF3D58CF535503D05E44B0C4618A9EE254CE9E6B95BECB1B5。最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：校验绑定实际目标数据源而非固定app.db，根事务与真实连接继承契约一致；原完整owner比较、主库租户事实和off代次保持，无本项未修复Critical/Important。安装的Sequelize事务源码确认sequelize属性及savepoint继承parent.connection。一次只读旧路径node_modules/sequelize不存在，后定位实际.pnpm包核读，不是产品RED。本项不证明回读至后继SQL完整并发隔离、全部应用停止交错、已入队撤销或跨实例去重，正式新G接线及整分支独立复核仍未完成。
+
+资源收敛实际0：核实本项postmaster60120/创建2026-11-02T19:00:19.651917+08:00/原目录命令、25466全部记录唯一该PID（State null），SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres非恢复/零其他客户端/专用库owner后，仅删a23802a656并pg_database count0，原PG正常停止、pg_ctl无服务、PID消失、25466全部记录0、验证/esbuild0。保留集群、schedule-foreign-transaction-*日志及旧目录；主检出、核心、正式依赖、业务库和既有附件未触及，不推送合并发布，规则保存/启用继续关闭。
+
+默认签名session6688实际Timeout退出128，未生成提交。事先由shell18352父链捕获git85480/26660、gpg24488及同次创建pinentry84848；退出后逐一核实PID消失、HEAD仍5faffdff8、暂存tree f55d69ca986ff10ec914891f14946b35638a6955和diff/check不变，独立守卫实际0后按已有授权单次git -c commit.gpgsign=false提交，签名N，全局true保持。等待时后继工作流发现测试只未暂存，不混入本项；不重复旧认证或验签未签名提交。

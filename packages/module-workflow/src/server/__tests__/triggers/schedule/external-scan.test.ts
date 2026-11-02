@@ -100,6 +100,98 @@ describe('date-field scheduling from an external database', () => {
     await external?.close();
   });
 
+  async function fireTimer(trigger: DateFieldScheduleTrigger, record, due: number) {
+    const original = trigger.trigger.bind(trigger);
+    let finish!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const dispatch = vi.spyOn(trigger, 'trigger').mockImplementation((...args) => {
+      const result = original(...args);
+      // Observe the real query's settlement so a RED cannot leak into teardown.
+      void result.then(finish, finish);
+      return result;
+    });
+    try {
+      trigger.schedule(workflow, record, due);
+      await settled;
+    } finally {
+      dispatch.mockRestore();
+    }
+  }
+
+  async function selectTimerCollection(name: string) {
+    const collection = external.collection({
+      name,
+      tenancy: 'shared',
+      fields: [
+        { name: 'label', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+      ],
+    });
+    const installed = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as unknown as {
+      modes: Map<number, DateFieldScheduleTrigger>;
+    };
+    const initialScan = vi.spyOn(installed.modes.get(1)!, 'inspect').mockResolvedValue(undefined);
+    try {
+      await workflow.update({ config: { ...workflow.config, collection: `another:${name}` } });
+    } finally {
+      initialScan.mockRestore();
+    }
+    return collection;
+  }
+
+  it('logs a due timer SQL failure and permits an explicit fresh schedule after the source recovers', async () => {
+    const collection = await selectTimerCollection('timerUnavailableScheduleDocuments');
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const trigger = new DateFieldScheduleTrigger(plugin);
+    const errors = vi.spyOn(plugin.getLogger(workflow.id), 'error');
+    const values = { id: 10, label: 'Recovered timer', scheduledAt: new Date() };
+    const record = collection.model.build(values);
+    try {
+      await expect(trigger.schedule(workflow, record, Date.now() - 1)).rejects.toThrow(/no such table/i);
+      const due = Date.now() + 200;
+      await fireTimer(trigger, record, due);
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(errors).toHaveBeenCalledWith(
+        'failed to trigger scheduled record',
+        expect.objectContaining({ name: 'SequelizeDatabaseError' }),
+      );
+      await collection.model.sync();
+      await collection.model.create(values, { hooks: false });
+      await trigger.schedule(workflow, record, due);
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution.context.data.label).toBe('Recovered timer');
+      expect(await workflow.countExecutions()).toBe(1);
+    } finally {
+      trigger.off(workflow);
+      errors.mockRestore();
+    }
+  });
+
+  it('releases a consumed timer when its cached record no longer exists', async () => {
+    const collection = await selectTimerCollection('timerMissingScheduleDocuments');
+    await collection.model.sync();
+    const values = { id: 11, label: 'Recreated record', scheduledAt: new Date() };
+    const stale = await collection.model.create(values, { hooks: false });
+    await collection.model.destroy({ where: { id: 11 }, hooks: false });
+    const trigger = new DateFieldScheduleTrigger(app.pm.get('workflow') as WorkflowPlugin);
+    const due = Date.now() + 200;
+    try {
+      await fireTimer(trigger, stale, due);
+      expect(await workflow.countExecutions()).toBe(0);
+      await collection.model.create(values, { hooks: false });
+      await trigger.schedule(workflow, stale, due);
+      await waitForWorkflowIdle(app);
+      const [execution] = await workflow.getExecutions();
+      expect(execution?.context.data.label).toBe('Recreated record');
+      expect(await workflow.countExecutions()).toBe(1);
+    } finally {
+      trigger.off(workflow);
+    }
+  });
+
   it.each(['tenantScoped', 'tenantInherited'])(
     'scans %s rows from the selected source using primary tenant authority',
     async (tenancy) => {

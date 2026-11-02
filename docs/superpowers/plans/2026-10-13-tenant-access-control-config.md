@@ -3577,3 +3577,18 @@ Ruling: 承接原规格归属型定时任务要求和上一轮留下的未跟踪
 显式pnpm exec tegod build @tachybase/module-tenant客户端/服务端/依赖/声明全通过、实际0，owned-dispatch-reads-build.log，session23909已退出。最终两TS Prettier check通过、oxlint零错误警告（read_lints不可用，聚焦CLI替代），源/snapshot SHA256一致：reads E542EC5BA49E1DF539B3F2CFA41F578C33AA08920ED8880ACA233A3160EE0300，owned test 04FB3231F6842BF080D1F33FAD6FF4000D354EFE8F50521CF139E2D5A82F4974。最终验证后代码未改。作者使用verification-before-completion并按requesting-code-review模板串行自审，遵守用户不联系子智能体的要求，非独立复核：新增限制在排序之前，复用原绑定预留、角色投影、事务传递和阶段/元数据守卫，没有将客户端参数升级为scope选择；最终主库启用检查使用原resolveActiveAccessTenant。没有本项未修复Critical/Important；原扫描完整性、跨实例去重、读取到执行之间的并发窗口及正式入口仍未完成。
 
 资源收敛实际0：核实postmaster85336、创建2026-11-02T17:45:03.4553730+08:00、精确原data_directory命令、25466全部记录唯一该PID及真实SQL原目录/tenant_test/127.0.0.1与/32/25466/postgres主库非恢复/零其他客户端和专用库owner后，仅删除a22902f653并pg_database count0；原临时PG正常停止、PID消失、25466全部记录0。保留集群和owned-dispatch-reads-*日志，未触及其他PG服务、旧夹具、既有附件、主检出、核心、正式依赖或业务库，不推送合并发布。初轮读取错误小写schedule目录只读失败，随后定位实际ScheduleTrigger目录，不是产品RED。下一项独立处理原§228明确未覆盖的到期timer拒绝，不重复本节已完成读取表征。
+
+## 230. 到期 timer 的异步失败与已消费缓存收敛
+
+Ruling: 承接§228明确未覆盖的独立到期timer。旧setTimeout直接交付异步trigger且不接收拒绝，只有成功回读路径会删缓存；真实缺表错误没有工作流日志，实际记录不存在的提前返回会保留已到期key并阻止显式重新排程。最小修改只在timer边界await/catch原trigger，使用原工作流logger记录原异常，finally清除本次key；即时调用继续返回原Promise，不吞调用方错误、不自动重试或改ACL/G/V/归属。
+
+- [x] 原snapshot/真实独立SQLite外库、实际Node timer与真实Repository查询RED/GREEN。
+- [x] 聚焦及完整受影响调度/tenant工作流回归、workflow构建、作者串行自审及原两份记录；提交签名以实际Git为准。
+
+首轮2项真实RED/5过滤、实际退出1、8.19秒，schedule-due-timer-red.log：真实缺表路径原logger零调用；真实删除的新夹具记录在timer到期后仍占用key，恢复同键记录也没有持久执行。fireTimer只代理原trigger并透传实际Promise，额外观察真实查询settlement以避免RED泄漏到teardown，不伪造查询或计时；因此不把首轮说成已经独立触发Vitest unhandled。修复后完整external文件7通过、无跳过、实际0、9.82秒，schedule-due-timer-green.log，session71395已退出。真实缺表错误及SQL堆栈保留，恢复物理表并显式schedule后实际执行包含Recovered timer；记录不存在路径恢复后生成Recreated record执行。没有后台自动建表或自动重试。
+
+自审补即时缺表仍reject断言，并将实际timer等待设200ms避免普通夹具操作耗尽25ms窗口。最终external/owner/listener/date/static/module-boundary/tenant-operation七文件79全通过、无跳过、实际0、31.27秒，schedule-due-timer-regression.log，session98263已退出；两新项含于79，不累加各轮，不是整分支回归或真实部署并发证明。新case用固定新内存表及全新记录，timer真实到期，原Plugin队列实际持久化执行，finally调用原off关闭本test实例资源。
+
+显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-due-timer-build.log，session85826已退出。最终两TS Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：DateFieldScheduleTrigger 9B637EE8F0B6B13C6818B84ADE5CB49FA197C1A696EFF70B411FBDD194C8AA1F，external test 220F34140472C83413B6A73B43C94AF32D56788A246DE1964AA4DBA19F973F29。最终验证后代码未改。按requesting-code-review模板作者串行自审，非独立复核：异步回调覆盖全部原trigger路径，finally处理成功/错误/提前返回，即时事务不带入后续timer；logger仍实际输出，未改变原查询和分派规则。无本项未修复Critical/Important。任务列表发现失败、重叠reload及原子任务租约仍未覆盖；下一项继续实际任务列表发现异常，不把两次局部交付当整计划完成。
+
+本轮仅SQLite、未启PG/建库/新物理附件，保留日志、旧夹具和集群，不动主检出、核心、正式依赖、业务库或既有附件，不推送合并发布。一次Windows rg文件通配只读失败后改用实际目录，不计产品RED。正式新G调度/规则保存启用仍关闭。

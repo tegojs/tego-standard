@@ -432,7 +432,18 @@ export default class ScheduleTrigger {
 
       if (!this.cache.has(key)) {
         if (nextInterval) {
-          this.cache.set(key, setTimeout(this.trigger.bind(this, workflow, record, nextTime), nextInterval));
+          this.cache.set(
+            key,
+            setTimeout(async () => {
+              try {
+                await this.trigger(workflow, record, nextTime);
+              } catch (error) {
+                this.workflow.getLogger(workflow.id).error('failed to trigger scheduled record', error);
+              } finally {
+                this.cache.delete(key);
+              }
+            }, nextInterval),
+          );
         } else {
           return this.trigger(workflow, record, nextTime, options);
         }

@@ -1,6 +1,9 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 
 import { EXECUTION_STATUS } from '../../../constants';
+import type WorkflowPlugin from '../../../Plugin';
+import type ScheduleTrigger from '../../../triggers/ScheduleTrigger';
+import DateFieldScheduleTrigger from '../../../triggers/ScheduleTrigger/DateFieldScheduleTrigger';
 import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
 describe('date-field schedules retain the record owner', () => {
@@ -31,6 +34,17 @@ describe('date-field schedules retain the record owner', () => {
         ],
       });
     }
+    app.db.collection({
+      name: 'scheduledKeyDocuments',
+      tenancy: 'tenantScoped',
+      autoGenId: false,
+      filterTargetKey: 'documentNo',
+      fields: [
+        { name: 'documentNo', type: 'integer', primaryKey: true },
+        { name: 'tenantId', type: 'string' },
+        { name: 'name', type: 'string' },
+      ],
+    });
     await app.db.sync();
   });
 
@@ -40,7 +54,7 @@ describe('date-field schedules retain the record owner', () => {
       { id: 'B', enabled: true, path: '/B/' },
       { id: 'H', enabled: true, path: '/B/H/' },
     ]);
-    for (const name of ['scheduledOwnerDocuments', 'scheduledOwnerResults'])
+    for (const name of ['scheduledOwnerDocuments', 'scheduledOwnerResults', 'scheduledKeyDocuments'])
       await app.db.getCollection(name).model.destroy({ where: {}, hooks: false });
     workflow = await app.db.getRepository('workflows').create({
       values: {
@@ -112,5 +126,46 @@ describe('date-field schedules retain the record owner', () => {
     await waitForWorkflowIdle(app);
     expect(await workflow.countExecutions()).toBe(0);
     expect(await app.db.getCollection('scheduledOwnerResults').model.count()).toBe(0);
+  });
+
+  it.each([
+    { collection: 'scheduledOwnerDocuments', key: 'id' },
+    { collection: 'scheduledKeyDocuments', key: 'documentNo' },
+  ])(
+    'dispatches different owners at the same instant using $key and suppresses a repeated record',
+    async ({ collection, key }) => {
+      // Keep the ordinary cache outside this test's immediate dispatch window.
+      await workflow.update({
+        config: { ...workflow.config, collection, startsOn: { field: 'createdAt', offset: 86400 } },
+      });
+      const records = await app.db.getCollection(collection).model.bulkCreate(
+        [
+          { [key]: 0, name: 'Ancestor-owned', tenantId: 'B' },
+          { [key]: 1, name: 'Child-owned', tenantId: 'H' },
+          { [key]: 2, name: 'Another child-owned document', tenantId: 'H' },
+        ],
+        { hooks: false },
+      );
+      const trigger = new DateFieldScheduleTrigger(app.pm.get('workflow') as WorkflowPlugin);
+      const instant = new Date('2026-11-01T00:00:00.000Z').getTime();
+      for (const record of [...records, records[0]]) {
+        await trigger.trigger(workflow, record, instant);
+        await waitForWorkflowIdle(app);
+      }
+      const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+      expect(executions.map((row) => [row.context.data[key], row.tenantId])).toEqual(
+        records.map((row) => [row.get(key), row.get('tenantId')]),
+      );
+      const generated = await app.db.getCollection('scheduledOwnerResults').model.findAll({ order: [['id', 'ASC']] });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B', 'H', 'H']);
+    },
+  );
+
+  it('rejects date-field events without the configured record identity', async () => {
+    const trigger = (app.pm.get('workflow') as WorkflowPlugin).triggers.get('schedule') as ScheduleTrigger;
+    const date = new Date('2026-11-01T00:00:00.000Z');
+    expect(await trigger.validateEvent(workflow, { date }, {})).toBe(false);
+    expect(await trigger.validateEvent(workflow, { date, data: { id: null } }, {})).toBe(false);
+    expect(await workflow.countExecutions()).toBe(0);
   });
 });

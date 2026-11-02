@@ -3508,3 +3508,16 @@ Ruling: 承接原规格归属型定时任务要求，先修正已复现的归属
 最终正向扩为tenantScoped/tenantInherited，核对真实执行tenantId/tenantContext/context.state及实际生成行均属H、原行仍属H、caller仍B、自动任务不继承root人工身份；禁用H不经启用B分派。5文件57全通过、无跳过、实际0、53.84秒，schedule-owner-context-regression.log，session2983已退出。含完整日期字段13、listener6、owner3、模块边界5、tenant实际工作流操作权限30；各轮不相加，不是整分支回归。既有预期授权拒绝日志保留。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-owner-context-build.log，session20914已退出。
 
 最终两TS Prettier check通过、oxlint零错误警告（read_lints不可用，聚焦CLI替代）。源/snapshot SHA256一致：DateFieldScheduleTrigger 860FDFEFAA3D54B1269D82C1BE1334AA3BC1F0C7D90D4819AC149363AFA22434，owner test 6593C69A8DA6C4578B78A3FADE532F219CD2121272CA09F5AED3741426D076AF。最终回归后源码未改。作者按requesting-code-review模板串行自审，非独立复核：固定既有触发租户来源，不改ACL/G/V或记录归属；legacy原回退保留，零ID仍以nullish判断，shared未增加查询。测试身份是可信夹具输入，不冒称真实登录/API、PG或新模型调度接线。首次读日志用错工作目录及Windows rg通配只读失败，无数据改动，不计产品RED。未启PG/建库/新物理附件，不触及主检出/核心/正式依赖/业务库及旧目录，不推送合并发布。新G归属扫描、完整定时去重与并发保障仍需独立推进。
+
+## 225. 日期字段任务按记录和时点去重，不能丢弃另一归属记录
+
+Ruling: 原ScheduleTrigger.validateEvent仅按context.date查询已有执行；同一工作流中B与H两条记录在同一时点先后触发，旧实现只持久化B及其生成行，H被误认成重复。日期字段模式改按实际目标表filterTargetKey与日期共同查询，缺身份拒绝；不能以tenantId代替记录键，否则同租户第二条仍会丢失。静态模式保持日期查询，事务仍原样传入countExecutions。不加schema、唯一约束、跨进程锁或正式新G调度接线。
+
+- [x] 实际DateFieldScheduleTrigger→已登记Plugin队列→Processor/CreateInstruction、真实SQLite执行及生成行RED/GREEN，原快照严格顺序。
+- [x] 自定义目标键/零值/同租户不同记录/串行重复、静态回归、tenant工作流权限、workflow完整构建、自审与两份原记录；提交及签名以实际Git为准。
+
+首轮新单项真实RED1失败/3过滤、实际退出1、7.02秒，schedule-record-dedup-red.log，无待决session：预期B/H两记录，实际仅B。扩展实际id和documentNo两种目标键、零值0及缺身份，3失败/3过滤、实际1、8.32秒，schedule-record-dedup-keys-red.log。两种键都真实丢失H，缺身份旧校验返回true；null后续断言初轮未到达，不冒称独立RED。最小实现完整文件6通过、无跳过、实际0、9.34秒，schedule-record-dedup-green.log，session49371已退出。自审再加入同一H租户第二条记录以排除错误的租户去重方案，已有修复直接通过，不冒称新RED。
+
+最终5文件66全通过、无跳过、实际0、66.92秒，schedule-record-dedup-regression.log，session40089已退出：owner6、listener6、日期13、静态11、tenant实际工作流operation30。新3项含于66，各轮不相加；不是整分支回归，PG分支未提供URL而未收集，不称PG覆盖。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-record-dedup-build.log，session13737已退出。最终两TS格式check通过、oxlint零错误警告；源/snapshot SHA256一致：index C3AF5D361925E6E3A1C4A49D47001D51EB91569CF9107EFDAC01B37C958EA6A3，owner test E22DE34983F91719595FD9D9A7DCC24F8EAFC644087730266699E0C5923DDA29。最终验证后源码未改。
+
+作者按requesting-code-review模板串行自审，非独立复核：采用目标实际数据源/目标键而非硬编码id或tenantId；同记录后继串行重复仅一条、两租户及同租户不同记录均生成正确归属数据，static原行为保持。没有未修复Critical/Important。本项保留count-then-insert原机制，不证明并发多实例最多一次、崩溃恢复、修改主键后的历史身份或新G扫描完整接线；这些限制不可由串行样例放行。只SQLite、未启PG/建库/新物理附件，保留日志及旧目录，不触及主检出/核心/正式依赖/业务库，不推送合并发布。继续核对缓存记录与实际回读归属变化的独立问题，不把候选当已修复。

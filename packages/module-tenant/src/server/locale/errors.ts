@@ -7,6 +7,8 @@ export const TENANT_ERROR_MESSAGES = {
   accessConfigReadInvalid: 'Unable to read access rules. Check the selected data source and collection.',
   accessConfigValidationInvalid: 'Access rule validation failed. Check rule conditions and collection fields.',
   accessConfigReadConflict: 'The collection or access rules changed. Refresh and try again.',
+  accessRevisionInvalid: 'Unable to read access rule history. Check the collection, revision and page selection.',
+  accessRevisionUnavailable: 'The selected revision or its collection is unavailable. Refresh and try again.',
   accessPreviewConflict:
     'The collection or permissions changed, or this collection already uses the new access rules. Refresh and try again.',
   accessPreviewUnavailable: 'The selected data source or collection is unavailable. Refresh and select it again.',

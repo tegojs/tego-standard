@@ -2,17 +2,22 @@ import { isDeepStrictEqual } from 'node:util';
 import type { Application, Collection } from '@tego/server';
 
 import { AccessConfigError } from './config-errors';
-import { accessCollectionKey, AccessConfigStore } from './config-store';
+import { accessCollectionKey, AccessConfigStore, type AccessConfigRevisionPage } from './config-store';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { resolveModelMetadata } from './model-metadata';
 import { AccessMutationError } from './mutation-errors';
 import { validateAccessConfig } from './validate';
+
+export type AccessConfigRevisionInspection =
+  | { type: 'list'; limit?: number; beforeRevision?: number }
+  | { type: 'draft'; revision: number };
 
 /** Shared read-only inspection. The caller must authenticate and snapshot its request first. */
 export async function inspectAccessConfig(
   app: Application,
   { dataSourceKey, collectionName }: { dataSourceKey: string; collectionName: string },
   candidate?: unknown,
+  revisionRequest?: AccessConfigRevisionInspection,
 ) {
   const primaryDb = app.db;
   const manager = app.dataSourceManager;
@@ -65,7 +70,16 @@ export async function inspectAccessConfig(
   const store = new AccessConfigStore(primaryDb, resolveMetadata);
   const config = await store.read(identity);
   assertSource();
-  const validatedConfig = candidate === undefined ? undefined : validateAccessConfig(candidate, resolveMetadata());
+  let validatedConfig = candidate === undefined ? undefined : validateAccessConfig(candidate, resolveMetadata());
+  let revisionPage: AccessConfigRevisionPage | undefined;
+  let sourceRevision: number | undefined;
+  if (revisionRequest?.type === 'list')
+    revisionPage = await store.listRevisions(identity, revisionRequest.limit, revisionRequest.beforeRevision);
+  if (revisionRequest?.type === 'draft') {
+    const draft = await store.revisionDraft(identity, revisionRequest.revision);
+    sourceRevision = draft.sourceRevision;
+    validatedConfig = validateAccessConfig(draft.config, resolveMetadata());
+  }
   if (validatedConfig && validatedConfig.revision !== (config?.revision ?? 0)) conflict();
   const assertMetadata = accessMetadataGuard(db, [
     { model, config: config ?? { schemaVersion: 1, revision: 0, ownership: { enabled: false }, rules: [] } },
@@ -88,5 +102,5 @@ export async function inspectAccessConfig(
     throw error;
   }
   if (!isDeepStrictEqual(config, latest)) conflict();
-  return { identity, config, validatedConfig };
+  return { identity, config, validatedConfig, revisionPage, sourceRevision };
 }

@@ -3,6 +3,7 @@ import { Plugin, uid } from '@tego/server';
 
 import packageJson from '../../package.json';
 import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
+import { createAccessConfigRevisions } from './actions/access-config-revisions';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
 import { createAccessMigrationPreview } from './actions/preview-access-migration';
@@ -791,6 +792,14 @@ export class PluginTenantServer extends Plugin {
     this.app.resourcer.registerActionHandler('tenants:previewAccessMigration', createAccessMigrationPreview(this.app));
     this.app.resourcer.registerActionHandler('tenants:readAccessConfig', createAccessConfigRead(this.app));
     this.app.resourcer.registerActionHandler('tenants:validateAccessConfig', createAccessConfigValidation(this.app));
+    this.app.resourcer.registerActionHandler(
+      'tenants:listAccessConfigRevisions',
+      createAccessConfigRevisions(this.app, 'list'),
+    );
+    this.app.resourcer.registerActionHandler(
+      'tenants:previewAccessConfigRevision',
+      createAccessConfigRevisions(this.app, 'draft'),
+    );
 
     this.app.use(
       async (ctx, next) => {

@@ -55,6 +55,47 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     await app.db.sequelize.query('DROP SCHEMA IF EXISTS stale_workflow_queue CASCADE');
   });
 
+  it('loads a primary-only workflow when preparing a persisted tenant execution', async () => {
+    await waitForWorkflowIdle(app);
+    const workflow = await app.db.getRepository('workflows').create({
+      values: { type: 'collection', enabled: true, config: { collection: 'queuedTenantSources', mode: 1 } },
+    });
+    const label = 'Primary-only workflow configuration';
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'queuedTenantResults', params: { values: { label } } },
+    });
+    const execution = await workflow.createExecution({
+      key: workflow.key,
+      status: EXECUTION_STATUS.STARTED,
+      context: {},
+      tenantId: 'B',
+      tenantContext: {
+        currentTenant: { id: 'B' },
+        currentTenantId: 'B',
+        currentTenancyMode: 'tenantScoped',
+        currentTenantDescendantIds: [],
+        currentLegacyDataTenantIds: [],
+      },
+    });
+    await app.db.sequelize.query('CREATE SCHEMA stale_workflow_queue');
+    await app.db.sequelize.query('CREATE TABLE stale_workflow_queue.workflows (LIKE public.workflows INCLUDING ALL)');
+    const workflows = app.db.getCollection('workflows').model;
+    expect(await workflows.findByPk(workflow.id)).toBeNull();
+    expect(await workflows.findByPk(workflow.id, { useMaster: true })).not.toBeNull();
+    const persisted = await app.db.getCollection('executions').model.findByPk(execution.id, { useMaster: true });
+    expect(persisted.workflow).toBeUndefined();
+
+    await app.pm.get('workflow').createProcessor(persisted).start();
+
+    await execution.reload({ useMaster: true });
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    const rows = await app.db.getCollection('queuedTenantResults').model.findAll({ where: { label }, useMaster: true });
+    expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([
+      ['B', 'Primary-only workflow configuration'],
+    ]);
+  });
+
   it('resumes primary-only queued executions under each persisted tenant after a real restart', async () => {
     const workflow = await app.db.getRepository('workflows').create({
       values: {
@@ -90,8 +131,8 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
       );
     }
     const model = app.db.getCollection('executions').model;
-    expect(await model.count()).toBe(0);
-    expect(await model.count({ useMaster: true })).toBe(2);
+    expect(await model.count({ where: { workflowId: workflow.id } })).toBe(0);
+    expect(await model.count({ where: { workflowId: workflow.id }, useMaster: true })).toBe(2);
     await app.start();
     await waitForWorkflowIdle(app);
     const statuses = [];
@@ -101,6 +142,7 @@ describe.skipIf(!postgresUrl)('workflow durable queue primary discovery', () => 
     }
     expect(statuses).toEqual([EXECUTION_STATUS.RESOLVED, EXECUTION_STATUS.RESOLVED]);
     const results = await app.db.getCollection('queuedTenantResults').model.findAll({
+      where: { label: 'Recovered owner task' },
       useMaster: true,
       order: [['id', 'ASC']],
     });

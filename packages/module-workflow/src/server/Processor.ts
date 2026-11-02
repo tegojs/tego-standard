@@ -79,7 +79,7 @@ export default class Processor {
   public async prepare() {
     const { execution, transaction } = this;
     if (!execution.workflow) {
-      execution.workflow = await execution.getWorkflow({ transaction });
+      execution.workflow = await execution.getWorkflow({ useMaster: true, transaction: transaction ?? null });
     }
 
     const nodes = await execution.workflow.getNodes({ useMaster: true, transaction: transaction ?? null });

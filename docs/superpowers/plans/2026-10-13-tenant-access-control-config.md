@@ -4041,3 +4041,20 @@ workflow客户端/服务端/依赖/声明完整build实际0，workflow-stop-owne
 按requesting-code-review模板作者串行自审，非独立复核：停止资源选择属于本实例登记生命周期，应使用原配置off，不能依赖可能缺行或已停用的持久enabled列表；快照Map后删除登记不会漏遍历。原调度取消代次及已存在队列收敛保持，不新增自动重试或改租户归属。无本项未修复Critical/Important。上文Processor workflow回读是明确下一项，尚无其新实现；完整停止交错、停止后新登记、已入队撤销、第三方独立注册、持久租约/跨实例去重、新G正式消费者、业务试点及整分支独立复核仍未完成。
 
 最终独立资源收敛实际0且已消费：核实postmaster94716/创建2026-11-02T21:36:40.6322810+08:00/原目录命令、全部25466仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删d25902b669；本项c25902a668/d25902b669合计pg_database count0。原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非WAL replica验收，集群和日志保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 260. 恢复执行时从主库补齐工作流配置
+
+签名记录：默认git commit session4314实际退出1，GPG明确Timeout且未生成提交。事先捕获本次git65988/86964、gpg62064、pinentry85520（本调用输出确认），独立守卫实际0核实四PID消失、HEAD仍a67627980f6f24969aa47df8822f0e618889cd91、原staged tree 6658f730ca9d26a79e6d628bab9f487153243876不变、无未暂存变更和global commit.gpgsign=true。按用户既有授权本次仅git -c commit.gpgsign=false提交，签名N，不绕过活动调用、不称独立验签成功。
+
+Ruling: §259真实日志已暴露Processor.prepare的getWorkflow仍默认读池；缺行会得到null并在getNodes处失败。工作流本身与既有nodes/jobs一样显式useMaster:true，有显式Processor事务时保留，没有时transaction:null，不接管caller事务。不新增enabled检查或改变已保存执行身份。
+
+- [x] 原真实PG独立读写池夹具新增无缓存workflow关联的持久STARTED/B执行；旧schema.workflows为空而主库有原配置，原createProcessor.start必须完成并生成字面量B业务数据。不同search_path不是WAL replica。
+- [x] workflow-prepare-primary-red.log：1失败12过滤/13总，实际退出1/7.60秒，原null.getNodes真实复现。仅修一行查询后首次完整文件12过1失败/退出1/18.48秒，workflow-prepare-primary-green.log；新项已通过，原首项整表execution计数混入新持久行3而非2，不称GREEN。
+- [x] 首次九文件174过1失败/退出1/24.52秒，workflow-prepare-primary-regression.log：计数已限定原workflow，但该首项整表结果仍混入新label。将原计数和结果分别限定原workflowId与Recovered owner task，保留0/2及B/H字面量断言，不放宽产品边界。
+- [x] 最终九文件175全通过/无跳过/实际退出0/25.93秒，workflow-prepare-primary-corrected-regression.log，session29459已退出。SQLite162及PG13均执行，新增项含于175，不累加各轮或§259，不是整分支回归。workflow客户端/服务端/依赖/声明完整build实际0，workflow-prepare-primary-build.log，session47331已退出。
+
+两TS最终Prettier check通过、oxlint零警告错误，源/snapshot SHA256一致：Processor B29E70E6CC82976D0EB1B4CD8816B605EE78EC76F918252AB73ACEAF1050DA29；queue-primary-authority.test 048591EBEBD7C9B90668B51EEA527402F5F93C56ECC2F9710620C342AF75D5DD，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：修复真实配置缺失的来源，不把null当空工作流，也不从事件或人工身份重造租户；原显式事务及已缓存关联分支保持。无本项未修复Critical/Important。缺失主库工作流的错误语义、已缓存关联新鲜度、Plugin.resume补读execution来源、读取后并发变更、持久租约/跨实例去重、新G正式消费者、业务试点及整分支独立复核未由本项证明。
+
+独立资源收敛实际0：核实postmaster76088/创建2026-11-02T21:55:54.7036510+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_e26002c670并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。集群/日志及既有旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

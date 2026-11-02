@@ -3495,3 +3495,16 @@ Ruling: AccessAclScopeAdapter.preparePhase 逐轮复制 identity；调用方在�
 最小实现将原逐轮三字段复制移到第一个配置读取前，私有完整 selected 数组供原循环使用；原校验、快照和阶段释放不变。首轮回归参数误列不存在的 workflow-root-handler.test.ts，Vitest 实际只收集4文件，101全通过、无跳过、实际退出0、21.07秒，acl-phase-selection-regression.log，session7848 已退出；不能称该不存在文件已运行。退出后定位原实际 workflow-operation-authority.test.ts，独立追加实际工作流回归30全部通过、无跳过、实际退出0、20.25秒，acl-phase-selection-workflow-regression.log，session66332 已退出。两轮共5个不同文件131项，新3项含于101，不与RED累加，不是整分支回归。原预期拒绝的工作流错误日志保留，没有关闭日志造绿。PG分支未提供URL，未收集执行，不冒称有PG验证。
 
 显式 pnpm exec tegod build @tachybase/module-tenant 客户端/服务端/依赖/声明全部通过、实际退出0，acl-phase-selection-build.log，session21932 已退出。最终两TS Prettier check通过、oxlint零错误警告；源/snapshot SHA256一致：acl-scope DDF546772A823E7908CE5A5B590F2AF083AC2A1AC554770584E277D73AA78BF6，phase test E8BE1079E5256F967002716641C4D93D3C954625B651A0E0936FCA141DAD43BB；最终代码未改。作者按requesting-code-review模板串行自审：复制为私有值，不冻结caller、不扩大准备清单；真实保存结果和原阶段回调观测，失败/替换阶段所有权回归保持。无未修复Critical/Important，不称独立复核。本轮仍只SQLite、未启PG/建库/新物理附件，主检出/核心/正式依赖/业务库及旧夹具不动，不推送合并发布。
+
+## 224. 日期字段任务不得以保存操作者覆盖记录实际归属
+
+Ruling: 承接原规格归属型定时任务要求，先修正已复现的归属传递问题。保存事件可携带上级 B 的合法可见性上下文，旧 trigger 优先使用该暂存租户而非记录实际 H；真实执行记录因此归到 B。最小实现只把非空记录 tenantId 放在暂存上下文之前，原启用状态复核、上下文重建、Repository 回读、事务传递、共享表和无归属历史回退保持。若把可见性误当任务归属，后继生成数据也会错误归属，故不能保留旧优先级。未增加新 G 扫描器或正式注册。
+
+- [x] 原 snapshot 中真实 SQLite、已登记调度器、实际 Repository 保存事件和真实 Processor/CreateInstruction 复现；不是替身调用参数断言。
+- [x] 最小修复、受影响调度与 tenant 工作流回归、workflow 包构建、作者串行自审及两份原记录；签名结果以 Git 为准。
+
+初始2项中1项真实产品RED、1项通过，实际退出1、10.36秒，schedule-owner-context-red.log，session29523已退出：H记录经B上下文保存，实际已完成执行的tenantId是B。首修复还在listener重建上下文，两文件8通过、实际0、17.80秒，schedule-owner-context-green.log，session88556已退出。自审缩小为最终单处优先级修复，恢复listener旧行为以保留历史回退；负向用例增加await原db.emitAsync及真实队列排空，避免仅靠瞬时空队列判断。两文件8通过、实际0、13.53秒，schedule-owner-context-minimal.log，session92046已退出。负向初轮通过不称产品RED。
+
+最终正向扩为tenantScoped/tenantInherited，核对真实执行tenantId/tenantContext/context.state及实际生成行均属H、原行仍属H、caller仍B、自动任务不继承root人工身份；禁用H不经启用B分派。5文件57全通过、无跳过、实际0、53.84秒，schedule-owner-context-regression.log，session2983已退出。含完整日期字段13、listener6、owner3、模块边界5、tenant实际工作流操作权限30；各轮不相加，不是整分支回归。既有预期授权拒绝日志保留。显式pnpm exec tegod build @tachybase/module-workflow客户端/服务端/依赖/声明全通过、实际0，schedule-owner-context-build.log，session20914已退出。
+
+最终两TS Prettier check通过、oxlint零错误警告（read_lints不可用，聚焦CLI替代）。源/snapshot SHA256一致：DateFieldScheduleTrigger 860FDFEFAA3D54B1269D82C1BE1334AA3BC1F0C7D90D4819AC149363AFA22434，owner test 6593C69A8DA6C4578B78A3FADE532F219CD2121272CA09F5AED3741426D076AF。最终回归后源码未改。作者按requesting-code-review模板串行自审，非独立复核：固定既有触发租户来源，不改ACL/G/V或记录归属；legacy原回退保留，零ID仍以nullish判断，shared未增加查询。测试身份是可信夹具输入，不冒称真实登录/API、PG或新模型调度接线。首次读日志用错工作目录及Windows rg通配只读失败，无数据改动，不计产品RED。未启PG/建库/新物理附件，不触及主检出/核心/正式依赖/业务库及旧目录，不推送合并发布。新G归属扫描、完整定时去重与并发保障仍需独立推进。

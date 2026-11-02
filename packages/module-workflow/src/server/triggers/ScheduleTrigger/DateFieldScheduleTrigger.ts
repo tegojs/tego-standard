@@ -444,7 +444,8 @@ export default class ScheduleTrigger {
     const recordPk = record.get(filterTargetKey);
     let context = getBoundTenantContext(record);
     if (isTenantCollection(collection)) {
-      const tenantId = context?.state?.currentTenantId ?? record.get?.('tenantId') ?? record.tenantId;
+      // Inherited visibility at save time does not make the operator the task owner.
+      const tenantId = record.get?.('tenantId') ?? record.tenantId ?? context?.state?.currentTenantId;
       if (tenantId === null || tenantId === undefined) {
         return;
       }

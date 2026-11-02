@@ -3305,3 +3305,17 @@ Ruling: 用户要求积极推进全流程，选择补齐独立检查器目前必
 本节补齐“原 producer 真实进程终止、UUID 未交付之后发现并独立检查”的受控测试部分，不是生产部署崩溃消费/全量扫描协调、主机崩溃持久性或不可伪造因果证明。完整未知结果协调/实际消费、可信部署根与来源、完整部署写者旧句柄/映射排空、跨会话权限、最后原子动作、逐对象可用性/替换其他入口/业务试点和整分支独立复核继续未完成。所有正式 helper 安装/selected executor/注册/路由/自动安装/规则保存启用继续关闭。下一项须选其中明确独立交付，不重复本节进程终止/发现或 §188—209 已有表征；部署事实缺失仅限制相应放行，不笼统阻塞独立开发。
 
 本节默认签名真实尝试：git commit session37440 实际退出 1，gpg 明确报告 signing failed: Timeout，Git 未写提交对象。只读核实 HEAD 仍为 5c0c4b5e7，原 commit PID53280/80528 和 gpg PID75444 已消失，五文件暂存范围保持。期间看到另一任务的无关 Git/GPG 调用，未触及、不误认为本调用或等待其结果。依用户已明确授权，仅在本调用超时退出后，后继可用 git -c commit.gpgsign=false 完成本批原子提交；不改全局配置、不操作认证窗口、不重复请求。临时跳过不称默认签名 G 或验签通过，最终提交以后继实际 Git 结果为准。
+
+## 211. 租户层级授权使用主库，拒绝读池事务及其保存点
+
+用户明确反对扩大到部署调查，已撤回索要部署账号/物理根/写者清单及新增部署文档的方向。本节回到租户授权产品代码，从实际干净 HEAD b0fb7a850 核实后，只改 context.ts、新 context-primary.test.ts 和两份原记录。问题是租户启用校验虽使用主库，祖先/后代 findAll 未指定 useMaster，读写分离时可重新使用已撤销的层级。新真实 PG 测试在同一专用库建立独立写/读连接池，读池经真实 afterConnect 使用旧层级 schema；不是 WAL 复制实例。编译 G/V 后执行实际 SQL，确认撤销后的 C 不再出现在 H 的读取范围，V 不授予写范围，C 也不能沿旧祖先授权。
+
+初始夹具 3 失败/退出 1/10.13 秒，reader 实际仍使用 public，不是产品 RED。一次诊断错误从 @tego/server 导入未导出的 QueryTypes，1 失败/2 过滤/退出 1/4.04 秒；后继真实 search_path 诊断 1 失败/2 过滤/退出 1/5.31 秒，结合已安装 Database 源码确认其 afterConnect 重置 public。仅夹具在该 hook 之后设置读池 search_path，移除诊断导入/输出。真实产品 RED 为 2 失败/1 通过、退出 1、4.92 秒：SQL 错误返回 id1 和 id2，C 错误得到祖先 H；原普通事务用例已通过。加层级查询 useMaster 后，三文件 101 通过/无跳过、退出 0、41.31 秒；扩展 G/V 与主库禁用租户后，新文件 5 通过/退出 0、6.31 秒。首次显式 tenant 包构建退出 0，但早于后继事务修复，不作为最终构建。
+
+作者自审实际复现 useMaster 无法迁移已有 readOnly 事务的连接：新增用例 1 失败/5 过滤、退出 1、4.40 秒，错误返回旧后代 B/C。先拒绝复制配置下 readOnly 事务后，三文件 104 通过/无跳过、退出 0、39.92 秒，包构建退出 0。继续核对实际 Sequelize transaction 源码，发现保存点使用父连接而自身 readOnly 默认 false；真实新增保存点 RED 为 1 失败/6 过滤、退出 1、3.47 秒，同样返回 B/C。最小修复沿 parent 取得根事务后判断 readOnly；不另开、提交或回滚调用方事务。不依赖租户上下文的共享规则仍在原事务可用，普通事务仍看到自身未提交层级并由调用方回滚。
+
+最终命令 pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/context-primary.test.ts packages/module-tenant/src/server/__tests__/access-control/context.test.ts packages/module-tenant/src/server/__tests__/access-control/query.test.ts --project server --maxWorkers 1 --no-file-parallelism --testTimeout 60000 --hookTimeout 60000 --reporter=verbose：三文件 105 通过、无跳过、实际退出 0、39.39 秒（测试 28.58 秒），tenant-context-primary-savepoint-regression.log，session33592 已退出。包括最终新文件七项，不与前轮相加，不是整分支回归。后继 pnpm exec tegod build @tachybase/module-tenant 包客户端/服务端/依赖/声明全部退出 0，tenant-context-primary-savepoint-build.log，session59228 已退出。两 TS Prettier check 通过、oxlint 零错误警告；最终源/快照 SHA256 一致：context 4456CBF69A1789B7B3836778E5669F250C687BE2533ADB2DCD7586154BC058A1，测试 F804439CADA2AA461A9EBBF86CB25CE2CE4949B4A4DD6FC8952BA5C962FA1E9A。最终回归之后产品和测试不再改动。一次 Windows rg 通配路径失败为只读定位问题，非测试 RED。
+
+按 requesting-code-review 模板作者串行自审：G/V 集合、主库启用状态、旧祖先/后代、普通事务自有变更、读池根事务及保存点、共享规则兼容均有真实行为断言；无新增 SQL 拼接输入、schema/API/依赖变更或全表业务扫描，不修改 tenantId/ACL 语义。未发现本批需修正的问题；此为作者自审，不叫独立复核。不予判断的项及裁决：真实 WAL 延迟/故障切换不在本夹具范围，不据此宣称部署覆盖；主库读取与后继业务 SQL 之间的并发原子性继续依赖原写事务/锁协议，本节不扩大其保证；物理附件清理及正式接入不在本批范围，原门控继续关闭。用户不要求部署事实不阻断本项独立修复，不新建规划文档。
+
+全程原 snapshot/新库 tego_tenant_access_test_a21102d642 严格串行，所有前驱实际退出才启动后继。最初宽进程守卫因其他项目 Donate 的 Vitest 安全拒绝，未杀进程；缩小到精确 snapshot 后，又因 null CommandLine 安全拒绝，补非空判断后正常；均非产品失败。最终 validation 0 后核实 postmaster44800/创建 2026-11-02T14:56:47.205929+08:00/原目录命令及全部 25466 记录仅该 PID；真实 SQL 核实原 data_directory、tenant_test、127.0.0.1 与 /32、25466、postgres 主库非恢复、零其他客户端及 owner。仅删本轮专用库且 pg_database count0，原临时集群正常停止、pg_ctl 无服务、PID 消失、端口全部记录 0，资源收敛 session66028 实际退出 0。集群及 tenant-context-primary-* 日志保留，旧 session-6cUGZR/十月既有目录未触及。未修改主检出/核心/正式依赖/既有附件，未推送/合并/发布；精确四文件提交和签名以后继实际 Git 结果为准。

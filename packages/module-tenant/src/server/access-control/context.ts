@@ -23,6 +23,12 @@ export async function resolveActiveAccessTenant(
   identity: AccessIdentity,
   options: { transaction?: Transaction; lock?: boolean } = {},
 ): Promise<string> {
+  // Savepoints inherit the root connection; useMaster cannot move a read-pool transaction.
+  type RoutedTransaction = Transaction & { options?: { readOnly?: boolean }; parent?: RoutedTransaction };
+  let transaction = options.transaction as RoutedTransaction | undefined;
+  while (transaction?.parent) transaction = transaction.parent;
+  if (transaction?.options?.readOnly === true && db.options.replication)
+    throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Read-pool authorization transaction is unsupported');
   const tenantId = normalizeAccessContextValue('tenant.id', identity.tenantId) as string;
   const model = db.getCollection('tenants')?.model;
   if (!model) throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Tenant identity source is unavailable');
@@ -119,7 +125,7 @@ export async function resolveAccessContext(
   // Read authorization facts in the supplied transaction; do not reuse middleware path caches.
   const records = await model
     .unscoped()
-    .findAll({ attributes: ['id', 'parentId', 'enabled'], limit: 10001, transaction });
+    .findAll({ attributes: ['id', 'parentId', 'enabled'], limit: 10001, transaction, useMaster: true });
   if (records.length > 10000)
     throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Tenant hierarchy exceeds supported size');
   const tenants = new Map(

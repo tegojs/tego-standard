@@ -175,6 +175,8 @@ export default class ScheduleTrigger {
 
   private inspections = new Map<string, object>();
 
+  private discovery = {};
+
   private lifecycle = {};
 
   private captureCurrent(workflow: WorkflowModel) {
@@ -214,6 +216,7 @@ export default class ScheduleTrigger {
 
   async reload() {
     const lifecycle = this.lifecycle;
+    const discovery = (this.discovery = {});
     const cancellations = new Map(this.cancellations);
     try {
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
@@ -222,7 +225,7 @@ export default class ScheduleTrigger {
         transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
       });
-      if (this.lifecycle !== lifecycle) return;
+      if (this.lifecycle !== lifecycle || this.discovery !== discovery) return;
 
       // Keep live handles cancellable; schedule deduplicates and fired callbacks retire them.
       await this.inspect(

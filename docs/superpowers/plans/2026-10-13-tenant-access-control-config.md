@@ -4221,3 +4221,14 @@ Ruling: reload 的工作流列表查询发生在 inspect 捕获生命周期之�
 - [x] date-schedule-reload-lifecycle-build.log workflow客户端/服务端/依赖/声明完整构建实际退出0，session93604已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger A4C279C9FD60A3CC421EA49CB91D133A1E694AB39AFE880648B3AE8899BC52CF；date-lifecycle.test B7DBCC801795255C683031BAA83ED579853FF0F9A829131B4843B9CBFD352F53，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：捕获在原查询之前，复核在任何 inspect 发布之前；生命周期只由原停止边界失效，不影响同一生命周期正常扫描，错误仍交原 logger。无本项未修复Critical/Important。不予本项裁决：静态独立启动查询自身跨停止、同一生命周期列表重叠的完整排序、已入队撤销、持久租约/跨实例原子去重、新G消费者/业务试点及整分支独立复核，均需各自真实依据。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§272 7d946e837e57e186b540ce165cd0dcf473fd2bb5默认签名成功且独立verify-commit实际0/签名G，全局签名true。
+
+## 274. 日期乱序发现列表不能恢复旧来源
+
+Ruling: 同一生命周期内两次 reload 的列表查询也可能乱序交付；逐工作流 inspection 标识只在进入 inspect 后分配，晚交付的旧列表会取得更新标识并覆盖已登记的新来源。每次 reload 开始即替换实例私有 discovery 身份，列表交付后只允许最新调用进入 inspect，同时保持原生命周期与逐工作流取消检查。后继发现失败时也不恢复更早未交付列表；既有 timer 保留，后续原周期可重扫。
+
+- [x] 原真实 SQLite date-lifecycle 新案例启动时 workflow disabled，等待原初始 reload 完成；同库旧 C/新 B 来源具有相同 id/未来时点。仅延迟真实旧 workflow 列表 SQL 的交付，hooks:false 修改本测试持久 config 指向 B 来源，完成后继 reload 后再交付旧列表。最终仅一条 B execution、context.data.tenantId B及 B 业务结果，没有重启、转移记录归属或伪造 SQL 返回值。
+- [x] date-schedule-overlap-discovery-red.log：1失败3过滤/4总、实际退出1/16.91秒（测试13.40），session49883已退出；时间守卫通过，实际execution归属 C、预期 B，尚未进入后继context/业务行断言。最小实现后完整 lifecycle4全通过、无跳过、实际0/29.96秒，date-schedule-overlap-discovery-green.log，session28775已退出。
+- [x] 最终 date-schedule-overlap-discovery-regression.log 七文件81全通过、无跳过、实际0/160.37秒（测试117.75），session88333已退出；lifecycle4、external20、mode-date-field13、Plugin24、owner9、listener6、tenant-module-boundary5。新项含于81，不累加旧80、green4或RED，不是整分支回归。
+- [x] date-schedule-overlap-discovery-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session57815已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger E0028D0F5675226021573A44BA256C84B9D3DE9755088F375AA15F50DADF65D7；date-lifecycle.test 32CCDFCDDCF656F47C365E705FCD14125F349592E70D21DC5245DD746ECCF5AE，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：查询开始顺序固定列表身份，发布前检查不增加SQL或权限；原逐工作流扫描身份仍保护各自异步业务查询，取消及停止身份独立保持。无本项未修复Critical/Important。不予本项裁决：更早列表已进入inspect而后继列表仍在途的完整交错、静态首次启动发现自身跨停止、已入队撤销、持久租约/跨实例原子去重、新G正式消费者/业务试点和整分支独立复核。下一静态夹具已在工作区准备、仅格式/lint通过，未运行且不纳入本节四文件提交；其格式首查退出1已格式化修正，不算产品RED。只SQLite，无PG/新附件，不推送合并发布或正式启用。前§273 8b31c589fdd97e78f952d2c1738c4cd369a8d467默认签名成功且独立verify-commit实际0/签名G，全局true。

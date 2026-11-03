@@ -153,6 +153,98 @@ describe('date schedule discovery lifecycle', () => {
     }
   });
 
+  it('keeps the latest source when overlapping reload lists return out of order', async () => {
+    app.db.collection({
+      name: 'replacementDateLifecycleDocuments',
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+      ],
+    });
+    await app.db.sync();
+    await app.db.getCollection('tenants').model.create({ id: 'C', enabled: true, path: '/C/' });
+    const repository = app.db.getRepository('workflows');
+    const workflow = await repository.create({
+      values: {
+        type: 'schedule',
+        enabled: false,
+        config: { mode: 1, collection: 'dateLifecycleDocuments', startsOn: { field: 'scheduledAt' } },
+      },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'dateLifecycleResults', params: { values: { label: 'Latest source task' } } },
+    });
+    await app.stop();
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const installed = plugin.triggers.get('schedule') as unknown as { modes: Map<number, DateFieldScheduleTrigger> };
+    const mode = installed.modes.get(1)!;
+    const startupReloads: Promise<void>[] = [];
+    const reload = mode.reload.bind(mode);
+    const observeReload = vi.spyOn(mode, 'reload').mockImplementation(() => {
+      const result = reload();
+      startupReloads.push(result);
+      return result;
+    });
+    try {
+      await app.start();
+      await Promise.all(startupReloads);
+    } finally {
+      observeReload.mockRestore();
+    }
+    const due = Math.ceil((Date.now() + 5000) / 1000) * 1000;
+    await app.db
+      .getCollection('dateLifecycleDocuments')
+      .model.create({ id: 1, tenantId: 'C', scheduledAt: new Date(due) });
+    await app.db
+      .getCollection('replacementDateLifecycleDocuments')
+      .model.create({ id: 1, tenantId: 'B', scheduledAt: new Date(due) });
+    await app.db
+      .getCollection('workflows')
+      .model.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let discovered = false;
+    const find = repository.find.bind(repository);
+    const discovery = vi.spyOn(repository, 'find').mockImplementation(async (options) => {
+      const rows = await find(options);
+      if (!discovered && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
+        expect(rows.map((row) => row.config.collection)).toEqual(['dateLifecycleDocuments']);
+        discovered = true;
+        await hold;
+      }
+      return rows;
+    });
+    const oldReload = mode.reload();
+    try {
+      await waitForFastAssertion(() => expect(discovered).toBe(true));
+      await app.db
+        .getCollection('workflows')
+        .model.update(
+          { config: { mode: 1, collection: 'replacementDateLifecycleDocuments', startsOn: { field: 'scheduledAt' } } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+      await mode.reload();
+      expect(Date.now()).toBeLessThan(due);
+      release();
+      await oldReload;
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+        expect(executions[0].context.data.tenantId).toBe('B');
+        const rows = await app.db.getRepository('dateLifecycleResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Latest source task']]);
+      });
+      await waitForWorkflowIdle(app);
+    } finally {
+      release();
+      await oldReload;
+      discovery.mockRestore();
+    }
+  });
+
   it('retains the next numeric repeat when the enabled read crosses a second', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

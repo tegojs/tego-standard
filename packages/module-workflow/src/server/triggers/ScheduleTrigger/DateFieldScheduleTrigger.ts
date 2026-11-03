@@ -175,10 +175,13 @@ export default class ScheduleTrigger {
 
   private inspections = new Map<string, object>();
 
+  private lifecycle = {};
+
   private captureCurrent(workflow: WorkflowModel) {
     const key = `${workflow.id}`;
     const token = this.cancellations.get(key);
-    return () => this.cancellations.get(key) === token;
+    const lifecycle = this.lifecycle;
+    return () => this.lifecycle === lifecycle && this.cancellations.get(key) === token;
   }
 
   // caching workflows in range, default to 5min
@@ -196,6 +199,7 @@ export default class ScheduleTrigger {
     });
 
     workflow.app.on('beforeStop', () => {
+      this.lifecycle = {};
       if (this.timer) {
         clearInterval(this.timer);
         this.timer = null;

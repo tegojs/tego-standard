@@ -4187,3 +4187,15 @@ Ruling: 独立启动发现而未进入 enabledCache 的静态任务，到期已�
 - [x] 两TS最终Prettier check与oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger F298CB11D323815785E3C409EADAC1007F8E19157EB213AFAE15237191F8C914；static-lifecycle.test E06A586FE9C8A837867EA5B53E5D64C62E99D2FB30C723FE81A73EA0ABC0DE4D，最终代码后未改。一次误在非Git snapshot执行只读status失败，不是测试RED或源码变化。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：生命周期标识属于实际安装实例、不可由 caller 复活，beforeStop 不依赖 enabledCache 覆盖；负向发生在任何新配置更新前，后继正常任务提供正向控制。无本项未修复 Critical/Important。只使停止前已开始的到期查询失效；独立启动发现查询自身跨越 stop、日期模式的同类边界、已经入队的撤销、跨实例原子去重/持久租约和完整停止矩阵仍未宣称解决。正式G消费者/业务试点/整分支独立复核保持未完成。本轮只SQLite，未启PG/建库/物理附件，不改主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§269 e4a283c3b7c8ab47d3722255079e634b5c9c8f4a 默认GPG成功、后继独立verify-commit实际0/签名G，全局签名true。
+
+## 271. 停止使在途日期任务及监听调用失效
+
+Ruling: 日期任务也能由独立 reload 发现、未进入通用 enabledCache；停止前已读主库启用状态的 trigger，不会因清空原 timer 或缓存 off 而自动失效。以日期触发器的私有 lifecycle 在 beforeStop 同步替换，原 captureCurrent 同时核对该实例生命周期与每工作流取消标识，供原扫描、timer、trigger和监听器等待后的检查复用。保持原租户主库事实、记录归属、目标事务来源和正常新调用。
+
+- [x] 新 date-lifecycle.test.ts 使用实际安装实例、独立内存 SQLite，真实 tenants B、归属B的日期源行及租户结果表。通用启动查询实际读空后 hooks:false 启用新任务，独立 reload 登记真实 timer；确认 enabledCache 无该 id且启动早于到期。最终 workflow 主库 SQL 已返回时暂停交付，真实停止、越过原到期秒后重启再交付旧调用，要求无 execution/结果。后继真实 Repository 更新新时点，要求仅一条B execution、context.data.tenantId B及B结果行。
+- [x] date-schedule-stop-pending-read-red.log 1失败、无跳过、实际1/18.74秒（测试11.88），session13773已退出；execution实际1而非0，断言在结果检查前停止。一次在功能树读取日志的路径错误不是测试RED。最小修复后首批七文件 date-schedule-stop-pending-read-regression.log 实为失败：76通过2失败/78总、实际1/167.82秒（测试130.72），session99898已退出。新例的停止负向已过，正向误用 model.update 不会发出 afterSaveWithAssociations；仅改为真实 Repository 更新，保持B身份和数量断言。
+- [x] 同批原 mode-date-field 数字周期用例另出现1次预期2实际1，不能归为同一修复或断言偶发。临时透传真实 getRecordNextTime 记录时刻；date-schedule-stop-repeat-diagnostic.log 两个聚焦用例通过、12过滤/14总、实际0/26.89秒，session47259已退出。观察到该次正常初始交付与下一时点；未定位首轮失败的确切时刻，不冒称已修复数字周期，待受控延迟独立复现。临时日志全部撤回，mode-date-field源/snapshot均恢复原文件。
+- [x] 移除诊断后 date-schedule-stop-pending-read-final-regression.log 新lifecycle1及完整mode-date-field13全通过、无跳过、实际0/81.88秒（测试45.36），session95632已退出；同一最终 runtime 下首批其余external20、owner9、listener6、Plugin24、tenant-module-boundary5共64项均通过。分两批有效覆盖七文件78项，不是一次78全绿、不累加诊断或旧轮次；首轮两失败如实保留，不是整分支回归。
+- [x] date-schedule-stop-pending-read-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session37761已退出。两TS最终Prettier check与oxlint零警告错误；源/snapshot SHA256一致：DateFieldScheduleTrigger DDC9C9D34CD7B92FB041F123FC4E606E2BB989216F259857F218FC4260106FF0；date-lifecycle.test E7B726E5F1843FA94A1432904A318E44A56E1DE731C590206E65828619550D55，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：生命周期属于实际实例，停止无须遍历完整任务清单也能否定此前捕获的调用；原每工作流off仍独立，正向通过真实保存事件验证B身份传递。无本项停止边界的未修复Critical/Important，数字周期首轮失败单独保留待查。此项不覆盖尚未进入inspect的旧reload列表查询、已入队事件撤销、跨实例租约/原子去重、完整停止矩阵、新G正式消费者或整分支独立复核。只SQLite，无PG/物理附件，不触及主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§270 450443ec1e24b2606402bea9be61551714e211c1 默认签名成功且后继独立verify-commit实际0/签名G，全局签名true。

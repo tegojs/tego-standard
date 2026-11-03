@@ -4266,3 +4266,15 @@ Ruling: 日期缓存将实际记录键直接拼入 workflow:id@time，取消时�
 - [x] date-schedule-string-key-cancellation-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session72830已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA256一致：DateFieldScheduleTrigger A186B1233D123DB762C7FFE638FC1F107B968DC0C5DFFF8FF86B48B9E6B398F4；date-record-identity.test F4BF7AAFE93C7B47C06C57D304303CFE104EC0C7279DD9A4F4E2884DAE79544F，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：原身份字符串化约定保持，JSON编码提供完整键边界并处理分隔符/转义，不改SQL身份或输出；登记、局部取消、整体off和消费finally均已逐处核对。无本项未修复Critical/Important。不予本项裁决：持久租约/跨实例去重、全启停交错、已入队撤销、正式G消费者/业务试点及整分支独立复核。下一cron启用状态夹具仅准备并格式/lint通过，尚未运行、不纳入本节；其首格式check1已修正，非产品RED。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§276 de8fbf0a16581d19073ad796dc0f1555231b1184默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 278. Cron 持久停用后不再分派租户任务
+
+Ruling: Cron 的 StaticScheduleTrigger 在取得原缓存锁后仅检查任务是否存在，忽略已持久停用状态。现同一回读同时要求 enabled；缺失或停用沿用原提前返回路径，删除对应 timer 键并释放原锁，不进入工作流分派或计数。三个既有 tenant 单测 fixture 补 enabled:true，原断言保持。没有更改读池选择、租户扫描、计数算法、锁协议或正式接线。
+
+- [x] 新 static-schedule-enabled.test.ts 使用真实内存SQLite、原 CronJobModel/collection 和真实 workflow 插件类注册。直接调用原 trigger，透传真实 CronJobLock.acquire 并在取得实际缓存锁后暂停交付；核 isLocked=true，再通过 Repository 持久停用。返回后 events/preparing/pending/executing 均空，execution/业务行0，disabled及两计数0，锁已释放。正常重新启用、同一时点新调用仅生成一个B execution和B业务结果，两计数各1且锁释放。未调用 cron service.load 或真实 timer，不宣称覆盖完整 cron 生命周期。
+- [x] cron-schedule-enabled-red.log 首轮1失败并1格式化异常、实际1/11.63秒，session99195已退出；字符串加载的已安装插件类与源码导入类不同，实例一致性断言失败且格式化触发toJSON路径异常，非产品RED。核实真实plugin manager按构造函数查找协议后，采用框架支持的真实类注册，不伪造pm.get或workflow.trigger。
+- [x] 修正后 cron-schedule-enabled-fixture-red.log 干净产品RED：1失败、无跳过、实际1/8.00秒，session4364已退出；execution实际1、预期0，后继业务/计数/重新启用尚未执行。最小两行修复后三个cron文件10全过、实际0/13.66秒，cron-schedule-enabled-green.log，session86889已退出。
+- [x] 仅加强实际缓存已存在及正向计数断言后，最终 cron-schedule-enabled-regression.log 六文件62全通过、无跳过、实际0/44.92秒（测试20.71），session75798已退出：enabled1、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于62，不累加green10、§277的82或RED，不是整分支回归。
+- [x] cron-schedule-enabled-build.log cron客户端/服务端/依赖/声明完整构建实际0，session16135已退出。三TS最终Prettier check、oxlint0，源/snapshot SHA一致：runtime 2CA928F34D2237895BEBE7ED8AD90CBD9D7D167B157FD523BBBD3563CFFE2E93；tenant test A42DCE591F9E23BB83D646C07F72AC5C2DED7DAABDF2F5AE4E9EE01077A9D17B；enabled test 4DBE77D6422D3659DB3B229FB7862A9D9372370129E2B3DFEBEFC3E8BD86EF21。最终代码后未改；首格式check1已格式化修正，非产品RED。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：停用判定先于workflow读取、分派及计数，负向真实持久结果及重新启用控制验证原行为。无本项未修复Critical/Important。不予本项裁决：取得锁后的SQL异常释放、读池权威及停用回读后的完整并发窗口，需各自真实复现；持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核仍未完成。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§277 a4e17d520a4cb8f62a604540b20b4b02ab2c5030默认签名成功且独立verify-commit实际0/签名G，全局true。

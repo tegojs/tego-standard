@@ -256,8 +256,8 @@ export class StaticScheduleTrigger {
         .getRepository(DATABASE_CRON_JOBS)
         .findOne({ filterByTk: cronJobId })) as CronJobModel;
 
-      if (!cronJob) {
-        this.logger.warn(`Scheduled cron job ${cronJobId} no longer exists`);
+      if (!cronJob || !cronJob.enabled) {
+        this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);
         this.timers.delete(eventKey);
         await this.cronJobLock.release(cronJobId, time);
         return;

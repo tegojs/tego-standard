@@ -4255,3 +4255,14 @@ Ruling: Plugin.beforeStart 的逐工作流 registrationChanges 只能观察实�
 - [x] workflow-startup-stop-registration-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session56925已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：Plugin 32B3CF0EEBFAFF1D2ABB174AC6DCE72F4B79616E25ED537874EF1920C29EE006；startup-lifecycle.test 12A8835AE8F687C9D924CF5A2B0DE443D33201477288DACC460AF9EB9F778B6A，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：停止标识独立于cache及单个任务更新，查询后复核先于全部同步注册；没有添加SQL、改变归属、结束caller事务或赋予新权限。原逐任务启用/配置变更仍使相应旧对象失效。无本项未修复Critical/Important。不予本项裁决：核心完整并发启停协议、查询后的其他实例再停用窗口、已入队任务撤销、持久租约/跨实例原子去重、正式G任务消费者/业务试点及整分支独立复核。只SQLite，无PG/新附件，不改主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§275 3314ab8bc6b631026e9618c4d989be70d99e95f5默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 277. 字符串记录键取消不能吞掉其他归属任务
+
+Ruling: 日期缓存将实际记录键直接拼入 workflow:id@time，取消时按 workflow:id@ 前缀遍历；合法字符串键 a@b 会匹配取消 a 的前缀，连带吞掉其他实际归属的任务。仅在内存缓存中将原字符串规范化身份编码为JSON字符串，登记与取消使用同一完整编码边界；数据库filterTargetKey、原记录键值、租户上下文和事件去重条件不变。workflow整体off的前缀和原timer消费回收保持，无新schema/权限/正式接线。
+
+- [x] 新 date-record-identity.test.ts 使用真实内存SQLite、字符串主键taskKey及tenantScoped来源/结果表。原实际安装实例完整扫描同一时点的 a/B、a@b/H、a@b@c/H；真实Repository仅将 a 的scheduledAt清空。要求仅后两项生成真实H execution及两条H create结果，原三行的归属/键值保持，a时点为null、其他仍为原时点。透传原inspect并等待实际扫描完成，不以cache形状断言或伪造SQL结果。
+- [x] date-schedule-string-key-cancellation-red.log：1失败、无跳过、实际1/16.08秒（测试12.87），session49436已退出；扫描/时间守卫通过，实际execution空数组而非两个H任务，尚未进入后继业务行及来源断言。最小实现后新文件1全通过、实际0/11.41秒，date-schedule-string-key-cancellation-green.log，session80958已退出。
+- [x] 最终 date-schedule-string-key-cancellation-regression.log 八文件82全通过、无跳过、实际0/123.27秒（测试99.02），session18327已退出：新identity1、lifecycle4、external20、owner9、listener6、mode-date-field13、Plugin24、tenant-module-boundary5。含原数字零键、不同记录同一时点去重、主库归属/生命周期/事务兼容；新项含于82，不累加green1、此前81/69或RED，不是整分支回归。
+- [x] date-schedule-string-key-cancellation-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session72830已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA256一致：DateFieldScheduleTrigger A186B1233D123DB762C7FFE638FC1F107B968DC0C5DFFF8FF86B48B9E6B398F4；date-record-identity.test F4BF7AAFE93C7B47C06C57D304303CFE104EC0C7279DD9A4F4E2884DAE79544F，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：原身份字符串化约定保持，JSON编码提供完整键边界并处理分隔符/转义，不改SQL身份或输出；登记、局部取消、整体off和消费finally均已逐处核对。无本项未修复Critical/Important。不予本项裁决：持久租约/跨实例去重、全启停交错、已入队撤销、正式G消费者/业务试点及整分支独立复核。下一cron启用状态夹具仅准备并格式/lint通过，尚未运行、不纳入本节；其首格式check1已修正，非产品RED。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§276 de8fbf0a16581d19073ad796dc0f1555231b1184默认签名成功且独立verify-commit实际0/签名G，全局true。

@@ -472,9 +472,10 @@ export default class ScheduleTrigger {
       .get(dataSourceName)
       .collectionManager.getCollection(collectionName);
     const recordPk = record.get(filterTargetKey);
+    const recordKey = JSON.stringify(`${recordPk}`);
     if (toggle) {
       const nextInterval = Math.max(0, nextTime - Date.now());
-      const key = `${workflow.id}:${recordPk}@${nextTime}`;
+      const key = `${workflow.id}:${recordKey}@${nextTime}`;
 
       if (!this.cache.has(key)) {
         if (nextInterval) {
@@ -495,7 +496,7 @@ export default class ScheduleTrigger {
       }
     } else {
       for (const [key, timer] of this.cache.entries()) {
-        if (key.startsWith(`${workflow.id}:${recordPk}@`)) {
+        if (key.startsWith(`${workflow.id}:${recordKey}@`)) {
           clearTimeout(timer);
           this.cache.delete(key);
         }

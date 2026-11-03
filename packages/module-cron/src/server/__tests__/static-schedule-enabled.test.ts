@@ -605,6 +605,85 @@ describe('cron state at dispatch', () => {
     }
   });
 
+  it('retains a replacement timer handle when an older same-key invocation finishes', async () => {
+    const { workflow, repository, cronJob, lock, service } = await createFixture();
+    await service.load();
+    const time = Math.floor(Date.now() / 1000) * 1000 + 3000;
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let acquired = false;
+    const acquire = lock.acquire.bind(lock);
+    const acquiring = vi.spyOn(lock, 'acquire').mockImplementation(async (...args) => {
+      const result = await acquire(...args);
+      if (!acquired) {
+        expect(result).toBe(true);
+        acquired = true;
+        await hold;
+      }
+      return result;
+    });
+    const trigger = service.trigger.bind(service);
+    const calls: Promise<void>[] = [];
+    const observing = vi.spyOn(service, 'trigger').mockImplementation((...args) => {
+      const result = trigger(...args);
+      calls.push(result);
+      return result;
+    });
+    try {
+      await repository.update({ filterByTk: cronJob.id, values: { startsOn: new Date(time) } });
+      const scheduled = await repository.findOne({ filterByTk: cronJob.id });
+      await waitForFastAssertion(() => expect(acquired).toBe(true));
+      expect(await lock.isLocked(cronJob.id, time)).toBe(true);
+      expect(Date.now()).toBeLessThan(time + 500);
+      expect(service.getNextTime(scheduled, new Date())).toBe(time);
+      service.off(scheduled);
+      service.on(scheduled);
+      release();
+      await calls[0];
+      expect(calls).toHaveLength(1);
+      service.off(scheduled);
+      await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(time + 1000));
+      const plugin = app.pm.get('workflow');
+      await waitForFastAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
+      const cancelled = await repository.findOne({ filterByTk: cronJob.id });
+      expect([cancelled.allExecuted, cancelled.limitExecuted]).toEqual([0, 0]);
+      expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+    } finally {
+      release();
+      try {
+        await Promise.all(calls);
+      } finally {
+        acquiring.mockRestore();
+        observing.mockRestore();
+        service.off(cronJob);
+      }
+    }
+    const nextTime = Math.floor(Date.now() / 1000) * 1000 + 2000;
+    await repository.update({ filterByTk: cronJob.id, values: { startsOn: new Date(nextTime) } });
+    try {
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])).toEqual(
+          [['B', nextTime]],
+        );
+        const rows = await app.db.getRepository('cronEnabledResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Enabled cron task']]);
+      });
+      const persisted = await repository.findOne({ filterByTk: cronJob.id });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+      expect(await lock.isLocked(cronJob.id, nextTime)).toBe(false);
+    } finally {
+      service.off(cronJob);
+    }
+  });
+
   it.each([
     { endsOn: '2026-01-01T00:00:01.000Z', expected: null },
     { endsOn: '2026-01-01T00:00:02.000Z', expected: '2026-01-01T00:00:02.000Z' },

@@ -4429,3 +4429,14 @@ Ruling: §290只使已进入trigger的旧调用失效；启动SQL已读旧时点
 - [x] cron-startup-reschedule-build.log cron客户端/服务端/依赖/声明完整构建命令直接实际0，无后继session。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime BE94620B900DC7443D031FE2A807B092927C1315D4F6D1B2D7780775012A44A8；dispatch test 726EFE50CF95D24C01FF0A2A0251112CA0FC0D2E3C113AF415095FF76838122B，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：首次await前复制标识，off替换对象而非原地修改，逐行检查到同步inspect间无await；主库读取与跨停止生命周期复核保持，未变行真实timer控制排除全列表取消。无本项未修复Critical/Important。快照成本随本实例取消标识数量增加，不声明规模上限。不予本项裁决：绕过本实例保存事件的跨实例变化、所有启停重入/已入队完整撤销、同键新旧timer/缓存TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/建库/新附件；原PG正常停止，日志与集群保留。只改两TS及两原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§290 bb3f0f82ec9431b56c65a22b6f0e4120ff0fa67e默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 292. Cron 旧调用结束时保留同键替换 timer 的句柄
+
+Ruling: 原trigger按key无条件删除timer Map项；旧到期调用等待真实缓存锁交付期间off/on登记同key替换timer，旧调用结束会删除新句柄，后继off无法取消。首次await前捕获当前句柄，四处消费/最终清理仅在Map仍指向该句柄时删除；原取消标识、主库回读、计数与缓存锁release保持。
+
+- [x] 原SQLite夹具service.load/Repository保存未来3秒时点，真实Node timer进入原acquire且实际取得锁后，仅暂停结果交付。原off/on同秒重排，释放并等待旧调用，calls.length=1及时间守卫确认替换尚未开始，再次off；跨原时点1秒并等待events/preparing/pending/executing全空，要求execution/业务行/两计数0及原锁释放。恢复spy后正常Repository保存新未来时点，真实timer必须唯一B execution、精确context.date、B业务结果及两计数1。没有伪造SQL、锁结果或timer，没有直接调用后继trigger。
+- [x] cron-timer-ownership-red.log干净RED：1失败15过滤/16总、实际1/15.47秒，session28706已退出。真实缓存/到期/同秒重排/替换尚未开始/队列空闲守卫通过，execution实际1、预期0，未进入后继新时点正向断言。最小句柄比较后完整dispatch16全通过、无跳过、实际0/81.23秒，cron-timer-ownership-green.log，session22501已退出，正常新timer持久B结果及计数通过。
+- [x] 最终cron-timer-ownership-regression.log六SQLite文件77全通过、无跳过、实际0/83.51秒（测试109.22并行累计），session86337已退出：dispatch16、tenant7、list2、Plugin24、collection23、tenant-module-boundary5。新项含于77，不累加green16、此前76/含PG80或RED，非整分支回归；本项没有SQL路由改变，未重跑PG7。
+- [x] cron-timer-ownership-build.log cron客户端/服务端/依赖/声明完整构建实际0，session81874已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime AAFB21BAB1DE00BD3700F90DDCF341296112546B7A08B2E394B824A283986A3D；dispatch test C1E0BE120A63B27882CF308230E216B112322339236530712FD41D34B46B6EEF，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：清理只比较本次捕获的原句柄，不接管后来登记的句柄；四个原删除点均使用同一局部检查，未改变事件取消或缓存锁协议。无本项未修复Critical/Important。不予本项裁决：缓存acquire异常与TTL锁所有权、全部启停重入/已入队撤销、最终事实到SQL完整并发隔离、持久租约/跨实例原子去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/建库/物理附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§291 c843f1bd1c80673852f420f8535115d33bf34461默认签名成功且独立verify-commit实际0/签名G，全局true。

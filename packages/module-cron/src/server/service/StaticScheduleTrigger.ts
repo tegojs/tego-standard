@@ -254,6 +254,10 @@ export class StaticScheduleTrigger {
 
   async trigger(cronJobId: number, time: number) {
     const eventKey = `${cronJobId}@${time}`;
+    const timer = this.timers.get(eventKey);
+    const retireTimer = () => {
+      if (this.timers.get(eventKey) === timer) this.timers.delete(eventKey);
+    };
     const lifecycle = this.lifecycle;
     const cancellation = this.cancellations.get(`${cronJobId}`);
     const isCurrent = () => lifecycle === this.lifecycle && cancellation === this.cancellations.get(`${cronJobId}`);
@@ -267,7 +271,7 @@ export class StaticScheduleTrigger {
         this.logger.info(
           `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
         );
-        this.timers.delete(eventKey);
+        retireTimer();
         return;
       }
 
@@ -278,11 +282,11 @@ export class StaticScheduleTrigger {
 
       if (!cronJob || !cronJob.enabled) {
         this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);
-        this.timers.delete(eventKey);
+        retireTimer();
         return;
       }
 
-      this.timers.delete(eventKey);
+      retireTimer();
 
       // TODO: 保存pluginWorkflow
       const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
@@ -348,7 +352,7 @@ export class StaticScheduleTrigger {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
     } finally {
       if (lockAcquired) {
-        this.timers.delete(eventKey);
+        retireTimer();
         await this.cronJobLock.release(cronJobId, time);
       }
     }

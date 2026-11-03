@@ -4611,3 +4611,14 @@ Ruling: 原捕获时间若早于本次due 1ms，nextSecond按秒进位后仍落�
 - [x] 最终两TS格式check/oxlint0、源snapshot一致：DateFieldScheduleTrigger AB6E8C235F51B696089FE741571A15E42B3E42403BED923F455C8B8006A40B3A；date-lifecycle test 527B70D52797B12592E08FDF66AEB5EF901C6D6DD2322BF3CCC58AB2F7BBCCB3。代码之后未改；一次只读猜测Cron文件路径不存在非测试RED。前§305 e6edcb7822cd331155bc22f9c76c4d2179c623cc默认签名提交实际0，后继独立verify-commit实际0/G；§301—304同G，§297—300仍N，全局true。所有日志/原PG集群/旧目录及D盘进程TEMP/TMP目录保留。
 
 按requesting-code-review模板作者串行自审，非独立复核：参考下界只取已有合法发生时点，不增加授权、SQL或重复次数；入口时间捕获仍早于最终权限读取，§272延迟兼容与直接事务调用均通过，永久测试不依赖私有cache结构。无本项未修复Critical/Important。不予本项裁决：§305首轮未定位异常的真实因果、原生时钟/事件循环的完整行为、静态调度同边界（当前仅只读候选，须独立复现）、当前workflow配置全部复核、任意长查询补跑/系统时钟大幅回拨政策、最终授权到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。
+
+## 307. 静态重复参考时间不早于本次发生时点
+
+Ruling: 静态数字重复在入口参考早于due 1ms、权限读取交付延至due+1100ms时，原nextSecond进位仍落在due，数字计算错误选择已过的due+1000；后续重算越过结束边界，缺少due+2000。首次await前参考下界限定为本次time，仅供原重复计算；当前主库完整模型、发生时点合法性、取消/生命周期和原执行路径保持。静态timer入口已移除本次键，不将此机制误称为§306的日期cache去重丢弃。
+
+- [x] 原static-lifecycle真实SQLite/Node timer/主库SQL/队列，原延迟两项扩为数字1000与cron每2秒各自然对照/受控早参考。仅首次trigger同步入口用toFake:['Date']控制为due-1ms，取得原Promise后finally立即恢复；原timer、SQL和普通静态业务结果真实，不冒称B租户试点。static-repeat-reference-floor-red.log干净1失败3通过16过滤/20总、实际1/32.41秒，session14066已退出；唯一失败是受控数字项，实际[1793700846000,1793700847000]而非[1793700846000,1793700848000]，其他三项原过，不称四案均RED。未测得原生timer提前，不反向解释§305首轮未定位异常。
+- [x] 最小repeatFrom=max(入口Date.now,本次time)后static-repeat-reference-floor-green.log四项通过16过滤/20总、实际0/31.38秒，session19756已退出；每项精确due与due+2000、两业务行及两计数2，SQL交付跨秒与第二时点尚未到期守卫保留。
+- [x] static-repeat-reference-floor-regression.log七SQLite文件96全通过/无跳过/实际0/113.07秒（测试186.71并行累计），session34146已退出：static-lifecycle20、static-discovery1、mode-static11、Plugin24、boundary5、date-lifecycle5、tenant workflow-operation-authority30。static-repeat-reference-floor-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session82973已退出。四聚焦项含于96，不累加RED/green/§306的137或旧PG，非整分支回归；本项无SQL/dialect改动，未启PG/建库/Redis服务或新物理附件。
+- [x] 两TS最终Prettier check/oxlint0，源snapshot一致：StaticScheduleTrigger 1425926C8CFC157A915C5ADE65C63A58DC2FBC5ADE740656F3D65750CC839A2A；static-lifecycle test B6905FC43BCD9FAEFBE377E267CF8416BC01DD4E22D6DD7F5EADCA3580505B87。代码之后未改。首格式命令将PowerShell数组合为一个参数导致找不到模式/实际2，改用显式两路径后check/lint实际0，非产品RED。数次猜测不存在源码/Windows通配路径只读定位失败非RED，后用rg实际路径读取。前§306 cc772d826e424900100d6ac09c19559ba209498e默认GPG提交实际0，后继独立verify-commit实际0/G；§301—305同G，§297—300仍N/global true，不复用历史Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：对照当前主库配置/界限/limit与真实业务行，参考下界不增加SQL、授权或共享状态；自然/受控及数字/cron控制保护既有延迟兼容。无本项未修复Critical/Important。不予本项裁决：原生timer/系统时钟全部行为、§305首轮未定位异常、任意长查询补跑/大幅回拨、日期当前workflow配置全部复核、最终权限到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用；保留全部日志、原PG集群、旧目录及D盘进程TEMP/TMP目录。

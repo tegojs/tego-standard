@@ -62,9 +62,14 @@ describe('static schedule discovery lifecycle', () => {
     }
   });
 
-  it.each([1000, '*/2 * * * * *'])(
-    'preserves the next static repeat %s while its authority read is delayed',
-    async (repeat) => {
+  it.each([
+    { repeat: 1000, earlyReference: false },
+    { repeat: '*/2 * * * * *', earlyReference: false },
+    { repeat: 1000, earlyReference: true },
+    { repeat: '*/2 * * * * *', earlyReference: true },
+  ])(
+    'preserves the next static repeat $repeat while its authority read is delayed (controlled early reference: $earlyReference)',
+    async ({ repeat, earlyReference }) => {
       const repository = app.db.getRepository('workflows');
       const workflow = await repository.create({
         values: { type: 'schedule', enabled: false, config: { mode: 0 } },
@@ -80,7 +85,18 @@ describe('static schedule discovery lifecycle', () => {
       let enteredAt: number;
       const observing = vi.spyOn(mode, 'trigger').mockImplementation((...args) => {
         enteredAt ??= Date.now();
-        const result = trigger(...args);
+        let result: Promise<void>;
+        if (earlyReference && calls.length === 0) {
+          vi.useFakeTimers({ toFake: ['Date'] });
+          try {
+            vi.setSystemTime(due - 1);
+            result = trigger(...args);
+          } finally {
+            vi.useRealTimers();
+          }
+        } else {
+          result = trigger(...args);
+        }
         calls.push(result);
         return result;
       });

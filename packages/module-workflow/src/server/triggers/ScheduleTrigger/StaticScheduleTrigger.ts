@@ -127,7 +127,7 @@ export default class StaticScheduleTrigger {
   }
 
   async trigger(workflow, time) {
-    const triggeredAt = new Date();
+    const repeatFrom = new Date(Math.max(Date.now(), new Date(time).getTime()));
     this.timers.delete(`${workflow.id}@${time}`);
 
     const cancellation = this.cancellations.get(`${workflow.id}`);
@@ -150,7 +150,7 @@ export default class StaticScheduleTrigger {
       return;
     }
 
-    const nextTime = this.getNextTime(current, triggeredAt, true);
+    const nextTime = this.getNextTime(current, repeatFrom, true);
     if (nextTime) {
       this.schedule(current, nextTime);
     }

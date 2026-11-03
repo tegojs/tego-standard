@@ -4325,3 +4325,15 @@ Ruling: §278虽检查enabled，但cronJobs的Repository回读仍默认读池，
 - [x] 新专用库tego_tenant_access_test_b28203b675已删除且pg_database count0。收敛session35174实际0：核原postmaster86368/创建2026-11-03T13:44:36.7667570+08:00/精确原目录命令，25466全部记录仅原PID（State null不以Listen过滤）；SQL核原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及库owner后仅删本轮库。原PG正常停止、pg_ctl无服务、PID消失、端口全部记录0、snapshot验证0。保留原集群、cron-primary-pg.log及各验证日志，未碰旧目录或附件。
 
 按requesting-code-review模板作者串行自审，非独立复核：只改变原回读的池和事务选择，仍沿用原缺失/停用分支与锁finally；正向重新启用及caller事务所有权保持，无本项未修复Critical/Important。不予本项裁决：Cron其他主库权威读取、最终回读后的并发窗口/在途停止/已入队撤销、缓存异常策略及TTL锁所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核。不触及主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§281 1e31addf820053f859414a7807a4b85f2d74c870默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 283. Cron 租户候选读取主库启用事实
+
+Ruling: Cron任务自身虽已主库回读，getTenantContexts仍从读池发现enabled租户，主库已停用B仍会按旧事实分派。仅此租户Repository.find明确useMaster:true/transaction:null；保持原启用筛选、排序、历史回退、共享表分支及尝试计数，不改workflow/nodes读取或新G消费者。
+
+- [x] 复用原真实PG双池夹具，新增读池同名tenants表并保留B enabled=true；主库持久更新false，通过实际两池查询分别确认。新普通/环境readOnly事务两案例均调用原trigger及实际缓存，等待events/preparing/pending/executing全部空闲；要求无execution/该label业务行且原锁释放，caller事务在trigger返回仍开放。主库正常重新启用后的显式新调用分别仅生成一个B execution和B业务结果。只提取既有真实workflow/job搭建及idle helper，原§282断言保持。
+- [x] cron-tenant-primary-red.log四项中两新失败两原通过、无跳过、实际1/10.06秒（测试2.58），session47794已退出；两个干净RED均execution实际1、预期0，尚未进入后继业务/重新启用断言。两选项最小修复后PG4及既有tenant7全通过、无跳过、实际0/14.70秒，cron-tenant-primary-green.log，session83931已退出。原tenant单测仅补完整新增查询选项，不去掉原筛选或调用断言。
+- [x] 最终cron-tenant-primary-regression.log七文件74全通过、无跳过、实际0/34.79秒（测试53.89并行累计），session97804已退出：PG4+SQLite70。两新项含于74，不累加green11、此前72或RED，不是整分支回归。cron-tenant-primary-build.log cron客户端/服务端/依赖/声明完整构建命令实际0，无后继构建session。
+- [x] 三TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 58E05FD1FA382520B4DB812BA3FFEE325730F0CE68D9DB4A75C60E45AE557929；primary test 57E5C7F919EEBE0E36A593C7A12D2F2CD7EABCA8BC95DFAB96F3E0D9C9FFA9EF；tenant test ABA51D5E7F012450D89F1E22EBB986E2F7363E681059F4862D2A5E17A91329EF，最终代码后未改。
+- [x] 本轮新专用库tego_tenant_access_test_b28303c676已删除、pg_database count0，cleanup5604实际0：原postmaster80352/创建2026-11-03T13:54:25.0361650+08:00/精确原目录命令，25466全部记录仅原PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner核实后仅删本轮库。原PG正常停、pg_ctl无服务、PID消失、全部端口0、snapshot验证0。原集群、cron-tenant-primary-pg.log及验证日志保留，无物理附件操作。
+
+按requesting-code-review模板作者串行自审，非独立复核：权威租户列表先于原分派，不改变实际归属或无候选时原尝试计数；共享分支仍无需租户列或租户读取。无本项未修复Critical/Important。不独立声称null在本Repository路径的必要性已证明；不同schema并非WAL replica。其他Cron权威读取、最后事实读取到分派的并发隔离、在途停止/已入队撤销、缓存异常及TTL所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核均非本项放行范围。不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§282 e1a2cb96930e3c345bbe96b338856e06112b4ee9默认签名成功且独立verify-commit实际0/签名G，全局true。

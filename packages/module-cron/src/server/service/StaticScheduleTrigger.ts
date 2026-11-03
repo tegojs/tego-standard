@@ -66,6 +66,8 @@ export class StaticScheduleTrigger {
 
     const tenants = await this.db.getRepository('tenants').find({
       filter: { enabled: true },
+      useMaster: true,
+      transaction: null,
     });
     tenants.sort((left, right) => `${left.get('id')}`.localeCompare(`${right.get('id')}`));
     const legacyDataTenant = tenants.find((tenant) => tenant.get('parentId') == null) ?? tenants[0];

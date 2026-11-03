@@ -119,7 +119,11 @@ describe('cron static schedule tenant context', () => {
 
     await service.trigger(cronJob.id, Date.now());
 
-    expect(repositories.tenants.find).toHaveBeenCalledWith({ filter: { enabled: true } });
+    expect(repositories.tenants.find).toHaveBeenCalledWith({
+      filter: { enabled: true },
+      useMaster: true,
+      transaction: null,
+    });
     expect(triggerWorkflow).toHaveBeenCalledTimes(2);
     const states = Object.fromEntries(
       triggerWorkflow.mock.calls.map((call) => [call[2].context.state.currentTenantId, call[2].context.state]),

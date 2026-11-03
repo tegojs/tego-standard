@@ -4526,3 +4526,19 @@ Ruling: SQLite时间函数原样拼入startsOn.field，真实合法date字段ord
 - [x] 新专用tego_tenant_access_test_b29903b681已核owner tenant_test/零其他客户端后删除，pg_database count0。原postmaster55588/创建2026-11-03T16:17:55.3524480+08:00/精确原目录命令、全部25466记录仅该PID（State null）及SQL原目录/角色/127.0.0.1与/32/25466/postgres非恢复核验；cleanup67938实际0，正常停止原PG、pg_ctl无服务/PID消失/全部端口0/validation0，保留原集群、date-field-identifier-pg.log和所有旧日志/目录。没有Redis服务、正式依赖变化或新物理附件。
 
 按requesting-code-review模板作者串行自审，非独立复核：引用方法来自实际目标数据库，单个调用点负责引用，dialect函数不重复包裹；真实SQL异常与最终timer/持久归属共同验证修复，普通列和PG真实查询仍通过。无本项未修复Critical/Important。不予本项裁决：MySQL/MariaDB实际运行、所有异常标识符/逻辑到物理字段映射、长期日期/亚秒范围、日期缓存时点与其他写者配置变动的完整复核、最终事实到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§298 bcbfee77401b33c1e08d725e4d912739356691ac签名N，全局commit.gpgsign仍true，不复用其旧Timeout或认证。
+
+## 300. 日期周期SQL使用真实模型的物理列映射
+
+Ruling: 原框架Field.toSequelize保留field选项，逻辑scheduledAt可以映射物理scheduled_at；普通ORM条件/投影处理该映射，长周期literal仍引用逻辑名。只在原引用调用前从实际目标model.rawAttributes取得物理field，缺少映射时保留原字段名；之后仍使用§299的目标dialect引用。配置、记录get/toJSON及execution数据继续使用逻辑名，不修改字段元数据或核心依赖。
+
+- [x] 先将原external关键字案例扩为两个实际列案例：order/order与scheduledAt/scheduled_at，各自独立外部表，原ORM写入、真实loadRecords/reload/Node timer及B业务结果。date-field-column-mapping-red.log虽然文件名含red，两个案例在原实现均直接通过：2通过28过滤/30总、实际0/13.33秒，session84447已退出，不称SQLite RED或由此判定PG也正常。
+- [x] 新PG案例创建真实tenantScoped表，逻辑scheduledAt显式field=scheduled_at，原ORM持久前一天日期，再原生产loadRecords预期B候选。date-column-mapping-postgres-red.log干净实际SequelizeDatabaseError column "scheduledAt" does not exist，1失败21过滤/22总、实际1/9.47秒，session15813已退出；不是修改SQL响应或mock字段选项。最小模型物理列查找后同项通过21过滤/22总、实际0/16.82秒，date-column-mapping-postgres-green.log，session6472已退出；原reload/Node timer得到唯一B/精确due、逻辑context.data.scheduledAt、B业务行及两计数1，四项队列空闲同时核验。
+- [x] 最终date-column-mapping-regression.log十文件144全通过/无跳过/实际0/68.67秒（测试208.19并行累计），session20313已退出：PG22、external30、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。PG映射新项与SQLite兼容控制含于144，不累加前142/137/120、聚焦或RED，非整分支回归。date-column-mapping-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session31463已退出。
+- [x] 三TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：DateFieldScheduleTrigger 076EA3003CFEADDA969902B06930ACC197F4A2B4CC54F0AE132F00BFA9DCD449；external test 25AFF45D038AAF150C464A817FA60CEDB0048B6AD513A7BFB1B39C001E05FF07；primary test 478E774817BBC4249C3214AC5ED7CA81118CDBE53A13F330EB6F30668A77796F。最终代码后未改。只读已安装依赖定位的两个不存在路径失败非产品RED，随后按真实@tachybase/database日期/基础Field实现确认既有映射契约，不修改依赖。
+- [x] 新专用tego_tenant_access_test_b30003c682已核owner tenant_test/零其他客户端后删除且pg_database count0。原postmaster103292/创建2026-11-03T16:25:26.4919130+08:00/精确原目录命令、25466全部记录仅该PID（State null）及SQL原目录/角色/127.0.0.1与/32/25466/postgres非恢复已核验；cleanup24741实际0，原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。保留原集群、date-column-mapping-pg.log及所有日志/旧目录，无Redis服务或新物理附件。
+
+按requesting-code-review模板作者串行自审，非独立复核：物理名来自实际原模型而非配置猜测，O(1)属性读取不增查询；ORM普通条件与时间函数现在指向同一物理列，输出仍保持逻辑字段协议。PG真实缺列反例及原timer/持久B归属证明修复，SQLite原通过和关键字回归保持。无本项未修复Critical/Important。不予本项裁决：MySQL/MariaDB实际运行、任意虚拟/表达式日期字段、跨实例元数据变动隔离、长期日期/亚秒范围、日期缓存时点与其他写者变更的全部复核、最终事实到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅三TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。
+
+前§299默认签名session26808实际Timeout/退出128；事先捕获git80460/43060、gpg56604、pinentry101696创建时间/父链。退出后逐一消失、HEAD仍bcbfee774、原staged tree6207792f2288d309c516af4b985eb30dbe4c8d9f不变、无未暂存、活动Git/签名进程0，独立guard实际0后仅按已有授权单次跳过，最终ace8c4bd0838d2d9cfce9e25ae01f6a69f004b47提交实际0/签名N；不称G或独立验签成功，global commit.gpgsign仍true，不复用该旧Timeout/认证。
+
+本§300默认签名session67987实际Timeout/退出128；事先捕获git79340/104772、gpg81344、pinentry57064创建时间/父链。退出后逐一消失、HEAD仍ace8c4bd0、原staged tree f249109ce3d013bdba986ec486cfc14460bef8eb不变、无未暂存及活动Git/签名进程0，独立guard10929实际0。仅补本段事实后重新核对计划内五文件暂存，再按已有授权仅本次单次跳过；不重试旧认证、不改global，不称G或独立验签成功。

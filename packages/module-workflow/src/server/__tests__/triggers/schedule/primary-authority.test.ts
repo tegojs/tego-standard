@@ -171,6 +171,50 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     },
   );
 
+  it('discovers daily schedules using a mapped physical date column', async () => {
+    const collection = app.db.collection({
+      name: 'mappedScheduleDocuments',
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date', field: 'scheduled_at' },
+      ],
+    });
+    await app.db.sync();
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const config = {
+      ...workflow.config,
+      collection: collection.name,
+      startsOn: { field: 'scheduledAt' },
+      repeat: 86_400_000,
+    };
+    await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+    await collection.model.create({ tenantId: 'B', scheduledAt: new Date(due - 86_400_000) }, { hooks: false });
+    const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id, useMaster: true });
+    expect((await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('tenantId'))).toEqual([
+      'B',
+    ]);
+    expect(Date.now()).toBeLessThan(due);
+    await trigger.reload();
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+    const plugin = app.pm.get('workflow');
+    await waitForAssertion(async () => {
+      expect(plugin.events).toHaveLength(0);
+      expect(plugin.preparing).toBeFalsy();
+      expect(plugin.pending).toHaveLength(0);
+      expect(plugin.executing).toBeFalsy();
+      const executions = await workflow.getExecutions({ useMaster: true });
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+        ['B', due],
+      ]);
+      expect(Date.parse(executions[0].context.data.scheduledAt)).toBe(due - 86_400_000);
+    });
+    const generated = await app.db.getCollection('primaryScheduleResults').model.findAll({ useMaster: true });
+    expect(generated.map((record) => [record.get('tenantId'), record.get('label')])).toEqual([['B', 'Generated']]);
+    await workflow.reload({ useMaster: true });
+    expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+  });
+
   it('excludes an owner disabled on the primary from actual discovery', async () => {
     await disablePrimaryOwner();
     expect(await trigger.loadRecordsToSchedule(workflow, new Date())).toEqual([]);

@@ -107,13 +107,16 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
-  it('discovers daily schedules when the date field is an SQL keyword', async () => {
+  it.each([
+    { field: 'order', column: 'order' },
+    { field: 'scheduledAt', column: 'scheduled_at' },
+  ])('discovers daily schedules using physical column $column for date field $field', async ({ field, column }) => {
     const collection = external.collection({
-      name: 'externalKeywordSchedules',
+      name: `externalDateColumn_${column}`,
       tenancy: 'tenantScoped',
       fields: [
         { name: 'tenantId', type: 'string' },
-        { name: 'order', type: 'date' },
+        { name: field, type: 'date', field: column },
       ],
     });
     await external.sync();
@@ -122,8 +125,8 @@ describe('date-field scheduling from an external database', () => {
     const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
     const config = {
       ...workflow.config,
-      collection: 'another:externalKeywordSchedules',
-      startsOn: { field: 'order' },
+      collection: `another:${collection.name}`,
+      startsOn: { field },
       repeat: 86_400_000,
     };
     await workflow.createNode({
@@ -132,7 +135,7 @@ describe('date-field scheduling from an external database', () => {
     });
     try {
       await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
-      await collection.model.create({ tenantId: 'B', order: new Date(due - 86_400_000) }, { hooks: false });
+      await collection.model.create({ tenantId: 'B', [field]: new Date(due - 86_400_000) }, { hooks: false });
       const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
       expect(
         (await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('tenantId')),
@@ -150,7 +153,7 @@ describe('date-field scheduling from an external database', () => {
       expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
         ['B', due],
       ]);
-      expect(Date.parse(executions[0].context.data.order)).toBe(due - 86_400_000);
+      expect(Date.parse(executions[0].context.data[field])).toBe(due - 86_400_000);
       const generated = await results.findAll({ where: { label: 'Keyword date task' } });
       expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
       await workflow.reload();

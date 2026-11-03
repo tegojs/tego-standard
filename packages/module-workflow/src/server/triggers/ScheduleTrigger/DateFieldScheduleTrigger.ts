@@ -313,7 +313,8 @@ export default class ScheduleTrigger {
       if (typeof repeat === 'number') {
         const tsFn = DialectTimestampFnMap[targetCollection.model.sequelize.getDialect()];
         if (repeat > range && tsFn) {
-          const quotedField = targetCollection.model.sequelize.getQueryInterface().quoteIdentifier(startsOn.field);
+          const column = targetCollection.model.rawAttributes[startsOn.field]?.field ?? startsOn.field;
+          const quotedField = targetCollection.model.sequelize.getQueryInterface().quoteIdentifier(column);
           const modExp = fn(
             'MOD',
             literal(`${Math.floor(startTimestamp / 1000)} - ${tsFn(quotedField)}`),

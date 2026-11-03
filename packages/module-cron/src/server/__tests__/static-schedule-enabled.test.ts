@@ -176,4 +176,30 @@ describe('cron state at dispatch', () => {
     expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
     await lock.release(cronJob.id, time);
   });
+
+  it('reschedules a persisted tenant cron job after stopping and restarting before its due time', async () => {
+    const { workflow, repository, cronJob, service } = await createFixture();
+    await service.load();
+    const time = Math.floor(Date.now() / 1000) * 1000 + 10000;
+    try {
+      await repository.update({ filterByTk: cronJob.id, values: { startsOn: new Date(time) } });
+      expect(await workflow.countExecutions()).toBe(0);
+      await app.stop();
+      expect(await app.isStarted()).toBe(false);
+      await app.start();
+      expect(await app.isStarted()).toBe(true);
+      expect(Date.now()).toBeLessThan(time);
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+        expect(new Date(executions[0].context.date).getTime()).toBe(time);
+        const rows = await app.db.getRepository('cronEnabledResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Enabled cron task']]);
+      }, 15000);
+      const persisted = await repository.findOne({ filterByTk: cronJob.id });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+    } finally {
+      service.off(cronJob);
+    }
+  });
 });

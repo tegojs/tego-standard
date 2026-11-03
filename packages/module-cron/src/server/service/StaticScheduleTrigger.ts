@@ -99,6 +99,7 @@ export class StaticScheduleTrigger {
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
+      this.timers.clear();
     });
 
     this.db.on(`${DATABASE_CRON_JOBS}.beforeSave`, async (cronjob: CronJobModel, options) => {

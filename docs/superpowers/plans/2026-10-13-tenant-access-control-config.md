@@ -4289,3 +4289,15 @@ Ruling: trigger 原锁释放散落在正常分派和部分提前返回路径，c
 - [x] cron-schedule-lock-failure-build.log cron客户端/服务端/依赖/声明完整构建实际0，session7541已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime D49959B669024DC165E7754195036809A3FE0CB3943114577B9FDE38FD17BF4B；dispatch test 47B83A3F9D158A7D1005E0EAF6BCB127FD83FC4BF91E7F30B9FCE12E874FAD6A，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：统一finally覆盖读取、分派、计数及后继排程异常，已有提前返回不重复release；acquire=false路径保留竞争锁。无本项未修复Critical/Important。不予本项裁决：缓存acquire本身异常的既有返回策略、TTL后跨节点锁所有权、未知提交/已入队撤销、读池权威、停止重启、持久租约/跨实例去重及正式G消费者/业务试点/整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§278 4d099985db4fc6e4412832ed4a3936a953bc7a60默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 280. Cron 停止后清除已关闭句柄的键以恢复重启排程
+
+Ruling: Cron beforeStop关闭timer却保留Map键，重启后独立afterStart重新发现同一未来时点，schedule因旧键存在而跳过登记，任务永久漏执行。只在原停止回调清完句柄后清空Map；原启动发现、同一时点去重、租户上下文和缓存锁保持，不修改核心应用启停协议。
+
+- [x] 扩展原真实SQLite/缓存夹具，调用真实service.load注册原hooks；Repository将任务更新至未来10秒，真实afterSave登记timer，随后实际app.stop/start。await app.isStarted()分别为false/true且重启完成仍早于到期。必须由原Node timer生成唯一B execution、精确原时点context.date、B业务结果，两计数各1；finally原off清理。没有直接调用trigger或伪造应用停止标志。
+- [x] cron-schedule-restart-red.log首轮1失败4过滤/5总、实际1/10.11秒，session75516已退出；作者误将isStarted方法当属性，属于fixture错误，非产品RED。按现有官方测试调用协议改为await app.isStarted()后，cron-schedule-restart-fixture-red.log干净RED：1失败4过滤/5总、实际1/26.07秒（测试16.92），session3081已退出；启停和时间守卫通过，实际execution空数组、预期[B]，未进入后继时点/业务/计数断言。
+- [x] 一行clear后完整dispatch5全通过、无跳过、实际0/23.13秒，cron-schedule-restart-green.log，session58086已退出；新重启案例真实timer成功并通过精确时点及持久结果控制。
+- [x] 最终 cron-schedule-restart-regression.log 六文件66全通过、无跳过、实际0/25.82秒（测试46.62并行累计），session38477已退出：dispatch5、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于66，不累加green5、此前65/62或RED，不是整分支回归。
+- [x] cron-schedule-restart-build.log cron客户端/服务端/依赖/声明完整构建实际0，session38630已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 272EF1EA8BC13FACC339F406687E7E780F7D3626597B0FA0FC7758F0542F445F；dispatch test 913AAE1E8E5C4992337737854C74765E091B97C0660B479836729482AB874528，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：仅清已关闭句柄对应的实例内索引，原afterStart负责正常重新登记，不增加timer或权限。无本项未修复Critical/Important。不予本项裁决：Cron已进入异步SQL的到期调用/启动发现跨停止、完整并发启停、已入队撤销、主库权威、持久租约/跨实例去重及正式G消费者/业务试点/整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§279 c5eece5077542adda1ffc52a9a521b845684d4d8默认签名成功且独立verify-commit实际0/签名G，全局true。

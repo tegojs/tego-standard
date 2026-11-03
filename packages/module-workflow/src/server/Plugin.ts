@@ -135,6 +135,8 @@ export default class PluginWorkflowServer extends Plugin {
 
   private ready = false;
   private executing: Promise<void> | null = null;
+
+  private preparing: Promise<void> | null = null;
   private pending: Pending[] = [];
   private events: CachedEvent[] = [];
   private eventsCount = 0;
@@ -385,7 +387,7 @@ export default class PluginWorkflowServer extends Plugin {
       }
 
       this.ready = false;
-      if (this.events.length) {
+      if (this.events.length || this.preparing) {
         await this.prepare();
       }
       if (this.executing) {
@@ -591,40 +593,47 @@ export default class PluginWorkflowServer extends Plugin {
     return execution;
   }
 
-  private prepare = async () => {
-    if (this.executing && this.db.options.dialect === 'sqlite') {
-      await this.executing;
+  private prepare = () => {
+    if (this.preparing) {
+      return this.preparing;
     }
 
-    const event = this.events.shift();
-    this.eventsCount = this.events.length;
-    if (!event) {
-      this.getLogger('dispatcher').warn(`events queue is empty, no need to prepare`);
-      return;
-    }
+    this.preparing = Promise.resolve().then(async () => {
+      try {
+        if (this.executing && this.db.options.dialect === 'sqlite') {
+          await this.executing;
+        }
 
-    const logger = this.getLogger(event[0].id);
-    logger.info(`preparing execution for event`);
+        while (this.events.length) {
+          const event = this.events.shift();
+          this.eventsCount = this.events.length;
+          const logger = this.getLogger(event[0].id);
+          logger.info(`preparing execution for event`);
 
-    try {
-      const execution = await this.createExecution(...event);
-      // NOTE: cache first execution for most cases
-      if (execution && !this.executing && !this.pending.length) {
-        this.pending.push([execution, undefined, event[2]]);
+          try {
+            const execution = await this.createExecution(...event);
+            // NOTE: cache first execution for most cases
+            if (execution && !this.executing && !this.pending.length) {
+              this.pending.push([execution, undefined, event[2]]);
+            }
+          } catch (err) {
+            logger.error(`failed to create execution: ${err.message}`, err);
+          }
+        }
+      } finally {
+        this.preparing = null;
       }
-    } catch (err) {
-      logger.error(`failed to create execution: ${err.message}`, err);
-      // this.events.push(event); // NOTE: retry will cause infinite loop
-    }
-
-    if (this.events.length) {
-      await this.prepare();
-    } else {
       this.dispatch();
-    }
+    });
+
+    return this.preparing;
   };
 
   private dispatch() {
+    if (this.preparing) {
+      return this.preparing;
+    }
+
     if (!this.ready) {
       this.getLogger('dispatcher').warn(`app is not ready, new dispatching will be ignored`);
       return;

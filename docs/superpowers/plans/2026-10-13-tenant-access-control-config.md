@@ -4152,3 +4152,15 @@ Ruling: DateFieldScheduleTrigger 已登记的 timer 同样可能在主库被其�
 按 requesting-code-review 模板作者串行自审，非独立复核：工作流启用事实固定在主库且不继承 CLS，外库记录与 caller 事务保持原检查；记录原归属仍在首次 await 前捕获，最后主库查询后再核对取消标识。无本项未修复 Critical/Important。仍不保证其他实例修改 DATE_FIELD 内部配置的完整刷新、授权/业务读取/最后状态到入队的全程隔离、已入队撤销、持久租约/跨实例原子去重、完整停止矩阵；正式 G 消费者、业务试点及整分支独立复核未完成。
 
 独立资源收敛 session86800 实际退出0：本轮验证/构建/esbuild0，核实新 postmaster59516/创建2026-11-03T11:54:52.3290520+08:00/原精确目录及127.0.0.1:25466命令、全部25466记录仅原PID；SQL原目录/tenant_test/host127.0.0.1及32位掩码/25466/postgres非恢复/零其他客户端及owner后，只删 tego_tenant_access_test_b26703a674 且 pg_database count0。原 PG 正常停止、pg_ctl无服务/PID消失/全部端口0，集群/日志及旧目录保留；不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 268. 串行准备同一实例的异步工作流事件
+
+Ruling: 静态到期回调新增异步主库核查后，先后交付的两个事件可以在前一个 prepare 已 shift、尚未提交时再次启动 prepare。原队列长度不代表准备事务是否在途，两个 SQLite DEFERRED 事务读快照后升级写入发生 SQLITE_BUSY，丢失一个执行。以实例私有 preparing Promise 合并重入，逐个完成原 createExecution，再启动分派；dispatch 不与准备阶段竞争，beforeStop 也等待已取出队列的准备任务。仍保留原事务所有权、逐事件错误日志及不自动重试的约定。
+
+- [x] 原 mode-static 的 multiple workflows trigger at same time 已真实失败：static-schedule-stop-discovered-timer-regression.log 四文件46通过2失败/48总，session2088实际退出1；其中另一个失败属于下一节的新夹具结果检查时序，不混为同一根因。首次聚焦 static-schedule-simultaneous-sql-diagnostic.log 再现1失败10过滤/11总、实际1/31.99秒，session85802已退出；该轮忘记先同步新增诊断，不声称收集了新 SQL 跟踪。
+- [x] 正确同步临时测试日志后 static-schedule-simultaneous-sql-trace.log 再次真实失败，session95578实际退出1。跟踪确认两个不同事务先 BEGIN/读取计数，第二个 INSERT 在第一个 COMMIT 前启动并重试后 ROLLBACK/SQLITE_BUSY；并非时点漏过或被推定为偶发。临时日志已完整撤回，mode-static 源/snapshot回到原文件，不交付诊断代码。
+- [x] 最小实现后 static-schedule-stop-discovered-timer-corrected-regression.log 四文件48全通过、无跳过、实际0/135.86秒（测试103.63），session77505已退出。其中本节原 mode-static11、Plugin24、tenant-module-boundary5共40项；同轮 static-lifecycle8 验证下一节工作区的独立 timer Map 修复，不冒称其已纳入本节提交。
+- [x] workflow-preparation-tenant-regression.log 实际仅 external-scan 一个文件20项全通过、无跳过、退出0/41.99秒，session39304已退出。命令还带了不存在的 tenant-operation-context 文件过滤器，Vitest 未执行该文件，不能计入覆盖。真实外库 B 执行/归属、停用与重启、旧扫描失效等结果保持。两批不重叠有效用例共60项，另8项属于下一节，不是整分支回归。
+- [x] workflow-preparation-stop-build.log 的 workflow 客户端/服务端/依赖/声明完整构建实际退出0，session3174已退出。Plugin.ts 的 Prettier check、oxlint零警告错误，最终源/snapshot SHA256均49D14C09C39AE65669C3E380FC0E575E9A2C6D1C95C2CC739633D7CE51BE68AA；最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：每个实例只保留一个队列准备任务，重入 caller 等待同一 Promise；错误仍逐事件记录并继续其他事件，不结束 caller 事务或增加角色/租户权限来源。无本项未修复 Critical/Important。只改变实例内事件准备协调，不提供持久租约、跨实例原子去重、撤销已入队事件或授权到 SQL 的完整隔离。下一节 timer Map 清空与新重启夹具保留在工作区、未暂存，不混入本节原子提交。本轮仅 SQLite，未启 PG/建库或物理附件，不改主检出、核心、依赖、业务库，不推送合并发布/启用正式规则。

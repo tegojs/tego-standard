@@ -568,10 +568,10 @@ export default class ScheduleTrigger {
     if (!data || !isCurrent()) {
       return;
     }
+    const scheduledStartTime = getDataOptionTime(record, workflow.config.startsOn);
     if (workflow.config.startsOn) {
       const startTime = getDataOptionTime(data, workflow.config.startsOn);
       if (!startTime) return;
-      const scheduledStartTime = getDataOptionTime(record, workflow.config.startsOn);
       if (scheduledStartTime && scheduledStartTime <= nextTime && startTime > nextTime) return;
     }
     const endTime = getDataOptionTime(data, workflow.config.endsOn);
@@ -593,6 +593,11 @@ export default class ScheduleTrigger {
     if (typeof enabled.config?.collection !== 'string') return;
     const [currentDataSourceName, currentCollectionName] = parseCollectionName(enabled.config.collection);
     if (currentDataSourceName !== dataSourceName || currentCollectionName !== collectionName) return;
+    if (workflow.config.startsOn) {
+      const currentStartTime = getDataOptionTime(data, enabled.config.startsOn);
+      if (!currentStartTime) return;
+      if (scheduledStartTime && scheduledStartTime <= nextTime && currentStartTime > nextTime) return;
+    }
     const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
     if (currentEndTime && currentEndTime < nextTime) return;
     bindTenantContext(data, context);

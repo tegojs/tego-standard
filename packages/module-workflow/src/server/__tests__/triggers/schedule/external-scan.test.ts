@@ -757,6 +757,88 @@ describe('date-field scheduling from an external database', () => {
   });
 
   it.each([true, false])(
+    'rechecks the persisted start field after discovery (new field starts later: %s)',
+    async (startsLater) => {
+      const collection = external.collection({
+        name: `externalWorkflowStart_${startsLater}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+          { name: 'deferredAt', type: 'date' },
+        ],
+      });
+      await collection.model.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getModel('externalScheduleDocuments');
+      const workflows = app.db.getModel('workflows');
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const currentStart = due + (startsLater ? 4000 : 0);
+      const config = { ...workflow.config, collection: `another:${collection.name}` };
+      await workflow.createNode({
+        type: 'create',
+        config: {
+          collection: 'externalScheduleDocuments',
+          params: { values: { label: 'Current workflow start task' } },
+        },
+      });
+      try {
+        await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+        await collection.model.create(
+          { tenantId: 'B', scheduledAt: new Date(due), deferredAt: new Date(currentStart) },
+          { hooks: false },
+        );
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          await workflows.update(
+            { config: { ...config, startsOn: { field: 'deferredAt' } } },
+            { where: { id: workflow.id }, hooks: false },
+          );
+          expect(Date.now()).toBeLessThan(due - 1000);
+        });
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+          startsLater ? [] : [['B', due]],
+        );
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect(workflow.config.startsOn.field).toBe('deferredAt');
+        if (startsLater) {
+          expect(await results.count({ where: { label: 'Current workflow start task' } })).toBe(0);
+          expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+          expect(Date.now()).toBeLessThan(currentStart);
+          await observeThroughDeadline(trigger, currentStart, () => trigger.reload());
+          await waitForAssertion(async () => {
+            expect(plugin.events).toHaveLength(0);
+            expect(plugin.preparing).toBeFalsy();
+            expect(plugin.pending).toHaveLength(0);
+            expect(plugin.executing).toBeFalsy();
+            expect(await workflow.countExecutions()).toBe(1);
+          });
+        }
+        const [execution] = await workflow.getExecutions();
+        expect([execution.tenantId, Date.parse(execution.context.date)]).toEqual(['B', currentStart]);
+        expect(Date.parse(execution.context.data.scheduledAt)).toBe(due);
+        expect(Date.parse(execution.context.data.deferredAt)).toBe(currentStart);
+        expect(execution.tenantContext.currentTenantId).toBe('B');
+        const generated = await results.findAll({ where: { label: 'Current workflow start task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Current workflow start task' }, hooks: false });
+      }
+    },
+  );
+
+  it.each([true, false])(
     'rechecks a changed nonempty start date (moves beyond the old occurrence: %s)',
     async (movesPastDue) => {
       const collection = external.collection({

@@ -67,6 +67,96 @@ describe('static schedule discovery lifecycle', () => {
     await waitForWorkflowIdle(app);
   });
 
+  it('discards a stopped deadline read for an independently discovered static task', async () => {
+    const repository = app.db.getRepository('workflows');
+    const workflow = await repository.create({
+      values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'staticLifecycleResults', params: { values: { label: 'Current static task' } } },
+    });
+    await app.stop();
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    await app.db
+      .getCollection('workflows')
+      .model.update(
+        { config: { mode: 0, startsOn: new Date(due).toISOString() } },
+        { where: { id: workflow.id }, hooks: false },
+      );
+    const find = repository.find.bind(repository);
+    const discovery = vi.spyOn(repository, 'find').mockImplementation(async (options) => {
+      const rows = await find(options);
+      if (options?.filter?.enabled === true && !options.filter.type) {
+        expect(rows.some((row) => row.id === workflow.id)).toBe(false);
+        await app.db
+          .getCollection('workflows')
+          .model.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+      }
+      return rows;
+    });
+    try {
+      await app.start();
+    } finally {
+      discovery.mockRestore();
+    }
+    const plugin = app.pm.get('workflow');
+    expect(plugin.enabledCache.has(workflow.id)).toBe(false);
+    expect(Date.now()).toBeLessThan(due);
+
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let checked = false;
+    let pending: Promise<void> | undefined;
+    const mode = plugin.triggers.get('schedule').modes.get(0);
+    const trigger = mode.trigger.bind(mode);
+    const observe = vi.spyOn(mode, 'trigger').mockImplementation((...args) => {
+      pending = trigger(...args);
+      return pending;
+    });
+    const findOne = repository.findOne.bind(repository);
+    const authority = vi.spyOn(repository, 'findOne').mockImplementation(async (options) => {
+      const result = await findOne(options);
+      if (options?.filter?.enabled === true && options.filter['config.mode'] === 0) {
+        expect(result.id).toBe(workflow.id);
+        checked = true;
+        await hold;
+      }
+      return result;
+    });
+    try {
+      await waitForFastAssertion(async () => expect(checked).toBe(true));
+      const oldCall = pending;
+      expect(oldCall).toBeDefined();
+      await app.stop();
+      // A fresh startup must not legitimately reschedule the original due second.
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due + 1000 - Date.now()) + 10));
+      expect(Math.floor(Date.now() / 1000) * 1000).toBeGreaterThan(due);
+      await app.start();
+      release();
+      await oldCall;
+      await waitForFastAssertion(() => expect(plugin.preparing).toBeFalsy());
+      await waitForWorkflowIdle(app);
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(await app.db.getRepository('staticLifecycleResults').count()).toBe(0);
+
+      const current = await repository.findOne({ filterByTk: workflow.id });
+      const nextDue = Math.ceil((Date.now() + 200) / 1000) * 1000;
+      await current.update({ config: { mode: 0, startsOn: new Date(nextDue).toISOString() } });
+      await waitForFastAssertion(async () => {
+        expect(await workflow.countExecutions()).toBe(1);
+        const rows = await app.db.getRepository('staticLifecycleResults').find();
+        expect(rows.map((row) => row.label)).toEqual(['Current static task']);
+      });
+      await waitForWorkflowIdle(app);
+    } finally {
+      release();
+      await pending;
+      authority.mockRestore();
+      observe.mockRestore();
+    }
+  });
+
   it('logs a deadline SQL failure and permits an explicit new schedule after recovery', async () => {
     const workflow = await app.db.getRepository('workflows').create({
       values: { type: 'schedule', enabled: false, config: { mode: 0 } },

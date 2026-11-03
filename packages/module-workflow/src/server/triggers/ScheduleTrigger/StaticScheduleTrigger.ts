@@ -10,6 +10,8 @@ export default class StaticScheduleTrigger {
 
   private cancellations = new Map<string, object>();
 
+  private lifecycle = {};
+
   constructor(public workflow: Plugin) {
     workflow.app.on('afterStart', async () => {
       const cancellations = new Map(this.cancellations);
@@ -28,6 +30,7 @@ export default class StaticScheduleTrigger {
     });
 
     workflow.app.on('beforeStop', () => {
+      this.lifecycle = {};
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
@@ -125,13 +128,14 @@ export default class StaticScheduleTrigger {
     this.timers.delete(`${workflow.id}@${time}`);
 
     const cancellation = this.cancellations.get(`${workflow.id}`);
+    const lifecycle = this.lifecycle;
     const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
       useMaster: true,
       transaction: null,
       fields: ['id'],
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
     });
-    if (!enabled || this.cancellations.get(`${workflow.id}`) !== cancellation) {
+    if (!enabled || this.lifecycle !== lifecycle || this.cancellations.get(`${workflow.id}`) !== cancellation) {
       return;
     }
 

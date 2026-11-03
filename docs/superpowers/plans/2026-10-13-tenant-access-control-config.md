@@ -4175,3 +4175,15 @@ Ruling: 通用 beforeStart 查询返回空结果后，主库可以在静态 afte
 - [x] workflow-preparation-stop-build.log 是同一最终 runtime 的客户端/服务端/依赖/声明完整构建，session3174实际0，不冒称另跑一轮构建。两 TS 最终 Prettier check及oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 96A4D2321990B2586004B731AE8DDEA20269952DDF9DEE0AF132DA918487C72E；static-lifecycle.test C609F73504ED69BEBC2B554DBF9841853811693D0EB87BB19C0D6B58EC4EA4C9。最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：已关闭的本实例句柄不能继续占用去重键；测试通过真实通用/独立启动 SQL 交错构造缓存差异，没有手工删除 enabledCache。无本项未修复 Critical/Important。不声称使停止前已开始的异步主库查询失效，后者仍需独立复现；不撤销已入队事件、跨实例配置刷新/去重、持久租约、新G正式消费者或整分支独立复核。本轮未启 PG/建库/物理附件，保留日志/旧目录，不推送合并发布或启用正式规则。前 §268 提交 e137c931eb1304918a02965932b365209157c72e 默认GPG成功、后继独立verify-commit实际0/签名G，全局签名仍true。
+
+## 270. 停止使在途静态到期查询失效
+
+Ruling: 独立启动发现而未进入 enabledCache 的静态任务，到期已从主库读到 enabled、交付仍暂停时，stop 不会经通用缓存调用其 off。仅清空 timer Map 不影响在途 Promise，重启 ready 后旧调用仍可入队。以静态触发器私有 lifecycle 对象在 beforeStop 同步替换，到期查询前捕获、查询后与原取消标识一并核对；不以重启恢复旧调用，不改业务身份或事务。
+
+- [x] 原真实内存 SQLite lifecycle 夹具新增：通用启用列表实际 SQL 读完空结果后 hooks:false 启用本测试新任务；独立启动发现后确认 cache 无该 id、启动早于到期点。观察原安装实例 trigger Promise，在 Repository.findOne 实际主库 SQL 返回后暂停交付，真实 stop/start 后释放原调用，要求 execution/结果行均0；然后才保存新时点，要求单次正常 execution 与业务行。
+- [x] static-schedule-stop-pending-read-red.log 初轮1失败8过滤/9总、实际1/17.44秒，session25411已退出。最小 lifecycle 校验后 static-schedule-stop-pending-read-regression.log 四文件48通过1失败/49总、实际1/79.21秒，session1405已退出。发现重启仍处于原到期的同一秒，正常启动也会重新登记该时点，因此初轮不能独立证明旧调用越过停止边界。
+- [x] 仅收紧夹具：停止期间等待原到期秒完整过去，显式核实时点后才重启，避免正常新排程掩盖旧调用；移除本项未提交 runtime 修复重新跑 RED。static-schedule-stop-pending-read-corrected-red.log 1失败8过滤/9总、实际1/12.71秒（测试9.13），session95913已退出，最终execution仍1而非0。该轮才是明确隔离旧调用的产品 RED，断言在结果行检查前停止。
+- [x] 恢复同一最小修复后 static-schedule-stop-pending-read-final-regression.log 四文件49全通过、无跳过、实际0/94.13秒（测试74.90），session10121已退出；lifecycle9、mode-static11、Plugin24、tenant-module-boundary5。新例含于49，各轮不累加，不是整分支回归。static-schedule-stop-pending-read-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session70186已退出。
+- [x] 两TS最终Prettier check与oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger F298CB11D323815785E3C409EADAC1007F8E19157EB213AFAE15237191F8C914；static-lifecycle.test E06A586FE9C8A837867EA5B53E5D64C62E99D2FB30C723FE81A73EA0ABC0DE4D，最终代码后未改。一次误在非Git snapshot执行只读status失败，不是测试RED或源码变化。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：生命周期标识属于实际安装实例、不可由 caller 复活，beforeStop 不依赖 enabledCache 覆盖；负向发生在任何新配置更新前，后继正常任务提供正向控制。无本项未修复 Critical/Important。只使停止前已开始的到期查询失效；独立启动发现查询自身跨越 stop、日期模式的同类边界、已经入队的撤销、跨实例原子去重/持久租约和完整停止矩阵仍未宣称解决。正式G消费者/业务试点/整分支独立复核保持未完成。本轮只SQLite，未启PG/建库/物理附件，不改主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§269 e4a283c3b7c8ab47d3722255079e634b5c9c8f4a 默认GPG成功、后继独立verify-commit实际0/签名G，全局签名true。

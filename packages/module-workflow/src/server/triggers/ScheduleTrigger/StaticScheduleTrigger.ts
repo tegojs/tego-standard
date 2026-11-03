@@ -132,25 +132,27 @@ export default class StaticScheduleTrigger {
 
     const cancellation = this.cancellations.get(`${workflow.id}`);
     const lifecycle = this.lifecycle;
-    const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
+    const current = await this.workflow.app.db.getRepository('workflows').findOne({
       useMaster: true,
       transaction: null,
-      fields: ['id'],
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
     });
-    if (!enabled || this.lifecycle !== lifecycle || this.cancellations.get(`${workflow.id}`) !== cancellation) {
+    if (!current || this.lifecycle !== lifecycle || this.cancellations.get(`${workflow.id}`) !== cancellation) {
+      return;
+    }
+    if (this.getNextTime(current, new Date(time - 1)) !== time) {
       return;
     }
 
-    this.workflow.trigger(workflow, { date: new Date(time) });
+    this.workflow.trigger(current, { date: new Date(time) });
 
-    if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {
+    if (!current.config.repeat || (current.config.limit && current.allExecuted >= current.config.limit - 1)) {
       return;
     }
 
-    const nextTime = this.getNextTime(workflow, triggeredAt, true);
+    const nextTime = this.getNextTime(current, triggeredAt, true);
     if (nextTime) {
-      this.schedule(workflow, nextTime);
+      this.schedule(current, nextTime);
     }
   }
 

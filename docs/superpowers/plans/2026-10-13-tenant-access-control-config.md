@@ -4473,3 +4473,16 @@ Ruling: 静态trigger在主库启用查询后用新的墙钟时间计算repeat�
 - [x] workflow-static-repeat-read-delay-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session20786已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：StaticScheduleTrigger BD6DB53DE0E7CF345595C4AE16996BF6FCF8BC0A2F4974EBF4E47F48EFE70C9A；static-lifecycle test 1B44C28B1D26819AAD48FAB2FF818E66F2072706D71E212CB9550D51D5505F4C，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：捕获的是调用进入时刻，未直接以计划date代替原墙钟参考；仅重复计算使用该局部Date，原主库启用/类型/模式及取消/生命周期检查仍先通过，后继timer继续独立回读。无本项未修复Critical/Important。不予本项裁决：任意长查询延迟后的补跑政策、跨实例配置/计数变化、初始起止输入校验、完整启停/已入队撤销、最终授权到SQL完整并发隔离、锁TTL所有权/持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/Redis服务、建库或新附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§294 caf585b95897156d64c34378456892f194255eec默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 296. 静态任务到期按主库当前配置核对时点并续排
+
+Ruling: 静态到期查询原来仅取id确认enabled，其后继续使用timer捕获的workflow/config；绕过本实例保存事件的另一写者已持久后移startsOn时，旧timer仍执行旧时点。原master/null查询读取当前完整workflow，复核原lifecycle/取消标识后，复用getNextTime从该时点前一毫秒核对当前配置是否仍包含本次时点；只接受精确相等。原分派、limit与repeat续排都使用同一次主库回读模型，§295调用参考时刻仍保留，不因任意配置差异一律取消合法时点。
+
+- [x] 原真实SQLite夹具正常启用未来静态workflow及create节点，再以原Model.update(hooks:false)模拟另一写者持久修改配置且enabled=true，保留本实例timer/旧模型。startsOn后移5000毫秒时，跨旧时点+500并四项队列空闲后应无执行/业务行；实际stop/start在新时点前完成，原新timer应生成唯一精确新时点execution、共享业务结果及两计数1。另一控制保持startsOn、只设置更晚endsOn，原时点仍应执行一次。此为同库受控其他写者夹具，不称真实多个应用进程或跨实例原子协调。
+- [x] workflow-static-current-config-red.log干净RED：1失败1通过15过滤/17总、实际1/16.27秒（测试9.70），session20785已退出。持久新配置/本地旧配置/启用/时间/队列守卫通过，后移案例execution相对时点实际[0]、预期[]，未进入后继业务/重启正向断言；合法结束时间修改控制原实现已通过，不冒称两项均RED。最小当前模型回读/时点校验后聚焦两项全通过15过滤/17总、实际0/18.31秒，workflow-static-current-config-green.log，session43866已退出，新时点重启timer及业务/计数通过。
+- [x] 作者自审后新增仍合法时点的续排控制：旧模型repeat2000/ends+4000，其他写者持久repeat3000/ends+3000，原时点仍合法；要求原timer实际只生成[0,+3000]精确执行、两业务行和主库repeat3000/两计数2，避免仅拒绝旧时点但仍按缓存旧周期续排。该控制在已有实现后加入，不声称另有产品RED。
+- [x] 初次workflow-static-current-config-regression.log五SQLite文件59全通过、无跳过、实际0/108.16秒（测试145.53并行累计），session76283已退出：static-lifecycle18、static-discovery-lifecycle1、mode-static11、Plugin24、tenant-module-boundary5。三新项含于59，不累加green2、此前56/54/cron78或RED，非整分支回归。原数字/cron上界、查询延迟参考、短周期/limit及停止失效案例继续通过。本项只改变原主库查询的投影及其结果使用，没有新增SQL路由或dialect逻辑，未重跑PG主库来源夹具，不把既往PG结果当本轮新验证。
+- [x] workflow-static-current-config-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session10971已退出。构建后最终格式check1，源/snapshot当时仍同为0D173BCA哈希；再次write/check确认最后一段Model.update调用链仅折行变化，随后的两TS格式check/oxlint0。生产TS未变，最终源/snapshot SHA：StaticScheduleTrigger 2A64771B3C0956588F9A50449A3FED41E980E2FA61BFBC8842B8F7C66C649F12；static-lifecycle test 14843F69EA19A2AC9AF8966B201E09E95F6366A11D00B72CA7596FE90A7927F1。没有以此重跑构建或改变依赖；一次相对日志路径读错为只读错误，非产品RED，后按实际snapshot父目录读回。
+- [x] 为使最终测试文件哈希对应实际完整回归，格式收敛后再次运行原五文件：workflow-static-current-config-final-regression.log仍59全通过、无跳过、实际0/111.82秒（测试146.85并行累计），session89011已退出。最终代码之后未改，不将两轮59或green2累加，非新增产品项或整分支回归。
+
+按requesting-code-review模板作者串行自审，非独立复核：复用原日历计算器而不是新增一套匹配规则，时点前1毫秒作为严格后继计算的边界；用同一次真实主库结果进行分派和续排，合法结束时间变化及新周期控制排除一律拒绝配置变化的候选。无本项未修复Critical/Important。不予本项裁决：主库事实读取到入队/业务SQL之间的完整并发隔离、跨实例原子去重/租约、没有本实例事件时新timer的自动发现、任意长延迟补跑、初始输入校验、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅SQLite，不启动PG/Redis服务、建库或新增物理附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§295 f7557441fa05293aed56acc2c307eb6f12e562f4默认签名成功且独立verify-commit实际0/签名G，全局true。

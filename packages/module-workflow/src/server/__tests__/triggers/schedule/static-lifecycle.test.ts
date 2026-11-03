@@ -141,6 +141,118 @@ describe('static schedule discovery lifecycle', () => {
     },
   );
 
+  it.each([
+    { startOffset: 5000, expectedDates: [] },
+    { startOffset: 0, expectedDates: [0] },
+  ])(
+    'checks the primary static configuration after another writer moves startsOn by $startOffset ms',
+    async ({ startOffset, expectedDates }) => {
+      const repository = app.db.getRepository('workflows');
+      const workflow = await repository.create({
+        values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+      });
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'staticLifecycleResults', params: { values: { label: 'Current primary schedule' } } },
+      });
+      const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+      try {
+        await workflow.update({ enabled: true, config: { mode: 0, startsOn: new Date(due).toISOString() } });
+        const currentConfig = {
+          mode: 0,
+          startsOn: new Date(due + startOffset).toISOString(),
+          endsOn: new Date(due + 10000).toISOString(),
+        };
+        await app.db
+          .getModel('workflows')
+          .update({ config: currentConfig }, { where: { id: workflow.id }, hooks: false });
+        expect(workflow.config.startsOn).toBe(new Date(due).toISOString());
+        const current = await repository.findOne({ filterByTk: workflow.id, useMaster: true, transaction: null });
+        expect(current.config).toEqual(currentConfig);
+        expect(current.enabled).toBe(true);
+        expect(Date.now()).toBeLessThan(due);
+        await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(due + 500));
+        const plugin = app.pm.get('workflow');
+        await waitForFastAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const beforeRestart = await workflow.getExecutions({ order: [['id', 'ASC']] });
+        expect(beforeRestart.map((execution) => Date.parse(execution.context.date) - due)).toEqual(expectedDates);
+        const beforeRows = await app.db.getRepository('staticLifecycleResults').find();
+        expect(beforeRows.map((row) => row.label)).toEqual(expectedDates.map(() => 'Current primary schedule'));
+        if (startOffset) {
+          await app.stop();
+          await app.start();
+          expect(Date.now()).toBeLessThan(due + startOffset);
+          await waitForFastAssertion(async () => {
+            const executions = await workflow.getExecutions();
+            expect(executions.map((execution) => Date.parse(execution.context.date))).toEqual([due + startOffset]);
+            const rows = await app.db.getRepository('staticLifecycleResults').find();
+            expect(rows.map((row) => row.label)).toEqual(['Current primary schedule']);
+          });
+        }
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        await workflow.update({ enabled: false });
+      }
+    },
+  );
+
+  it('continues a still-valid occurrence using the primary repeat instead of its cached repeat', async () => {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'staticLifecycleResults', params: { values: { label: 'Current primary repeat' } } },
+    });
+    const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+    try {
+      await workflow.update({
+        enabled: true,
+        config: {
+          mode: 0,
+          startsOn: new Date(due).toISOString(),
+          endsOn: new Date(due + 4000).toISOString(),
+          repeat: 2000,
+        },
+      });
+      await app.db.getModel('workflows').update(
+        {
+          config: {
+            mode: 0,
+            startsOn: new Date(due).toISOString(),
+            endsOn: new Date(due + 3000).toISOString(),
+            repeat: 3000,
+          },
+        },
+        { where: { id: workflow.id }, hooks: false },
+      );
+      expect(workflow.config.repeat).toBe(2000);
+      expect(Date.now()).toBeLessThan(due);
+      await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(due + 3600), 10000);
+      const plugin = app.pm.get('workflow');
+      await waitForFastAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+      expect(executions.map((execution) => Date.parse(execution.context.date) - due)).toEqual([0, 3000]);
+      const rows = await app.db.getRepository('staticLifecycleResults').find();
+      expect(rows.map((row) => row.label)).toEqual(['Current primary repeat', 'Current primary repeat']);
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.config.repeat, workflow.executed, workflow.allExecuted]).toEqual([3000, 2, 2]);
+    } finally {
+      await workflow.update({ enabled: false });
+    }
+  });
+
   it('restores a stopped timer discovered after the generic startup snapshot', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

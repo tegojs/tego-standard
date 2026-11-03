@@ -62,6 +62,85 @@ describe('static schedule discovery lifecycle', () => {
     }
   });
 
+  it.each([1000, '*/2 * * * * *'])(
+    'preserves the next static repeat %s while its authority read is delayed',
+    async (repeat) => {
+      const repository = app.db.getRepository('workflows');
+      const workflow = await repository.create({
+        values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+      });
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'staticLifecycleResults', params: { values: { label: 'Delayed static repeat' } } },
+      });
+      const plugin = app.pm.get('workflow');
+      const mode = plugin.triggers.get('schedule').modes.get(0);
+      const trigger = mode.trigger.bind(mode);
+      const calls: Promise<void>[] = [];
+      let enteredAt: number;
+      const observing = vi.spyOn(mode, 'trigger').mockImplementation((...args) => {
+        enteredAt ??= Date.now();
+        const result = trigger(...args);
+        calls.push(result);
+        return result;
+      });
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => (release = resolve));
+      let checked = false;
+      const findOne = repository.findOne.bind(repository);
+      const authority = vi.spyOn(repository, 'findOne').mockImplementation(async (options) => {
+        const result = await findOne(options);
+        if (!checked && options?.filter?.enabled === true && options.filter['config.mode'] === 0) {
+          expect(result.id).toBe(workflow.id);
+          checked = true;
+          await hold;
+        }
+        return result;
+      });
+      const due = Math.ceil((Date.now() + 2000) / 2000) * 2000;
+      try {
+        await workflow.update({
+          enabled: true,
+          config: {
+            mode: 0,
+            startsOn: new Date(due).toISOString(),
+            endsOn: new Date(due + 2000).toISOString(),
+            repeat,
+          },
+        });
+        await waitForFastAssertion(() => expect(checked).toBe(true));
+        expect(enteredAt).toBeGreaterThanOrEqual(due);
+        expect(enteredAt).toBeLessThan(due + 1000);
+        expect(Date.now()).toBeLessThan(due + 1000);
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, due + 1100 - Date.now())));
+        expect(Date.now()).toBeGreaterThanOrEqual(due + 1100);
+        expect(Date.now()).toBeLessThan(due + 1900);
+        release();
+        await calls[0];
+        await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(due + 2600));
+        await waitForFastAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+        expect(executions.map((execution) => Date.parse(execution.context.date))).toEqual([due, due + 2000]);
+        const rows = await app.db.getRepository('staticLifecycleResults').find();
+        expect(rows.map((row) => row.label)).toEqual(['Delayed static repeat', 'Delayed static repeat']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([2, 2]);
+      } finally {
+        release();
+        mode.off(workflow);
+        await Promise.allSettled(calls);
+        authority.mockRestore();
+        observing.mockRestore();
+        await workflow.update({ enabled: false });
+      }
+    },
+  );
+
   it('restores a stopped timer discovered after the generic startup snapshot', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

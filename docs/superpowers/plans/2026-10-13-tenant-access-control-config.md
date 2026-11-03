@@ -4462,3 +4462,14 @@ Ruling: §281修的是独立Cron模块；workflow自身StaticScheduleTrigger仍�
 - [x] workflow-static-repeat-end-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session71804已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：StaticScheduleTrigger 3DE85AF394A085353B3B20F847E6D67D0AF76971F6176B496437E7D2D30A719D；static-lifecycle test 5F381142261CDA557B3B0FEEFC825809288E45DB97BDFE3B8EA67391C38ED759，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：只比较原计算所得next与原endsOn，等值控制及原无限周期/limit兼容用实际timer验证；不把共享静态任务强行转换成每租户G任务。无本项未修复Critical/Important。不予本项裁决：初始起止配置校验、授权查询延迟下的全部时序、全停止/已入队撤销、最终授权到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/Redis服务、建库或新附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§293 7c3097141b9fc3d7c45d7201332e02eda52fd123默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 295. 工作流静态重复计算不随启用查询的交付延迟漂移
+
+Ruling: 静态trigger在主库启用查询后用新的墙钟时间计算repeat；查询结果交付延迟1100毫秒会使本应仍在结束范围内的+2000毫秒时点被跳过。与日期字段§272不同，这是workflow静态实例的独立实际调用路径。trigger首次await前捕获triggeredAt，只用于原重复计算；主库最新启用条件、类型/模式、lifecycle及取消标识复核保持，不以计划时点或旧授权结果替代最新检查。
+
+- [x] 原SQLite静态生命周期夹具正常创建/启用workflow及create节点，原Node timer从未来偶数秒启动，repeat分别1000毫秒与*/2表达式，endsOn=原时点+2000毫秒。透传原trigger观察其Promise和首次进入时刻；原Repository.findOne完成真实主库SQL后只暂停第一次交付，不替换数据。进入/暂停前守卫都在+1000前，释放时实际>=+1100且<+1900，证明第二时点尚未到期；跨+2600并等待四项队列空闲后核execution精确date、共享业务行与主库两计数。finally释放、原off、等待全部观察调用并恢复spy/正常停用，不伪造SQL、timer或应用状态。
+- [x] workflow-static-repeat-read-delay-red.log两项干净RED：2失败13过滤/15总、实际1/23.62秒（测试18.37），session78634已退出；两个时序守卫均通过，实际都只有原时点、预期原时点及+2000，未进入失败案例后继业务/计数断言。最小捕获参考时刻后两项全通过13过滤/15总、实际0/23.70秒，workflow-static-repeat-read-delay-green.log，session24556已退出；真实两业务结果及两计数[2,2]通过。不反向推断此前其他测试的精确延迟位置。
+- [x] 最终workflow-static-repeat-read-delay-regression.log五SQLite文件56全通过、无跳过、实际0/93.20秒（测试129.55并行累计），session56574已退出：static-lifecycle15、static-discovery-lifecycle1、mode-static11、Plugin24、tenant-module-boundary5。两新项含于56，不累加green2、此前54/cron78等轮或RED，非整分支回归；原越界上界、等值执行、无限周期、停用、跨停止在途查询和启动交付保护均保持。
+- [x] workflow-static-repeat-read-delay-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session20786已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：StaticScheduleTrigger BD6DB53DE0E7CF345595C4AE16996BF6FCF8BC0A2F4974EBF4E47F48EFE70C9A；static-lifecycle test 1B44C28B1D26819AAD48FAB2FF818E66F2072706D71E212CB9550D51D5505F4C，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：捕获的是调用进入时刻，未直接以计划date代替原墙钟参考；仅重复计算使用该局部Date，原主库启用/类型/模式及取消/生命周期检查仍先通过，后继timer继续独立回读。无本项未修复Critical/Important。不予本项裁决：任意长查询延迟后的补跑政策、跨实例配置/计数变化、初始起止输入校验、完整启停/已入队撤销、最终授权到SQL完整并发隔离、锁TTL所有权/持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/Redis服务、建库或新附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§294 caf585b95897156d64c34378456892f194255eec默认签名成功且独立verify-commit实际0/签名G，全局true。

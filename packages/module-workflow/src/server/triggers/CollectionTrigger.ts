@@ -52,7 +52,16 @@ function pickTenantState(state: Record<string, any> = {}, fallbackTenantId?: str
 }
 
 // async function, should return promise
-async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: Model, options) {
+async function handler(
+  this: CollectionTrigger,
+  workflow: WorkflowModel,
+  isCurrent: () => boolean,
+  data: Model,
+  options,
+) {
+  if (!isCurrent()) {
+    return;
+  }
   const { condition, changed, mode, appends, blacklist } = workflow.config;
   const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
   const collection = this.workflow.app.dataSourceManager?.dataSources
@@ -125,6 +134,10 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
     });
   }
 
+  if (!isCurrent()) {
+    return;
+  }
+
   // TODO: `result.toJSON()` throws error
   const json = toJSON(result);
   const fallbackTenantId = json && !Array.isArray(json) ? json.tenantId : undefined;
@@ -169,7 +182,7 @@ export default class CollectionTrigger extends Trigger {
       const name = getHookId(workflow, `${collection}.${type}`);
       if (mode & key) {
         if (!this.events.has(name)) {
-          const listener = handler.bind(this, workflow);
+          const listener = handler.bind(this, workflow, () => this.events.get(name) === listener);
           this.events.set(name, listener);
           db.on(event, listener);
         }

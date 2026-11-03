@@ -4113,3 +4113,14 @@ Ruling: Plugin.beforeStart 也在等待启用列表查询，原 toggle 能将查
 - [x] workflow 客户端/服务端/依赖/声明完整构建实际退出0，workflow-startup-disable-inflight-build.log，session39229已退出。两 TS Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：Plugin 58FCF9F263E8EFB5EF66B3FFD6D3AA27A19DC05A4009E9379117F6D941FC9C74；static-lifecycle.test 4055620A97ABDE68312A1BEB205D6623B11322070B38D21FE6EE332718EE0BB1，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：启停和配置更新都使在途通用加载结果过时，复核放在各记录发布前；新调用仍登记，未用全局取消阻断其他任务。无本项未修复 Critical/Important。未裁决已经进入集合监听器的异步查询、已入队撤销、事务回滚后的注册一致性、跨实例取消/租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。仅 SQLite，未启 PG/建库/新附件，不改正式依赖、主检出或核心，不推送合并发布/启用正式规则。
+
+## 265. 集合监听器移除后拒绝其未入队调用
+
+Ruling: CollectionTrigger.off 移除注册不能终止已进入 handler 的异步条件读取；真实 count SQL 返回后停用，旧 handler 仍会入队，立即重启用也不能使旧调用恢复有效。复用原 events 注册表和实际 listener 函数身份，在 handler 开始及最后异步读取之后确认原监听器仍登记；不新增持久状态、取消服务、权限或调度系统。原业务行更新不因停止自动工作流而回滚。
+
+- [x] 新 collection-lifecycle.test.ts 使用实际安装插件及内存 SQLite 的租户来源/结果表。条件 SQL 实际匹配一行后暂停交付，真实 workflow.update(false) 调用原 toggle/off；分别保持停用和立即重启用，再释放原更新并核对执行/结果零条、来源 revision1 保留。恢复后全新 revision2 事件正常生成一行，execution 和结果归属均为 B，context.data.revision 为2；没有修改原归属或借助人工 root 权限。
+- [x] workflow-collection-listener-off-red.log：2失败、无跳过、实际退出1/13.81秒（测试8.26），session90747已退出；两项 execution 均实际1而非0，断言在结果行检查前停止。最小修复后完整两项通过、实际0/13.68秒，workflow-collection-listener-off-green.log，session88345已退出。首次生产文件格式 check 退出1发生在 runner 前，格式化并重新 check/lint 后才实际执行，不算产品 RED。
+- [x] 最终 collection-lifecycle、collection、Plugin、tenant-module-boundary 四文件54全通过、无跳过、实际退出0/56.31秒（测试40.27），workflow-collection-listener-off-regression.log，session96357已退出；含普通同步/异步集合事件、租户上下文、继承范围和外部数据源。新两项含于54，各轮不累加，不是整分支回归。
+- [x] workflow 客户端/服务端/依赖/声明完整 build 实际退出0，workflow-collection-listener-off-build.log，session49089已退出。两 TS Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：CollectionTrigger 3CE207AB526C676E4A1EB17894471A020984534E0FA397D45E7310C382DEF519；collection-lifecycle.test 85BCC78351C916ACE38B65523E3F24592251183C39088B63B1013E5280A86308，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：函数身份核对绑定原数据源/事件/工作流注册，同名新 listener 不能恢复旧调用；最后检查后到原 trigger 入队之间没有新 await。原 context、事务传递及租户归属语义保持。无本项未修复 Critical/Important。不等于终止已发出的 SQL、撤销已入队执行、完整停止矩阵、事务回滚后注册恢复、跨实例取消/持久租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。只用 SQLite，未启 PG/建库或新物理附件，不改主检出、核心、正式依赖或业务库，不推送合并发布/启用正式新规则。

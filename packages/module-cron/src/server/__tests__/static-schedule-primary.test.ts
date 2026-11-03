@@ -293,4 +293,49 @@ describe.skipIf(!postgresUrl)('cron primary enabled authority', () => {
       await app.db.sequelize.query('DROP TABLE cron_stale_enabled.workflows');
     }
   });
+  it('discovers a primary-enabled tenant cron on restart despite a stale disabled list', async () => {
+    const label = 'Primary startup tenant work';
+    const { workflow, job } = await createJob(label);
+    const time = Math.floor(Date.now() / 1000) * 1000 + 6000;
+    const jobs = app.db.getModel('cronJobs');
+    await jobs.update({ startsOn: new Date(time) }, { where: { id: job.id }, hooks: false });
+    await app.db.sequelize.query('UPDATE cron_stale_enabled."cronJobs" SET enabled=false WHERE id=:id', {
+      replacements: { id: job.id },
+    });
+    expect((await jobs.findByPk(job.id)).get('enabled')).toBe(false);
+    const primary = await jobs.findByPk(job.id, { useMaster: true, transaction: null });
+    expect(primary.get('enabled')).toBe(true);
+    expect(new Date(primary.get('startsOn')).getTime()).toBe(time);
+    await service.load();
+    try {
+      await app.stop();
+      await app.db.reconnect();
+      expect(await app.isStarted()).toBe(false);
+      await app.start();
+      expect(await app.isStarted()).toBe(true);
+      expect(Date.now()).toBeLessThan(time);
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions({ useMaster: true, transaction: null });
+        expect(executions.map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])).toEqual(
+          [['B', time]],
+        );
+        const rows = await app.db
+          .getModel('primaryCronResults')
+          .findAll({ where: { label }, useMaster: true, transaction: null });
+        expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', label]]);
+      });
+      await idle();
+      const persisted = await app.db.getRepository('cronJobs').findOne({
+        filterByTk: job.id,
+        useMaster: true,
+        transaction: null,
+      });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+      expect(await lock.isLocked(job.id, time)).toBe(false);
+    } finally {
+      service.off(job);
+      await workflow.update({ enabled: false });
+      await idle();
+    }
+  });
 });

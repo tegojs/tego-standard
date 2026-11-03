@@ -95,6 +95,8 @@ export class StaticScheduleTrigger {
       const lifecycle = this.lifecycle;
       const cronJobs = await app.db.getRepository('cronJobs').find({
         filter: { mode: SCHEDULE_MODE.STATIC, enabled: true },
+        useMaster: true,
+        transaction: null,
       });
       if (lifecycle !== this.lifecycle) return;
       this.inspect(cronJobs);

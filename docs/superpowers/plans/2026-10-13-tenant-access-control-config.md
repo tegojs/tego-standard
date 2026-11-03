@@ -4394,3 +4394,16 @@ Ruling: Cron到期时的workflows.findOne({key, enabled:true})仍默认读池；
 - [x] 新专用库tego_tenant_access_test_b28803e678已删除且pg_database count0。实际guard56676退出0后才删除/停止，两后继命令亦实际0：核原postmaster89500/创建2026-11-03T14:23:11.340426+08:00/精确原目录命令、全部25466仅该PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner及snapshot验证0核实。原PG正常停止、pg_ctl无服务、PID消失、全部端口0。原集群、cron-workflow-primary-pg.log及验证日志保留，无物理附件操作。
 
 按requesting-code-review模板作者串行自审，非独立复核：只改变原启用事实的读取来源，主库停用保持原无任务分支，正常重新启用保持实际B归属和计数。无本项未修复Critical/Important。不予本项裁决：Cron启动发现来源、最终事实到分派/SQL完整并发隔离、逐任务off/完整已入队撤销、同键timer/TTL所有权、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§287 8e2b7d53f772e3ad14a18d82ed25ef5e46d86c35默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 289. Cron 重启从主库发现已启用的租户任务
+
+Ruling: 到期回读虽已主库，afterStart的cronJobs列表仍默认读池；旧池停用记录会使主库已启用任务在重启时漏排。仅原列表增加useMaster:true/transaction:null，保留原模式/启用条件、生命周期交付复核与inspect，不改核心启动协议或新增调度入口。
+
+- [x] 扩展原真实PG双池夹具：本案例主库任务enabled=true、startsOn未来6秒，旧池同名任务enabled=false。两池状态与主库时点真实读取守卫后，service.load、实际stop/reconnect/start、isStarted false/true，重启完成仍早于到期。必须由原Node timer生成唯一B execution、精确context.date及B业务行，两计数各1、锁释放；finally原off/停用workflow/等待四项队列空闲。没有直接调用trigger或伪造启停标志，原读池任务未人为改启用。
+- [x] 首cron-startup-primary-red.log为fixture错误：PG停止后池已关闭，缺少既有测试协议的db.reconnect，测试及afterAll均ConnectionManager closed，1失败6过滤/7总、实际1/8.39秒，session3519已退出。补stop后reconnect，第二cron-startup-primary-fixture-red.log因首轮teardown未移除本测试schema而beforeAll报already exists，7项均未执行、实际1/8.80秒，session13089已退出，亦非产品RED；该轮afterAll正常清理。只读SQL核本轮库/schema不存在/零其他客户端后才继续。
+- [x] cron-startup-primary-clean-red.log干净RED：1失败6过滤/7总、实际1/20.54秒（测试12.66），session71161已退出；两池/真实启停/到期前时间守卫通过，到期后执行集合实际[]、预期[[B,指定时点]]，未进入业务/计数正向断言。原列表两选项最小修复后完整PG7全通过、无跳过、实际0/16.25秒，cron-startup-primary-green.log，session14130已退出；新项真实timer、B持久结果及计数通过。
+- [x] 最终cron-startup-primary-regression.log七文件80全通过、无跳过、实际0/49.18秒（测试75.80并行累计），session26838已退出：PG7+SQLite73（dispatch12、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5）。新项含于80，不累加green7、此前79/78/73或各失败轮，非整分支回归。不同schema不是WAL replica，不独立声称本案例证明null必要性。
+- [x] cron-startup-primary-build.log cron客户端/服务端/依赖/声明完整构建实际0，session98318已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime 1A9D80B7590B599D228F9B8C9B85D6D65B1FA070DDBBAA2E24967F42CB55B784；primary test A97819F349EE87F2A1F637A8AF9A2EEE3BC70808F149A5E2E535A5BAA9EF12A1，最终代码后未改。
+- [x] 新专用库tego_tenant_access_test_b28903f679已删除且pg_database count0。guard46840实际0后两个后继命令亦实际0：核原postmaster58720/创建2026-11-03T14:29:56.123583+08:00/精确原目录命令、全部25466仅该PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner及snapshot验证0核实后仅删本轮库。原PG正常停、pg_ctl无服务、PID消失、全部端口0；原集群和cron-startup-primary-pg.log等日志保留，无物理附件操作。
+
+按requesting-code-review模板作者串行自审，非独立复核：列表与到期回读使用同一主库事实，既有跨停止结果失效检查保持；真实重启timer和持久B结果验证非mock路由。无本项未修复Critical/Important。不予本项裁决：同生命周期发现/保存交错、逐任务off取消在途调用、已入队完整撤销、同键timer/TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§288 693c20649690b5f3745a3955d1e6c99d5aabdfa4默认签名成功且独立verify-commit实际0/签名G，全局true。

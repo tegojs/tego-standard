@@ -4499,3 +4499,18 @@ Ruling: repeat超过两轮缓存窗口时，原发现SQL筛选(now-field)%repeat
 - [x] 新专用tego_tenant_access_test_b29703a680已在核owner tenant_test/零其他客户端后删除且pg_database count0。原postmaster94732/创建2026-11-03T15:56:39.9101320+08:00、精确原目录命令、全部25466记录仅该PID（State null）、SQL原目录/角色/127.0.0.1及/32/25466/postgres非恢复均核验；cleanup session42650实际0，原PG正常停止、pg_ctl无服务/PID消失/全部端口0/验证0。保留原集群、date-repeat-discovery-pg.log及全部旧日志/目录，没有Redis服务或物理附件操作。
 
 按requesting-code-review模板作者串行自审，非独立复核：错误相位分支及漏减偏移均由真实每日到期执行抓住；未来首次/当前秒边界控制防止修复丢失正常首次开始，远期控制防止退化为全量扫描。无本项未修复Critical/Important。不予本项裁决：MySQL/MariaDB实际运行、任意亚秒周期/长期日期范围扩展、固定endsOn发现路径、主库事实到业务SQL完整并发隔离、任意长查询补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅三TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§296 9bef080a6c1932fa97fa146dfc4649ea6a07c62c默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 298. 日期字段发现支持既有自定义结束日期
+
+Ruling: 原EndsByField提供By custom date，既有mode-date-field测试也支持ISO endsOn；但loadRecordsToSchedule把字符串送进字段偏移解析器，因无field返回null，使配置了自定义结束日期的重复任务在发现阶段全部丢失。字符串分支仅复用原parseDateWithoutMs，其他分支和已有结束判断不变；不新建日期契约或配置入口。
+
+- [x] 原external SQLite安装实例及真实SQL，正常创建create节点，原Model(hooks:false)持久配置自定义endsOn。数字周期一天从前一天重复、cron周期从未来首次开始；合法endsOn恰等于手工due，过期控制为当前时间前5秒。原getRecordNextTime先核预期due/null，再原reload/Node timer及队列，finally原off/还原源日期并仅删本测试业务行，不伪造SQL/时钟/timer或dispatch结果。
+- [x] date-custom-end-discovery-red.log干净RED：2失败2通过24过滤/28总、实际1/23.36秒（测试18.79），session53451已退出。两个合法结束时间案例均execution实际[]而非唯一B/due，过期控制原实现已通过，不冒称四项均RED。一行解析分流后聚焦四项通过24过滤/28总、实际0/25.14秒（测试19.68），date-custom-end-discovery-green.log，session57109已退出；真实B业务行、精确date及两计数1通过，过期为零执行/业务行/两计数0；负向同时核events/preparing/pending/executing。
+- [x] 最终date-custom-end-discovery-regression.log九SQLite文件120全通过/无跳过/实际0/62.74秒（测试149.34并行累计），session1198已退出：external28、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。四新项含于120，不累加green4、§297含PG137或任何旧轮次，非整分支回归。此项只改JavaScript分支解析，没有SQL路由/dialect改变，未重跑PG夹具，不把前项PG结果称本项重跑。
+- [x] date-custom-end-discovery-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session37870已退出。最终两TS Prettier check/oxlint零警告错误，源/snapshot SHA一致：DateFieldScheduleTrigger 49B8895A239064E3D5D11E747F1E9C3A4EB84A4FF5019638178F0F6F58848C57；external test 6A7705FE366BEB86D15578592FC2007486D4F8375034236ADAA91AEBA4B896AF。最终代码后未改；本项未启PG/Redis服务、建库或新物理附件，原集群/全部日志/旧目录保留。
+
+按requesting-code-review模板作者串行自审，非独立复核：原字符串契约由既有UI/类型/测试共同确认；复用同一解析器保持秒精度和无效时间拒绝，原字段偏移与到期最终判断保持。真实数字重复/cron首次发现均有反例及结束时点等值控制，过期配置不误放行。无本项未修复Critical/Important。不予本项裁决：初始起止输入校验、任意长延迟补跑、主库事实到业务SQL完整并发隔离、跨实例自动发现/租约/去重、全部启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。
+
+前§297签名如实记录：默认git commit session82593实际Timeout/退出128，事先捕获git109372/88176、gpg89620及pinentry95664创建时间和父链；退出后逐一核实消失，HEAD仍9bef080a6、原staged tree db7f037e4a403859cb306bffb07cfaa9450f57d4不变、无未暂存改动、全机Git/GPG/pinentry0，独立guard实际0后才按已有授权单次跳过。最终c889f63a0a4fc90b18b09df9418ce055743f591d实际提交0、签名N，不称G或独立验签成功；global commit.gpgsign仍true，不复用该Timeout/旧认证。
+
+本§298默认git commit session2544同样实际Timeout/退出128。事先捕获本次git103128/109148、gpg7180及pinentry51404创建时间/父链；逐一消失、HEAD仍c889f63a0、原staged tree 98bf1a77f86ac79ae196f68575bc3373ed423fdb未变、无未暂存及活动Git/GPG/pinentry0，独立guard session74522实际0。仅补本段签名事实后重新核对计划内四文件暂存，不重试旧签名，按已有授权仅本次单次跳过；不能把该未签名提交称G或独立验签成功，不改变global设置。

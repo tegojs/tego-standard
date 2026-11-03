@@ -179,6 +179,58 @@ describe('date-field scheduling from an external database', () => {
     }
   });
 
+  it.each([
+    { repeat: 86_400_000, expired: false },
+    { repeat: 86_400_000, expired: true },
+    { repeat: '*/2 * * * * *', expired: false },
+    { repeat: '*/2 * * * * *', expired: true },
+  ])('discovers schedules with a custom end date (repeat: $repeat, expired: $expired)', async ({ repeat, expired }) => {
+    const trigger = installedDateTrigger();
+    const documents = external.getCollection('externalScheduleDocuments').model;
+    const results = app.db.getCollection('externalScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 3000) / 2000) * 2000;
+    const config = {
+      ...workflow.config,
+      repeat,
+      endsOn: new Date(expired ? Date.now() - 5000 : due).toISOString(),
+    };
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Custom end task' } } },
+    });
+    try {
+      await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+      await documents.update(
+        { scheduledAt: new Date(typeof repeat === 'number' ? due - repeat : due) },
+        { where: {}, hooks: false },
+      );
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+      const record = await documents.findByPk(1);
+      expect(trigger.getRecordNextTime(current, record, false, new Date(due - 2000))).toBe(expired ? null : due);
+      expect(Date.now()).toBeLessThan(due);
+      await observeThroughDeadline(trigger, due, () => trigger.reload());
+      const plugin = app.pm.get('workflow');
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+        expired ? [] : [['B', due]],
+      );
+      const generated = await results.findAll({ where: { label: 'Custom end task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(expired ? [] : ['B']);
+      await workflow.reload();
+      expect([workflow.executed, workflow.allExecuted]).toEqual(expired ? [0, 0] : [1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await documents.update({ scheduledAt }, { where: {}, hooks: false });
+      await results.destroy({ where: { label: 'Custom end task' }, hooks: false });
+    }
+  });
+
   it('rejects a cached date timer after persisted workflow disable without a local save event', async () => {
     const trigger = installedDateTrigger();
     const model = external.getCollection('externalScheduleDocuments').model;

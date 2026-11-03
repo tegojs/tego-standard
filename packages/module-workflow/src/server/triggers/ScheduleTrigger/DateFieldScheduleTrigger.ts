@@ -334,7 +334,8 @@ export default class ScheduleTrigger {
 
       if (endsOn) {
         const now = new Date();
-        const endTimestamp = getOnTimestampWithOffset(endsOn, now);
+        const endTimestamp =
+          typeof endsOn === 'string' ? parseDateWithoutMs(endsOn) : getOnTimestampWithOffset(endsOn, now);
         if (!endTimestamp) {
           return [];
         }

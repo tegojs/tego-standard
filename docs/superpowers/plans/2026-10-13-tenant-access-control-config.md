@@ -4418,3 +4418,14 @@ Ruling: off只取消timer，已经进入trigger等待锁交付的调用仍能在
 - [x] cron-reschedule-inflight-build.log cron客户端/服务端/依赖/声明完整构建实际0，session34015已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime EF9928B02DF7B992F91DFD843B9E3E70D089E90B56D16F4BF8BC8FEAADE35A4F；dispatch test D6CF490D34205368B83DBA4FA0E7DC88623FEC2B9A964BB1ED5C5C30A8E4C7E4，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：取消局限同任务id，标识与lifecycle共同复核，原取得锁后finally仍释放旧锁；新时点真实timer不继承旧标识。无本项未修复Critical/Important。标识按任务保留至停止，不宣称任意任务churn下的内存上限。不予本项裁决：同生命周期旧发现列表与保存交错、已进入trigger/已入队完整撤销、同键新旧timer所有权、缓存TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite、未启PG/建库/新附件，原PG停止/集群日志保留；只改两TS及两原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§289 7599f65143a228f9cc95bb2b5baac3f38144da11默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 291. Cron 启动旧列表不能覆盖同生命周期内的正常重排
+
+Ruling: §290只使已进入trigger的旧调用失效；启动SQL已读旧时点、Repository正常重排后才交付旧列表，旧列表仍能登记未来旧timer，其到期调用会捕获新取消标识。原列表SQL前复制现有按任务取消标识，交付且生命周期有效后，仅未变标识的行进入原inspect。正常保存事件登记的新timer保留，同批未变化任务不被丢弃。
+
+- [x] 原真实SQLite夹具使用skipStart首次启动协议，Repository保存旧未来时点，service.load后afterFind仅暂停实际旧列表交付。在同一次start尚在途时正常Repository更新未来新时点，经原beforeSave off/afterSave on登记新timer；时间守卫确认尚未到旧时点，再交付旧SQL结果并await原start。跨旧时点后四项队列空闲且execution/业务行0，新时点必须实际Node timer生成唯一B execution/精确context.date/B业务行及计数1。finally释放/等待首次start、移除hook并原off，没有stop/start代次变化或伪造SQL。
+- [x] cron-startup-reschedule-red.log干净RED：1失败14过滤/15总、实际1/14.28秒（测试7.58），session40438已退出；SQL/正常保存/启动/时间/空闲守卫通过，旧时点execution实际1、预期0，未进入新timer正向断言。为避免整份列表误丢弃，作者在实现前加强同案：实际Repository新增同批另一个未变任务，时点在旧与新之间，负向时间守卫早于该合法时点；正向必须它与重排任务分别在各自精确时点产生B execution/业务行、各计数1。增强后的cron-startup-reschedule-control-red.log仍为干净RED，1失败14过滤/15总、实际1/14.42秒（测试8.01），session69664已退出，同一旧时点实际1、预期0；不是重复通过项冒充推进。
+- [x] 原标识快照/逐行复核最小实现后完整dispatch15全通过、无跳过、实际0/62.72秒，cron-startup-reschedule-green.log，session5444已退出。同批未变任务及重排新timer均生成B持久结果，原旧时点0。最终cron-startup-reschedule-regression.log六文件SQLite76全通过、无跳过、实际0/66.85秒（测试83.78并行累计），session35262已退出：dispatch15、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于76，不累加green15、此前75/含PG80或RED，不是整分支回归；本项没有SQL路由改变，未重跑PG7。
+- [x] cron-startup-reschedule-build.log cron客户端/服务端/依赖/声明完整构建命令直接实际0，无后继session。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime BE94620B900DC7443D031FE2A807B092927C1315D4F6D1B2D7780775012A44A8；dispatch test 726EFE50CF95D24C01FF0A2A0251112CA0FC0D2E3C113AF415095FF76838122B，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：首次await前复制标识，off替换对象而非原地修改，逐行检查到同步inspect间无await；主库读取与跨停止生命周期复核保持，未变行真实timer控制排除全列表取消。无本项未修复Critical/Important。快照成本随本实例取消标识数量增加，不声明规模上限。不予本项裁决：绕过本实例保存事件的跨实例变化、所有启停重入/已入队完整撤销、同键新旧timer/缓存TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/建库/新附件；原PG正常停止，日志与集群保留。只改两TS及两原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§290 bb3f0f82ec9431b56c65a22b6f0e4120ff0fa67e默认签名成功且独立verify-commit实际0/签名G，全局true。

@@ -94,13 +94,16 @@ export class StaticScheduleTrigger {
   async load() {
     this.app.on('afterStart', async (app) => {
       const lifecycle = this.lifecycle;
+      const cancellations = new Map(this.cancellations);
       const cronJobs = await app.db.getRepository('cronJobs').find({
         filter: { mode: SCHEDULE_MODE.STATIC, enabled: true },
         useMaster: true,
         transaction: null,
       });
       if (lifecycle !== this.lifecycle) return;
-      this.inspect(cronJobs);
+      this.inspect(
+        cronJobs.filter((cronJob) => cancellations.get(`${cronJob.id}`) === this.cancellations.get(`${cronJob.id}`)),
+      );
     });
 
     this.app.on('beforeStop', () => {

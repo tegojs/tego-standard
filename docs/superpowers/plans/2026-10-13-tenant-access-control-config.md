@@ -4382,3 +4382,15 @@ Ruling: getTenantContexts默认从读池读取节点，旧池漏掉租户节点�
 - [x] 新专用库tego_tenant_access_test_b28703d677已删除且pg_database count0。收敛三命令均实际0：核原postmaster25328/创建2026-11-03T14:17:27.505661+08:00/精确原目录命令，全部25466仅该PID（State null）；SQL核原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner，并确认snapshot验证0后仅删本轮库。原PG正常停止、pg_ctl无服务、原PID消失、全部端口0。原集群、cron-nodes-primary-pg.log及验证日志保留，没有物理附件操作。
 
 按requesting-code-review模板作者串行自审，非独立复核：租户分类所依据节点与Processor原主库读取约定一致，不缓存新的身份或改变共享分支；真实业务B结果证明身份贯穿后继执行。无本项未修复Critical/Important。不予本项裁决：Cron工作流及启动列表的其他权威来源、事实读取至SQL的完整并发隔离、逐任务off/完整已入队撤销、同键timer/TTL所有权、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§286 d6ff4193246060086a75df8b202d1c60a9a02d7d默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 288. Cron 从主库核对工作流启用状态
+
+Ruling: Cron到期时的workflows.findOne({key, enabled:true})仍默认读池；主库已停用的工作流可能凭旧enabled继续执行。仅原Repository查询增加useMaster:true/transaction:null，保持原key/启用筛选、缺失分支、生命周期检查和外层锁释放，不改工作流查询节点的G∨V契约。
+
+- [x] 扩展原真实PG双池夹具，在本轮专用库临时创建读池同名workflows并复制本案例enabled=true定义；主库hooks:false持久停用。真实两池读取分别true/false，调用原Cron trigger并等待events/preparing/pending/executing全空；要求execution/对应label业务行0、Cron计数0、缓存锁释放。主库正常重新启用后显式新调用必须唯一B execution/tenantContext及B业务行，两计数各1。finally原off/停用workflow/等待空闲/删除本测试新表，没有伪造查询结果或重试未知提交。
+- [x] cron-workflow-primary-red.log干净RED：1失败5过滤/6总、实际1/10.17秒（测试2.59），session26625已退出；两池/空闲守卫通过，execution实际1、预期0，未进入后继业务/计数/重新启用断言。首次格式check1已格式化，非产品RED。最小两选项后完整PG6全通过、无跳过、实际0/10.53秒，cron-workflow-primary-green.log，session94408已退出。
+- [x] 最终cron-workflow-primary-regression.log七文件79全通过、无跳过、实际0/52.20秒（测试79.13并行累计），session50063已退出：PG6+SQLite73（dispatch12、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5）。新项含于79，不累加green6、此前78/73或RED，不是整分支回归；不同schema不是WAL replica，不独立声称本案例证明null必要性。
+- [x] cron-workflow-primary-build.log cron客户端/服务端/依赖/声明完整构建实际0，session82836已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime 0E550560C4968B2B37CE6DA0169D4AEB9CB59729AD483303D8EB0602A564D622；primary test CF8F4F541C94192A30B5EB45F671D141BE7B3174DFA6B4B71E009775D492A62D，最终代码后未改。
+- [x] 新专用库tego_tenant_access_test_b28803e678已删除且pg_database count0。实际guard56676退出0后才删除/停止，两后继命令亦实际0：核原postmaster89500/创建2026-11-03T14:23:11.340426+08:00/精确原目录命令、全部25466仅该PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner及snapshot验证0核实。原PG正常停止、pg_ctl无服务、PID消失、全部端口0。原集群、cron-workflow-primary-pg.log及验证日志保留，无物理附件操作。
+
+按requesting-code-review模板作者串行自审，非独立复核：只改变原启用事实的读取来源，主库停用保持原无任务分支，正常重新启用保持实际B归属和计数。无本项未修复Critical/Important。不予本项裁决：Cron启动发现来源、最终事实到分派/SQL完整并发隔离、逐任务off/完整已入队撤销、同键timer/TTL所有权、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§287 8e2b7d53f772e3ad14a18d82ed25ef5e46d86c35默认签名成功且独立verify-commit实际0/签名G，全局true。

@@ -238,4 +238,59 @@ describe.skipIf(!postgresUrl)('cron primary enabled authority', () => {
       await app.db.sequelize.query('DROP TABLE cron_stale_enabled.flow_nodes');
     }
   });
+  it('rejects a primary-disabled workflow despite a stale enabled definition', async () => {
+    const label = 'Primary workflow enabled authority';
+    const { workflow, job } = await createJob(label);
+    await app.db.sequelize.query('CREATE TABLE cron_stale_enabled.workflows (LIKE public.workflows INCLUDING ALL)');
+    try {
+      await app.db.sequelize.query(
+        'INSERT INTO cron_stale_enabled.workflows SELECT * FROM public.workflows WHERE id=:id',
+        { replacements: { id: workflow.id } },
+      );
+      const workflows = app.db.getModel('workflows');
+      await workflows.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+      expect((await workflows.findByPk(workflow.id)).get('enabled')).toBe(true);
+      expect((await workflows.findByPk(workflow.id, { useMaster: true, transaction: null })).get('enabled')).toBe(
+        false,
+      );
+      const time = Math.floor(Date.now() / 1000) * 1000;
+      await service.trigger(job.id, time);
+      await idle();
+      expect(await workflow.countExecutions({ useMaster: true, transaction: null })).toBe(0);
+      expect(
+        await app.db.getModel('primaryCronResults').count({ where: { label }, useMaster: true, transaction: null }),
+      ).toBe(0);
+      const rejected = await app.db.getRepository('cronJobs').findOne({
+        filterByTk: job.id,
+        useMaster: true,
+        transaction: null,
+      });
+      expect([rejected.allExecuted, rejected.limitExecuted]).toEqual([0, 0]);
+      expect(await lock.isLocked(job.id, time)).toBe(false);
+
+      await workflows.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+      await service.trigger(job.id, time);
+      await idle();
+      const executions = await workflow.getExecutions({ useMaster: true, transaction: null });
+      expect(executions.map((execution) => [execution.tenantId, execution.tenantContext.currentTenantId])).toEqual([
+        ['B', 'B'],
+      ]);
+      const rows = await app.db
+        .getModel('primaryCronResults')
+        .findAll({ where: { label }, useMaster: true, transaction: null });
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', label]]);
+      const accepted = await app.db.getRepository('cronJobs').findOne({
+        filterByTk: job.id,
+        useMaster: true,
+        transaction: null,
+      });
+      expect([accepted.allExecuted, accepted.limitExecuted]).toEqual([1, 1]);
+      expect(await lock.isLocked(job.id, time)).toBe(false);
+    } finally {
+      service.off(job);
+      await workflow.update({ enabled: false });
+      await idle();
+      await app.db.sequelize.query('DROP TABLE cron_stale_enabled.workflows');
+    }
+  });
 });

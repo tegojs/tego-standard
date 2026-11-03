@@ -281,6 +281,8 @@ export class StaticScheduleTrigger {
 
       const workflow = await this.db.getRepository('workflows').findOne({
         filter: { key: cronJob.workflowKey, enabled: true },
+        useMaster: true,
+        transaction: null,
       });
       if (!workflow || !isCurrent()) {
         return;

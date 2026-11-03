@@ -213,6 +213,7 @@ export default class ScheduleTrigger {
   }
 
   async reload() {
+    const lifecycle = this.lifecycle;
     const cancellations = new Map(this.cancellations);
     try {
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
@@ -221,6 +222,7 @@ export default class ScheduleTrigger {
         transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
       });
+      if (this.lifecycle !== lifecycle) return;
 
       // Keep live handles cancellable; schedule deduplicates and fired callbacks retire them.
       await this.inspect(

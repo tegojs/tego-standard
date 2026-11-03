@@ -45,6 +45,114 @@ describe('date schedule discovery lifecycle', () => {
     await app?.destroy();
   });
 
+  it('discards a pre-stop reload list after restart selects another tenant source', async () => {
+    app.db.collection({
+      name: 'replacementDateLifecycleDocuments',
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+      ],
+    });
+    await app.db.sync();
+    await app.db.getCollection('tenants').model.create({ id: 'C', enabled: true, path: '/C/' });
+    const repository = app.db.getRepository('workflows');
+    const workflow = await repository.create({
+      values: {
+        type: 'schedule',
+        enabled: false,
+        config: { mode: 1, collection: 'dateLifecycleDocuments', startsOn: { field: 'scheduledAt' } },
+      },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'dateLifecycleResults', params: { values: { label: 'Restarted source task' } } },
+    });
+    await app.stop();
+    const due = Math.ceil((Date.now() + 6000) / 1000) * 1000;
+    await app.db
+      .getCollection('dateLifecycleDocuments')
+      .model.create({ id: 1, tenantId: 'C', scheduledAt: new Date(due) });
+    await app.db
+      .getCollection('replacementDateLifecycleDocuments')
+      .model.create({ id: 1, tenantId: 'B', scheduledAt: new Date(due) });
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const installed = plugin.triggers.get('schedule') as unknown as { modes: Map<number, DateFieldScheduleTrigger> };
+    const mode = installed.modes.get(1)!;
+    const reloads: Promise<void>[] = [];
+    const reload = mode.reload.bind(mode);
+    const observeReload = vi.spyOn(mode, 'reload').mockImplementation(() => {
+      const result = reload();
+      reloads.push(result);
+      return result;
+    });
+    const inspections: Promise<void>[] = [];
+    const inspect = mode.inspect.bind(mode);
+    const observeInspect = vi.spyOn(mode, 'inspect').mockImplementation((...args) => {
+      const result = inspect(...args);
+      inspections.push(result);
+      return result;
+    });
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let enabled = false;
+    let discovered = false;
+    const find = repository.find.bind(repository);
+    const discovery = vi.spyOn(repository, 'find').mockImplementation(async (options) => {
+      const rows = await find(options);
+      if (!enabled && options?.filter?.enabled === true && !options.filter.type) {
+        expect(rows.some((row) => row.id === workflow.id)).toBe(false);
+        await app.db
+          .getCollection('workflows')
+          .model.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+        enabled = true;
+      } else if (!discovered && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
+        expect(rows.map((row) => row.config.collection)).toEqual(['dateLifecycleDocuments']);
+        discovered = true;
+        await hold;
+      }
+      return rows;
+    });
+    try {
+      await app.start();
+      await waitForFastAssertion(() => expect(discovered).toBe(true));
+      expect(plugin.enabledCache.has(workflow.id)).toBe(false);
+      const oldReload = reloads[0];
+      expect(oldReload).toBeDefined();
+      await app.stop();
+      // A different writer changes only this fixture's persisted schedule configuration.
+      await app.db
+        .getCollection('workflows')
+        .model.update(
+          { config: { mode: 1, collection: 'replacementDateLifecycleDocuments', startsOn: { field: 'scheduledAt' } } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+      await app.start();
+      await mode.reload();
+      await Promise.all(reloads.slice(1));
+      await Promise.all(inspections);
+      expect(plugin.enabledCache.get(workflow.id).config.collection).toBe('replacementDateLifecycleDocuments');
+      expect(Date.now()).toBeLessThan(due);
+      release();
+      await oldReload;
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+        expect(executions[0].context.data.tenantId).toBe('B');
+        const rows = await app.db.getRepository('dateLifecycleResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Restarted source task']]);
+      });
+      await waitForWorkflowIdle(app);
+    } finally {
+      release();
+      await Promise.allSettled(reloads);
+      await Promise.allSettled(inspections);
+      discovery.mockRestore();
+      observeReload.mockRestore();
+      observeInspect.mockRestore();
+    }
+  });
+
   it('retains the next numeric repeat when the enabled read crosses a second', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

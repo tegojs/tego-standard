@@ -4210,3 +4210,14 @@ Ruling: trigger 在完成异步租户、业务记录及工作流主库核查后�
 - [x] date-schedule-repeat-read-delay-build.log workflow客户端/服务端/依赖/声明完整构建实际退出0，session53116已退出。两TS最终Prettier check与oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger FB9777F87AC74B85F4D7DB6B51381E5073A29401987F1507E920159E2EEBF743；date-lifecycle.test 1FF82D2DE2CD9C188D583D25C8757DC2DF1178C17244FDD8E51BB4C80BBDC8A5，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：重复计算使用本次调用捕获的时刻，安全事实仍必须在真实等待后校验；未缓存或跳过最新启用/租户/记录读取，取消与停止仍否定在途调用。无本项未修复Critical/Important。只覆盖调用开始后读取交付延迟造成的重复计算漂移，不宣称全面补跑漏期、处理调用开始之前的任意延迟、跨实例原子去重/持久租约、旧reload列表查询跨停止、已入队撤销、完整停止矩阵、新G正式消费者、业务试点或整分支独立复核。只SQLite，无新PG/附件，不改主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§271 e7bfae073e657f3ca26283f4d97bbe29b35a6ca6 默认签名成功且独立verify-commit实际0/签名G，全局签名true。
+
+## 273. 日期独立发现列表不能跨停止覆盖新来源
+
+Ruling: reload 的工作流列表查询发生在 inspect 捕获生命周期之前；旧 SQL 已返回但尚未交付时停止，重启选择新来源后，旧列表仍可进入 inspect 并覆盖新 timer。现于 reload 首次 await 前捕获本实例 lifecycle，列表交付后立即复核；停止前的结果不进入 inspect。原主库/null 查询、逐工作流取消、扫描代次、实际记录归属及权限检查保持，不增加状态表、权限来源或正式接线。
+
+- [x] 原 date-lifecycle 真实内存 SQLite 夹具新增两张来源表，同一 id/未来时点分别属于 C 和 B。通用启动 SQL 实际返回空列表后 hooks:false 启用本测试 workflow，独立日期列表读到原 C 来源后暂停交付；真实 stop，仅将持久 config 改为 B 来源表，再 start，等待新扫描和 B 排程完成后释放旧列表。没有转移记录归属，不是两个数据源或跨数据库实验。最终 execution、context.data.tenantId 和真实 create node 结果必须均为 B。
+- [x] date-schedule-reload-lifecycle-red.log：1失败2过滤/3总、实际退出1/31.15秒（测试19.10），session92953已退出。时间与缓存前置守卫通过，实际 execution 归属数组为 C、预期 B，尚未进入后继 context/业务行断言；不能声称 RED 已检查全部结果。
+- [x] 最小两行实现后 date-schedule-reload-lifecycle-regression.log 七文件80全通过、无跳过、实际退出0/228.81秒（测试140.74），session76669已退出：lifecycle3、external20、mode-date-field13、Plugin24、owner9、listener6、tenant-module-boundary5。新项含于80，不累加 RED、旧79或其他轮次，不是整分支回归。
+- [x] date-schedule-reload-lifecycle-build.log workflow客户端/服务端/依赖/声明完整构建实际退出0，session93604已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger A4C279C9FD60A3CC421EA49CB91D133A1E694AB39AFE880648B3AE8899BC52CF；date-lifecycle.test B7DBCC801795255C683031BAA83ED579853FF0F9A829131B4843B9CBFD352F53，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：捕获在原查询之前，复核在任何 inspect 发布之前；生命周期只由原停止边界失效，不影响同一生命周期正常扫描，错误仍交原 logger。无本项未修复Critical/Important。不予本项裁决：静态独立启动查询自身跨停止、同一生命周期列表重叠的完整排序、已入队撤销、持久租约/跨实例原子去重、新G消费者/业务试点及整分支独立复核，均需各自真实依据。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§272 7d946e837e57e186b540ce165cd0dcf473fd2bb5默认签名成功且独立verify-commit实际0/签名G，全局签名true。

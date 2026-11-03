@@ -40,6 +40,7 @@ export class StaticScheduleTrigger {
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
   private lifecycle = {};
+  private cancellations = new Map<string, object>();
 
   private async getTenantContexts(workflow) {
     const nodes = await workflow.getNodes({ useMaster: true, transaction: null });
@@ -104,6 +105,7 @@ export class StaticScheduleTrigger {
 
     this.app.on('beforeStop', () => {
       this.lifecycle = {};
+      this.cancellations.clear();
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
@@ -250,7 +252,8 @@ export class StaticScheduleTrigger {
   async trigger(cronJobId: number, time: number) {
     const eventKey = `${cronJobId}@${time}`;
     const lifecycle = this.lifecycle;
-    const isCurrent = () => lifecycle === this.lifecycle;
+    const cancellation = this.cancellations.get(`${cronJobId}`);
+    const isCurrent = () => lifecycle === this.lifecycle && cancellation === this.cancellations.get(`${cronJobId}`);
     let lockAcquired = false;
 
     try {
@@ -370,6 +373,7 @@ export class StaticScheduleTrigger {
   }
 
   off(cronJob: CronJobModel) {
+    this.cancellations.set(`${cronJob.id}`, {});
     this.schedule(cronJob, null, false);
   }
 }

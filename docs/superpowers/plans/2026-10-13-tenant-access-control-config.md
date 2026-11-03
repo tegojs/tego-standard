@@ -4407,3 +4407,14 @@ Ruling: 到期回读虽已主库，afterStart的cronJobs列表仍默认读池；
 - [x] 新专用库tego_tenant_access_test_b28903f679已删除且pg_database count0。guard46840实际0后两个后继命令亦实际0：核原postmaster58720/创建2026-11-03T14:29:56.123583+08:00/精确原目录命令、全部25466仅该PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner及snapshot验证0核实后仅删本轮库。原PG正常停、pg_ctl无服务、PID消失、全部端口0；原集群和cron-startup-primary-pg.log等日志保留，无物理附件操作。
 
 按requesting-code-review模板作者串行自审，非独立复核：列表与到期回读使用同一主库事实，既有跨停止结果失效检查保持；真实重启timer和持久B结果验证非mock路由。无本项未修复Critical/Important。不予本项裁决：同生命周期发现/保存交错、逐任务off取消在途调用、已入队完整撤销、同键timer/TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§288 693c20649690b5f3745a3955d1e6c99d5aabdfa4默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 290. Cron 重排时使该任务的在途旧调用失效
+
+Ruling: off只取消timer，已经进入trigger等待锁交付的调用仍能在Repository保存未来新时点后执行旧时点。实例增加按规范化任务id保存的取消标识，off替换该任务标识，trigger首次await前捕获并加入原isCurrent复核；停止时清空标识并仍由原lifecycle使全部旧调用失效。正常保存后的新timer捕获新标识，沿用原读取/分派/计数/锁finally，不取消已入队任务。
+
+- [x] 原真实SQLite/缓存夹具调用service.load。原acquire实际取得缓存锁后仅暂停交付；正常Repository保存startsOn未来6秒，经过真实beforeSave off/afterSave on并登记原Node timer，时间守卫确认尚未到新时点。交付旧锁结果、等待events/preparing/pending/executing全空后要求旧时点execution/业务行/两计数0、旧锁释放；随后必须原Node timer在精确新时点生成唯一B execution及B业务结果，两计数各1、新锁释放。finally释放/等待调用、恢复spy并原off，没有伪造锁结果或直接调用新时点trigger。
+- [x] cron-reschedule-inflight-red.log干净RED：1失败12过滤/13总、实际1/7.70秒（测试1.49），session66566已退出；真实缓存/正常保存/到期前时间/空闲守卫通过，旧时点execution实际1、预期0，未进入后继新timer断言。最小取消标识后完整dispatch13全通过、无跳过、实际0/52.37秒，cron-reschedule-inflight-green.log，session28986已退出。
+- [x] 作者自审新增独立任务控制：真实Repository创建另一个任务，主任务原acquire交付在途时只off另一个id，主任务仍生成精确时点B execution及B结果、计数1、另一个计数0、锁释放。该控制在已有实现上直接通过，不冒称新增RED。最终cron-reschedule-inflight-regression.log六文件SQLite75全通过、无跳过、实际0/56.42秒（测试74.69并行累计），session66900已退出：dispatch14、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。两新项含于75，不累加green13、此前含PG的80或RED，非整分支回归；本项无SQL路由改变，未重跑PG7。
+- [x] cron-reschedule-inflight-build.log cron客户端/服务端/依赖/声明完整构建实际0，session34015已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime EF9928B02DF7B992F91DFD843B9E3E70D089E90B56D16F4BF8BC8FEAADE35A4F；dispatch test D6CF490D34205368B83DBA4FA0E7DC88623FEC2B9A964BB1ED5C5C30A8E4C7E4，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：取消局限同任务id，标识与lifecycle共同复核，原取得锁后finally仍释放旧锁；新时点真实timer不继承旧标识。无本项未修复Critical/Important。标识按任务保留至停止，不宣称任意任务churn下的内存上限。不予本项裁决：同生命周期旧发现列表与保存交错、已进入trigger/已入队完整撤销、同键新旧timer所有权、缓存TTL所有权、最终事实到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite、未启PG/建库/新附件，原PG停止/集群日志保留；只改两TS及两原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§289 7599f65143a228f9cc95bb2b5baac3f38144da11默认签名成功且独立verify-commit实际0/签名G，全局true。

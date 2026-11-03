@@ -8,8 +8,11 @@ const MAX_SAFE_INTERVAL = 2147483647;
 export default class StaticScheduleTrigger {
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
+  private cancellations = new Map<string, object>();
+
   constructor(public workflow: Plugin) {
     workflow.app.on('afterStart', async () => {
+      const cancellations = new Map(this.cancellations);
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
         useMaster: true,
@@ -17,7 +20,11 @@ export default class StaticScheduleTrigger {
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
       });
 
-      this.inspect(workflows);
+      this.inspect(
+        workflows.filter(
+          (workflow) => this.cancellations.get(`${workflow.id}`) === cancellations.get(`${workflow.id}`),
+        ),
+      );
     });
 
     workflow.app.on('beforeStop', () => {
@@ -126,6 +133,7 @@ export default class StaticScheduleTrigger {
   }
 
   off(workflow) {
+    this.cancellations.set(`${workflow.id}`, {});
     this.schedule(workflow, null, false);
   }
 }

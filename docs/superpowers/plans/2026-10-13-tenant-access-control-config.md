@@ -4091,3 +4091,14 @@ Ruling: §258修正通用beforeStart，但StaticScheduleTrigger自己的afterSta
 按requesting-code-review模板作者串行自审，非独立复核：通用与静态独立发现都必须以已提交主库启停状态为准；原STATIC筛选、日期计算、repeat/limit及正常共享写入保持，不添加角色或租户权限来源。无本项未修复Critical/Important。查询后并发停用、在途静态发现与off交错、跨实例去重/租约、新G正式消费者、业务试点和整分支独立复核仍未完成。
 
 独立资源收敛实际0：核实postmaster66428/创建2026-11-02T22:13:42.6382570+08:00/原目录命令、25466全部记录仅原PID、SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及owner后，仅删tego_tenant_access_test_a26202e672并count0；原PG正常停止、pg_ctl无服务/PID消失/全部端口0/validation0。非实际WAL replica验收，集群/日志及旧目录保留，无新物理附件，不改主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。
+
+## 263. 停用使静态启动发现的未发布结果失效
+
+Ruling: StaticScheduleTrigger 的 afterStart 查询虽已使用主库，但真实 SQL 返回后、结果交付前停用任务，旧 enabled 对象仍会重新登记 timer。按规范化 workflow.id 保存本实例取消标识，查询前捕获，发布前逐任务比对；off 同步替换标识并保留原取消句柄逻辑。新 on 仍可正常排程，不创建新权限、租户扫描、schema 或正式接线。
+
+- [x] 新 static-lifecycle.test.ts 使用真实安装插件、内存 SQLite、持久 workflow/node 和共享业务表；仅在原 Repository.find 的真实 SQL 完成后暂停返回。实际 enabled 模型 update(false) 触发原 toggle/off，释放启动查询后仍早于到期点，等真实 timer 和原队列再检查持久结果。
+- [x] static-schedule-disable-inflight-red.log：1 失败、无跳过、实际退出1/15.88秒（测试7.84），session40547已退出；execution 实际1、预期0，断言在业务行检查前停止。最小实现后新文件1通过/实际0/19.89秒，static-schedule-disable-inflight-green.log，session34837已退出，含重新启用后真实业务写入正向控制。
+- [x] 再补停用后在旧查询交付前立即重启用、新 startsOn 的控制，已有实现直接满足，不冒称新 RED。最终新文件2、mode-static11、Plugin24、tenant-module-boundary5，共四文件42全通过、无跳过、实际退出0/100.54秒（测试63.08），static-schedule-disable-inflight-regression.log，session15176已退出。各轮不累加，不是整分支回归；Plugin 原受控 SQL 故障日志保留。
+- [x] workflow 客户端/服务端/依赖/声明完整构建实际退出0，static-schedule-disable-inflight-build.log，session72835已退出。两 TS 最终 Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 50B90D3B6EABB45A0181D012DE1826773883BADD4E057AD1201D506756F63063；static-lifecycle.test A4A678BF7E0FBAC589B2A322E22E2CBD7691081713355246779162F24DA86BCA，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：代次仅使本实例对应任务的在途静态发现失效，字符串 id 比较一致，普通 repeat/limit 和重新启用保持。无本项未修复 Critical/Important。未覆盖通用 beforeStart 加载器的在途发现、已入队撤销、跨实例取消/租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。只用 SQLite，未启动 PG/建库或新物理附件。两次只读旧日志/配置路径不存在不是测试 RED。不推送合并发布/启用正式新规则。

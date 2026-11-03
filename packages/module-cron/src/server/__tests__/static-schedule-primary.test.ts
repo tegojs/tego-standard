@@ -206,4 +206,36 @@ describe.skipIf(!postgresUrl)('cron primary enabled authority', () => {
       }
     },
   );
+  it('discovers tenant work from primary nodes missing from the read pool', async () => {
+    const label = 'Primary node tenant work';
+    const { workflow, job } = await createJob(label);
+    await app.db.sequelize.query('CREATE TABLE cron_stale_enabled.flow_nodes (LIKE public.flow_nodes INCLUDING ALL)');
+    try {
+      expect(await workflow.getNodes()).toHaveLength(0);
+      const nodes = await workflow.getNodes({ useMaster: true, transaction: null });
+      expect(nodes.map((node) => node.config.collection)).toEqual(['primaryCronResults']);
+      const time = Math.floor(Date.now() / 1000) * 1000;
+      await service.trigger(job.id, time);
+      await idle();
+      const executions = await workflow.getExecutions({ useMaster: true, transaction: null });
+      expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+      expect(executions.map((execution) => execution.tenantContext.currentTenantId)).toEqual(['B']);
+      const rows = await app.db
+        .getModel('primaryCronResults')
+        .findAll({ where: { label }, useMaster: true, transaction: null });
+      expect(rows.map((row) => [row.get('tenantId'), row.get('label')])).toEqual([['B', label]]);
+      expect(await lock.isLocked(job.id, time)).toBe(false);
+      const persisted = await app.db.getRepository('cronJobs').findOne({
+        filterByTk: job.id,
+        useMaster: true,
+        transaction: null,
+      });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+    } finally {
+      service.off(job);
+      await workflow.update({ enabled: false });
+      await idle();
+      await app.db.sequelize.query('DROP TABLE cron_stale_enabled.flow_nodes');
+    }
+  });
 });

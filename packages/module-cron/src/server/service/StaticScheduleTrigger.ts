@@ -42,7 +42,7 @@ export class StaticScheduleTrigger {
   private lifecycle = {};
 
   private async getTenantContexts(workflow) {
-    const nodes = await workflow.getNodes();
+    const nodes = await workflow.getNodes({ useMaster: true, transaction: null });
     const collectionNames = new Set<string>();
     if (workflow.config?.collection) {
       collectionNames.add(workflow.config.collection);

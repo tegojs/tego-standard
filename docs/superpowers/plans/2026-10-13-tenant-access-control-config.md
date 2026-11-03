@@ -4337,3 +4337,14 @@ Ruling: Cron任务自身虽已主库回读，getTenantContexts仍从读池发现
 - [x] 本轮新专用库tego_tenant_access_test_b28303c676已删除、pg_database count0，cleanup5604实际0：原postmaster80352/创建2026-11-03T13:54:25.0361650+08:00/精确原目录命令，25466全部记录仅原PID（State null）；SQL原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端/owner核实后仅删本轮库。原PG正常停、pg_ctl无服务、PID消失、全部端口0、snapshot验证0。原集群、cron-tenant-primary-pg.log及验证日志保留，无物理附件操作。
 
 按requesting-code-review模板作者串行自审，非独立复核：权威租户列表先于原分派，不改变实际归属或无候选时原尝试计数；共享分支仍无需租户列或租户读取。无本项未修复Critical/Important。不独立声称null在本Repository路径的必要性已证明；不同schema并非WAL replica。其他Cron权威读取、最后事实读取到分派的并发隔离、在途停止/已入队撤销、缓存异常及TTL所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核均非本项放行范围。不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§282 e1a2cb96930e3c345bbe96b338856e06112b4ee9默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 284. Cron 已开始的到期调用不能跨停止恢复旧租户批次
+
+Ruling: 已触发timer在等待租户事实时不再受已关闭句柄控制；app.stop/start后ready恢复，旧调用仍可入队。实例增加私有lifecycle，beforeStop首句替换；trigger首次await前捕获，在锁获取、任务/工作流回读及租户批次交付后检查。进入批次前取消的调用不计数、不续排，外层原finally仍释放本调用取得的锁。原已进入分派的计数保留，续排前再次检查生命周期，不取消已入队事件。
+
+- [x] 原真实SQLite/缓存夹具调用service.load及Repository更新未来时点，由真实Node timer进入原trigger。透传原trigger只保留在途Promise便于等待，不伪造结果；tenants.afterFind在真实SQL已读B后暂停交付。核实际缓存锁后真实app.stop/isStarted=false，跨过原到期秒后再start/isStarted=true，避免同秒合法重排干扰，再释放旧SQL结果。负向同时核events/preparing/pending/executing、execution/业务行0、两计数0及原锁释放；正常新调用仍仅生成一个B execution和B业务结果、两计数各1。finally释放屏障、恢复hook/spy并原off，不伪造应用stopped标志。
+- [x] cron-stop-inflight-red.log干净RED：1失败9过滤/10总、实际1/10.10秒（测试4.00），session16904已退出；启停/时间/锁及空闲守卫通过，execution实际1、预期0，尚未进入后继业务/计数/正常新调用断言。最小实现后原dispatch10全通过、无跳过、实际0/37.90秒，cron-stop-inflight-green.log，session79622已退出。
+- [x] 作者自审将锁交付后的代次复核放到任何旧缓存处理前；最终cron-stop-inflight-regression.log六文件71全通过、无跳过、实际0/37.50秒（测试52.98并行累计），session38781已退出：SQLite dispatch10、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于71，不累加green10、此前含PG的74或RED，不是整分支回归。本项无SQL路由改动，仅SQLite生命周期组合，不冒称本项重跑PG4。
+- [x] cron-stop-inflight-build.log cron客户端/服务端/依赖/声明完整构建实际0，session88503已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 900F3DB4CB194485F38657DC38741876E49D2F7BC2173BB095673A37B49BAEC5；dispatch test 127C845056D9D6848565AA0BFCEED39D26972CBD1AE9CA1B7E9572C668370138，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：停止同步使旧调用失效，正常新调用取得新身份；取消计数与原锁finally分离，原正常计数/主库读取/实际B归属保持。无本项未修复Critical/Important。不予本项裁决：独立启动发现跨停止、批次已进入分派后的所有租户交错/撤销、异常退出的完整停止矩阵、同键新旧timer所有权、逐任务off取消、跨实例租约/去重、正式G消费者/试点及整分支独立复核。只SQLite，未启PG/建库/新附件；§283测试库已删且原PG正常停止，集群和日志保留。不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§283 68f8da3195867ed4a611fc1ac3585c2a887d6076默认签名成功且独立verify-commit实际0/签名G，全局true。

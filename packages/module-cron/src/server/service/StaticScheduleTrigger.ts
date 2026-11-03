@@ -39,6 +39,7 @@ export class StaticScheduleTrigger {
   private readonly cronJobLock: CronJobLock;
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
+  private lifecycle = {};
 
   private async getTenantContexts(workflow) {
     const nodes = await workflow.getNodes();
@@ -98,6 +99,7 @@ export class StaticScheduleTrigger {
     });
 
     this.app.on('beforeStop', () => {
+      this.lifecycle = {};
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
@@ -243,11 +245,14 @@ export class StaticScheduleTrigger {
 
   async trigger(cronJobId: number, time: number) {
     const eventKey = `${cronJobId}@${time}`;
+    const lifecycle = this.lifecycle;
+    const isCurrent = () => lifecycle === this.lifecycle;
     let lockAcquired = false;
 
     try {
       // 尝试获取分布式锁，防止多节点重复执行
       lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      if (!isCurrent()) return;
       if (!lockAcquired) {
         this.logger.info(
           `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
@@ -259,6 +264,7 @@ export class StaticScheduleTrigger {
       const cronJob = (await this.db
         .getRepository(DATABASE_CRON_JOBS)
         .findOne({ filterByTk: cronJobId, useMaster: true, transaction: null })) as CronJobModel;
+      if (!isCurrent()) return;
 
       if (!cronJob || !cronJob.enabled) {
         this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);
@@ -274,14 +280,19 @@ export class StaticScheduleTrigger {
       const workflow = await this.db.getRepository('workflows').findOne({
         filter: { key: cronJob.workflowKey, enabled: true },
       });
-      if (!workflow) {
+      if (!workflow || !isCurrent()) {
         return;
       }
 
       let error = null;
       const successes: boolean[] = [];
+      let cancelled = false;
       try {
         const tenantContexts = await this.getTenantContexts(workflow);
+        if (!isCurrent()) {
+          cancelled = true;
+          return;
+        }
         for (const context of tenantContexts) {
           const tenantId = context?.state?.currentTenantId;
           const tenantEventKey = tenantId == null ? eventKey : `${eventKey}@${tenantId}`;
@@ -304,19 +315,21 @@ export class StaticScheduleTrigger {
         error = e;
         this.logger.error(`cronJobs [${cronJob.id}] workflow [${cronJob.workflowKey}] failed: ${e.message}`);
       } finally {
-        const allProcessesSucceeded = successes.length > 0 && successes.every(Boolean);
-        if (!error && allProcessesSucceeded) {
-          await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
-          await cronJob.update({
-            lastTime: new Date(time),
-          });
-        } else {
-          await cronJob.increment(['limitExecuted', 'allExecuted']);
-          await cronJob.update({
-            lastTime: new Date(time),
-          });
+        if (!cancelled) {
+          const allProcessesSucceeded = successes.length > 0 && successes.every(Boolean);
+          if (!error && allProcessesSucceeded) {
+            await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
+            await cronJob.update({
+              lastTime: new Date(time),
+            });
+          } else {
+            await cronJob.increment(['limitExecuted', 'allExecuted']);
+            await cronJob.update({
+              lastTime: new Date(time),
+            });
+          }
+          if (isCurrent()) this.scheduleNextIfNeeded(cronJob);
         }
-        this.scheduleNextIfNeeded(cronJob);
       }
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);

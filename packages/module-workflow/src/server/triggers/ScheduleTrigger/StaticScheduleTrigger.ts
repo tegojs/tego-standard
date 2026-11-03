@@ -14,6 +14,7 @@ export default class StaticScheduleTrigger {
 
   constructor(public workflow: Plugin) {
     workflow.app.on('afterStart', async () => {
+      const lifecycle = this.lifecycle;
       const cancellations = new Map(this.cancellations);
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
@@ -21,6 +22,7 @@ export default class StaticScheduleTrigger {
         transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
       });
+      if (this.lifecycle !== lifecycle) return;
 
       this.inspect(
         workflows.filter(

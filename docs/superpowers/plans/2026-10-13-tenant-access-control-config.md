@@ -4232,3 +4232,15 @@ Ruling: 同一生命周期内两次 reload 的列表查询也可能乱序交付�
 - [x] date-schedule-overlap-discovery-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session57815已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger E0028D0F5675226021573A44BA256C84B9D3DE9755088F375AA15F50DADF65D7；date-lifecycle.test 32CCDFCDDCF656F47C365E705FCD14125F349592E70D21DC5245DD746ECCF5AE，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：查询开始顺序固定列表身份，发布前检查不增加SQL或权限；原逐工作流扫描身份仍保护各自异步业务查询，取消及停止身份独立保持。无本项未修复Critical/Important。不予本项裁决：更早列表已进入inspect而后继列表仍在途的完整交错、静态首次启动发现自身跨停止、已入队撤销、持久租约/跨实例原子去重、新G正式消费者/业务试点和整分支独立复核。下一静态夹具已在工作区准备、仅格式/lint通过，未运行且不纳入本节四文件提交；其格式首查退出1已格式化修正，不算产品RED。只SQLite，无PG/新附件，不推送合并发布或正式启用。前§273 8b31c589fdd97e78f952d2c1738c4cd369a8d467默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 275. 静态首次发现查询不能跨停止恢复旧时点
+
+Ruling: StaticScheduleTrigger 的 afterStart 等待独立列表查询，停止虽使旧到期调用失效，却未否定尚未进入 inspect 的旧发现结果。现于静态列表 SQL 前捕获本实例 lifecycle，返回后先复核再发布排程；beforeStop 仍同步替换原标识。主库/null、逐工作流取消、原静态配置和共享任务身份保持，不增加每租户扫描或正式G接线。
+
+- [x] 新 static-discovery-lifecycle.test.ts 使用官方 createMockServer(skipStart:true) 和真实内存SQLite，验证初次 app.start 的静态列表实际SQL读完后暂停交付。两次通用启动列表都实际读空，再 hooks:false 启用本测试任务，确保通用cache未包含它；真实app.stop（isStarted=false）后仅将本测试持久时点更新为较晚值，第二次真实start登记新时点，再释放旧列表。旧时点必须零execution/业务行，新时点仅一条真实create结果，execution.context.date精确为新时点。没有伪造应用stopped标记或替换SQL结果。
+- [x] 只读核查实际安装的core Application.start/stop及测试框架skipStart协议：初始stopped=false允许真实停止尚未完成的首次启动；已stop后再start的中途stopped仍true，不能把其提前返回当实际停止。此前几次不存在的依赖根/源码路径查询失败均非产品RED，也未修改核心或依赖。
+- [x] static-schedule-initial-discovery-red.log：1失败、无跳过、实际1/32.29秒（测试16.72），session52916已退出；停止与时间守卫通过，旧时点execution实际1、预期0，尚未进入后继业务行和新时点控制。最小两行实现后新文件1全通过、实际0/31.19秒，static-schedule-initial-discovery-green.log，session16091已退出。
+- [x] 最终 static-schedule-initial-discovery-regression.log 五文件50全通过、无跳过、实际0/110.62秒（测试83.93），session20050已退出：新discovery1、static-lifecycle9、mode-static11、Plugin24、tenant-module-boundary5。新项含于50，不累加green1、旧49或其他轮次，不是整分支回归。
+- [x] static-schedule-initial-discovery-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session34320已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 4EDF07076A330F12DAE07A865039C12F6A19C02F5FDB65F4F1EEABE181040F43；static-discovery-lifecycle.test 84A97779434482AF925BB32B22D841B12585B3364D2B24961E11616B67663B94，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：列表捕获与发布均属原安装实例，停止不能被旧结果恢复；原取消与到期主库复核独立保留，新时点控制验证正常启动。无本项未修复Critical/Important。不予本项裁决：通用beforeStart旧注册列表跨停止（后继新夹具仅格式/lint通过，未运行、不纳入本节）、完整应用并发启停协议、已入队撤销、持久租约/跨实例原子去重、新G正式消费者/试点及整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§274 910453f222009471006fc5a5f0e681f500df6341默认签名成功且独立verify-commit实际0/签名G，全局true。

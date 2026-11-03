@@ -4312,3 +4312,16 @@ Ruling: getNextTime仅检查计算时刻是否已过endsOn；数字周期和cron
 - [x] cron-schedule-ends-on-build.log cron客户端/服务端/依赖/声明完整构建实际0，session22218已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 592268414C1B52A5A40E58DDB2BD57E553406672B96F9AE225ED8F6F81A7503C；dispatch test 06313D59971C0F283C1357627CD3684EBBAB05CEF7659BCABCB5ADD348D122AF，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：两个周期分支均约束计算结果且保留等值上界；无结束时间时原行为保持，不另造调度公式或权限。无本项未修复Critical/Important。不予本项裁决：首轮配置本身的起止顺序校验、已缓存旧配置/跨实例更新、Cron主库来源/在途停止、已入队撤销、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§280 0650ba56ff991d3a6cd26112fbe856aebe21559e默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 282. Cron 到期分派从主库回读任务启用事实
+
+Ruling: §278虽检查enabled，但cronJobs的Repository回读仍默认读池，主库已持久停用仍会用旧enabled副本分派。此回读明确useMaster:true/transaction:null，获取当前已提交主库任务；原租户上下文、锁释放、计数和调度配置保持。只修这处任务回读，不把Cron的workflow、nodes、tenants或启动发现读取一起称为已解决。
+
+- [x] 新static-schedule-primary.test.ts：实际独立PG读写连接池，afterConnect在原Database重置search_path之后仅将读池指向cron_stale_enabled。实际同名cronJobs表读池enabled=true、主库false，经两次真实查询分别确认；原真实插件类、CronJobModel、缓存锁及trigger必须无execution/业务结果并释放锁。普通及实际readOnly环境事务分别运行，caller在trigger返回时仍开放、由原managed transaction结束。主库正常重新启用后显式新trigger各自生成唯一B execution及B业务结果，不替换SQL结果或分派实现。此为不同schema事实，不是WAL replica或跨实例并发隔离。
+- [x] cron-schedule-primary-red.log首轮两失败、实际1/19.35秒，session5569已退出：普通案例干净execution1而非0；环境案例将idle等待放在尚未结束的事务内，等待超时及后续rollback已结束事务错误，不能称两项均完成同样RED。将idle移到managed transaction结束后，cron-schedule-primary-fixture-red.log两项干净RED均execution1而非0、无跳过、实际1/9.90秒，session47498已退出。此前commentary将首轮超时归因为持锁，未追踪准确锁位置，本节只确认移动等待后消失，不反向声称已证明锁因果。
+- [x] 最小主库/null修复后PG2全通过、无跳过、实际0/12.71秒，cron-schedule-primary-green.log，session50417已退出。另一次有意仅保留useMaster、移除null的验证也通过：1通过1过滤/2总、实际0/11.75秒，session12435已退出；原文件名cron-schedule-primary-master-only-red.log不代表实际RED。该实验不支持“null在此Repository夹具必不可少”的假设；最终仍保留显式不继承事务约定，不把此实验写成失败复现。首次从snapshot根resolve依赖失败后按实际package位置解析成功，仅只读定位，非产品RED。
+- [x] 最终恢复主库/null后，cron-schedule-primary-regression.log七文件72全通过、无跳过、实际0/40.40秒（测试67.84并行累计），session63216已退出：PG2及SQLite70（dispatch9、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5）。新两项含于72，不累加green2、此前70或各RED，不是整分支回归。cron-schedule-primary-build.log cron客户端/服务端/依赖/声明完整构建实际0，session98308已退出。
+- [x] 两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 7D5AFBA628F778FB8D40D5CB3CB025BCD0497DB10F27D1ACE644AF9B05B2B621；primary test D61923B60FACED48B79D06C1F6B65F9858DE6663D51527F66021C99D0A59D35A，最终代码后未改。
+- [x] 新专用库tego_tenant_access_test_b28203b675已删除且pg_database count0。收敛session35174实际0：核原postmaster86368/创建2026-11-03T13:44:36.7667570+08:00/精确原目录命令，25466全部记录仅原PID（State null不以Listen过滤）；SQL核原目录/tenant_test/127.0.0.1及/32/25466/postgres非恢复/零其他客户端及库owner后仅删本轮库。原PG正常停止、pg_ctl无服务、PID消失、端口全部记录0、snapshot验证0。保留原集群、cron-primary-pg.log及各验证日志，未碰旧目录或附件。
+
+按requesting-code-review模板作者串行自审，非独立复核：只改变原回读的池和事务选择，仍沿用原缺失/停用分支与锁finally；正向重新启用及caller事务所有权保持，无本项未修复Critical/Important。不予本项裁决：Cron其他主库权威读取、最终回读后的并发窗口/在途停止/已入队撤销、缓存异常策略及TTL锁所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核。不触及主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§281 1e31addf820053f859414a7807a4b85f2d74c870默认签名成功且独立verify-commit实际0/签名G，全局true。

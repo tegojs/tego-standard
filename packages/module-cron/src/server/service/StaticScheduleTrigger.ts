@@ -256,7 +256,7 @@ export class StaticScheduleTrigger {
 
       const cronJob = (await this.db
         .getRepository(DATABASE_CRON_JOBS)
-        .findOne({ filterByTk: cronJobId })) as CronJobModel;
+        .findOne({ filterByTk: cronJobId, useMaster: true, transaction: null })) as CronJobModel;
 
       if (!cronJob || !cronJob.enabled) {
         this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);

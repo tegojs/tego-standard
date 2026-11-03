@@ -4301,3 +4301,14 @@ Ruling: Cron beforeStop关闭timer却保留Map键，重启后独立afterStart重
 - [x] cron-schedule-restart-build.log cron客户端/服务端/依赖/声明完整构建实际0，session38630已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 272EF1EA8BC13FACC339F406687E7E780F7D3626597B0FA0FC7758F0542F445F；dispatch test 913AAE1E8E5C4992337737854C74765E091B97C0660B479836729482AB874528，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：仅清已关闭句柄对应的实例内索引，原afterStart负责正常重新登记，不增加timer或权限。无本项未修复Critical/Important。不予本项裁决：Cron已进入异步SQL的到期调用/启动发现跨停止、完整并发启停、已入队撤销、主库权威、持久租约/跨实例去重及正式G消费者/业务试点/整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§279 c5eece5077542adda1ffc52a9a521b845684d4d8默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 281. Cron 重复时点不得越过结束时间
+
+Ruling: getNextTime仅检查计算时刻是否已过endsOn；数字周期和cron表达式返回的下一时点仍可晚于endsOn，从而额外分派租户任务。现分别在两个分支计算next后检查上界，严格晚于endsOn返回null，恰好等于结束时点继续允许。原周期公式、日期精度、首轮、租户上下文、缓存锁及计数算法不变，无新schema或正式接线。
+
+- [x] 真实SQLite、原service.load/Repository保存/Node timer，数字repeat2000：首轮之后1000ms结束只能运行首轮，2000ms结束仍允许首轮及第二轮。等待跨过第二时点后同时核events/preparing/pending/executing空闲，再核精确execution.context.date集合、全部B归属、实际B业务行及两计数。两个场景均finally原off，不直接调用trigger或伪造SQL。cron-schedule-ends-on-red.log 1失败1通过5过滤/7总、实际1/19.69秒（测试11.95），session66129已退出；干净RED实际时点[0,2000]、预期[0]，尚未进入后继B业务及计数断言；结束时点相等为原兼容控制。
+- [x] 另用真实持久CronJobModel测试cron表达式*/2 * * * * *的原getNextTime：手工固定2026-01-01T00:00:00Z，endsOn01Z预期null却返回02Z；endsOn02Z仍返回02Z。cron-schedule-ends-on-expression-red.log 1失败1通过7过滤/9总、实际1/8.86秒，session72748已退出。此分支验证实际计算函数，不冒称真实cron表达式timer试点。
+- [x] 最小修复后三个cron文件18全通过、无跳过、实际0/49.47秒，cron-schedule-ends-on-green.log，session33833已退出。最终 cron-schedule-ends-on-regression.log 六文件70全通过、无跳过、实际0/46.08秒（测试75.88并行累计），session4817已退出：dispatch9、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。四新项含于70，两个等值边界是兼容控制，不累加green18、此前66/65/62或RED，不是整分支回归。
+- [x] cron-schedule-ends-on-build.log cron客户端/服务端/依赖/声明完整构建实际0，session22218已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 592268414C1B52A5A40E58DDB2BD57E553406672B96F9AE225ED8F6F81A7503C；dispatch test 06313D59971C0F283C1357627CD3684EBBAB05CEF7659BCABCB5ADD348D122AF，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：两个周期分支均约束计算结果且保留等值上界；无结束时间时原行为保持，不另造调度公式或权限。无本项未修复Critical/Important。不予本项裁决：首轮配置本身的起止顺序校验、已缓存旧配置/跨实例更新、Cron主库来源/在途停止、已入队撤销、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§280 0650ba56ff991d3a6cd26112fbe856aebe21559e默认签名成功且独立verify-commit实际0/签名G，全局true。

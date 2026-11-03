@@ -202,4 +202,56 @@ describe('cron state at dispatch', () => {
       service.off(cronJob);
     }
   });
+
+  it.each([
+    { endsOn: '2026-01-01T00:00:01.000Z', expected: null },
+    { endsOn: '2026-01-01T00:00:02.000Z', expected: '2026-01-01T00:00:02.000Z' },
+  ])('bounds cron-expression repeats by $endsOn', async ({ endsOn, expected }) => {
+    const { repository, cronJob, service } = await createFixture();
+    await repository.update({
+      filterByTk: cronJob.id,
+      values: { startsOn: new Date('2026-01-01T00:00:00.000Z'), repeat: '*/2 * * * * *', endsOn: new Date(endsOn) },
+    });
+    const persisted = await repository.findOne({ filterByTk: cronJob.id });
+    const nextTime = service.getNextTime(persisted, new Date('2026-01-01T00:00:00.000Z'));
+    expect(nextTime == null ? null : new Date(nextTime).toISOString()).toBe(expected);
+  });
+
+  it.each([
+    { endOffset: 1000, expectedDates: [0] },
+    { endOffset: 2000, expectedDates: [0, 2000] },
+  ])(
+    'runs only the tenant cron occurrences within an end offset of $endOffset ms',
+    async ({ endOffset, expectedDates }) => {
+      const { workflow, repository, cronJob, service } = await createFixture();
+      await service.load();
+      const time = Math.floor(Date.now() / 1000) * 1000 + 2000;
+      try {
+        await repository.update({
+          filterByTk: cronJob.id,
+          values: { startsOn: new Date(time), repeat: '2000', endsOn: new Date(time + endOffset) },
+        });
+        expect(Date.now()).toBeLessThan(time);
+        await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(time + 3500), 10000);
+        const plugin = app.pm.get('workflow');
+        await waitForFastAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+        expect(executions.map((execution) => new Date(execution.context.date).getTime() - time)).toEqual(expectedDates);
+        expect(executions.map((execution) => execution.tenantId)).toEqual(expectedDates.map(() => 'B'));
+        const rows = await app.db.getRepository('cronEnabledResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual(
+          expectedDates.map(() => ['B', 'Enabled cron task']),
+        );
+        const persisted = await repository.findOne({ filterByTk: cronJob.id });
+        expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+      } finally {
+        service.off(cronJob);
+      }
+    },
+  );
 });

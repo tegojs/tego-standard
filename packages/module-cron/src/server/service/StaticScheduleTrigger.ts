@@ -195,12 +195,12 @@ export class StaticScheduleTrigger {
       }
       if (cronJob.repeat && isNaN(+cronJob.repeat)) {
         const interval = parser.parseExpression(cronJob.repeat, { currentDate });
-        const next = interval.next();
-        return next.getTime();
+        const next = interval.next().getTime();
+        return endTime != null && next > endTime ? null : next;
       } else if (!isNaN(+cronJob.repeat)) {
         const repeat = +cronJob.repeat;
         const next = timestamp + repeat - ((timestamp - startTime) % repeat);
-        return next;
+        return endTime != null && next > endTime ? null : next;
       } else {
         return null;
       }

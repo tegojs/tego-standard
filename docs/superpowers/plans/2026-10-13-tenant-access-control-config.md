@@ -4348,3 +4348,14 @@ Ruling: 已触发timer在等待租户事实时不再受已关闭句柄控制；a
 - [x] cron-stop-inflight-build.log cron客户端/服务端/依赖/声明完整构建实际0，session88503已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 900F3DB4CB194485F38657DC38741876E49D2F7BC2173BB095673A37B49BAEC5；dispatch test 127C845056D9D6848565AA0BFCEED39D26972CBD1AE9CA1B7E9572C668370138，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：停止同步使旧调用失效，正常新调用取得新身份；取消计数与原锁finally分离，原正常计数/主库读取/实际B归属保持。无本项未修复Critical/Important。不予本项裁决：独立启动发现跨停止、批次已进入分派后的所有租户交错/撤销、异常退出的完整停止矩阵、同键新旧timer所有权、逐任务off取消、跨实例租约/去重、正式G消费者/试点及整分支独立复核。只SQLite，未启PG/建库/新附件；§283测试库已删且原PG正常停止，集群和日志保留。不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§283 68f8da3195867ed4a611fc1ac3585c2a887d6076默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 285. Cron 首次启动列表不能跨停止恢复旧排程
+
+Ruling: afterStart读取的旧Cron列表尚未交付时，停止只清除了已登记timer；旧列表随后仍可恢复旧时点。沿用§284实例lifecycle，仅在原列表SQL前捕获、交付后复核，再进入原inspect；不修改查询路由或核心启动协议。
+
+- [x] 原真实SQLite/缓存夹具增加可选skipStart并使用官方首次启动协议。service.load前通过Repository保存旧时点；afterFind仅暂停真实旧列表交付。真实stop/isStarted=false后，hooks:false更新本测试持久startsOn，再真实start/isStarted=true，时间守卫确认新启动早于旧时点。交付旧列表后跨旧时点并核events/preparing/pending/executing全部空闲，要求execution/业务行0；新时点仍由真实Node timer生成唯一B execution、精确context.date、B业务行及两计数各1。finally释放屏障、等待首次start、移除hook并原off，未伪造stopped标记或SQL结果。
+- [x] cron-startup-lifecycle-red.log干净RED：1失败10过滤/11总、实际1/13.01秒（测试7.05），session78417已退出；SQL/启停/时间守卫通过，旧时点execution实际1、预期0，未进入后继正向断言。首次格式check1已格式化修正，非产品RED。
+- [x] 两行最小修复后完整dispatch11全通过、无跳过、实际0/42.61秒，cron-startup-lifecycle-green.log，session2388已退出。最终cron-startup-lifecycle-regression.log六文件SQLite72全通过、无跳过、实际0/51.57秒（测试73.67并行累计），session57775已退出：dispatch11、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于72，不累加green11、此前71/74或RED，非整分支回归；未重跑PG4。
+- [x] cron-startup-lifecycle-build.log cron客户端/服务端/依赖/声明完整构建实际0，session98724已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 7A26BCA6244D2C5959CD2FFD799C6B295CB12FA062F7F130923B3BA1E6944E2F；dispatch test 83C182400FC2FB4CA5F26CAA3AD3E82DD162DF2ED605BB61BC1503FD4C499220，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：列表到inspect之间没有新增await，停止同步使旧结果失效，新启动列表仍按原行为排程。无本项未修复Critical/Important。不予本项裁决：同生命周期启动乱序、批次已进入分派后的全部租户交错/撤销、逐任务off取消、缓存失败及TTL所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核。只SQLite，未启PG/建库/新附件；原PG停止、集群和日志保留。只修改两TS及两份原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§284 813a070a7c70dea5bd02dd24a55a6ada82145142默认签名成功且独立verify-commit实际0/签名G，全局true。

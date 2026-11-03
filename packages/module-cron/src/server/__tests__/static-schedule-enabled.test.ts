@@ -14,8 +14,9 @@ describe('cron state at dispatch', () => {
     await app?.destroy();
   });
 
-  async function createFixture() {
+  async function createFixture(skipStart = false) {
     app = await createMockServer({
+      skipStart,
       database: { dialect: 'sqlite', storage: ':memory:' },
       plugins: [
         'error-handler',
@@ -265,6 +266,66 @@ describe('cron state at dispatch', () => {
     });
     const persisted = await repository.findOne({ filterByTk: cronJob.id });
     expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+  });
+
+  it('discards an initial cron list delivered after stop and a newer startup', async () => {
+    const { workflow, repository, cronJob, service } = await createFixture(true);
+    const oldTime = Math.floor(Date.now() / 1000) * 1000 + 6000;
+    const newTime = oldTime + 3000;
+    await repository.update({ filterByTk: cronJob.id, values: { startsOn: new Date(oldTime) } });
+    await service.load();
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let discovered = false;
+    const jobs = app.db.getModel('cronJobs');
+    jobs.addHook('afterFind', 'hold-cron-startup-delivery', async (rows) => {
+      if (discovered || !Array.isArray(rows)) return;
+      expect(rows.map((row) => new Date(row.get('startsOn')).getTime())).toEqual([oldTime]);
+      discovered = true;
+      await hold;
+    });
+    const starting = app.start();
+    try {
+      await waitForFastAssertion(() => expect(discovered).toBe(true));
+      await app.stop();
+      expect(await app.isStarted()).toBe(false);
+      await jobs.update({ startsOn: new Date(newTime) }, { where: { id: cronJob.id }, hooks: false });
+      await app.start();
+      expect(await app.isStarted()).toBe(true);
+      expect(Date.now()).toBeLessThan(oldTime);
+      release();
+      await starting;
+      await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(oldTime + 500));
+      expect(Date.now()).toBeLessThan(newTime);
+      const plugin = app.pm.get('workflow');
+      await waitForFastAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])).toEqual(
+          [['B', newTime]],
+        );
+        const rows = await app.db.getRepository('cronEnabledResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Enabled cron task']]);
+      });
+      const persisted = await repository.findOne({ filterByTk: cronJob.id });
+      expect(new Date(persisted.startsOn).getTime()).toBe(newTime);
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+    } finally {
+      release();
+      try {
+        await starting;
+      } finally {
+        jobs.removeHook('afterFind', 'hold-cron-startup-delivery');
+        service.off(cronJob);
+      }
+    }
   });
 
   it.each([

@@ -4199,3 +4199,14 @@ Ruling: 日期任务也能由独立 reload 发现、未进入通用 enabledCache
 - [x] date-schedule-stop-pending-read-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session37761已退出。两TS最终Prettier check与oxlint零警告错误；源/snapshot SHA256一致：DateFieldScheduleTrigger DDC9C9D34CD7B92FB041F123FC4E606E2BB989216F259857F218FC4260106FF0；date-lifecycle.test E7B726E5F1843FA94A1432904A318E44A56E1DE731C590206E65828619550D55，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：生命周期属于实际实例，停止无须遍历完整任务清单也能否定此前捕获的调用；原每工作流off仍独立，正向通过真实保存事件验证B身份传递。无本项停止边界的未修复Critical/Important，数字周期首轮失败单独保留待查。此项不覆盖尚未进入inspect的旧reload列表查询、已入队事件撤销、跨实例租约/原子去重、完整停止矩阵、新G正式消费者或整分支独立复核。只SQLite，无PG/物理附件，不触及主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§270 450443ec1e24b2606402bea9be61551714e211c1 默认签名成功且后继独立verify-commit实际0/签名G，全局签名true。
+
+## 272. 日期重复时点不随主库查询交付延迟漂移
+
+Ruling: trigger 在完成异步租户、业务记录及工作流主库核查后才以新的 wall clock 计算重复时点；等待跨过下一秒时，原数值周期计算可跳过仍未到期、且处于 endsOn 内的下一次执行。本次在首次 await 前捕获调用开始时刻，仅将该基准传给已有 getRecordNextTime；全部原主库/归属/事务/取消及生命周期复核仍先于入队。保留既有数值及 cron 计算、limit/endsOn 和原明确定义的时点约定，不引入新调度系统或持久租约。
+
+- [x] 原 date-lifecycle 新真实B租户用例：通过 Repository 创建未来时点源行及真实 create node，repeat1000、endsOn原时点+2秒。实际安装实例的首次workflow主库启用SQL已返回时暂停交付；前置守卫确认原调用/查询仍在到期首秒，之后只将交付延至原时点+1100毫秒并确认尚未到+1900毫秒。要求真实execution时点严格为原时点及+2000毫秒（沿用原数字周期用例约定），两execution与两业务行都归属B。
+- [x] date-schedule-repeat-read-delay-red.log：1失败1过滤/2总、实际退出1/17.88秒（测试13.65），session17880已退出。所有时间守卫通过，实际仅有原时点的一条B execution，缺少尚未到期的第二条，未进入后续业务行断言。该受控反例证明主库交付延迟的独立丢失路径；不能反向证明§271首次无诊断失败当时的确切延迟位置，原失败记录不删除。
+- [x] 最小两行实现后 date-schedule-repeat-read-delay-regression.log 七文件79全通过、无跳过、实际0/146.68秒（测试103.09），session30935已退出：lifecycle2、external20、mode-date-field13、Plugin24、owner9、listener6、tenant-module-boundary5。包括受控重复时点、停止前旧调用拒绝/新调用B结果、原数字周期/cron/limit、外库和实际归属、调用者事务兼容等。两新项含于79，不累加旧78、诊断、RED或其他轮次，不是整分支回归。
+- [x] date-schedule-repeat-read-delay-build.log workflow客户端/服务端/依赖/声明完整构建实际退出0，session53116已退出。两TS最终Prettier check与oxlint零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger FB9777F87AC74B85F4D7DB6B51381E5073A29401987F1507E920159E2EEBF743；date-lifecycle.test 1FF82D2DE2CD9C188D583D25C8757DC2DF1178C17244FDD8E51BB4C80BBDC8A5，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：重复计算使用本次调用捕获的时刻，安全事实仍必须在真实等待后校验；未缓存或跳过最新启用/租户/记录读取，取消与停止仍否定在途调用。无本项未修复Critical/Important。只覆盖调用开始后读取交付延迟造成的重复计算漂移，不宣称全面补跑漏期、处理调用开始之前的任意延迟、跨实例原子去重/持久租约、旧reload列表查询跨停止、已入队撤销、完整停止矩阵、新G正式消费者、业务试点或整分支独立复核。只SQLite，无新PG/附件，不改主检出/核心/依赖/业务库/旧目录，不推送合并发布。前§271 e7bfae073e657f3ca26283f4d97bbe29b35a6ca6 默认签名成功且独立verify-commit实际0/签名G，全局签名true。

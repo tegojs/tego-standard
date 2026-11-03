@@ -45,6 +45,85 @@ describe('date schedule discovery lifecycle', () => {
     await app?.destroy();
   });
 
+  it('retains the next numeric repeat when the enabled read crosses a second', async () => {
+    const repository = app.db.getRepository('workflows');
+    const workflow = await repository.create({
+      values: {
+        type: 'schedule',
+        enabled: false,
+        config: {
+          mode: 1,
+          collection: 'dateLifecycleDocuments',
+          startsOn: { field: 'scheduledAt' },
+          repeat: 1000,
+          endsOn: { field: 'scheduledAt', offset: 2 },
+        },
+      },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'dateLifecycleResults', params: { values: { label: 'Repeated date task' } } },
+    });
+    await workflow.update({ enabled: true });
+    const plugin = app.pm.get('workflow') as WorkflowPlugin;
+    const installed = plugin.triggers.get('schedule') as unknown as { modes: Map<number, DateFieldScheduleTrigger> };
+    const mode = installed.modes.get(1)!;
+    const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let checked = false;
+    let enteredAt: number;
+    const pending: Promise<void>[] = [];
+    const trigger = mode.trigger.bind(mode);
+    const observe = vi.spyOn(mode, 'trigger').mockImplementation((...args) => {
+      enteredAt ??= Date.now();
+      const result = trigger(...args);
+      pending.push(result);
+      return result;
+    });
+    const findOne = repository.findOne.bind(repository);
+    const authority = vi.spyOn(repository, 'findOne').mockImplementation(async (options) => {
+      const result = await findOne(options);
+      if (!checked && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
+        expect(result.id).toBe(workflow.id);
+        checked = true;
+        await hold;
+      }
+      return result;
+    });
+    try {
+      await app.db.getRepository('dateLifecycleDocuments').create({
+        values: { tenantId: 'B', scheduledAt: new Date(due) },
+      });
+      await waitForFastAssertion(() => expect(checked).toBe(true));
+      expect(enteredAt).toBeLessThan(due + 1000);
+      expect(Date.now()).toBeLessThan(due + 1000);
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due + 1100 - Date.now())));
+      expect(Date.now()).toBeGreaterThanOrEqual(due + 1100);
+      expect(Date.now()).toBeLessThan(due + 1900);
+      release();
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions({ order: [['createdAt', 'ASC']] });
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+          ['B', due],
+          ['B', due + 2000],
+        ]);
+        const rows = await app.db.getRepository('dateLifecycleResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([
+          ['B', 'Repeated date task'],
+          ['B', 'Repeated date task'],
+        ]);
+      }, 5000);
+      await waitForWorkflowIdle(app);
+    } finally {
+      release();
+      mode.off(workflow);
+      await Promise.allSettled(pending);
+      authority.mockRestore();
+      observe.mockRestore();
+    }
+  });
+
   it('discards a stopped deadline read for an independently discovered tenant task', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

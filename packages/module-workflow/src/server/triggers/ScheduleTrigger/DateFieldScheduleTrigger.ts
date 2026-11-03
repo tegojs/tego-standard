@@ -499,6 +499,7 @@ export default class ScheduleTrigger {
   }
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
+    const triggeredAt = new Date();
     const isCurrent = this.captureCurrent(workflow);
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
     const collection = this.workflow.app.dataSourceManager.dataSources
@@ -582,7 +583,7 @@ export default class ScheduleTrigger {
       return;
     }
 
-    const n = this.getRecordNextTime(workflow, data, true);
+    const n = this.getRecordNextTime(workflow, data, true, triggeredAt);
     if (n) {
       this.schedule(workflow, data, n, true);
     }

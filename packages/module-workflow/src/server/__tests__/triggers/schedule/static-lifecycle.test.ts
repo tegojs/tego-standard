@@ -18,6 +18,55 @@ describe('static schedule discovery lifecycle', () => {
     await app?.destroy();
   });
 
+  it('restores a stopped timer discovered after the generic startup snapshot', async () => {
+    const repository = app.db.getRepository('workflows');
+    const workflow = await repository.create({
+      values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'staticLifecycleResults', params: { values: { label: 'Current static task' } } },
+    });
+    await app.stop();
+    const due = Math.ceil((Date.now() + 4000) / 1000) * 1000;
+    await app.db
+      .getCollection('workflows')
+      .model.update(
+        { config: { mode: 0, startsOn: new Date(due).toISOString() } },
+        { where: { id: workflow.id }, hooks: false },
+      );
+    const find = repository.find.bind(repository);
+    let enabled = false;
+    const discovery = vi.spyOn(repository, 'find').mockImplementation(async (options) => {
+      const rows = await find(options);
+      if (options?.filter?.enabled === true && !options.filter.type) {
+        expect(rows.some((row) => row.id === workflow.id)).toBe(false);
+        await app.db
+          .getCollection('workflows')
+          .model.update({ enabled: true }, { where: { id: workflow.id }, hooks: false });
+        enabled = true;
+      }
+      return rows;
+    });
+    try {
+      await app.start();
+    } finally {
+      discovery.mockRestore();
+    }
+    expect(enabled).toBe(true);
+    expect(app.pm.get('workflow').enabledCache.has(workflow.id)).toBe(false);
+    expect(Date.now()).toBeLessThan(due);
+    await app.stop();
+    await app.start();
+    expect(Date.now()).toBeLessThan(due);
+    await waitForFastAssertion(async () => {
+      expect(await workflow.countExecutions()).toBe(1);
+      const rows = await app.db.getRepository('staticLifecycleResults').find();
+      expect(rows.map((row) => row.label)).toEqual(['Current static task']);
+    });
+    await waitForWorkflowIdle(app);
+  });
+
   it('logs a deadline SQL failure and permits an explicit new schedule after recovery', async () => {
     const workflow = await app.db.getRepository('workflows').create({
       values: { type: 'schedule', enabled: false, config: { mode: 0 } },

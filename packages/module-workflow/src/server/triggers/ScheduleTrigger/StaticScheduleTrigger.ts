@@ -31,6 +31,7 @@ export default class StaticScheduleTrigger {
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
+      this.timers.clear();
     });
   }
 

@@ -4164,3 +4164,14 @@ Ruling: 静态到期回调新增异步主库核查后，先后交付的两个事
 - [x] workflow-preparation-stop-build.log 的 workflow 客户端/服务端/依赖/声明完整构建实际退出0，session3174已退出。Plugin.ts 的 Prettier check、oxlint零警告错误，最终源/snapshot SHA256均49D14C09C39AE65669C3E380FC0E575E9A2C6D1C95C2CC739633D7CE51BE68AA；最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：每个实例只保留一个队列准备任务，重入 caller 等待同一 Promise；错误仍逐事件记录并继续其他事件，不结束 caller 事务或增加角色/租户权限来源。无本项未修复 Critical/Important。只改变实例内事件准备协调，不提供持久租约、跨实例原子去重、撤销已入队事件或授权到 SQL 的完整隔离。下一节 timer Map 清空与新重启夹具保留在工作区、未暂存，不混入本节原子提交。本轮仅 SQLite，未启 PG/建库或物理附件，不改主检出、核心、依赖、业务库，不推送合并发布/启用正式规则。
+
+## 269. 重启可恢复通用启动快照之后发现的静态 timer
+
+Ruling: 通用 beforeStart 查询返回空结果后，主库可以在静态 afterStart 独立发现之前启用一个任务；该任务真实有 timer、却没有 enabledCache entry。停止时通用插件不会对其调用 off，Static.beforeStop 仅关闭句柄却遗留 Map key，重启后相同 id/时点不能重排。清除全部已关闭 timer 的 Map 记录，维持原按工作流 off、日期及 repeat/limit 语义；不改持久配置、租户归属或权限来源。
+
+- [x] static-lifecycle 新真实内存 SQLite 案例：先创建 disabled 任务及真实 create node；通用 Repository.find 实际 SQL 读完空列表后，仅对本测试新任务 hooks:false 启用，再返回原空结果。静态启动独立发现后确认 enabledCache 无该 id，且仍早于到期点；再次 stop/start，须恰有一条 execution 和 Current static task 业务行。
+- [x] static-schedule-stop-discovered-timer-red.log 初始1失败7过滤/8总、实际退出1/17.11秒（测试14.00），session10671已退出；deadline/cache前置守卫通过，最终execution实际0而非1。只增加 this.timers.clear()。首批四文件回归 session2088 实际1/107.47秒，46通过2失败：本新例已看到execution1，但 waitForWorkflowIdle 在创建/提交到分派的间隙提前完成，结果行断言为[]；另一项真实双事务锁冲突已由 §268 修复，不称该首轮通过。
+- [x] 新例将同一确定业务结果放入条件等待，保持单次execution及结果标签断言，不放宽权限或数量。static-schedule-stop-discovered-timer-corrected-regression.log 最终四文件48全通过、无跳过、实际0/135.86秒，session77505已退出；含lifecycle8、mode-static11、Plugin24、tenant-module-boundary5。此为 §268 同一实际运行，不另累加48或外库20，不是整分支回归。
+- [x] workflow-preparation-stop-build.log 是同一最终 runtime 的客户端/服务端/依赖/声明完整构建，session3174实际0，不冒称另跑一轮构建。两 TS 最终 Prettier check及oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 96A4D2321990B2586004B731AE8DDEA20269952DDF9DEE0AF132DA918487C72E；static-lifecycle.test C609F73504ED69BEBC2B554DBF9841853811693D0EB87BB19C0D6B58EC4EA4C9。最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：已关闭的本实例句柄不能继续占用去重键；测试通过真实通用/独立启动 SQL 交错构造缓存差异，没有手工删除 enabledCache。无本项未修复 Critical/Important。不声称使停止前已开始的异步主库查询失效，后者仍需独立复现；不撤销已入队事件、跨实例配置刷新/去重、持久租约、新G正式消费者或整分支独立复核。本轮未启 PG/建库/物理附件，保留日志/旧目录，不推送合并发布或启用正式规则。前 §268 提交 e137c931eb1304918a02965932b365209157c72e 默认GPG成功、后继独立verify-commit实际0/签名G，全局签名仍true。

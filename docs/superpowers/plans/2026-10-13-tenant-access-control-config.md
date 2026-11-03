@@ -4278,3 +4278,14 @@ Ruling: Cron 的 StaticScheduleTrigger 在取得原缓存锁后仅检查任务�
 - [x] cron-schedule-enabled-build.log cron客户端/服务端/依赖/声明完整构建实际0，session16135已退出。三TS最终Prettier check、oxlint0，源/snapshot SHA一致：runtime 2CA928F34D2237895BEBE7ED8AD90CBD9D7D167B157FD523BBBD3563CFFE2E93；tenant test A42DCE591F9E23BB83D646C07F72AC5C2DED7DAABDF2F5AE4E9EE01077A9D17B；enabled test 4DBE77D6422D3659DB3B229FB7862A9D9372370129E2B3DFEBEFC3E8BD86EF21。最终代码后未改；首格式check1已格式化修正，非产品RED。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：停用判定先于workflow读取、分派及计数，负向真实持久结果及重新启用控制验证原行为。无本项未修复Critical/Important。不予本项裁决：取得锁后的SQL异常释放、读池权威及停用回读后的完整并发窗口，需各自真实复现；持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核仍未完成。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§277 a4e17d520a4cb8f62a604540b20b4b02ab2c5030默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 279. Cron 取得锁后的查询失败也释放原锁
+
+Ruling: trigger 原锁释放散落在正常分派和部分提前返回路径，cronJobs/workflows查询SQL失败会直接进入外层catch而遗留缓存锁。现用本调用的acquire结果记录是否取得锁，统一在外层finally释放并回收该时点timer键；未取得锁的调用不释放竞争锁。原分派、计数、错误日志、租户上下文及cache实现保持，不增加自动重试或任务状态变更。
+
+- [x] 复用§278真实SQLite/缓存夹具，仅提取原搭建函数。分别在cronJobs和workflows的beforeFind加入不存在列条件，实际SQL拒绝后原logger包含对应no such column；两个负向均无execution/业务行且计数0，但原锁实际true、预期false。cron-schedule-lock-failure-red.log 两失败两通过/无跳过、实际1/20.06秒（测试5.89），session13969已退出。原停用控制和真实竞争锁控制通过；未把原logger替换为空实现，透传并观察日志。
+- [x] 最小finally修复后cron三文件13全通过、实际0/15.00秒，cron-schedule-lock-failure-green.log，session1321已退出。去掉故障条件后的显式新trigger分别生成唯一B execution及B业务结果，锁释放；这是已知只读查询失败后的新调用，不授权未知COMMIT或已入队事件重试。
+- [x] 最终 cron-schedule-lock-failure-regression.log 六文件65全通过、无跳过、实际0/27.66秒（测试35.62并行累计），session76868已退出：dispatch4、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新增三项含于65，竞争锁案例为兼容控制而非新RED，不累加green13、此前62或RED，不是整分支回归。
+- [x] cron-schedule-lock-failure-build.log cron客户端/服务端/依赖/声明完整构建实际0，session7541已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime D49959B669024DC165E7754195036809A3FE0CB3943114577B9FDE38FD17BF4B；dispatch test 47B83A3F9D158A7D1005E0EAF6BCB127FD83FC4BF91E7F30B9FCE12E874FAD6A，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：统一finally覆盖读取、分派、计数及后继排程异常，已有提前返回不重复release；acquire=false路径保留竞争锁。无本项未修复Critical/Important。不予本项裁决：缓存acquire本身异常的既有返回策略、TTL后跨节点锁所有权、未知提交/已入队撤销、读池权威、停止重启、持久租约/跨实例去重及正式G消费者/业务试点/整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§278 4d099985db4fc6e4412832ed4a3936a953bc7a60默认签名成功且独立verify-commit实际0/签名G，全局true。

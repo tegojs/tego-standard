@@ -7,14 +7,14 @@ import { CronJobModel } from '../model/CronJobModel';
 import { CronJobLock } from '../service/CronJobLock';
 import { StaticScheduleTrigger } from '../service/StaticScheduleTrigger';
 
-describe('cron enabled state at dispatch', () => {
+describe('cron state at dispatch', () => {
   let app: MockServer;
 
   afterEach(async () => {
     await app?.destroy();
   });
 
-  it('skips a job disabled while its real cache lock is being acquired and allows a later enabled call', async () => {
+  async function createFixture() {
     app = await createMockServer({
       database: { dialect: 'sqlite', storage: ':memory:' },
       plugins: [
@@ -70,6 +70,11 @@ describe('cron enabled state at dispatch', () => {
     await lock.load();
     const service = new StaticScheduleTrigger();
     Object.assign(service, { app, db: app.db, logger: app.logger, cronJobLock: lock });
+    return { workflow, repository, cronJob, lock, service };
+  }
+
+  it('skips a job disabled while its real cache lock is being acquired and allows a later enabled call', async () => {
+    const { workflow, repository, cronJob, lock, service } = await createFixture();
     const time = Math.floor(Date.now() / 1000) * 1000;
     let release!: () => void;
     const hold = new Promise<void>((resolve) => (release = resolve));
@@ -120,5 +125,55 @@ describe('cron enabled state at dispatch', () => {
     expect(await lock.isLocked(cronJob.id, time)).toBe(false);
     const persisted = await repository.findOne({ filterByTk: cronJob.id });
     expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+  });
+
+  it.each(['cronJobs', 'workflows'])(
+    'releases its cache lock after a real %s lookup SQL failure',
+    async (collection) => {
+      const { workflow, repository, cronJob, lock, service } = await createFixture();
+      const time = Math.floor(Date.now() / 1000) * 1000;
+      const model = app.db.getModel(collection);
+      const errors: string[] = [];
+      const error = app.logger.error.bind(app.logger);
+      const logging = vi.spyOn(app.logger, 'error').mockImplementation((...args) => {
+        errors.push(String(args[0]));
+        return error(...args);
+      });
+      model.addHook('beforeFind', 'fail-cron-dispatch-read', (options) => {
+        options.where = { missingCronDispatchColumn: true };
+      });
+      try {
+        await service.trigger(cronJob.id, time);
+      } finally {
+        model.removeHook('beforeFind', 'fail-cron-dispatch-read');
+        logging.mockRestore();
+      }
+      expect(errors.some((message) => /no such column.*missingCronDispatchColumn/.test(message))).toBe(true);
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
+      const persisted = await repository.findOne({ filterByTk: cronJob.id });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([0, 0]);
+      expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+
+      await service.trigger(cronJob.id, time);
+      await waitForFastAssertion(async () => {
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+        const rows = await app.db.getRepository('cronEnabledResults').find();
+        expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Enabled cron task']]);
+      });
+      expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+    },
+  );
+
+  it('leaves a competing cache lock intact when acquisition is refused', async () => {
+    const { workflow, cronJob, lock, service } = await createFixture();
+    const time = Math.floor(Date.now() / 1000) * 1000;
+    expect(await lock.acquire(cronJob.id, time)).toBe(true);
+    await service.trigger(cronJob.id, time);
+    expect(await lock.isLocked(cronJob.id, time)).toBe(true);
+    expect(await workflow.countExecutions()).toBe(0);
+    expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
+    await lock.release(cronJob.id, time);
   });
 });

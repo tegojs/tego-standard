@@ -240,10 +240,11 @@ export class StaticScheduleTrigger {
 
   async trigger(cronJobId: number, time: number) {
     const eventKey = `${cronJobId}@${time}`;
+    let lockAcquired = false;
 
     try {
       // 尝试获取分布式锁，防止多节点重复执行
-      const lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
       if (!lockAcquired) {
         this.logger.info(
           `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
@@ -259,7 +260,6 @@ export class StaticScheduleTrigger {
       if (!cronJob || !cronJob.enabled) {
         this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);
         this.timers.delete(eventKey);
-        await this.cronJobLock.release(cronJobId, time);
         return;
       }
 
@@ -272,7 +272,6 @@ export class StaticScheduleTrigger {
         filter: { key: cronJob.workflowKey, enabled: true },
       });
       if (!workflow) {
-        await this.cronJobLock.release(cronJobId, time);
         return;
       }
 
@@ -315,11 +314,14 @@ export class StaticScheduleTrigger {
           });
         }
         this.scheduleNextIfNeeded(cronJob);
-        // 释放锁
-        await this.cronJobLock.release(cronJobId, time);
       }
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
+    } finally {
+      if (lockAcquired) {
+        this.timers.delete(eventKey);
+        await this.cronJobLock.release(cronJobId, time);
+      }
     }
   }
 

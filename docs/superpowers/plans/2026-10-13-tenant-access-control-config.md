@@ -4576,3 +4576,14 @@ Ruling: 原到期trigger已从所选来源回读当前业务记录，却只复�
 - [x] date-cleared-start-timer-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session21197已退出。最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger 809CBB3D9329DC56A4ECB899223037B1573D06E7F7D95776341C15758E05FE05；external test 6104D5341B2010A44A616C038756124E41E0D21549B5F92E5C3AE15C85EA77C7。代码之后未改；本项无SQL路由/dialect改动，未启PG或重跑旧PG，无建库/Redis服务/新物理附件。沿用§302仅进程TEMP/TMP的D盘隔离临时目录，全部日志/原集群/旧目录保留，不进行物理清理。
 
 按requesting-code-review模板作者串行自审，非独立复核：检查实际回读值且复用原日期/偏移解析，不依赖缓存版本猜测；普通字段更新控制、恢复后新扫描与既有直接调用事务测试共同限定修复范围。无本项未修复Critical/Important。不予本项裁决：开始仍非空但被改期、工作流当前配置发生变化、无本实例事件的新timer自动发现、主库事实到业务SQL完整并发隔离、任意长查询补跑、初始起止输入校验、持久租约/跨实例去重、全部启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§302 19d233fe48cf9092df17a24829c71bc93b6d0baa默认签名提交实际0，后继独立verify-commit实际0/签名G；§301同为G，§297—300仍N，全局true，不复用旧Timeout/认证。
+
+## 304. 日期重复到期复核来源当前结束日期
+
+Ruling: 已排程的每日重复记录经其他写者缩短结束日期后，原trigger虽然回读当前记录，仍忽略其当前endsOn而产生过期execution。仅在原回读后复用getDataOptionTime取结束时点，endTime小于本次nextTime则拒绝；等值允许、无结束值保持原行为，不增加SQL/改变主库路由、保存追赶或事务所有权。
+
+- [x] 原external SQLite两个独立tenantScoped来源，真实B记录开始于手工due前一天、repeat一天，初结束due+1小时；原reload SQL已完成并排程后，原Model.update(hooks:false)分别将结束改为due-1秒或due。没有本实例保存事件或伪造SQL/timer/队列；缓存旧模型仍持原结束值，且两种当前结束都晚于原开始，不是初始非法起止输入。date-current-end-timer-red.log干净1失败1通过40过滤/42总、实际1/14.86秒，session40450已退出：过期项execution实际唯一B/due而非[]，等值控制原通过。
+- [x] 两行实现后date-current-end-timer-green.log两项通过40过滤/42总、实际0/17.05秒，session73195已退出。过期项旧时点execution/业务行/两计数均0，显式恢复未来合法日期并原reload后唯一B/新due/业务行/两计数1；等值项原due正常执行且context.data.endsAt为当前due。负向及恢复均核events/preparing/pending/executing；finally仅原off/清本测试业务标签。
+- [x] date-current-end-timer-regression.log九SQLite文件134全通过/无跳过/实际0/108.31秒（测试186.66并行累计），session65511已退出：external42、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。date-current-end-timer-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session62283已退出。新两项含于134，不累加green/RED或旧132/PG，非整分支回归；本项无SQL/dialect改动，未启PG/建库/Redis服务或新物理附件。
+- [x] 最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger DEB01A424DFDF7BB290568C83A705E197EDE2BB280CEC1BE4794EBE86B21A654；external test F3AB50F335CBFF7967C6CC6E487AE9CA10FDA608AC516816D7FD4B285CA7D800。代码后未改；沿用仅runner/build进程的D盘隔离TEMP/TMP，保留全部日志/原集群/旧目录。前§303 6afae3a1dd7f7c61ea115623766c559f385021a0默认签名提交实际0，后继独立verify-commit实际0/签名G，§301—302同G；§297—300仍N、global true。既有automation更新仍Transport closed，不称交接提示已更新，实际Git及两原记录优先。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查当前来源记录的结束值与指定发生时点，不使用交付时刻替代到期时点；等值/恢复控制和保存追赶/直接事务调用回归通过，无新增查询或未修复Critical/Important。不予本项裁决：非空开始改期、当前workflow配置全部复核、无本实例事件的新timer自动发现、最终授权到业务SQL完整并发隔离、任意长查询补跑、初始输入校验、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。

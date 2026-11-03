@@ -230,6 +230,74 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
+  it.each([
+    { endType: 'date', beforeStart: true },
+    { endType: 'field', beforeStart: true },
+    { endType: 'date', beforeStart: false },
+    { endType: 'field', beforeStart: false },
+  ])(
+    'checks $endType end time when a real save is delivered in the next second (end before start: $beforeStart)',
+    async ({ endType, beforeStart }) => {
+      const collection = external.collection({
+        name: `externalDelayedSave_${endType}_${beforeStart}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'endsAt', type: 'date' },
+        ],
+      });
+      await external.sync();
+      const end = Date.now() + (beforeStart ? -5000 : 3_600_000);
+      const trigger = installedDateTrigger();
+      const results = app.db.getCollection('externalScheduleDocuments').model;
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Delayed save task' } } },
+      });
+      await workflow.update({
+        config: {
+          mode: 1,
+          collection: `another:${collection.name}`,
+          startsOn: { field: 'createdAt' },
+          endsOn: endType === 'date' ? new Date(end).toISOString() : { field: 'endsAt' },
+        },
+      });
+      let savedSecond: number;
+      const delayDelivery = async (record) => {
+        savedSecond = Math.floor(record.get('updatedAt').getTime() / 1000) * 1000;
+        expect(Math.floor(record.get('createdAt').getTime() / 1000) * 1000).toBe(savedSecond);
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, savedSecond + 1050 - Date.now())));
+        expect(Date.now()).toBeGreaterThanOrEqual(savedSecond + 1000);
+      };
+      const event = `${collection.name}.afterCreateWithAssociations`;
+      external.on(event, delayDelivery);
+      try {
+        const record = await collection.repository.create({ values: { tenantId: 'B', endsAt: new Date(end) } });
+        expect(record.get('tenantId')).toBe('B');
+        expect(Date.now()).toBeGreaterThanOrEqual(savedSecond! + 1000);
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(async () => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+          const executions = await workflow.getExecutions();
+          expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+            beforeStart ? [] : [['B', savedSecond]],
+          );
+        });
+        const generated = await results.findAll({ where: { label: 'Delayed save task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(beforeStart ? [] : ['B']);
+        await workflow.reload();
+        expect([workflow.executed, workflow.allExecuted]).toEqual(beforeStart ? [0, 0] : [1, 1]);
+      } finally {
+        external.off(event, delayDelivery);
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Delayed save task' }, hooks: false });
+      }
+    },
+  );
+
   it('bounds daily repeat discovery while retaining future first starts and start offsets', async () => {
     const trigger = installedDateTrigger();
     const documents = external.getCollection('externalScheduleDocuments').model;

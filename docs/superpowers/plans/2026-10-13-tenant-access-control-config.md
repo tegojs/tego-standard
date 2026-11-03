@@ -4553,3 +4553,15 @@ Ruling: getRecordNextTime已限定首次startTime位于缓存窗口，却额外�
 - [x] date-first-start-end-window-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session25010已退出。最终两TS Prettier check、oxlint零警告错误，源/snapshot SHA一致：DateFieldScheduleTrigger F7821CCC03368C4B93FE602FDE22916C8D161DC2CFF42B00C635CC6BA4B424A5；external test C37C4B39D092CCCB9E630F4E7807D9E6BBEA22BD51D8651A36A28EC2A0877247。代码之后未改；本项没有建库、Redis服务或新物理附件，全部日志/原集群/旧目录保留。
 
 按requesting-code-review模板作者串行自审，非独立复核：开始窗口已由原前置判断限定，取消结束窗口上界不扩大开始扫描范围；结束早于开始仍拒绝。自定义及字段两条真实路径均有RED与合法/非法持久结果控制，未增加查询或依赖。无本项未修复Critical/Important。不予本项裁决：保存追赶分支的结束时点检查、初始起止输入校验、任意长延迟补跑、日期缓存与其他写者变动的全部复核、主库事实到业务SQL完整并发隔离、跨实例发现/租约/去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§297—300均签名N，全局commit.gpgsign仍true，不复用任何旧Timeout/认证。
+
+## 302. 日期保存追赶同样拒绝结束早于开始
+
+Ruling: 原Repository创建先写入真实createdAt/updatedAt，再交付afterCreateWithAssociations及afterSaveWithAssociations。后者日期listener进入时捕获eventTime；若前一事件耗时跨秒，getRecordNextTime进入savedAt追赶分支，原直接返回startTime，跳过结束检查。仅在该返回点复用首次开始的endTime不早于startTime约束；保留合法保存追赶，不改事件时间来源、直接trigger接口、重复计算或初始配置校验。
+
+- [x] external SQLite四个独立tenantScoped来源，startsOn为真实createdAt，date自定义结束/field结束各覆盖结束早于开始及合法远期结束。原Repository.create自动写时间，在真实afterCreateWithAssociations事件等待至原updatedAt所属秒的下一秒，再交付原日期save listener；未伪造保存事件、createdAt/updatedAt、租户事实或SQL。原listener入口先捕获eventTime，因此仅延迟后续租户查询不足以覆盖本分支，夹具屏障放在实际生产者边界。
+- [x] 首date-save-catchup-end-red.log为环境失败：session58528实际1/8.76秒、套件加载ENOSPC/no tests，不是产品RED。只读核C盘仅约6–8MB、D盘约128GB可用；不删除或搬移任何旧目录/日志/附件，仅为后继runner/build设置进程TEMP/TMP到snapshot/.tenant-runner-temp-302并保留目录。一次Windows通配/不存在依赖路径只读定位失败非RED，后按原已装repository.js确认创建事件协议，没有改依赖。
+- [x] date-save-catchup-end-temp-red.log干净产品RED：2失败2通过34过滤/38总、实际1/34.20秒，session62876已退出。两个结束早于开始的真实保存均错误生成B/原保存秒execution，预期[]；两个合法保存追赶原实现已通过，不称四案均RED。最小一行后date-save-catchup-end-green.log四项通过34过滤/38总、实际0/12.76秒，session57498已退出：非法无执行/业务行/计数，合法唯一B/原保存秒execution、真实B业务行及两计数1。所有案例同时核events/preparing/pending/executing，finally移除本测试事件listener、原off并仅清新增业务标签。
+- [x] 最终date-save-catchup-end-regression.log九SQLite文件130全通过/无跳过/实际0/89.60秒（测试168.74并行累计），session39538已退出：external38、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。date-save-catchup-end-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session26110已退出。四项含于130，不累加green4/RED/§301的126或旧PG，非整分支回归；无SQL/dialect改动，未启PG、建库、Redis服务或新物理附件。
+- [x] 最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger 508BF866F67B70FFE5A181414FE54191337187BAA8D4390D07AA86D229545C28；external test F16B1D94B6E81BC50618D5C0E5927FD67998705594AFEC8BC6FB3046CA28247F。代码之后未改。前§301默认GPG提交9c6ae5051ddd6a8c2a0fc0c7ca847a8266458b4f实际0，后继独立verify-commit实际0/签名G；全局commit.gpgsign=true。§297—300仍为N，不改称G、不复用旧Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：实际Repository/两事件/原listener/SQL/队列验证跨秒分支及最终B结果，合法控制保护既有追赶政策。约束比较原开始时点而非交付时刻，不增加读取或接管事务，无本项未修复Critical/Important。不予本项裁决：结束与开始等值的所有延迟组合、初始起止输入校验、日期缓存与其他写者全部变动、任意长延迟补跑政策、最终授权事实到业务SQL完整并发隔离、跨实例自动发现/持久租约/去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用；原集群、所有日志及旧目录保留。

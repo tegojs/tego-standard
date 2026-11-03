@@ -663,6 +663,99 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
+  it.each([
+    { change: 'source', initiallyMain: false },
+    { change: 'unchanged', initiallyMain: false },
+    { change: 'main alias', initiallyMain: true },
+  ])('rechecks the persisted date source after discovery ($change)', async ({ change, initiallyMain }) => {
+    const name = `currentSource_${change.replace(' ', '_')}`;
+    for (const db of [app.db, external]) {
+      const collection = db.collection({
+        name,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+          { name: 'label', type: 'string' },
+        ],
+      });
+      await collection.model.sync();
+    }
+    const originalModel = (initiallyMain ? app.db : external).getModel(name);
+    const otherModel = (initiallyMain ? external : app.db).getModel(name);
+    const trigger = installedDateTrigger();
+    const results = app.db.getModel('externalScheduleDocuments');
+    const workflows = app.db.getModel('workflows');
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const nextDue = due + 3000;
+    const config = { ...workflow.config, collection: initiallyMain ? name : `another:${name}` };
+    const currentCollection = change === 'source' ? name : change === 'main alias' ? `main:${name}` : config.collection;
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Current date source task' } } },
+    });
+    try {
+      await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+      await originalModel.create(
+        { id: 1, tenantId: 'B', scheduledAt: new Date(due), label: 'Original B' },
+        { hooks: false },
+      );
+      await otherModel.create(
+        { id: 1, tenantId: 'C', scheduledAt: new Date(nextDue), label: 'Other source C' },
+        { hooks: false },
+      );
+      await observeThroughDeadline(trigger, due, async () => {
+        await trigger.reload();
+        await workflows.update(
+          { config: { ...config, collection: currentCollection, appends: [] } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+        expect(Date.now()).toBeLessThan(due - 1000);
+      });
+      const plugin = app.pm.get('workflow');
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+        change === 'source' ? [] : [['B', due]],
+      );
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect(workflow.config.collection).toBe(currentCollection);
+      if (change === 'source') {
+        expect(await results.count({ where: { label: 'Current date source task' } })).toBe(0);
+        expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+        expect(Date.now()).toBeLessThan(nextDue);
+        await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+        await waitForAssertion(async () => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+          expect(await workflow.countExecutions()).toBe(1);
+        });
+      }
+      const [execution] = await workflow.getExecutions();
+      expect([
+        execution.tenantId,
+        execution.context.data.id,
+        Date.parse(execution.context.date),
+        execution.context.data.label,
+      ]).toEqual(change === 'source' ? ['C', 1, nextDue, 'Other source C'] : ['B', 1, due, 'Original B']);
+      expect(execution.tenantContext.currentTenantId).toBe(change === 'source' ? 'C' : 'B');
+      const generated = await results.findAll({ where: { label: 'Current date source task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual([change === 'source' ? 'C' : 'B']);
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await results.destroy({ where: { label: 'Current date source task' }, hooks: false });
+    }
+  });
+
   it.each([true, false])(
     'rechecks a changed nonempty start date (moves beyond the old occurrence: %s)',
     async (movesPastDue) => {

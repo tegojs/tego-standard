@@ -590,6 +590,9 @@ export default class ScheduleTrigger {
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
     });
     if (!enabled || !isCurrent()) return;
+    if (typeof enabled.config?.collection !== 'string') return;
+    const [currentDataSourceName, currentCollectionName] = parseCollectionName(enabled.config.collection);
+    if (currentDataSourceName !== dataSourceName || currentCollectionName !== collectionName) return;
     const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
     if (currentEndTime && currentEndTime < nextTime) return;
     bindTenantContext(data, context);

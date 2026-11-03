@@ -586,10 +586,12 @@ export default class ScheduleTrigger {
     const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
       useMaster: true,
       transaction: null,
-      fields: ['id'],
+      fields: ['id', 'config'],
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
     });
     if (!enabled || !isCurrent()) return;
+    const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
+    if (currentEndTime && currentEndTime < nextTime) return;
     bindTenantContext(data, context);
     this.workflow.trigger(
       workflow,

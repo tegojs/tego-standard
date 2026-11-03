@@ -4622,3 +4622,14 @@ Ruling: 静态数字重复在入口参考早于due 1ms、权限读取交付延�
 - [x] 两TS最终Prettier check/oxlint0，源snapshot一致：StaticScheduleTrigger 1425926C8CFC157A915C5ADE65C63A58DC2FBC5ADE740656F3D65750CC839A2A；static-lifecycle test B6905FC43BCD9FAEFBE377E267CF8416BC01DD4E22D6DD7F5EADCA3580505B87。代码之后未改。首格式命令将PowerShell数组合为一个参数导致找不到模式/实际2，改用显式两路径后check/lint实际0，非产品RED。数次猜测不存在源码/Windows通配路径只读定位失败非RED，后用rg实际路径读取。前§306 cc772d826e424900100d6ac09c19559ba209498e默认GPG提交实际0，后继独立verify-commit实际0/G；§301—305同G，§297—300仍N/global true，不复用历史Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：对照当前主库配置/界限/limit与真实业务行，参考下界不增加SQL、授权或共享状态；自然/受控及数字/cron控制保护既有延迟兼容。无本项未修复Critical/Important。不予本项裁决：原生timer/系统时钟全部行为、§305首轮未定位异常、任意长查询补跑/大幅回拨、日期当前workflow配置全部复核、最终权限到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用；保留全部日志、原PG集群、旧目录及D盘进程TEMP/TMP目录。
+
+## 308. 日期任务复核工作流当前结束配置
+
+Ruling: 日期trigger虽已回读当前来源数据及工作流启用，最终工作流读取只投影id，仍用缓存的endsOn；其他写者缩短工作流结束配置后，旧timer错误执行。原主库/null查询投影增加config，复用getDataOptionTime以本次nextTime核对当前结束，早于则拒绝、等值允许；保留原来源结束检查，不新增SQL、读取路由或事务所有权变动，也不声称当前配置全部复核。
+
+- [x] 真实external SQLite两个独立tenantScoped来源，B记录从due前一天每日重复，初workflow固定endsOn为due+1小时。原reload SQL完成且原Node timer登记后，原workflow Model.update(hooks:false)仅将持久endsOn改为due-1秒或due，不触发本实例off/on、不改来源记录或伪造SQL/事件/结果。date-workflow-current-end-red.log干净1失败1通过44过滤/46总、实际1/14.49秒，session20502已退出：过期项实际唯一B/1793701293000 execution而非[]，等值控制原通过，不把两案都称RED。
+- [x] 最小投影及两行边界检查后date-workflow-current-end-green.log两项通过44过滤/46总、实际0/21.86秒，session40139已退出。过期旧时点execution/业务行/两计数0；恢复未来合法工作流结束及来源日期后显式原reload产生唯一B/新due、B业务行/两计数1。等值控制原due正常执行；两项均核events/preparing/pending/executing及真实主库持久endsOn，未依赖旧idle helper单独返回。
+- [x] date-workflow-current-end-regression.log九SQLite文件139全通过/无跳过/实际0/136.19秒（测试228.97并行累计），session44074已退出：external46、mode-date13、owner9、listener6、date-lifecycle5、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。date-workflow-current-end-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session65335已退出。新两项含于139，不累加green/RED、§307的96、§306的137或旧PG，非整分支回归；仅同库SQLite其他写者，不称真实多进程原子协调。本项无SQL路由/dialect改变，未启PG/建库/Redis服务或新物理附件。
+- [x] 最终两TS Prettier check/oxlint0、源snapshot一致：DateFieldScheduleTrigger 34AC9F3F879BD20695D0ED08967EC3633BCF5158627F7ADECE800941DDDF43C0；external test 082293167E2F476D4349780741171E2A8C0C58110F3D50B269A4572F9D1D7887。代码之后未改。前§307 f9f9067f843c38b15613f5b04c45073c1a15ac30默认GPG提交实际0，后继独立verify-commit实际0/签名G，工作区干净、四TS源snapshot一致、snapshot Node/esbuild0/25466全部记录0；§301—306同G，§297—300仍N/global true，不复用旧Timeout或认证。
+
+按requesting-code-review模板作者串行自审，非独立复核：当前结束读取复用同次最终启用查询，比较指定发生时点而非交付时刻；正负边界、恢复、直接trigger事务透传、保存追赶和B归属回归共同限定行为。无本项未修复Critical/Important。不予本项裁决：工作流来源/开始字段/周期/limit等其他配置变化、旧结束已过但当前结束延长的完整续排政策、最终授权事实到业务SQL完整并发隔离、任意长延迟/时钟回拨、无本实例事件自动发现、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用；保留全部日志、原PG集群、旧目录及D盘进程TEMP/TMP目录。

@@ -575,6 +575,95 @@ describe('date-field scheduling from an external database', () => {
   );
 
   it.each([true, false])(
+    'rechecks the persisted workflow end after discovery (ends before due: %s)',
+    async (endsBeforeDue) => {
+      const collection = external.collection({
+        name: `externalWorkflowEnd_${endsBeforeDue}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+        ],
+      });
+      await external.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getCollection('externalScheduleDocuments').model;
+      const workflows = app.db.getModel('workflows');
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const initialEnd = new Date(due + 3_600_000).toISOString();
+      const config = {
+        ...workflow.config,
+        collection: `another:${collection.name}`,
+        repeat: 86_400_000,
+        endsOn: initialEnd,
+      };
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Current workflow end task' } } },
+      });
+      try {
+        await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+        const record = await collection.model.create(
+          { tenantId: 'B', scheduledAt: new Date(due - 86_400_000) },
+          { hooks: false },
+        );
+        const currentEnd = new Date(due + (endsBeforeDue ? -1000 : 0)).toISOString();
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          await workflows.update(
+            { config: { ...config, endsOn: currentEnd } },
+            { where: { id: workflow.id }, hooks: false },
+          );
+          expect(Date.now()).toBeLessThan(due - 1000);
+        });
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+          endsBeforeDue ? [] : [['B', due]],
+        );
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect(workflow.config.endsOn).toBe(currentEnd);
+        if (endsBeforeDue) {
+          expect(await results.count({ where: { label: 'Current workflow end task' } })).toBe(0);
+          expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+          const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+          await collection.model.update(
+            { scheduledAt: new Date(nextDue - 86_400_000) },
+            { where: { id: record.id }, hooks: false },
+          );
+          await workflows.update(
+            { config: { ...config, endsOn: new Date(nextDue).toISOString() } },
+            { where: { id: workflow.id }, hooks: false },
+          );
+          await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+          await waitForAssertion(async () => {
+            expect(plugin.events).toHaveLength(0);
+            expect(plugin.preparing).toBeFalsy();
+            expect(plugin.pending).toHaveLength(0);
+            expect(plugin.executing).toBeFalsy();
+            expect(await workflow.countExecutions()).toBe(1);
+          });
+          const [execution] = await workflow.getExecutions();
+          expect([execution.tenantId, Date.parse(execution.context.date)]).toEqual(['B', nextDue]);
+        }
+        const generated = await results.findAll({ where: { label: 'Current workflow end task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Current workflow end task' }, hooks: false });
+      }
+    },
+  );
+
+  it.each([true, false])(
     'rechecks a changed nonempty start date (moves beyond the old occurrence: %s)',
     async (movesPastDue) => {
       const collection = external.collection({

@@ -100,7 +100,14 @@ export default class StaticScheduleTrigger {
             }, MAX_SAFE_INTERVAL),
           );
         } else {
-          this.timers.set(key, setTimeout(this.trigger.bind(this, workflow, nextTime), interval));
+          this.timers.set(
+            key,
+            setTimeout(() => {
+              this.trigger(workflow, nextTime).catch((error) => {
+                this.workflow.getLogger(workflow.id).error('failed to trigger static schedule', error);
+              });
+            }, interval),
+          );
         }
       }
     } else {
@@ -115,6 +122,17 @@ export default class StaticScheduleTrigger {
 
   async trigger(workflow, time) {
     this.timers.delete(`${workflow.id}@${time}`);
+
+    const cancellation = this.cancellations.get(`${workflow.id}`);
+    const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
+      useMaster: true,
+      transaction: null,
+      fields: ['id'],
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
+    });
+    if (!enabled || this.cancellations.get(`${workflow.id}`) !== cancellation) {
+      return;
+    }
 
     this.workflow.trigger(workflow, { date: new Date(time) });
 

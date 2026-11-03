@@ -4124,3 +4124,17 @@ Ruling: CollectionTrigger.off 移除注册不能终止已进入 handler 的异�
 - [x] workflow 客户端/服务端/依赖/声明完整 build 实际退出0，workflow-collection-listener-off-build.log，session49089已退出。两 TS Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：CollectionTrigger 3CE207AB526C676E4A1EB17894471A020984534E0FA397D45E7310C382DEF519；collection-lifecycle.test 85BCC78351C916ACE38B65523E3F24592251183C39088B63B1013E5280A86308，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：函数身份核对绑定原数据源/事件/工作流注册，同名新 listener 不能恢复旧调用；最后检查后到原 trigger 入队之间没有新 await。原 context、事务传递及租户归属语义保持。无本项未修复 Critical/Important。不等于终止已发出的 SQL、撤销已入队执行、完整停止矩阵、事务回滚后注册恢复、跨实例取消/持久租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。只用 SQLite，未启 PG/建库或新物理附件，不改主检出、核心、正式依赖或业务库，不推送合并发布/启用正式新规则。
+
+## 266. 静态 timer 到期前核查主库启用事实
+
+Ruling: timer 已登记后，主库被其他写者停用而没有本实例保存事件，原到期回调仍按缓存 enabled 对象生成执行。到期入队前从原主库/null 查询同 id、enabled、schedule/STATIC，只读取 id；查询返回后复核本实例取消标识。原日期、repeat/limit、缓存配置和原 trigger 入队语义保持。timer 边界捕获异步读取错误交原 logger；不自动重试，直接调用 trigger 的拒绝仍交调用者。未引入新权限、schema、逐租户扫描或正式 G 接线。
+
+- [x] 原真实 SQLite 生命周期夹具新增无本实例事件的持久停用：model.update hooks:false 后缓存仍 true、实际行 false；到期应零 execution/业务行，重新读取当前模型并显式启用新时点应正常生成一条。static-schedule-deadline-enabled-red.log：1失败4过滤/5总、实际退出1/17.94秒（测试10.52），session51052已退出；execution实际1而非0，断言在业务行检查前停止。最小实现后完整5通过、无跳过、实际0/55.82秒，static-schedule-deadline-enabled-green.log，session27000已退出。
+- [x] 补主库 SQL 已读 enabled、交付前本实例 off 的控制，已有取消复核直接满足，不冒称旧产品新 RED。四文件（lifecycle6、mode-static11、Plugin24、tenant-module-boundary5）46全通过、无跳过、实际0/75.26秒（测试62.69），static-schedule-deadline-enabled-regression.log，session70020已退出。
+- [x] 原专用 PostgreSQL 真实独立读写池/不同 search_path 保留 enabled 副本；实际主库 hooks:false 停用且不触发 off，到期零执行/业务行，主库正常重启用新时点仍成功。static-primary-authority 两项全通过、无跳过、实际0/17.33秒（测试14.17），static-schedule-deadline-enabled-postgres.log，session62820已退出。原启动案例重建本测试旧 schema、按各场景独立 label 检查业务行，仍分别核对实际 workflow execution，避免两个案例互相串扰。不等于实际 WAL replica 或跨实例完整验收。
+- [x] 作者自审再补新异步边界实际故障：仅本内存库临时 rename workflows，真实到期 SELECT 拒绝、原 logger 保留 SequelizeDatabaseError 与 SQL/堆栈，finally 恢复原表；恢复后显式新时点成功。最终 lifecycle7全通过、无跳过、实际0/32.92秒（测试28.27），static-schedule-deadline-enabled-final-lifecycle.log，session62146已退出。该补充直接通过，不冒称新产品 RED；此前其他三文件40项及独立 PG2项均在同一最终 runtime 下通过。最终覆盖为 SQLite47/PG2，共五文件49个用例；不是一次命令49项，不累加46、7、2或旧轮次，不是整分支回归。
+- [x] workflow 客户端/服务端/依赖/声明完整 build 实际退出0，static-schedule-deadline-enabled-build.log，session73683已退出。三 TS 最终 Prettier check、oxlint 零警告错误、源/snapshot SHA256一致：StaticScheduleTrigger 261DBE74601E68A42E95197F4846D0C4FFFA52C03AFBC434CAFE309B78F98A73；static-lifecycle.test E476DA3DC0B5E31F90DE432814CACC990E79F841715822A511ED7BCE6C3DD39D；static-primary-authority.test 5A35A94DE45101A53C5EC39F67C52C28E51309F60F6D10B68F7479960478D308。最终代码后未改，一次只读不存在的 repository 路径不是测试 RED。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：查询只核查当前已提交主库启用事实，不让旧读池或 CLS 替代它；本实例 off 在查询后也能否定旧读取，错误不变成允许执行。无本项未修复 Critical/Important。仍使用原已缓存静态配置，不声称解决其他实例修改 STATIC 内部配置后的完整刷新、查询完成后其他实例再停用到入队之间的并发窗口、已入队撤销、持久租约/跨实例原子去重或完整停止矩阵。正式 G 消费者、业务试点及整分支独立复核未完成。
+
+独立资源收敛 session17481 实际退出0：验证/构建/esbuild0，核实本次 postmaster44404/创建2026-11-03T11:41:23.1082040+08:00/精确原目录及127.0.0.1:25466命令，全部25466记录唯一原PID；SQL原目录/tenant_test/host127.0.0.1及32位掩码/25466/postgres非恢复/零其他客户端及owner后，只删新库 tego_tenant_access_test_a26602f673 且 pg_database count0。原 PG 正常停止、pg_ctl无服务/PID消失/全部端口0；集群与日志保留，不触及旧目录、既有附件、主检出、核心、正式依赖或业务库，不推送合并发布/启用正式新规则。

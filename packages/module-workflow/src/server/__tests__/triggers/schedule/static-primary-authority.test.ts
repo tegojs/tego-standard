@@ -41,6 +41,47 @@ describe.skipIf(!postgresUrl)('static schedule startup primary authority', () =>
     await app.destroy();
   });
 
+  it('checks deadline enablement on primary while the read pool still reports enabled', async () => {
+    const repository = app.db.getRepository('workflows');
+    const deadlineWorkflow = await repository.create({
+      values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+    });
+    await deadlineWorkflow.createNode({
+      type: 'create',
+      config: { collection: 'staticAuthorityResults', params: { values: { label: 'Deadline task' } } },
+    });
+    await app.db.sequelize.query('CREATE SCHEMA IF NOT EXISTS stale_static_schedule');
+    await app.db.sequelize.query(
+      'CREATE TABLE IF NOT EXISTS stale_static_schedule.workflows (LIKE public.workflows INCLUDING ALL)',
+    );
+    const due = Math.ceil((Date.now() + 1500) / 1000) * 1000;
+    await deadlineWorkflow.update({ enabled: true, config: { mode: 0, startsOn: new Date(due).toISOString() } });
+    await app.db.sequelize.query(
+      'INSERT INTO stale_static_schedule.workflows SELECT * FROM public.workflows WHERE id = :id',
+      { replacements: { id: deadlineWorkflow.id } },
+    );
+    const model = app.db.getCollection('workflows').model;
+    await model.update({ enabled: false }, { where: { id: deadlineWorkflow.id }, hooks: false });
+    expect(deadlineWorkflow.enabled).toBe(true);
+    expect((await model.findByPk(deadlineWorkflow.id)).enabled).toBe(true);
+    expect((await model.findByPk(deadlineWorkflow.id, { useMaster: true })).enabled).toBe(false);
+    expect(Date.now()).toBeLessThan(due);
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 300));
+    await waitForWorkflowIdle(app);
+    expect(await deadlineWorkflow.countExecutions({ useMaster: true })).toBe(0);
+    const results = app.db.getRepository('staticAuthorityResults');
+    expect(await results.count({ filter: { label: 'Deadline task' }, useMaster: true })).toBe(0);
+
+    const current = await repository.findOne({ filterByTk: deadlineWorkflow.id, useMaster: true, transaction: null });
+    const nextDue = Math.ceil((Date.now() + 200) / 1000) * 1000;
+    await current.update({ enabled: true, config: { mode: 0, startsOn: new Date(nextDue).toISOString() } });
+    await waitForFastAssertion(async () => {
+      expect(await results.count({ filter: { label: 'Deadline task' }, useMaster: true })).toBe(1);
+    });
+    await waitForWorkflowIdle(app);
+    expect(await deadlineWorkflow.countExecutions({ useMaster: true })).toBe(1);
+  });
+
   it('does not restore a primary-disabled static task from an enabled read-pool copy', async () => {
     workflow = await app.db.getRepository('workflows').create({
       values: { type: 'schedule', enabled: false, config: { mode: 0 } },
@@ -57,6 +98,7 @@ describe.skipIf(!postgresUrl)('static schedule startup primary authority', () =>
       { enabled: true, config: { mode: 0, startsOn: new Date(due).toISOString() } },
       { where: { id: workflow.id }, hooks: false },
     );
+    await app.db.sequelize.query('DROP SCHEMA IF EXISTS stale_static_schedule CASCADE');
     await app.db.sequelize.query('CREATE SCHEMA stale_static_schedule');
     await app.db.sequelize.query('CREATE TABLE stale_static_schedule.workflows (LIKE public.workflows INCLUDING ALL)');
     await app.db.sequelize.query('INSERT INTO stale_static_schedule.workflows SELECT * FROM public.workflows');
@@ -70,7 +112,7 @@ describe.skipIf(!postgresUrl)('static schedule startup primary authority', () =>
     await waitForWorkflowIdle(app);
     expect(await workflow.countExecutions({ useMaster: true })).toBe(0);
     const results = app.db.getCollection('staticAuthorityResults').model;
-    expect(await results.count({ useMaster: true })).toBe(0);
+    expect(await results.count({ where: { label: 'Current static task' }, useMaster: true })).toBe(0);
 
     await app.stop();
     await app.db.reconnect();
@@ -83,7 +125,9 @@ describe.skipIf(!postgresUrl)('static schedule startup primary authority', () =>
       );
     await app.start();
     await waitForFastAssertion(async () => {
-      const rows = await app.db.getCollection('staticAuthorityResults').model.findAll({ useMaster: true });
+      const rows = await app.db
+        .getCollection('staticAuthorityResults')
+        .model.findAll({ where: { label: 'Current static task' }, useMaster: true });
       expect(rows.map((row) => row.get('label'))).toEqual(['Current static task']);
     });
     await waitForWorkflowIdle(app);

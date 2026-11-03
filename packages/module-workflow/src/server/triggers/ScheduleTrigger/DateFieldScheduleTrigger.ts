@@ -441,7 +441,7 @@ export default class ScheduleTrigger {
       return null;
     }
     if (startTime >= timestamp) {
-      return !endTime || (endTime >= startTime && endTime < timestamp + range) ? startTime : null;
+      return !endTime || endTime >= startTime ? startTime : null;
     } else {
       if (savedAt && startTime >= new Date(savedAt).setMilliseconds(0)) {
         return startTime;

@@ -164,6 +164,72 @@ describe('date-field scheduling from an external database', () => {
     }
   });
 
+  it.each([
+    { endType: 'date', beforeStart: false },
+    { endType: 'field', beforeStart: false },
+    { endType: 'date', beforeStart: true },
+    { endType: 'field', beforeStart: true },
+  ])(
+    'discovers a first start with $endType end time (end before start: $beforeStart)',
+    async ({ endType, beforeStart }) => {
+      const collection = external.collection({
+        name: `externalEndWindow_${endType}_${beforeStart}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+          { name: 'endsAt', type: 'date' },
+        ],
+      });
+      await external.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getCollection('externalScheduleDocuments').model;
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const end = due + (beforeStart ? -1000 : 3_600_000);
+      const config = {
+        ...workflow.config,
+        collection: `another:${collection.name}`,
+        repeat: 86_400_000,
+        endsOn: endType === 'date' ? new Date(end).toISOString() : { field: 'endsAt' },
+      };
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'End window task' } } },
+      });
+      try {
+        await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+        await collection.model.create(
+          { tenantId: 'B', scheduledAt: new Date(due), endsAt: new Date(end) },
+          { hooks: false },
+        );
+        const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+        expect(
+          (await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('tenantId')),
+        ).toEqual(['B']);
+        expect(Date.now()).toBeLessThan(due - 1000);
+        await observeThroughDeadline(trigger, due, () => trigger.reload());
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+          beforeStart ? [] : [['B', due]],
+        );
+        const generated = await results.findAll({ where: { label: 'End window task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(beforeStart ? [] : ['B']);
+        await workflow.reload();
+        expect([workflow.executed, workflow.allExecuted]).toEqual(beforeStart ? [0, 0] : [1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'End window task' }, hooks: false });
+      }
+    },
+  );
+
   it('bounds daily repeat discovery while retaining future first starts and start offsets', async () => {
     const trigger = installedDateTrigger();
     const documents = external.getCollection('externalScheduleDocuments').model;

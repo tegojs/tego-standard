@@ -4542,3 +4542,14 @@ Ruling: 原框架Field.toSequelize保留field选项，逻辑scheduledAt可以映
 前§299默认签名session26808实际Timeout/退出128；事先捕获git80460/43060、gpg56604、pinentry101696创建时间/父链。退出后逐一消失、HEAD仍bcbfee774、原staged tree6207792f2288d309c516af4b985eb30dbe4c8d9f不变、无未暂存、活动Git/签名进程0，独立guard实际0后仅按已有授权单次跳过，最终ace8c4bd0838d2d9cfce9e25ae01f6a69f004b47提交实际0/签名N；不称G或独立验签成功，global commit.gpgsign仍true，不复用该旧Timeout/认证。
 
 本§300默认签名session67987实际Timeout/退出128；事先捕获git79340/104772、gpg81344、pinentry57064创建时间/父链。退出后逐一消失、HEAD仍ace8c4bd0、原staged tree f249109ce3d013bdba986ec486cfc14460bef8eb不变、无未暂存及活动Git/签名进程0，独立guard10929实际0。仅补本段事实后重新核对计划内五文件暂存，再按已有授权仅本次单次跳过；不重试旧认证、不改global，不称G或独立验签成功。
+
+## 301. 日期首次开始不要求结束时间也落入缓存窗口
+
+Ruling: getRecordNextTime已限定首次startTime位于缓存窗口，却额外要求endTime也在窗口内，导致几秒后开始、一小时后结束的合法首次任务被丢弃。仅去掉首次分支的结束窗口上界，仍要求结束不早于开始；不改重复计算、保存追赶、初始输入校验、SQL、来源路由、租户归属或最终授权。
+
+- [x] 原external SQLite安装实例新增四个独立tenantScoped表案例，date自定义结束与field结束各有合法远期结束及结束早于开始控制。原ORM持久B记录，直接原loadRecordsToSchedule核SQL候选均含B且守卫早于due-1秒，再原reload/SQL/Node timer/队列；无SQL、时钟、timer或执行结果伪造。date-first-start-end-window-red.log两合法案例execution实际[]而非唯一B/due，2失败2通过30过滤/34总、实际1/27.16秒，session76430已退出；两非法结束控制原已通过，不称四案均RED。
+- [x] 最小一行修复后date-first-start-end-window-green.log四项通过30过滤/34总、实际0/22.51秒，session53134已退出。合法项精确B/due execution、真实B业务行及两计数1，非法项全部0；负向同时核events/preparing/pending/executing为空。finally原off并仅清本测试新增业务标签，外部表随原内存库关闭。
+- [x] 最终date-first-start-end-window-regression.log九SQLite文件126全通过/无跳过/实际0/84.51秒（测试171.07并行累计），session21358已退出：external34、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。故障恢复案例刻意产生的来源缺表日志对应测试均通过；新项含于126，不累加RED/green或旧144，非整分支回归。本项无SQL/dialect改动，未启PG或重跑旧PG。
+- [x] date-first-start-end-window-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session25010已退出。最终两TS Prettier check、oxlint零警告错误，源/snapshot SHA一致：DateFieldScheduleTrigger F7821CCC03368C4B93FE602FDE22916C8D161DC2CFF42B00C635CC6BA4B424A5；external test C37C4B39D092CCCB9E630F4E7807D9E6BBEA22BD51D8651A36A28EC2A0877247。代码之后未改；本项没有建库、Redis服务或新物理附件，全部日志/原集群/旧目录保留。
+
+按requesting-code-review模板作者串行自审，非独立复核：开始窗口已由原前置判断限定，取消结束窗口上界不扩大开始扫描范围；结束早于开始仍拒绝。自定义及字段两条真实路径均有RED与合法/非法持久结果控制，未增加查询或依赖。无本项未修复Critical/Important。不予本项裁决：保存追赶分支的结束时点检查、初始起止输入校验、任意长延迟补跑、日期缓存与其他写者变动的全部复核、主库事实到业务SQL完整并发隔离、跨实例发现/租约/去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§297—300均签名N，全局commit.gpgsign仍true，不复用任何旧Timeout/认证。

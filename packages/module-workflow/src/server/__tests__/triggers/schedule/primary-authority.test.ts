@@ -214,13 +214,16 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
   );
 
   it.each([false, true])(
-    'does not discover a workflow disabled on the primary (ambient read pool: %s)',
+    'does not discover or dispatch a workflow disabled on the primary (ambient read pool: %s)',
     async (ambient) => {
       const workflows = app.db.getCollection('workflows').model;
       const due = Math.ceil((Date.now() + 1000) / 1000) * 1000;
       await app.db
         .getCollection('primaryScheduleDocuments')
         .model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+      const record = await app.db
+        .getCollection('primaryScheduleDocuments')
+        .model.findByPk(1, { useMaster: true, transaction: null });
       await app.db.sequelize.query(
         'CREATE TABLE schedule_stale_tenants.workflows (LIKE public.workflows INCLUDING ALL)',
       );
@@ -235,11 +238,13 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
             await app.db.sequelize.transaction({ readOnly: true }, async (transaction) => {
               expect((await workflows.findByPk(workflow.id, { transaction }))?.get('enabled')).toBe(true);
               await trigger.reload();
+              await trigger.trigger(workflow, record, due);
               expect(transaction.finished).toBeFalsy();
             });
           });
         } else {
           await trigger.reload();
+          await trigger.trigger(workflow, record, due);
         }
         await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
         await waitForWorkflowIdle(app);

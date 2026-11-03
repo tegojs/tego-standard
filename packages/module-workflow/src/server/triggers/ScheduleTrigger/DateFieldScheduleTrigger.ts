@@ -556,6 +556,13 @@ export default class ScheduleTrigger {
         return;
       }
     }
+    const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
+      useMaster: true,
+      transaction: null,
+      fields: ['id'],
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+    });
+    if (!enabled || !isCurrent()) return;
     bindTenantContext(data, context);
     this.workflow.trigger(
       workflow,

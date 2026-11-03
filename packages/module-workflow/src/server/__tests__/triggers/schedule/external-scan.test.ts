@@ -107,6 +107,56 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it('rejects a cached date timer after persisted workflow disable without a local save event', async () => {
+    const trigger = installedDateTrigger();
+    const model = external.getCollection('externalScheduleDocuments').model;
+    const results = app.db.getCollection('externalScheduleDocuments').model;
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Deadline generated' } } },
+    });
+    try {
+      const due = Date.now() + 700;
+      await model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+      const record = await model.findByPk(1);
+      const fired = fireTimer(trigger, record, due);
+      try {
+        await app.db
+          .getCollection('workflows')
+          .model.update({ enabled: false }, { where: { id: workflow.id }, hooks: false });
+        expect(workflow.enabled).toBe(true);
+        expect((await app.db.getCollection('workflows').model.findByPk(workflow.id)).enabled).toBe(false);
+        expect(Date.now()).toBeLessThan(due);
+      } finally {
+        await fired;
+      }
+      await waitForWorkflowIdle(app);
+      expect(await workflow.countExecutions()).toBe(0);
+      expect(await results.count({ where: { label: 'Deadline generated' } })).toBe(0);
+
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+      const initialScan = vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
+      try {
+        await current.update({ enabled: true });
+      } finally {
+        initialScan.mockRestore();
+      }
+      const nextDue = Date.now() + 200;
+      await model.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+      await fireTimer(trigger, await model.findByPk(1), nextDue);
+      await waitForWorkflowIdle(app);
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
+      expect(executions[0].context.data.label).toBe('External B');
+      const generated = await results.findAll({ where: { label: 'Deadline generated' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+    } finally {
+      trigger.off(workflow);
+      await model.update({ scheduledAt }, { where: { id: 1 }, hooks: false });
+      await results.destroy({ where: { label: 'Deadline generated' }, hooks: false });
+    }
+  });
+
   it('resumes periodic discovery after a real application stop and restart', async () => {
     const trigger = installedDateTrigger();
     const cacheCycle = trigger.cacheCycle;

@@ -111,6 +111,12 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     const workflowPlugin = {
       app: {
         on: vi.fn(),
+        db: {
+          getRepository: (name: string) => {
+            if (name !== 'workflows') throw new Error('Unexpected authority repository');
+            return { findOne: vi.fn().mockResolvedValue({ id: 42 }) };
+          },
+        },
         dataSourceManager: {
           dataSources: new Map([
             [

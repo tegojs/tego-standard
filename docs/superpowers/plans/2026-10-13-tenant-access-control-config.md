@@ -4138,3 +4138,17 @@ Ruling: timer 已登记后，主库被其他写者停用而没有本实例保存
 按 requesting-code-review 模板作者串行自审，非独立复核：查询只核查当前已提交主库启用事实，不让旧读池或 CLS 替代它；本实例 off 在查询后也能否定旧读取，错误不变成允许执行。无本项未修复 Critical/Important。仍使用原已缓存静态配置，不声称解决其他实例修改 STATIC 内部配置后的完整刷新、查询完成后其他实例再停用到入队之间的并发窗口、已入队撤销、持久租约/跨实例原子去重或完整停止矩阵。正式 G 消费者、业务试点及整分支独立复核未完成。
 
 独立资源收敛 session17481 实际退出0：验证/构建/esbuild0，核实本次 postmaster44404/创建2026-11-03T11:41:23.1082040+08:00/精确原目录及127.0.0.1:25466命令，全部25466记录唯一原PID；SQL原目录/tenant_test/host127.0.0.1及32位掩码/25466/postgres非恢复/零其他客户端及owner后，只删新库 tego_tenant_access_test_a26602f673 且 pg_database count0。原 PG 正常停止、pg_ctl无服务/PID消失/全部端口0；集群与日志保留，不触及旧目录、既有附件、主检出、核心、正式依赖或业务库，不推送合并发布/启用正式新规则。
+
+## 267. 日期字段任务入队前核查主库启用事实
+
+Ruling: DateFieldScheduleTrigger 已登记的 timer 同样可能在主库被其他写者停用后，仍按旧 enabled 对象执行。保留原记录实际归属捕获、租户事实、目标事务来源和业务回读检查；在最终入队前另从主库/null 查询同 id、enabled、schedule/DATE_FIELD，只取 id，并再次复核本实例取消标识。原 context/transaction 和归属传递不改，不新增角色权限、schema、正式 G 消费者或调度注册。
+
+- [x] 原 external-scan 真实双 SQLite 库新增实际 timer 场景：外库 B 行保存新时点，登记 timer 后主库 workflow hooks:false 停用；缓存仍 enabled，实际行 disabled。到期零 execution/主库同名结果行；显式重新启用并保存新时点后，新排程生成 B execution 和 B 结果。finally 消费实际 timer 完成、恢复原时间并仅清除此夹具新标签行；该夹具没有在 SQL 返回处设置暂停点。
+- [x] date-schedule-deadline-enabled-red.log：1失败19过滤/20总、实际退出1/23.70秒（测试9.72），session29170已退出；execution实际1而非0，断言在结果行检查前停止。最小实现后首轮 date-schedule-deadline-enabled-green.log 实为失败：25通过1失败/26总、退出1/37.61秒（测试29.57），session72993已退出。真实 external20 已通过；作者误把原事务单测新增 workflows Repository 映射补到了另一夹具，事务单测 app.db 缺失。仅将映射移到实际事务传递夹具，不放宽原事务断言/产品检查，不把该失败算产品 RED。
+- [x] 修正后 external20、listener6、owner9、mode-date-field13、Plugin24、tenant-module-boundary5，六文件77全通过、无跳过、实际退出0/97.96秒（测试74.58），date-schedule-deadline-enabled-regression.log，session8494已退出。含原失败回滚、NULL/实际归属、外库、启停/重启和重复任务身份控制；新一项含于77，不累加首轮或旧提交，不是整分支回归。
+- [x] 原真实 PG 独立读写池/不同 search_path 的两个停用发现案例补充直接调用原 trigger，普通与 CLS readOnly 读池环境均必须拒绝旧 enabled 副本；原已读真实业务记录保留，主库重新启用后原实际 timer 仍生成 B。完整 primary-authority18全通过、无跳过、实际退出0/37.95秒（测试27.52），date-schedule-deadline-enabled-postgres.log，session73217已退出；含显式普通写事务自身未提交归属可见、foreign/readOnly/savepoint 拒绝、caller 事务未结束。该 PG 补充直接通过，不冒称新增 RED，也不把直接 trigger 测试说成新的 PG timer 场景或实际 WAL replica。两个不重叠最终批次共七文件95项，不与其他轮次累加。
+- [x] workflow 客户端/服务端/依赖/声明完整 build 实际退出0，date-schedule-deadline-enabled-build.log，session21723已退出。四 TS Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：DateFieldScheduleTrigger C16F7251AC6183E94D323D17424B5616C981FD784A5416D74BA1F78D014687BA；date-field-listener.test F04A2FDA70DD6C76DB5486A581D1FD10351264331859834234CDF1F2EF0087E3；external-scan.test 4307573199EDD344E0ECC514C5323B61E7118DF227675ABC7563AAA06A4DA8DF；primary-authority.test 021FFEBB8AE2E44AF2270ECFA0D3AE570547DE651B3BE80453294409684808BD，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：工作流启用事实固定在主库且不继承 CLS，外库记录与 caller 事务保持原检查；记录原归属仍在首次 await 前捕获，最后主库查询后再核对取消标识。无本项未修复 Critical/Important。仍不保证其他实例修改 DATE_FIELD 内部配置的完整刷新、授权/业务读取/最后状态到入队的全程隔离、已入队撤销、持久租约/跨实例原子去重、完整停止矩阵；正式 G 消费者、业务试点及整分支独立复核未完成。
+
+独立资源收敛 session86800 实际退出0：本轮验证/构建/esbuild0，核实新 postmaster59516/创建2026-11-03T11:54:52.3290520+08:00/原精确目录及127.0.0.1:25466命令、全部25466记录仅原PID；SQL原目录/tenant_test/host127.0.0.1及32位掩码/25466/postgres非恢复/零其他客户端及owner后，只删 tego_tenant_access_test_b26703a674 且 pg_database count0。原 PG 正常停止、pg_ctl无服务/PID消失/全部端口0，集群/日志及旧目录保留；不触及主检出、核心、正式依赖、业务库或既有附件，不推送合并发布/启用正式规则。

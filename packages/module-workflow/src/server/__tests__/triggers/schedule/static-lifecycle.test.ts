@@ -18,6 +18,50 @@ describe('static schedule discovery lifecycle', () => {
     await app?.destroy();
   });
 
+  it.each([
+    { repeat: 2000, endOffset: 1000, expectedDates: [0] },
+    { repeat: 2000, endOffset: 2000, expectedDates: [0, 2000] },
+    { repeat: '*/2 * * * * *', endOffset: 1000, expectedDates: [0] },
+    { repeat: '*/2 * * * * *', endOffset: 2000, expectedDates: [0, 2000] },
+  ])('bounds static repeat $repeat by an end offset of $endOffset ms', async ({ repeat, endOffset, expectedDates }) => {
+    const workflow = await app.db.getRepository('workflows').create({
+      values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'staticLifecycleResults', params: { values: { label: 'Bounded static task' } } },
+    });
+    const time = Math.ceil((Date.now() + 2000) / 2000) * 2000;
+    try {
+      await workflow.update({
+        enabled: true,
+        config: {
+          mode: 0,
+          startsOn: new Date(time).toISOString(),
+          endsOn: new Date(time + endOffset).toISOString(),
+          repeat,
+        },
+      });
+      expect(Date.now()).toBeLessThan(time);
+      await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(time + 3500), 10000);
+      const plugin = app.pm.get('workflow');
+      await waitForFastAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+      expect(executions.map((execution) => new Date(execution.context.date).getTime() - time)).toEqual(expectedDates);
+      const rows = await app.db.getRepository('staticLifecycleResults').find();
+      expect(rows.map((row) => row.label)).toEqual(expectedDates.map(() => 'Bounded static task'));
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+    } finally {
+      await workflow.update({ enabled: false });
+    }
+  });
+
   it('restores a stopped timer discovered after the generic startup snapshot', async () => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({

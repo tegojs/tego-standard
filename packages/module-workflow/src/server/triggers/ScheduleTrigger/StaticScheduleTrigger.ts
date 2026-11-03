@@ -76,11 +76,11 @@ export default class StaticScheduleTrigger {
       }
       if (typeof config.repeat === 'string') {
         const interval = parser.parseExpression(config.repeat, { currentDate });
-        const next = interval.next();
-        return next.getTime();
+        const next = interval.next().getTime();
+        return endTime != null && next > endTime ? null : next;
       } else if (typeof config.repeat === 'number') {
         const next = timestamp + config.repeat - ((timestamp - startTime) % config.repeat);
-        return next;
+        return endTime != null && next > endTime ? null : next;
       } else {
         return null;
       }

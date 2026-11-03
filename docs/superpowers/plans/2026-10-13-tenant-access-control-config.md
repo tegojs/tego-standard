@@ -4451,3 +4451,14 @@ Ruling: 已安装cache的setIfNotExists仅在锁实际写入后返回true，抛�
 - [x] cron-lock-acquisition-failure-build.log cron客户端/服务端/依赖/声明完整构建实际0，session6741已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：CronJobLock 27BF18A931F456FB44A96AD69441C4EC7374B06B70C83B5BED34179C0C2D80F1；dispatch test 3D89288E0E81E33E300B2512965A2F79E6724465039F88151D1D2044F1EF184A，最终代码后未改。新测试及原锁文件各一次格式check1后格式化，不是产品RED；只读未存在依赖根/通配路径/动态触发器路径查询失败亦非产品RED。
 
 按requesting-code-review模板作者串行自审，非独立复核：只有实际成功才能继续原分派，未获取的锁不进入原release；真实缓存失败和健康后继持久B结果证明该边界，竞争锁保持案例继续通过。无本项未修复Critical/Important。不予本项裁决：TTL过期后锁所有权/比较删除、跨实例原子去重或持久租约、全部启停/已入队撤销、最终事实到SQL完整并发隔离、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。原PG停止/集群与所有日志、旧目录保留。前§292 a2df4f47ad4d075939400bc0d29da392e47e921a默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 294. 工作流静态调度的重复时点也不得越过结束时间
+
+Ruling: §281修的是独立Cron模块；workflow自身StaticScheduleTrigger仍只判断计算前currentDate是否超过endsOn，未拒绝算出的next>endTime。原数字周期及cron表达式两分支均增加下一时点上界检查，等值仍允许；不改变初始起止输入校验、原共享静态任务语义、主库启用检查、取消代次或注册入口。
+
+- [x] 原内存SQLite静态生命周期夹具，真实Repository保存schedule workflow及create节点，正常update启用未来的偶数秒时点，repeat分别2000毫秒和*/2表达式、endsOn分别+1000/+2000。完全由安装实例原Node timer及队列执行；跨过可能越界的+2000时点并等待events/preparing/pending/executing全空，读取实际execution.context.date、共享业务行和主库两计数。期望分别[0]与[0,2000]，无mock timer、直接trigger或伪造查询；finally原update停用。
+- [x] workflow-static-repeat-end-red.log干净RED：2失败2通过9过滤/13总、实际1/39.34秒（测试34.87），session46181已退出。数字及cron两越界案例均实际[0,2000]、预期[0]，时间/空闲守卫通过，未进入失败案例后继业务/计数断言；两个等值控制在原实现已通过，不冒称四项均RED。最小next>endTime检查后四项全通过9过滤/13总、实际0/43.00秒，workflow-static-repeat-end-green.log，session47669已退出，真实业务结果及两计数分别1/2。
+- [x] 最终workflow-static-repeat-end-regression.log五SQLite文件54全通过、无跳过、实际0/85.22秒（测试121.89并行累计），session3389已退出：static-lifecycle13、static-discovery-lifecycle1、mode-static11、Plugin24、tenant-module-boundary5。四新项含于54，不累加green4、此前50/cron78等批次或RED，不是整分支回归。原无结束时间周期、limit、停用、首次发现及停止/重启案例保持通过。
+- [x] workflow-static-repeat-end-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session71804已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：StaticScheduleTrigger 3DE85AF394A085353B3B20F847E6D67D0AF76971F6176B496437E7D2D30A719D；static-lifecycle test 5F381142261CDA557B3B0FEEFC825809288E45DB97BDFE3B8EA67391C38ED759，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：只比较原计算所得next与原endsOn，等值控制及原无限周期/limit兼容用实际timer验证；不把共享静态任务强行转换成每租户G任务。无本项未修复Critical/Important。不予本项裁决：初始起止配置校验、授权查询延迟下的全部时序、全停止/已入队撤销、最终授权到SQL完整并发隔离、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/Redis服务、建库或新附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§293 7c3097141b9fc3d7c45d7201332e02eda52fd123默认签名成功且独立verify-commit实际0/签名G，全局true。

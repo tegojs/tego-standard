@@ -4514,3 +4514,15 @@ Ruling: 原EndsByField提供By custom date，既有mode-date-field测试也支�
 前§297签名如实记录：默认git commit session82593实际Timeout/退出128，事先捕获git109372/88176、gpg89620及pinentry95664创建时间和父链；退出后逐一核实消失，HEAD仍9bef080a6、原staged tree db7f037e4a403859cb306bffb07cfaa9450f57d4不变、无未暂存改动、全机Git/GPG/pinentry0，独立guard实际0后才按已有授权单次跳过。最终c889f63a0a4fc90b18b09df9418ce055743f591d实际提交0、签名N，不称G或独立验签成功；global commit.gpgsign仍true，不复用该Timeout/旧认证。
 
 本§298默认git commit session2544同样实际Timeout/退出128。事先捕获本次git103128/109148、gpg7180及pinentry51404创建时间/父链；逐一消失、HEAD仍c889f63a0、原staged tree 98bf1a77f86ac79ae196f68575bc3373ed423fdb未变、无未暂存及活动Git/GPG/pinentry0，独立guard session74522实际0。仅补本段签名事实后重新核对计划内四文件暂存，不重试旧签名，按已有授权仅本次单次跳过；不能把该未签名提交称G或独立验签成功，不改变global设置。
+
+## 299. 长周期发现SQL按来源dialect引用日期列名
+
+Ruling: SQLite时间函数原样拼入startsOn.field，真实合法date字段order会使长周期候选SQL产生语法错误。统一在实际目标model的QueryInterface调用quoteIdentifier，三个时间函数接收已引用标识符；移除PostgreSQL/MySQL原手工包裹，避免重复引用。原选定来源/dialect、主库读取、周期相位/偏移、候选范围、启用租户/实际归属及取消/生命周期检查保持。
+
+- [x] 原external SQLite安装实例真实建立tenantScoped外部表externalKeywordSchedules，字段order为date且持久一条B每日重复记录；原create节点生成主库B业务行。date-field-identifier-red.log原reload/SQL/Node timer行为RED：预期唯一B/due、实际[]，1失败28过滤/29总、实际1/10.42秒，session87768已退出。增强同一案例在timer前直接执行原loadRecordsToSchedule确认断点，date-field-identifier-sql-red.log实际SequelizeDatabaseError/SQLITE_ERROR near ")": syntax error，1失败28过滤/29总、实际1/25.78秒，session98485已退出；不是mock选项或伪造数据库异常，也不把同一案例两次执行累计成两项产品RED。
+- [x] 最小引用修复后聚焦1通过28过滤/29总、实际0/12.33秒，date-field-identifier-green.log，session44190已退出。真实候选只为B，原reload/Node timer得到精确due的唯一B execution、context.data.order为原持久日期、真实B业务行及两计数1；finally原off并仅清本测试业务行。外部测试表随原内存库关闭，不触及既有物理附件。
+- [x] 最终date-field-identifier-regression.log十文件142全通过/无跳过/实际0/66.48秒（测试196.26并行累计），session90337已退出：PG21、external29、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。包含普通camelCase日期列的真实PG相位/偏移/未来首次扫描及timer兼容，PG不是本项新RED；新项含于142，不累加前137/120、green或两次RED，非整分支回归。date-field-identifier-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session81314已退出。
+- [x] 两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：DateFieldScheduleTrigger 1EF383828C6A0EC6E68396691D261151B1EDEA9D6F872C64925C02BECF91B093；external test 0F3EFA0DD33FF20D912783D1DBD397EAD89AE79B0F06F1B7F111DF6FBA15F86B。最终代码后未改。一次相对日志路径读错及Windows rg依赖通配路径失败为只读定位错误，非产品RED，后均按实际路径读取。
+- [x] 新专用tego_tenant_access_test_b29903b681已核owner tenant_test/零其他客户端后删除，pg_database count0。原postmaster55588/创建2026-11-03T16:17:55.3524480+08:00/精确原目录命令、全部25466记录仅该PID（State null）及SQL原目录/角色/127.0.0.1与/32/25466/postgres非恢复核验；cleanup67938实际0，正常停止原PG、pg_ctl无服务/PID消失/全部端口0/validation0，保留原集群、date-field-identifier-pg.log和所有旧日志/目录。没有Redis服务、正式依赖变化或新物理附件。
+
+按requesting-code-review模板作者串行自审，非独立复核：引用方法来自实际目标数据库，单个调用点负责引用，dialect函数不重复包裹；真实SQL异常与最终timer/持久归属共同验证修复，普通列和PG真实查询仍通过。无本项未修复Critical/Important。不予本项裁决：MySQL/MariaDB实际运行、所有异常标识符/逻辑到物理字段映射、长期日期/亚秒范围、日期缓存时点与其他写者配置变动的完整复核、最终事实到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§298 bcbfee77401b33c1e08d725e4d912739356691ac签名N，全局commit.gpgsign仍true，不复用其旧Timeout或认证。

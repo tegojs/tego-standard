@@ -107,6 +107,60 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it('discovers daily schedules when the date field is an SQL keyword', async () => {
+    const collection = external.collection({
+      name: 'externalKeywordSchedules',
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'order', type: 'date' },
+      ],
+    });
+    await external.sync();
+    const trigger = installedDateTrigger();
+    const results = app.db.getCollection('externalScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+    const config = {
+      ...workflow.config,
+      collection: 'another:externalKeywordSchedules',
+      startsOn: { field: 'order' },
+      repeat: 86_400_000,
+    };
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Keyword date task' } } },
+    });
+    try {
+      await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+      await collection.model.create({ tenantId: 'B', order: new Date(due - 86_400_000) }, { hooks: false });
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+      expect(
+        (await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('tenantId')),
+      ).toEqual(['B']);
+      expect(Date.now()).toBeLessThan(due);
+      await observeThroughDeadline(trigger, due, () => trigger.reload());
+      const plugin = app.pm.get('workflow');
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+        ['B', due],
+      ]);
+      expect(Date.parse(executions[0].context.data.order)).toBe(due - 86_400_000);
+      const generated = await results.findAll({ where: { label: 'Keyword date task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+      await workflow.reload();
+      expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await results.destroy({ where: { label: 'Keyword date task' }, hooks: false });
+    }
+  });
+
   it('bounds daily repeat discovery while retaining future first starts and start offsets', async () => {
     const trigger = installedDateTrigger();
     const documents = external.getCollection('externalScheduleDocuments').model;

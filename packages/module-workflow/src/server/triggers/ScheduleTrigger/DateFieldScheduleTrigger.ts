@@ -61,10 +61,10 @@ function getDataOptionTime(record, on, dir = 1) {
 
 const DialectTimestampFnMap: { [key: string]: (col: string) => string } = {
   postgres(col) {
-    return `CAST(FLOOR(extract(epoch from "${col}")) AS INTEGER)`;
+    return `CAST(FLOOR(extract(epoch from ${col})) AS INTEGER)`;
   },
   mysql(col) {
-    return `CAST(FLOOR(UNIX_TIMESTAMP(\`${col}\`)) AS SIGNED INTEGER)`;
+    return `CAST(FLOOR(UNIX_TIMESTAMP(${col})) AS SIGNED INTEGER)`;
   },
   sqlite(col) {
     return `CAST(FLOOR(unixepoch(${col})) AS INTEGER)`;
@@ -313,9 +313,10 @@ export default class ScheduleTrigger {
       if (typeof repeat === 'number') {
         const tsFn = DialectTimestampFnMap[targetCollection.model.sequelize.getDialect()];
         if (repeat > range && tsFn) {
+          const quotedField = targetCollection.model.sequelize.getQueryInterface().quoteIdentifier(startsOn.field);
           const modExp = fn(
             'MOD',
-            literal(`${Math.floor(startTimestamp / 1000)} - ${tsFn(startsOn.field)}`),
+            literal(`${Math.floor(startTimestamp / 1000)} - ${tsFn(quotedField)}`),
             Math.round(repeat / 1000),
           );
           // Keep future first starts and repeats approaching their next cycle. / 保留未来首次开始及临近下一周期的记录。

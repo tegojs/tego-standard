@@ -328,6 +328,88 @@ describe('cron state at dispatch', () => {
     }
   });
 
+  it('stops an accepted tenant batch before dispatching later tenants after restart', async () => {
+    const { workflow, repository, cronJob, lock, service } = await createFixture();
+    await app.db.getRepository('tenants').create({ values: { id: 'C', enabled: true } });
+    const time = Math.floor(Date.now() / 1000) * 1000 - 10000;
+    await repository.update({ filterByTk: cronJob.id, values: { startsOn: new Date(time) } });
+    await service.load();
+    const plugin = app.pm.get('workflow');
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => (release = resolve));
+    let accepted = false;
+    const trigger = plugin.trigger.bind(plugin);
+    const triggering = vi.spyOn(plugin, 'trigger').mockImplementation(async (...args) => {
+      const result = await trigger(...args);
+      if (!accepted) {
+        expect(args[2].context.state.currentTenantId).toBe('B');
+        await waitForFastAssertion(async () => {
+          const rows = await app.db.getRepository('cronEnabledResults').find();
+          expect(rows.map((row) => row.tenantId)).toEqual(['B']);
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        accepted = true;
+        await hold;
+      }
+      return result;
+    });
+    const pending = service.trigger(cronJob.id, time);
+    try {
+      await waitForFastAssertion(() => expect(accepted).toBe(true));
+      await app.stop();
+      expect(await app.isStarted()).toBe(false);
+      await app.start();
+      expect(await app.isStarted()).toBe(true);
+      release();
+      await pending;
+      await waitForFastAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])).toEqual([
+        ['B', time],
+      ]);
+      const rows = await app.db.getRepository('cronEnabledResults').find();
+      expect(rows.map((row) => row.tenantId)).toEqual(['B']);
+      const persisted = await repository.findOne({ filterByTk: cronJob.id });
+      expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+      expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+    } finally {
+      release();
+      try {
+        await pending;
+      } finally {
+        triggering.mockRestore();
+        service.off(cronJob);
+      }
+    }
+    const nextTime = time + 1000;
+    await service.trigger(cronJob.id, nextTime);
+    await waitForFastAssertion(async () => {
+      const executions = await workflow.getExecutions();
+      expect(
+        executions
+          .map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+      ).toEqual([
+        ['B', time],
+        ['B', nextTime],
+        ['C', nextTime],
+      ]);
+      const rows = await app.db.getRepository('cronEnabledResults').find();
+      expect(rows.map((row) => row.tenantId).sort()).toEqual(['B', 'B', 'C']);
+    });
+    const persisted = await repository.findOne({ filterByTk: cronJob.id });
+    expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([2, 2]);
+    expect(await lock.isLocked(cronJob.id, nextTime)).toBe(false);
+  });
+
   it.each([
     { endsOn: '2026-01-01T00:00:01.000Z', expected: null },
     { endsOn: '2026-01-01T00:00:02.000Z', expected: '2026-01-01T00:00:02.000Z' },

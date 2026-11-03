@@ -4359,3 +4359,14 @@ Ruling: afterStart读取的旧Cron列表尚未交付时，停止只清除了已�
 - [x] cron-startup-lifecycle-build.log cron客户端/服务端/依赖/声明完整构建实际0，session98724已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime 7A26BCA6244D2C5959CD2FFD799C6B295CB12FA062F7F130923B3BA1E6944E2F；dispatch test 83C182400FC2FB4CA5F26CAA3AD3E82DD162DF2ED605BB61BC1503FD4C499220，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：列表到inspect之间没有新增await，停止同步使旧结果失效，新启动列表仍按原行为排程。无本项未修复Critical/Important。不予本项裁决：同生命周期启动乱序、批次已进入分派后的全部租户交错/撤销、逐任务off取消、缓存失败及TTL所有权、持久租约/跨实例去重、正式G消费者/试点及整分支独立复核。只SQLite，未启PG/建库/新附件；原PG停止、集群和日志保留。只修改两TS及两份原记录，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§284 813a070a7c70dea5bd02dd24a55a6ada82145142默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 286. Cron 部分接受的租户批次在停止后不再发送后继租户
+
+Ruling: §284只检查进入批次前的代次；首个租户trigger等待返回期间停止重启，旧for循环仍可继续发送其他租户。每个租户进入分派前复核既有lifecycle，失效即结束循环。已接受任务不撤销，原本轮尝试计数和锁释放保持，旧批次不续排。
+
+- [x] 扩展原真实SQLite/缓存夹具，持久新增启用C，原trigger按排序先发送B。透传真实Plugin.trigger，等待B业务行已持久且events/preparing/pending/executing全空，再仅暂停该返回值交付。真实app.stop/start并核isStarted后释放旧调用；要求原时点只有B execution/业务行、两计数各1、原锁释放。源任务startsOn为过去10秒且无repeat，避免重启合法timer干扰；没有伪造任务状态或SQL。全新时点显式调用仍分别生成B/C execution、精确context.date及实际业务归属，总计数各2。finally释放/等待在途调用、恢复spy并原off。
+- [x] cron-stop-partial-batch-red.log干净RED：1失败11过滤/12总、实际1/9.39秒（测试2.17），session63868已退出；B持久结果/空闲/真实启停守卫通过，原时点实际[B,C]、预期[B]，未进入后继新调用断言。首次格式check1后已格式化，非产品RED。
+- [x] 循环首部一行复核后dispatch12全通过、无跳过、实际0/47.33秒，cron-stop-partial-batch-green.log，session60021已退出。最终cron-stop-partial-batch-regression.log六文件SQLite73全通过、无跳过、实际0/47.34秒（测试62.87并行累计），session8384已退出：dispatch12、tenant7、list2、workflow Plugin24、collection23、tenant-module-boundary5。新项含于73，不累加green12、此前72/74或RED，不是整分支回归；本项未重跑PG。
+- [x] cron-stop-partial-batch-build.log cron客户端/服务端/依赖/声明完整构建实际0，session18567已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：runtime CF6977AF5B2BC6E1FCCE5981B3CD4E084F56D5D9B06C7D659058C38AA736C9BD；dispatch test 94C92825183BA7C109BDAE49F3D1B861236A2F68A987C750E6AD32361BE00D40，最终代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查与同步调用trigger之间没有await，不改变首个已接受任务或原计数；全新调用获取新代次，仍分别保存B/C实际归属。无本项未修复Critical/Important。不予本项裁决：已进入trigger或已入队任务的完整撤销、逐任务off、授权事实到业务SQL的完整并发隔离、同键timer/缓存TTL所有权、持久租约/跨实例去重、正式G消费者/业务试点及整分支独立复核。只SQLite、未启PG/建库/新附件，不改主检出/核心/依赖/业务库/旧附件，不推送合并发布或正式启用。前§285 719389f7e00f80d14d30895d8b9e957a807094f5默认签名成功且独立verify-commit实际0/签名G，全局true。

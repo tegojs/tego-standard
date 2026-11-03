@@ -296,6 +296,7 @@ export class StaticScheduleTrigger {
           return;
         }
         for (const context of tenantContexts) {
+          if (!isCurrent()) break;
           const tenantId = context?.state?.currentTenantId;
           const tenantEventKey = tenantId == null ? eventKey : `${eventKey}@${tenantId}`;
           try {

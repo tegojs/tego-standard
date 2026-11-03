@@ -18,7 +18,12 @@ describe('static schedule discovery lifecycle', () => {
     await app?.destroy();
   });
 
-  it.each([false, true])('discards disabled startup results with immediate re-enable: %s', async (reEnable) => {
+  it.each([
+    ['static', false],
+    ['static', true],
+    ['generic', false],
+    ['generic', true],
+  ])('discards disabled %s startup results with immediate re-enable: %s', async (loader, reEnable) => {
     const repository = app.db.getRepository('workflows');
     const workflow = await repository.create({
       values: { type: 'schedule', enabled: false, config: { mode: 0 } },
@@ -42,7 +47,8 @@ describe('static schedule discovery lifecycle', () => {
     const find = repository.find.bind(repository);
     const discovery = vi.spyOn(repository, 'find').mockImplementation(async (options) => {
       const rows = await find(options);
-      if (options?.filter?.['config.mode'] === 0) {
+      const filter = options?.filter;
+      if (filter?.enabled === true && (loader === 'static' ? filter['config.mode'] === 0 : !filter.type)) {
         expect(rows.map((row) => row.id)).toEqual([workflow.id]);
         discovered = true;
         await hold;
@@ -80,8 +86,11 @@ describe('static schedule discovery lifecycle', () => {
       expect(await workflow.countExecutions()).toBe(1);
     } finally {
       release();
-      await starting;
-      discovery.mockRestore();
+      try {
+        await starting;
+      } finally {
+        discovery.mockRestore();
+      }
     }
   });
 });

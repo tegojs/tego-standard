@@ -131,6 +131,8 @@ export default class PluginWorkflowServer extends Plugin {
   functions: Registry<CustomFunction> = new Registry();
   enabledCache: Map<number, WorkflowModel> = new Map();
 
+  private registrationChanges = new Map<string, object>();
+
   private ready = false;
   private executing: Promise<void> | null = null;
   private pending: Pending[] = [];
@@ -355,6 +357,7 @@ export default class PluginWorkflowServer extends Plugin {
     //   * add all hooks for enabled workflows
     //   * add hooks for create/update[enabled]/delete workflow to add/remove specific hooks
     this.app.on('beforeStart', async () => {
+      const registrationChanges = new Map(this.registrationChanges);
       const collection = db.getCollection('workflows');
       const workflows = await collection.repository.find({
         useMaster: true,
@@ -363,7 +366,9 @@ export default class PluginWorkflowServer extends Plugin {
       });
 
       workflows.forEach((workflow: WorkflowModel) => {
-        this.toggle(workflow);
+        if (this.registrationChanges.get(`${workflow.id}`) === registrationChanges.get(`${workflow.id}`)) {
+          this.toggle(workflow);
+        }
       });
     });
 
@@ -398,6 +403,7 @@ export default class PluginWorkflowServer extends Plugin {
   }
 
   toggle(workflow: WorkflowModel, enable?: boolean) {
+    this.registrationChanges.set(`${workflow.id}`, {});
     const type = workflow.get('type');
     const trigger = this.triggers.get(type);
     if (!trigger) {

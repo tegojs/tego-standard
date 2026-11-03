@@ -4102,3 +4102,14 @@ Ruling: StaticScheduleTrigger 的 afterStart 查询虽已使用主库，但真�
 - [x] workflow 客户端/服务端/依赖/声明完整构建实际退出0，static-schedule-disable-inflight-build.log，session72835已退出。两 TS 最终 Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 50B90D3B6EABB45A0181D012DE1826773883BADD4E057AD1201D506756F63063；static-lifecycle.test A4A678BF7E0FBAC589B2A322E22E2CBD7691081713355246779162F24DA86BCA，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：代次仅使本实例对应任务的在途静态发现失效，字符串 id 比较一致，普通 repeat/limit 和重新启用保持。无本项未修复 Critical/Important。未覆盖通用 beforeStart 加载器的在途发现、已入队撤销、跨实例取消/租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。只用 SQLite，未启动 PG/建库或新物理附件。两次只读旧日志/配置路径不存在不是测试 RED。不推送合并发布/启用正式新规则。
+
+## 264. 通用启动加载器丢弃已被本实例变更的发现结果
+
+Ruling: Plugin.beforeStart 也在等待启用列表查询，原 toggle 能将查询之后持久停用的旧对象重新注册；立即重启用新 startsOn 后也会恢复旧时点。每次 toggle 替换规范化 workflow.id 的注册变更标识，查询前捕获、逐记录登记前复核。按任务独立比较，原 enabledCache、触发器选择、主库/null 来源与启停逻辑保持，不添加权限或新调度系统。
+
+- [x] 复用原真实 SQLite 生命周期夹具，新增 generic beforeStart 两种暂停交错：停用，以及停用后立即启用新时点。原 SQL 仍执行，仅延迟结果交付；实际模型保存触发原 toggle，断言真实 timer、execution 及共享业务行。夹具 finally 补嵌套恢复，启动拒绝时也恢复原 spy。
+- [x] workflow-startup-disable-inflight-red.log：2失败、2过滤/4总、实际退出1/22.00秒（测试13.54），session75732已退出；两项旧 execution 均实际1、预期0，断言在业务行检查前停止。最小修复后完整新文件4全通过、无跳过、实际0/33.21秒，workflow-startup-disable-inflight-green.log，session44372已退出。
+- [x] 最终 static-lifecycle、mode-static、collection、date-field-listener、Plugin、tenant-module-boundary 六文件73全通过、无跳过、实际退出0/123.37秒（测试86.54），workflow-startup-disable-inflight-regression.log，session56641已退出。含正常集合事件、租户上下文及继承范围、外部数据源和静态新排程控制；新两项含于73，各轮不累加，不是整分支回归。
+- [x] workflow 客户端/服务端/依赖/声明完整构建实际退出0，workflow-startup-disable-inflight-build.log，session39229已退出。两 TS Prettier check、oxlint 零警告错误，源/snapshot SHA256一致：Plugin 58FCF9F263E8EFB5EF66B3FFD6D3AA27A19DC05A4009E9379117F6D941FC9C74；static-lifecycle.test 4055620A97ABDE68312A1BEB205D6623B11322070B38D21FE6EE332718EE0BB1，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：启停和配置更新都使在途通用加载结果过时，复核放在各记录发布前；新调用仍登记，未用全局取消阻断其他任务。无本项未修复 Critical/Important。未裁决已经进入集合监听器的异步查询、已入队撤销、事务回滚后的注册一致性、跨实例取消/租约/原子去重；正式 G 消费者、业务试点和整分支独立复核仍未完成。仅 SQLite，未启 PG/建库/新附件，不改正式依赖、主检出或核心，不推送合并发布/启用正式规则。

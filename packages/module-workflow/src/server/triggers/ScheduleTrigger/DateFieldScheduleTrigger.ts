@@ -513,7 +513,7 @@ export default class ScheduleTrigger {
   }
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
-    const triggeredAt = new Date();
+    const repeatFrom = new Date(Math.max(Date.now(), new Date(nextTime).getTime()));
     const isCurrent = this.captureCurrent(workflow);
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
     const collection = this.workflow.app.dataSourceManager.dataSources
@@ -605,7 +605,7 @@ export default class ScheduleTrigger {
       return;
     }
 
-    const n = this.getRecordNextTime(workflow, data, true, triggeredAt);
+    const n = this.getRecordNextTime(workflow, data, true, repeatFrom);
     if (n) {
       this.schedule(workflow, data, n, true);
     }

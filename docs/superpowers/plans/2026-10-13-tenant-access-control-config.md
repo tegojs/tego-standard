@@ -4599,3 +4599,15 @@ Ruling: 日期来源开始值仍非空，但经其他写者从已到开始时间
 - [x] 最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger 8F871B8B533C7159A73434AE688AE1853004233F827D983AEB841C39FD6108B5；external test 6D9981492EAEB8D6FF2B3164C0422E8EDAECABBB28FFE90493D162A7E2C33C94。代码之后未改。前§304 475e7b15e3433778935bde64e431004eb4acc481默认签名提交实际0，后继独立verify-commit实际0/签名G；§301—303同G，§297—300仍N，全局true。D盘进程TEMP/TMP、全部日志/原PG集群/旧目录保留，未进行物理清理。
 
 按requesting-code-review模板作者串行自审，非独立复核：仅处理原已到开始时间变为当前尚未开始的转换，当前开始等于发生时点仍允许；既有显式直接调用、事务透传、保存追赶及最终B归属回归通过。无本项新路径已定位而未修复的Critical/Important；首轮既有跨秒重复案例异常仍未定位，不据后继通过宣称完整调度可靠性。不予本项裁决：开始仍早于发生时点时的所有周期相位变动、当前workflow配置全部复核、无本实例事件的新timer自动发现、最终事实到业务SQL完整并发隔离、任意长查询补跑、初始输入校验、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。
+
+## 306. 日期重复参考时间不早于本次发生时点
+
+Ruling: 原捕获时间若早于本次due 1ms，nextSecond按秒进位后仍落在due，首次开始分支又返回due；原timer回调尚未退出，其due缓存键仍在，schedule去重丢弃该候选，后续重复不再排程。首次await前仍捕获参考时间，但下界限定为本次nextTime；仅用于原重复计算，不改权限读取、发生时点、事务、取消/生命周期或缓存协议。
+
+- [x] 先为§305原跨秒重复案例加透传时间/候选/缓存观察，同九文件date-repeat-early-callback-observation.log 136全通过/无跳过/实际0/122.88秒，session39649已退出；自然观察未复现早参考，不称新RED，也不能证明§305首轮失败原因。
+- [x] 原真实SQLite/Node timer/主库SQL交付屏障保留；表驱动自然对照与受控早参考两项。仅首次原trigger同步入口用Vitest toFake:['Date']将读取日期设due-1ms，取得真实异步Promise后finally立即useRealTimers，未伪造Node timer/SQL/队列或最终结果。date-repeat-reference-floor-red.log实际1/23.56秒，1失败1通过3过滤/5总，session45454已退出。自然对照原过；受控项缺due+2000 execution。trace明确原生进入due+4ms、受控reference=due-1ms、SQL交付due+1104ms、next候选due、cache含原due键。它证明该受控边界的丢失机制，不是原生timer实测提前或§305未记录首轮的因果证明。
+- [x] 最小实现repeatFrom=max(入口Date.now,本次nextTime)后，临时私有缓存/计算观察代码移除，日志保留；永久测试仅保留日期参考控制、原透传trigger/真实SQL和两次实际B execution/业务结果。date-repeat-reference-floor-green.log两项通过3过滤/5总、实际0/20.07秒，session7898已退出；两项均实际B/due及B/due+2000、两业务行，原跨秒守卫仍在。
+- [x] 最终date-repeat-reference-floor-regression.log同九SQLite文件137全通过/无跳过/实际0/121.45秒（测试207.46并行累计），session6973已退出：external44、mode-date13、owner9、listener6、date-lifecycle5、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30。date-repeat-reference-floor-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session28096已退出。新受控项含于137，不累加观察136/聚焦/RED/旧批次，非整分支回归；无SQL/dialect改动，未启PG/建库/Redis服务或新物理附件。
+- [x] 最终两TS格式check/oxlint0、源snapshot一致：DateFieldScheduleTrigger AB6E8C235F51B696089FE741571A15E42B3E42403BED923F455C8B8006A40B3A；date-lifecycle test 527B70D52797B12592E08FDF66AEB5EF901C6D6DD2322BF3CCC58AB2F7BBCCB3。代码之后未改；一次只读猜测Cron文件路径不存在非测试RED。前§305 e6edcb7822cd331155bc22f9c76c4d2179c623cc默认签名提交实际0，后继独立verify-commit实际0/G；§301—304同G，§297—300仍N，全局true。所有日志/原PG集群/旧目录及D盘进程TEMP/TMP目录保留。
+
+按requesting-code-review模板作者串行自审，非独立复核：参考下界只取已有合法发生时点，不增加授权、SQL或重复次数；入口时间捕获仍早于最终权限读取，§272延迟兼容与直接事务调用均通过，永久测试不依赖私有cache结构。无本项未修复Critical/Important。不予本项裁决：§305首轮未定位异常的真实因果、原生时钟/事件循环的完整行为、静态调度同边界（当前仅只读候选，须独立复现）、当前workflow配置全部复核、任意长查询补跑/系统时钟大幅回拨政策、最终授权到业务SQL完整并发隔离、持久租约/跨实例去重、完整启停/已入队撤销、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。

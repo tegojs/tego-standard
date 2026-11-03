@@ -107,6 +107,78 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it('bounds daily repeat discovery while retaining future first starts and start offsets', async () => {
+    const trigger = installedDateTrigger();
+    const documents = external.getCollection('externalScheduleDocuments').model;
+    const offset = 60;
+    try {
+      await documents.update(
+        { scheduledAt: new Date(now.getTime() + 60_000 - offset * 1000) },
+        { where: { id: 1 }, hooks: false },
+      );
+      await documents.bulkCreate([
+        { id: 3, tenantId: 'B', scheduledAt: new Date(now.getTime() - 86_400_000 + 60_000 - offset * 1000) },
+        { id: 4, tenantId: 'B', scheduledAt: new Date(now.getTime() - 3_600_000 - offset * 1000) },
+        { id: 5, tenantId: 'B', scheduledAt: new Date(now.getTime() + 3_600_000 - offset * 1000) },
+        { id: 6, tenantId: 'B', scheduledAt: new Date(now.getTime() - offset * 1000) },
+      ]);
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+      current.set('config', {
+        ...current.config,
+        startsOn: { field: 'scheduledAt', offset, unit: 1000 },
+        repeat: 86_400_000,
+      });
+      const records = await trigger.loadRecordsToSchedule(current, new Date(now.getTime() + 500));
+      expect(records.map((record) => record.get('id')).sort()).toEqual([1, 3, 6]);
+    } finally {
+      await documents.update({ scheduledAt }, { where: { id: 1 }, hooks: false });
+      await documents.destroy({ where: { id: [3, 4, 5, 6] }, hooks: false });
+    }
+  });
+
+  it.each([0, 60, -60])('discovers the next daily occurrence with a start offset of %s seconds', async (offset) => {
+    const trigger = installedDateTrigger();
+    const documents = external.getCollection('externalScheduleDocuments').model;
+    const results = app.db.getCollection('externalScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+    const startsOn = { field: 'scheduledAt', offset, unit: 1000 };
+    const config = { ...workflow.config, startsOn, repeat: 86400000 };
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Daily external task' } } },
+    });
+    try {
+      await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+      await documents.update({ scheduledAt: new Date(due - 86400000 - offset * 1000) }, { where: {}, hooks: false });
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id });
+      const record = await documents.findByPk(1);
+      expect(trigger.getRecordNextTime(current, record, false, new Date(due - 2000))).toBe(due);
+      expect(Date.now()).toBeLessThan(due);
+      await observeThroughDeadline(trigger, due, () => trigger.reload());
+      const plugin = app.pm.get('workflow');
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+        ['B', due],
+      ]);
+      expect(executions[0].context.data.label).toBe('External B');
+      expect(executions[0].context.data.tenantId).toBe('B');
+      const generated = await results.findAll({ where: { label: 'Daily external task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+      await workflow.reload();
+      expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await documents.update({ scheduledAt }, { where: {}, hooks: false });
+      await results.destroy({ where: { label: 'Daily external task' }, hooks: false });
+    }
+  });
+
   it('rejects a cached date timer after persisted workflow disable without a local save event', async () => {
     const trigger = installedDateTrigger();
     const model = external.getCollection('externalScheduleDocuments').model;

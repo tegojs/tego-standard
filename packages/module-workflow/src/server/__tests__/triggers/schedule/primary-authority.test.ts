@@ -5,7 +5,7 @@ import { withAmbientTransactions } from '../../../../../../module-tenant/src/ser
 import { isolatedPostgresDatabase } from '../../../../../../module-tenant/src/server/__tests__/access-control/database';
 import type WorkflowPlugin from '../../../Plugin';
 import type DateFieldScheduleTrigger from '../../../triggers/ScheduleTrigger/DateFieldScheduleTrigger';
-import { waitForWorkflowIdle } from '../../utils';
+import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 
 const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 
@@ -125,6 +125,51 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     expect((await model.findByPk('B'))?.get('enabled')).toBe(true);
     expect((await model.findByPk('B', { useMaster: true }))?.get('enabled')).toBe(false);
   }
+
+  it.each([0, 60, -60])(
+    'discovers daily repeats and future first starts on PostgreSQL (offset: %s)',
+    async (offset) => {
+      const documents = app.db.getCollection('primaryScheduleDocuments').model;
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const config = { ...workflow.config, startsOn: { field: 'scheduledAt', offset, unit: 1000 }, repeat: 86_400_000 };
+      await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+      await documents.update(
+        { scheduledAt: new Date(due - 86_400_000 - offset * 1000) },
+        { where: { id: 1 }, hooks: false },
+      );
+      await documents.bulkCreate([
+        { id: 2, tenantId: 'C', label: 'First start', scheduledAt: new Date(due - offset * 1000) },
+        { id: 3, tenantId: 'B', label: 'Distant repeat', scheduledAt: new Date(due - 3_600_000 - offset * 1000) },
+        { id: 4, tenantId: 'C', label: 'Distant first', scheduledAt: new Date(due + 3_600_000 - offset * 1000) },
+      ]);
+      const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id, useMaster: true });
+      expect(
+        (await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('id')).sort(),
+      ).toEqual([1, 2]);
+      expect(Date.now()).toBeLessThan(due);
+      await trigger.reload();
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+      const plugin = app.pm.get('workflow');
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        const executions = await workflow.getExecutions({ useMaster: true });
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)]).sort()).toEqual([
+          ['B', due],
+          ['C', due],
+        ]);
+      });
+      const generated = await app.db.getCollection('primaryScheduleResults').model.findAll({ useMaster: true });
+      expect(generated.map((record) => [record.get('tenantId'), record.get('label')]).sort()).toEqual([
+        ['B', 'Generated'],
+        ['C', 'Generated'],
+      ]);
+      await workflow.reload({ useMaster: true });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([2, 2]);
+    },
+  );
 
   it('excludes an owner disabled on the primary from actual discovery', async () => {
     await disablePrimaryOwner();

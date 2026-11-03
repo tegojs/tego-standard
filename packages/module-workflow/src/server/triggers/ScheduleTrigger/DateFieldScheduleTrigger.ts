@@ -310,16 +310,21 @@ export default class ScheduleTrigger {
 
     if (repeat) {
       // when repeat is number, means repeat after startsOn
-      // (now - startsOn) % repeat <= cacheCycle
       if (typeof repeat === 'number') {
         const tsFn = DialectTimestampFnMap[targetCollection.model.sequelize.getDialect()];
         if (repeat > range && tsFn) {
           const modExp = fn(
             'MOD',
-            literal(`${Math.round(timestamp / 1000)} - ${tsFn(startsOn.field)}`),
+            literal(`${Math.floor(startTimestamp / 1000)} - ${tsFn(startsOn.field)}`),
             Math.round(repeat / 1000),
           );
-          conditions.push(where(modExp, { [Op.lt]: Math.round(range / 1000) }));
+          // Keep future first starts and repeats approaching their next cycle. / 保留未来首次开始及临近下一周期的记录。
+          conditions.push({
+            [Op.or]: [
+              { [startsOn.field]: { [Op.gte]: new Date(Math.floor(startTimestamp / 1000) * 1000) } },
+              where(modExp, { [Op.gte]: Math.round((repeat - range) / 1000) }),
+            ],
+          });
         }
       } else if (typeof repeat === 'string') {
         if (!matchCronNextTime(repeat, currentDate, range)) {

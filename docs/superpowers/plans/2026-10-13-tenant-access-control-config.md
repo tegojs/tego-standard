@@ -4244,3 +4244,14 @@ Ruling: StaticScheduleTrigger 的 afterStart 等待独立列表查询，停止�
 - [x] static-schedule-initial-discovery-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session34320已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：StaticScheduleTrigger 4EDF07076A330F12DAE07A865039C12F6A19C02F5FDB65F4F1EEABE181040F43；static-discovery-lifecycle.test 84A97779434482AF925BB32B22D841B12585B3364D2B24961E11616B67663B94，最终代码后未改。
 
 按 requesting-code-review 模板作者串行自审，非独立复核：列表捕获与发布均属原安装实例，停止不能被旧结果恢复；原取消与到期主库复核独立保留，新时点控制验证正常启动。无本项未修复Critical/Important。不予本项裁决：通用beforeStart旧注册列表跨停止（后继新夹具仅格式/lint通过，未运行、不纳入本节）、完整应用并发启停协议、已入队撤销、持久租约/跨实例原子去重、新G正式消费者/试点及整分支独立复核。只SQLite，无PG/新附件，不触及主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§274 910453f222009471006fc5a5f0e681f500df6341默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 276. 通用启动注册列表不能跨停止恢复停用监听器
+
+Ruling: Plugin.beforeStart 的逐工作流 registrationChanges 只能观察实际 toggle；初次列表SQL已返回但尚未登记的任务不在enabledCache，停止不会逐项off。第二次启动看见持久disabled也不会toggle，旧列表最后返回仍可重新登记集合监听器。新增实例私有registrationLifecycle，在通用列表SQL前捕获、返回后先复核，beforeStop首句同步替换；原逐任务更新标识、主库/null、toggle和队列准备所有权保持。
+
+- [x] 新 startup-lifecycle.test.ts 使用官方skipStart真实内存SQLite及tenantScoped来源/结果表。仅延迟原通用启用列表实际SQL的交付，确认任务不在cache；真实stop/isStarted=false后hooks:false持久停用，第二次真实start仍未登记，再交付旧列表。数据库enabled始终核为false，B来源revision1真实创建必须保留且不生成execution/结果；显式正常重新启用后新revision2事件才生成唯一B execution、revision2 context和B业务行。负向等待同时核对events/preparing/pending/executing，不单凭旧idle helper判空闲。
+- [x] workflow-startup-stop-registration-red.log：1失败、无跳过、实际1/7.93秒（测试3.66），session17765已退出；真实持久disabled与空闲守卫通过，execution实际1、预期0，未进入后继业务行/来源和重新启用控制。最小实现后新文件1全通过、实际0/7.37秒，workflow-startup-stop-registration-green.log，session93349已退出。
+- [x] 最终 workflow-startup-stop-registration-regression.log 八文件69全通过、无跳过、实际0/142.52秒（测试112.09），session4682已退出：startup1、collection-lifecycle2、collection23、static-discovery1、static-lifecycle9、date-lifecycle4、Plugin24、tenant-module-boundary5。涵盖普通集合事件、实际B身份、停用/重启及各类旧调用失效；新项含于69，不累加green1、此前50/81或其他轮次，不是整分支回归。
+- [x] workflow-startup-stop-registration-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session56925已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA256一致：Plugin 32B3CF0EEBFAFF1D2ABB174AC6DCE72F4B79616E25ED537874EF1920C29EE006；startup-lifecycle.test 12A8835AE8F687C9D924CF5A2B0DE443D33201477288DACC460AF9EB9F778B6A，最终代码后未改。
+
+按 requesting-code-review 模板作者串行自审，非独立复核：停止标识独立于cache及单个任务更新，查询后复核先于全部同步注册；没有添加SQL、改变归属、结束caller事务或赋予新权限。原逐任务启用/配置变更仍使相应旧对象失效。无本项未修复Critical/Important。不予本项裁决：核心完整并发启停协议、查询后的其他实例再停用窗口、已入队任务撤销、持久租约/跨实例原子去重、正式G任务消费者/业务试点及整分支独立复核。只SQLite，无PG/新附件，不改主检出/核心/正式依赖/业务库/旧目录，不推送合并发布或正式启用。前§275 3314ab8bc6b631026e9618c4d989be70d99e95f5默认签名成功且独立verify-commit实际0/签名G，全局true。

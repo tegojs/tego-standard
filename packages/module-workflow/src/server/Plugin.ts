@@ -133,6 +133,8 @@ export default class PluginWorkflowServer extends Plugin {
 
   private registrationChanges = new Map<string, object>();
 
+  private registrationLifecycle = {};
+
   private ready = false;
   private executing: Promise<void> | null = null;
 
@@ -359,6 +361,7 @@ export default class PluginWorkflowServer extends Plugin {
     //   * add all hooks for enabled workflows
     //   * add hooks for create/update[enabled]/delete workflow to add/remove specific hooks
     this.app.on('beforeStart', async () => {
+      const lifecycle = this.registrationLifecycle;
       const registrationChanges = new Map(this.registrationChanges);
       const collection = db.getCollection('workflows');
       const workflows = await collection.repository.find({
@@ -366,6 +369,7 @@ export default class PluginWorkflowServer extends Plugin {
         transaction: null,
         filter: { enabled: true },
       });
+      if (this.registrationLifecycle !== lifecycle) return;
 
       workflows.forEach((workflow: WorkflowModel) => {
         if (this.registrationChanges.get(`${workflow.id}`) === registrationChanges.get(`${workflow.id}`)) {
@@ -382,6 +386,7 @@ export default class PluginWorkflowServer extends Plugin {
     });
 
     this.app.on('beforeStop', async () => {
+      this.registrationLifecycle = {};
       for (const workflow of Array.from(this.enabledCache.values())) {
         this.toggle(workflow, false);
       }

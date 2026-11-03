@@ -568,6 +568,7 @@ export default class ScheduleTrigger {
     if (!data || !isCurrent()) {
       return;
     }
+    if (workflow.config.startsOn && !getDataOptionTime(data, workflow.config.startsOn)) return;
     if (tenantAware) {
       const currentOwner = data.get?.('tenantId') ?? data.tenantId ?? null;
       // A completed claim or ownership change invalidates the cached dispatch context.

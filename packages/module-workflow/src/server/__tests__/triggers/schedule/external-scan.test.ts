@@ -422,6 +422,70 @@ describe('date-field scheduling from an external database', () => {
     }
   });
 
+  it.each([true, false])(
+    'rechecks a cached source after another writer clears its start date: %s',
+    async (clearStart) => {
+      const trigger = installedDateTrigger();
+      const model = external.getCollection('externalScheduleDocuments').model;
+      const results = app.db.getCollection('externalScheduleDocuments').model;
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Cleared start task' } } },
+      });
+      try {
+        await model.update({ scheduledAt: new Date(due) }, { where: { id: 1 }, hooks: false });
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          await model.update(
+            { scheduledAt: clearStart ? null : new Date(due), label: 'Changed by another writer' },
+            { where: { id: 1 }, hooks: false },
+          );
+          expect(Date.now()).toBeLessThan(due);
+        });
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+          clearStart ? [] : [['B', due]],
+        );
+        expect((await model.findByPk(1)).get('scheduledAt')?.getTime() ?? null).toBe(clearStart ? null : due);
+        if (clearStart) {
+          expect(await results.count({ where: { label: 'Cleared start task' } })).toBe(0);
+          await workflow.reload();
+          expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+          const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+          await model.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+          await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+          await waitForAssertion(async () => {
+            expect(await workflow.countExecutions()).toBe(1);
+            expect(plugin.events).toHaveLength(0);
+            expect(plugin.preparing).toBeFalsy();
+            expect(plugin.pending).toHaveLength(0);
+            expect(plugin.executing).toBeFalsy();
+          });
+          const [execution] = await workflow.getExecutions();
+          expect([execution.tenantId, Date.parse(execution.context.date)]).toEqual(['B', nextDue]);
+        } else {
+          expect(executions[0].context.data.label).toBe('Changed by another writer');
+        }
+        const generated = await results.findAll({ where: { label: 'Cleared start task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload();
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await model.update({ scheduledAt, label: 'External B' }, { where: { id: 1 }, hooks: false });
+        await results.destroy({ where: { label: 'Cleared start task' }, hooks: false });
+      }
+    },
+  );
+
   it('rejects a cached date timer after persisted workflow disable without a local save event', async () => {
     const trigger = installedDateTrigger();
     const model = external.getCollection('externalScheduleDocuments').model;

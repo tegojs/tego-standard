@@ -568,7 +568,12 @@ export default class ScheduleTrigger {
     if (!data || !isCurrent()) {
       return;
     }
-    if (workflow.config.startsOn && !getDataOptionTime(data, workflow.config.startsOn)) return;
+    if (workflow.config.startsOn) {
+      const startTime = getDataOptionTime(data, workflow.config.startsOn);
+      if (!startTime) return;
+      const scheduledStartTime = getDataOptionTime(record, workflow.config.startsOn);
+      if (scheduledStartTime && scheduledStartTime <= nextTime && startTime > nextTime) return;
+    }
     const endTime = getDataOptionTime(data, workflow.config.endsOn);
     if (endTime && endTime < nextTime) return;
     if (tenantAware) {

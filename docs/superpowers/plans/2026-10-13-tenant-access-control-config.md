@@ -4587,3 +4587,15 @@ Ruling: 已排程的每日重复记录经其他写者缩短结束日期后，原
 - [x] 最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger DEB01A424DFDF7BB290568C83A705E197EDE2BB280CEC1BE4794EBE86B21A654；external test F3AB50F335CBFF7967C6CC6E487AE9CA10FDA608AC516816D7FD4B285CA7D800。代码后未改；沿用仅runner/build进程的D盘隔离TEMP/TMP，保留全部日志/原集群/旧目录。前§303 6afae3a1dd7f7c61ea115623766c559f385021a0默认签名提交实际0，后继独立verify-commit实际0/签名G，§301—302同G；§297—300仍N、global true。既有automation更新仍Transport closed，不称交接提示已更新，实际Git及两原记录优先。
 
 按requesting-code-review模板作者串行自审，非独立复核：检查当前来源记录的结束值与指定发生时点，不使用交付时刻替代到期时点；等值/恢复控制和保存追赶/直接事务调用回归通过，无新增查询或未修复Critical/Important。不予本项裁决：非空开始改期、当前workflow配置全部复核、无本实例事件的新timer自动发现、最终授权到业务SQL完整并发隔离、任意长查询补跑、初始输入校验、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。
+
+## 305. 日期来源开始被移到将来时拒绝旧发生时点
+
+Ruling: 日期来源开始值仍非空，但经其他写者从已到开始时间移至旧nextTime之后，旧timer仍错误执行。原回读后复用日期解析，对比本次调用原记录的开始与当前记录开始；原开始已不晚于nextTime、当前开始晚于nextTime时拒绝。保留§303空值拒绝，不全面改写发生时点算法；原开始本来就在指定时点之后的既有显式直接调用不由本项重新解释，未配置startsOn的调用保持。
+
+- [x] 两个真实external SQLite tenantScoped来源，初始B记录开始due前一天/每日重复。原reload SQL已完成排程后，原Model.update(hooks:false)分别把开始改为due+4秒或due。原记录仍持原日期，无本实例保存事件/假SQL/假timer。date-changed-start-timer-red.log干净1失败1通过42过滤/44总、实际1/16.02秒，session34386已退出：移到将来的项旧B/due execution1非0；改到本次due仍合法的控制原过，避免泛化为任何开始值变动都拒绝。首次测试格式check1已由原Prettier write修正后check/oxlint0，再运行RED，不把格式失败计产品RED。
+- [x] 最小开始对比后date-changed-start-timer-green.log两项通过42过滤/44总、实际0/19.53秒，session35876已退出。负向旧时点execution/业务行/两计数0，在新开始时点前显式原reload后唯一B/新due、context.data.scheduledAt为新开始、B业务行及两计数1；控制原due执行。负向及恢复显式核events/preparing/pending/executing，finally仅原off/清本测试业务标签。
+- [x] 首九文件date-changed-start-timer-regression.log实际1/120.24秒，session16536已退出：135通过1失败/136总；既有date-lifecycle的retains the next numeric repeat when the enabled read crosses a second只出现首次B/due、缺due+2000。未改代码/原测试或运行设置，单独原案例date-changed-start-repeat-investigation.log通过1过滤3/4总、实际0/11.54秒，session28873已退出；随后同九文件date-changed-start-timer-final-regression.log 136全通过/无跳过/实际0/119.11秒（测试201.91并行累计），session79397已退出。首轮具体中断位置/原因未记录定位，不能归因并行负载、声称已修复该异常或以之后通过反向证明首轮精确时序；此验证限制保留，不放行完整重复可靠性。
+- [x] 最终九SQLite文件external44、mode-date13、owner9、listener6、date-lifecycle4、record-identity1、Plugin24、boundary5、tenant workflow-operation-authority30；date-changed-start-timer-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session93150已退出。新两项含于136，不累加green/RED/聚焦/首135或旧134/PG，非整分支回归。本项无SQL/dialect改动，未启PG/建库/Redis服务或新物理附件。
+- [x] 最终两TS Prettier check/oxlint零警告错误、源/snapshot SHA一致：DateFieldScheduleTrigger 8F871B8B533C7159A73434AE688AE1853004233F827D983AEB841C39FD6108B5；external test 6D9981492EAEB8D6FF2B3164C0422E8EDAECABBB28FFE90493D162A7E2C33C94。代码之后未改。前§304 475e7b15e3433778935bde64e431004eb4acc481默认签名提交实际0，后继独立verify-commit实际0/签名G；§301—303同G，§297—300仍N，全局true。D盘进程TEMP/TMP、全部日志/原PG集群/旧目录保留，未进行物理清理。
+
+按requesting-code-review模板作者串行自审，非独立复核：仅处理原已到开始时间变为当前尚未开始的转换，当前开始等于发生时点仍允许；既有显式直接调用、事务透传、保存追赶及最终B归属回归通过。无本项新路径已定位而未修复的Critical/Important；首轮既有跨秒重复案例异常仍未定位，不据后继通过宣称完整调度可靠性。不予本项裁决：开始仍早于发生时点时的所有周期相位变动、当前workflow配置全部复核、无本实例事件的新timer自动发现、最终事实到业务SQL完整并发隔离、任意长查询补跑、初始输入校验、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。

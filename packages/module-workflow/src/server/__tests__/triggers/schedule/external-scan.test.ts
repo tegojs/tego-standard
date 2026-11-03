@@ -574,6 +574,86 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
+  it.each([true, false])(
+    'rechecks a changed nonempty start date (moves beyond the old occurrence: %s)',
+    async (movesPastDue) => {
+      const collection = external.collection({
+        name: `externalChangedStart_${movesPastDue}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+        ],
+      });
+      await external.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getCollection('externalScheduleDocuments').model;
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const currentStart = due + (movesPastDue ? 4000 : 0);
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Changed start task' } } },
+      });
+      try {
+        await app.db
+          .getModel('workflows')
+          .update(
+            { config: { ...workflow.config, collection: `another:${collection.name}`, repeat: 86_400_000 } },
+            { where: { id: workflow.id }, hooks: false },
+          );
+        const record = await collection.model.create(
+          { tenantId: 'B', scheduledAt: new Date(due - 86_400_000) },
+          { hooks: false },
+        );
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          await collection.model.update(
+            { scheduledAt: new Date(currentStart) },
+            { where: { id: record.id }, hooks: false },
+          );
+          expect(record.get('scheduledAt').getTime()).toBe(due - 86_400_000);
+          expect(Date.now()).toBeLessThan(due);
+        });
+        const plugin = app.pm.get('workflow');
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual(
+          movesPastDue ? [] : [['B', due]],
+        );
+        expect((await record.reload()).get('scheduledAt').getTime()).toBe(currentStart);
+        if (movesPastDue) {
+          expect(await results.count({ where: { label: 'Changed start task' } })).toBe(0);
+          await workflow.reload();
+          expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+          expect(Date.now()).toBeLessThan(currentStart);
+          await observeThroughDeadline(trigger, currentStart, () => trigger.reload());
+          await waitForAssertion(async () => {
+            expect(plugin.events).toHaveLength(0);
+            expect(plugin.preparing).toBeFalsy();
+            expect(plugin.pending).toHaveLength(0);
+            expect(plugin.executing).toBeFalsy();
+            expect(await workflow.countExecutions()).toBe(1);
+          });
+        }
+        const [execution] = await workflow.getExecutions();
+        expect([execution.tenantId, Date.parse(execution.context.date)]).toEqual(['B', currentStart]);
+        expect(Date.parse(execution.context.data.scheduledAt)).toBe(currentStart);
+        const generated = await results.findAll({ where: { label: 'Changed start task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload();
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Changed start task' }, hooks: false });
+      }
+    },
+  );
+
   it('rejects a cached date timer after persisted workflow disable without a local save event', async () => {
     const trigger = installedDateTrigger();
     const model = external.getCollection('externalScheduleDocuments').model;

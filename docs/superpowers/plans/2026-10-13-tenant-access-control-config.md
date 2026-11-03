@@ -4440,3 +4440,14 @@ Ruling: 原trigger按key无条件删除timer Map项；旧到期调用等待真�
 - [x] cron-timer-ownership-build.log cron客户端/服务端/依赖/声明完整构建实际0，session81874已退出。两TS最终Prettier check、oxlint零警告错误，源/snapshot SHA一致：runtime AAFB21BAB1DE00BD3700F90DDCF341296112546B7A08B2E394B824A283986A3D；dispatch test C1E0BE120A63B27882CF308230E216B112322339236530712FD41D34B46B6EEF，最终代码后未改。
 
 按requesting-code-review模板作者串行自审，非独立复核：清理只比较本次捕获的原句柄，不接管后来登记的句柄；四个原删除点均使用同一局部检查，未改变事件取消或缓存锁协议。无本项未修复Critical/Important。不予本项裁决：缓存acquire异常与TTL锁所有权、全部启停重入/已入队撤销、最终事实到SQL完整并发隔离、持久租约/跨实例原子去重、正式G消费者/业务试点及整分支独立复核。仅SQLite，未启PG/建库/物理附件；原集群/日志/旧目录保留。只改两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。前§291 c843f1bd1c80673852f420f8535115d33bf34461默认签名成功且独立verify-commit实际0/签名G，全局true。
+
+## 293. Cron 获取缓存锁失败时不分派租户任务
+
+Ruling: 已安装cache的setIfNotExists仅在锁实际写入后返回true，抛异常时不确认获取结果；原CronJobLock.acquire却在两类catch中记录错误后返回true，使没有确认获锁的调用继续产生任务。只将Error及非Error异常分支返回值改为false，保留原错误日志及原正常成功/竞争拒绝行为；原trigger未获锁分支不分派、不计数、不续排、不release。不自动重试或对未知缓存写入结局作出锁所有权判断。
+
+- [x] 先核已装@tachybase/cache 1.6.24与cache-manager-redis-yet 4.2.0的真实Cache/Redis接口。原SQLite集成夹具中，按已装包依赖解析路径创建原redis客户端、redisInsStore及CacheManager；客户端从未connect，isOpen=false，原setIfNotExists实际抛The client is closed。仅将本测试lock的cache绑定该真实实例，原Cron trigger/Workflow/SQL均保持；透传logger记录原错误，不伪造缓存方法、锁返回值或SQL。没有启Redis服务、端口连接、PG或依赖更改。
+- [x] cron-lock-acquisition-failure-red.log干净RED：1失败16过滤/17总、实际1/8.63秒（测试1.80），session76208已退出。真实关闭客户端/原获取错误日志及四项队列空闲守卫通过，execution实际1、预期0，未进入后继业务/计数/健康调用断言。两行返回值后聚焦1通过16过滤/17总、实际0/7.74秒，cron-lock-acquisition-failure-green.log，session23682已退出；恢复原健康内存cache后显式新调用产生唯一B execution/精确date/B业务行，两计数各1、锁释放。失败本轮execution/业务行/计数0，不把显式后继调用称自动重试或未知COMMIT重试。
+- [x] 最终cron-lock-acquisition-failure-regression.log六SQLite文件78全通过、无跳过、实际0/91.53秒（测试134.00并行累计），session75945已退出：dispatch17、tenant7、list2、Plugin24、collection23、tenant-module-boundary5。新项含于78，不累加green1、此前77/76/含PG80或RED，非整分支回归；无SQL路由改变，未重跑PG7。非Error分支同样保守拒绝，但本夹具只独立复现真实Redis Error，不声称已制造非Error实际客户端异常或网络提交后丢响应。
+- [x] cron-lock-acquisition-failure-build.log cron客户端/服务端/依赖/声明完整构建实际0，session6741已退出。两TS最终Prettier check、oxlint零警告错误、源/snapshot SHA一致：CronJobLock 27BF18A931F456FB44A96AD69441C4EC7374B06B70C83B5BED34179C0C2D80F1；dispatch test 3D89288E0E81E33E300B2512965A2F79E6724465039F88151D1D2044F1EF184A，最终代码后未改。新测试及原锁文件各一次格式check1后格式化，不是产品RED；只读未存在依赖根/通配路径/动态触发器路径查询失败亦非产品RED。
+
+按requesting-code-review模板作者串行自审，非独立复核：只有实际成功才能继续原分派，未获取的锁不进入原release；真实缓存失败和健康后继持久B结果证明该边界，竞争锁保持案例继续通过。无本项未修复Critical/Important。不予本项裁决：TTL过期后锁所有权/比较删除、跨实例原子去重或持久租约、全部启停/已入队撤销、最终事实到SQL完整并发隔离、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/业务库/旧附件，不推送合并发布或正式启用。原PG停止/集群与所有日志、旧目录保留。前§292 a2df4f47ad4d075939400bc0d29da392e47e921a默认签名成功且独立verify-commit实际0/签名G，全局true。

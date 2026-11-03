@@ -1,5 +1,7 @@
+import { createRequire } from 'node:module';
 import { PluginWorkflow } from '@tachybase/module-workflow';
 import { createMockServer, type MockServer } from '@tachybase/test';
+import { CacheManager } from '@tego/server';
 
 import { waitForFastAssertion } from '../../../../module-workflow/src/server/__tests__/utils';
 import cronJobs from '../../collections/cronJobs';
@@ -166,6 +168,64 @@ describe('cron state at dispatch', () => {
       expect(await lock.isLocked(cronJob.id, time)).toBe(false);
     },
   );
+
+  it('skips tenant dispatch when its real Redis lock client is closed and allows a later healthy call', async () => {
+    const { workflow, repository, cronJob, lock, service } = await createFixture();
+    const serverRequire = createRequire(createRequire(import.meta.url).resolve('@tego/server'));
+    const cacheRequire = createRequire(serverRequire.resolve('@tachybase/cache'));
+    const redisRequire = createRequire(cacheRequire.resolve('cache-manager-redis-yet'));
+    const { redisInsStore } = cacheRequire('cache-manager-redis-yet');
+    const client = redisRequire('redis').createClient();
+    const cacheManager = new CacheManager({
+      stores: { unavailableRedis: { store: () => redisInsStore(client) } },
+    });
+    const cache = await cacheManager.createCache({ name: 'cron-lock-unavailable', store: 'unavailableRedis' });
+    const time = Math.floor(Date.now() / 1000) * 1000;
+    expect(client.isOpen).toBe(false);
+    await expect(cache.setIfNotExists('closed-client-check', { owner: 'fixture' }, 1000)).rejects.toThrow(
+      'The client is closed',
+    );
+    Object.assign(lock, { cache });
+    const errors: string[] = [];
+    const error = app.logger.error.bind(app.logger);
+    const logging = vi.spyOn(app.logger, 'error').mockImplementation((...args) => {
+      errors.push(String(args[0]));
+      return error(...args);
+    });
+    try {
+      await service.trigger(cronJob.id, time);
+    } finally {
+      logging.mockRestore();
+      await lock.load();
+      await cacheManager.close();
+    }
+    expect(errors.some((message) => /Failed to acquire lock.*The client is closed/.test(message))).toBe(true);
+    const plugin = app.pm.get('workflow');
+    await waitForFastAssertion(() => {
+      expect(plugin.events).toHaveLength(0);
+      expect(plugin.preparing).toBeFalsy();
+      expect(plugin.pending).toHaveLength(0);
+      expect(plugin.executing).toBeFalsy();
+    });
+    expect(await workflow.countExecutions()).toBe(0);
+    expect(await app.db.getRepository('cronEnabledResults').count()).toBe(0);
+    const skipped = await repository.findOne({ filterByTk: cronJob.id });
+    expect([skipped.allExecuted, skipped.limitExecuted]).toEqual([0, 0]);
+    expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+
+    await service.trigger(cronJob.id, time);
+    await waitForFastAssertion(async () => {
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, new Date(execution.context.date).getTime()])).toEqual([
+        ['B', time],
+      ]);
+      const rows = await app.db.getRepository('cronEnabledResults').find();
+      expect(rows.map((row) => [row.tenantId, row.label])).toEqual([['B', 'Enabled cron task']]);
+    });
+    const persisted = await repository.findOne({ filterByTk: cronJob.id });
+    expect([persisted.allExecuted, persisted.limitExecuted]).toEqual([1, 1]);
+    expect(await lock.isLocked(cronJob.id, time)).toBe(false);
+  });
 
   it('leaves a competing cache lock intact when acquisition is refused', async () => {
     const { workflow, cronJob, lock, service } = await createFixture();

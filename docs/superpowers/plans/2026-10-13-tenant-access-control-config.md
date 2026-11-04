@@ -4859,3 +4859,16 @@ Ruling: Plugin.toggle在enabled配置更新时已有previous.config注销协议�
 - [x] 本次默认GPG session54585实际Timeout128，事前捕获git21996/60548、gpg1288、pinentry32196父链/创建时间；四PID消失/活动Git签名0、HEAD仍bf9c931/原暂存树d5525466f084d86ab9429e424cbd1cc80096e8f1未变/无未暂存，后继独立guard实际0。仅补两原记录本次事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口/终止进程，不沿用本次或旧Timeout/PID/session。
 
 按requesting-code-review模板作者串行自审，非独立复核：新禁用分支复用既有启用配置更新的off对象形状，普通无config变化仍传原workflow；原配置决定旧mode及旧事件名，修复不靠猜测来源/批量移除。两个真实持久化反例均核原监听器移除和无关函数保留，测试清理不参与被测断言。本项无未修复Critical/Important。不予本项裁决：同次改变workflow.type的跨触发器注册迁移、自动重绑/完整启停、未注册来源后续出现、原地重建/跨实例身份、完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、日期编辑器零空/完整重置与完整日期域、正式G消费者/业务试点/整分支独立复核。仅Plugin/外部测试两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。
+
+## 327. 清除空日期配置残留的偏移控件
+
+Ruling: 实际ScheduleConfig在collection变化时把startsOn置为Object.create({})；OnField又显式支持propsValue缺省为{}。原非零方向在字段清空后保留，导致没有选日期字段仍显示值为NaN的数值控件，重新选字段也沿用旧方向。仅在value.field清空时把本地dir置0，并将field加入原同步依赖；字段仍存在时保留原非零符号同步及零值方向意图，不改服务器默认秒、序列化或单位，不新增schema/locale/依赖。
+
+- [x] 真实OnField/FieldsSelect/Ant Design/Application集合上下文/FormProvider集成，以父组件真实按钮将原scheduledAt/offset-2/unit60000分别重置为空对象或undefined。先核原数值控件存在、受控配置确已清空，再核旧数值控件消失；随后从真实字段下拉选择Scheduled at，最终配置仅field、方向Exactly at、无数值控件。无mock组件/表单/翻译，未把该组件夹具冒称已操作完整collection切换表单。date-offset-editor-reset-red.log干净2失败5过滤/7总、实际1/58.28秒，session33675已退出：两案均仍有真实spinbutton且value为NaN，失败在重置后控件残留，非fixture错误，不把§325非零符号加载案例重称RED。
+- [x] 最小字段清空处理后date-offset-editor-reset-green.log两client文件8全通过/无跳过/实际0/57.38秒，session97713已退出：新重置两项+原非零方向两项/单位三项+variable一项。date-offset-editor-reset-server-regression.log原日期模式13全通过/无跳过/实际0/26.41秒，session30813已退出。8与13是独立运行，不与§326的208、聚焦/RED或历史各轮累加，非整分支回归；jsdom组件集成不是已登录浏览器/API业务试点。
+- [x] date-offset-editor-reset-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session56274已退出。两TSX最终Prettier check/oxlint0，源snapshot一致：OnField 18D85D5ACDF82378A60FFC4733349E6DA5F79217E245230087F6736126CD4434；client test B06A3EB1B92B342AF13B5B2AF5FE0E8436D8624AE0CEE4FCA687992E23C5764D。代码后未改。本项未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测。
+- [x] 前§326默认54585实际Timeout128，事前git21996/60548、gpg1288、pinentry32196全退出/活动签名0、HEADbf9c931/原树d5525466f084d86ab9429e424cbd1cc80096e8f1未变/无未暂存，独立guard0；仅补两记录后四文件树075ce07624b1c67128afeace5fdd403561f21baa再独立guard0后按授权单次跳过，7fd093be2e71565d0861ab21a072a1dacc0c4c87实际0/N。提交后独立审计整体0：干净树/十TSX一致/验证签名0/PG停/25466全记录0/global true，历史N/G保持，不沿用旧Timeout/PID/session。
+
+- [x] 本次默认GPG session31684实际Timeout128，事前捕获git63360/67292、gpg76824、pinentry97608父链/创建时间；四PID消失/活动Git签名0、HEAD仍7fd093b/原暂存树12855adf02540617466252125cad6d09a623819a未变/无未暂存，后继独立guard实际0。仅补两原记录本次事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口/终止进程，不沿用本次或旧Timeout/PID/session。
+
+按requesting-code-review模板作者串行自审，非独立复核：原dir渲染条件在字段清空后随本地状态消失，依赖同时包含field和offset；重新选字段不会恢复旧方向，且效果不调用onChange，不静默补offset/unit。原非零方向和单位控制均继续通过。字段仍存在且offset为零时未新增强制Exactly at行为。本项无未修复Critical/Important。不予本项裁决：字段仍存在的外部零/null重置与用户零值方向意图区分、初始无offset后选择Before/After、完整collection切换表单/保存校验及全部日期域、跨触发器type迁移/自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；全部日志/原PG集群/旧目录/TEMP保留。

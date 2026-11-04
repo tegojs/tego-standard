@@ -7,6 +7,54 @@ import { OnField } from '../triggers/schedule/OnField';
 
 describe('schedule date-field offset editor', () => {
   it.each([
+    { resetKind: 'empty object', resetValue: {} },
+    { resetKind: 'missing value', resetValue: undefined },
+  ])('clears stale offset controls after an empty configuration reset ($resetKind)', ({ resetValue }) => {
+    const app = new Application({
+      dataSourceManager: {
+        collections: [
+          {
+            name: 'tasks',
+            fields: [{ name: 'scheduledAt', type: 'date', uiSchema: { title: 'Scheduled at' } }],
+          },
+        ],
+      },
+    });
+    const form = createForm({ values: { collection: 'tasks' } });
+    function Editor() {
+      const [value, setValue] = useState<Record<string, unknown> | undefined>({
+        field: 'scheduledAt',
+        offset: -2,
+        unit: 60000,
+      });
+      return (
+        <>
+          <button onClick={() => setValue(resetValue)}>Reset date configuration</button>
+          <OnField value={value} onChange={setValue} />
+          <output aria-label="Saved date offset">{JSON.stringify(value ?? null)}</output>
+        </>
+      );
+    }
+    const { container, getByRole, queryByRole, getByText, getByLabelText } = render(
+      <DataSourceApplicationProvider dataSourceManager={app.dataSourceManager}>
+        <FormProvider form={form}>
+          <Editor />
+        </FormProvider>
+      </DataSourceApplicationProvider>,
+    );
+
+    expect(getByRole('spinbutton')).toBeInTheDocument();
+    fireEvent.click(getByRole('button', { name: 'Reset date configuration' }));
+    expect(JSON.parse(getByLabelText('Saved date offset').textContent)).toEqual(resetValue ?? null);
+    expect(queryByRole('spinbutton')).not.toBeInTheDocument();
+    fireEvent.mouseDown(container.querySelector('.ant-select-selector'));
+    fireEvent.click(getByText('Scheduled at'));
+    expect(JSON.parse(getByLabelText('Saved date offset').textContent)).toEqual({ field: 'scheduledAt' });
+    expect(container.querySelectorAll('.ant-select-selection-item')[1]).toHaveTextContent('Exactly at');
+    expect(queryByRole('spinbutton')).not.toBeInTheDocument();
+  });
+
+  it.each([
     { initialOffset: 2, nextOffset: -3, editedOffset: -5, direction: 'Before' },
     { initialOffset: -2, nextOffset: 3, editedOffset: 5, direction: 'After' },
   ])(

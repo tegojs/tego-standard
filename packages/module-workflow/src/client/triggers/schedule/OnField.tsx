@@ -17,10 +17,12 @@ export function OnField({ value: propsValue, onChange }) {
   const [dir, setDir] = useState(value.offset ? value.offset / Math.abs(value.offset) : 0);
 
   useEffect(() => {
-    if (value.offset) {
+    if (!value.field) {
+      setDir(0);
+    } else if (value.offset) {
       setDir(value.offset / Math.abs(value.offset));
     }
-  }, [value.offset]);
+  }, [value.field, value.offset]);
 
   return (
     <fieldset

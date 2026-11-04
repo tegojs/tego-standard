@@ -7,6 +7,59 @@ import { OnField } from '../triggers/schedule/OnField';
 
 describe('schedule date-field offset editor', () => {
   it.each([
+    { initialOffset: 2, nextOffset: -3, editedOffset: -5, direction: 'Before' },
+    { initialOffset: -2, nextOffset: 3, editedOffset: 5, direction: 'After' },
+  ])(
+    'edits a loaded $direction offset using its current direction',
+    ({ initialOffset, nextOffset, editedOffset, direction }) => {
+      const app = new Application({
+        dataSourceManager: {
+          collections: [
+            {
+              name: 'tasks',
+              fields: [{ name: 'scheduledAt', type: 'date', uiSchema: { title: 'Scheduled at' } }],
+            },
+          ],
+        },
+      });
+      const form = createForm({ values: { collection: 'tasks' } });
+      function Editor() {
+        const [value, setValue] = useState({ field: 'scheduledAt', offset: initialOffset, unit: 60000 });
+        return (
+          <>
+            <button onClick={() => setValue({ field: 'scheduledAt', offset: nextOffset, unit: 60000 })}>
+              Load saved offset
+            </button>
+            <OnField value={value} onChange={setValue} />
+            <output aria-label="Saved date offset">{JSON.stringify(value)}</output>
+          </>
+        );
+      }
+      const { container, getByRole, getByLabelText } = render(
+        <DataSourceApplicationProvider dataSourceManager={app.dataSourceManager}>
+          <FormProvider form={form}>
+            <Editor />
+          </FormProvider>
+        </DataSourceApplicationProvider>,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'Load saved offset' }));
+      expect(JSON.parse(getByLabelText('Saved date offset').textContent)).toEqual({
+        field: 'scheduledAt',
+        offset: nextOffset,
+        unit: 60000,
+      });
+      fireEvent.change(getByRole('spinbutton'), { target: { value: '5' } });
+      expect(JSON.parse(getByLabelText('Saved date offset').textContent)).toEqual({
+        field: 'scheduledAt',
+        offset: editedOffset,
+        unit: 60000,
+      });
+      expect(container.querySelectorAll('.ant-select-selection-item')[1]).toHaveTextContent(direction);
+    },
+  );
+
+  it.each([
     { unit: undefined, label: 'Seconds' },
     { unit: 86400000, label: 'Days' },
     { unit: 60000, label: 'Minutes' },

@@ -4833,3 +4833,16 @@ Ruling: §323把监听器绑定到注册来源，但off仍按同名数据源重�
 - [x] 本次默认GPG session20180实际Timeout128，事先捕获git35128/81276、gpg15652、pinentry105108父链/创建时间；四PID消失/活动Git签名0、HEAD仍095508b/原暂存树dc71a08f970be719747af3736e49c49255243102未变/无未暂存，后继独立guard实际0。仅补两记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout/PID/session。
 
 按requesting-code-review模板作者串行自审，非独立复核：清理闭包与注册使用相同db/event/listener，off同步删除两Map条目，重复注销无副作用；不再依赖当前来源存在，不影响新库无关监听器。原events协议和取消/timer路径未删，本项无未修复Critical/Important。不予本项裁决：任意workflow配置变化后的完整注销、自动重绑/完整启停、未注册来源后续出现、同一对象原地重建/跨实例持久身份、完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、完整日期域及正式G消费者/业务试点/整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。
+
+## 325. 日期偏移编辑器跟随当前非零偏移方向
+
+Ruling: OnField的dir只由首次props初始化；同一受控组件加载符号相反的非零offset后，数值显示已变化但方向仍旧，下一次编辑会把偏移写回旧符号。只在value.offset变化且非零时同步dir；不在零/空值时强制改成Exactly at，保留原方向选择及原onChange数值协议。服务器默认1000毫秒、序列化、日期计算和明确单位均不改，无新locale、schema或依赖。
+
+- [x] 原真实OnField/FieldsSelect/Ant Design/Application集合上下文/FormProvider夹具新增两个独立受控加载场景：+2加载-3后编辑5应写-5，-2加载+3后编辑5应写+5；真实按钮调用父组件setValue，先核加载配置、再编辑真实InputNumber并核最终输出及方向文案，unit60000保持。无mock组件/表单/翻译，不从被测实现推导期望。date-offset-editor-direction-red.log干净2失败3过滤/5总、实际1/56.87秒，session19474已退出；失败发生在最终配置的offset反号，非fixture错误，不把§321缺省单位问题重称RED。
+- [x] 最小非零方向同步后date-offset-editor-direction-green.log两个client文件6全通过/无跳过/实际0/63.61秒，session96169已退出：新两项+原单位三项+variable一项。date-offset-editor-direction-server-regression.log原日期模式13全通过/无跳过/实际0/25.53秒，session86223已退出，含原缺省秒和真实保存执行。6与13为独立运行，不与§324的170或RED累加，非整分支回归；jsdom组件集成不是已登录浏览器/API业务试点。
+- [x] date-offset-editor-direction-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session53024已退出。两TSX格式check/oxlint0，源snapshot一致：OnField 1AFB2B3D6D9AA33A2E58F0274558487C9BE93D39A7BEA4F29B513B95DE020305；client test C1CA0B77756699931B52174551CC8731066DC861EC5DF20C69F69F1017E7399A。代码后未改。未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测。
+- [x] 前§324默认20180实际Timeout128，事前git35128/81276、gpg15652、pinentry105108全退出/活动签名0、HEAD095508b/原树dc71a08f970be719747af3736e49c49255243102未变/无未暂存，独立guard0；仅补两记录后四文件树08ae174e9b2d6a1c0e6d7b3234ea3ec5c3d586a3再独立guard0，按授权单次跳过，06033d25f57ef08c5a5a1da06b74ff8dfa5758bf实际0/N。提交后独立审计整体0：干净树、九TSX源snapshot一致、验证签名0、PG停/25466全部0/global true。历史N/G保持，不沿用旧Timeout/PID/session。
+
+- [x] 本次默认GPG session30988实际Timeout128，事先捕获git103280/45932、gpg54616、pinentry106432父链/创建时间；四PID消失/活动Git签名0、HEAD仍06033d2/原暂存树aa324cb0c4e9741caabe1022ea7d106fdfad2d44未变/无未暂存，后继独立guard实际0。仅补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout/PID/session。
+
+按requesting-code-review模板作者串行自审，非独立复核：效果只更新本地dir、不调用onChange或改unit；非零数值编辑同步到同号时React状态相等，不产生循环。显式Exactly at/空值的原处理未重写，开始及字段结束共用组件获同一修复。测试最终受控输出可抓遗漏同步/同步反号，原单位控制防止单位丢失。本项无未修复Critical/Important。不予本项裁决：外部零/空值重置与用户零值方向意图的区分、初始无offset输入、完整表单重置/格式范围/复杂日期域、自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权及正式G消费者/业务试点/整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。

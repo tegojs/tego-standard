@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { css } from '@tachybase/client';
 
 import { InputNumber, Select } from 'antd';
@@ -15,6 +15,12 @@ export function OnField({ value: propsValue, onChange }) {
   const value = propsValue ?? {};
   const { t } = useTranslation();
   const [dir, setDir] = useState(value.offset ? value.offset / Math.abs(value.offset) : 0);
+
+  useEffect(() => {
+    if (value.offset) {
+      setDir(value.offset / Math.abs(value.offset));
+    }
+  }, [value.offset]);
 
   return (
     <fieldset

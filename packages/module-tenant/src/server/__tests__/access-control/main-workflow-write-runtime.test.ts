@@ -56,6 +56,18 @@ describe('explicit main-source workflow write runtime', () => {
     });
     source = { dataSourceKey: 'main', collectionKey: stored.get('key'), collectionName: 'runtimeWriteDocuments' };
     await app.db.getCollection(source.collectionName).model.sync();
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: 'legacyRuntimeWriteSources',
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'name', type: 'string' },
+          { name: 'tenantId', type: 'string' },
+          { name: 'document', type: 'belongsTo', target: source.collectionName, foreignKey: 'documentId' },
+        ],
+      },
+    });
     await app.db
       .collection({
         name: 'tenants',
@@ -112,6 +124,9 @@ describe('explicit main-source workflow write runtime', () => {
       { id: 3, name: 'Owned C', amount: 300, tenantId: 'C' },
       { id: 4, name: 'Excluded B', amount: 5, tenantId: 'B' },
     ]);
+    const legacy = app.db.getCollection('legacyRuntimeWriteSources').model;
+    await legacy.destroy({ where: {}, hooks: false });
+    await legacy.bulkCreate([{ id: 1, name: 'Legacy B', tenantId: 'B', documentId: null }]);
     workflow = await app.db.getRepository('workflows').create({
       values: {
         title: 'Explicit access write selection',
@@ -297,6 +312,59 @@ describe('explicit main-source workflow write runtime', () => {
       expect(job.status).toBe(JOB_STATUS.ERROR);
     } finally {
       delivery.mockRestore();
+    }
+  });
+
+  it('keeps legacy references when the target is not selected', async () => {
+    selected = [];
+    await workflow.createNode({
+      type: 'update',
+      config: {
+        collection: 'legacyRuntimeWriteSources',
+        params: { filterByTk: 1, values: { documentId: 2 } },
+      },
+    });
+    const { execution, job } = await run();
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect((await app.db.getCollection('legacyRuntimeWriteSources').model.findByPk(1))?.get('documentId')).toBe(2);
+  });
+
+  it.each(
+    (['create', 'update'] as const).flatMap((action) =>
+      ['foreignKey', 'reference'].map((shape) => ({ action, shape })),
+    ),
+  )('rejects legacy workflow $action references through $shape to a selected target', async ({ action, shape }) => {
+    const original = (await runtime.registry.store.read(source))!;
+    const legacy = app.db.getCollection('legacyRuntimeWriteSources').model;
+    const snapshot = async () =>
+      (await legacy.findAll({ order: [['id', 'ASC']] })).map((row) => ({
+        id: row.get('id'),
+        documentId: row.get('documentId'),
+        tenantId: row.get('tenantId'),
+      }));
+    const before = await snapshot();
+    try {
+      await runtime.registry.store.save(source, { ...original, rules: [] }, { userId: 28 });
+      await workflow.createNode({
+        type: action,
+        config: {
+          collection: 'legacyRuntimeWriteSources',
+          params: {
+            ...(action === 'update' ? { filterByTk: 1 } : {}),
+            values: shape === 'foreignKey' ? { documentId: 2 } : { document: 2 },
+          },
+        },
+      });
+      const { execution, job } = await run();
+      expect({ status: execution.status, sources: await snapshot() }).toEqual({
+        status: EXECUTION_STATUS.ERROR,
+        sources: before,
+      });
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+    } finally {
+      const current = (await runtime.registry.store.read(source))!;
+      await runtime.registry.store.save(source, { ...original, revision: current.revision }, { userId: 28 });
     }
   });
 });

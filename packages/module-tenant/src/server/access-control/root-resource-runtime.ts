@@ -5,6 +5,7 @@ import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { assertLegacyReadBoundary } from './legacy-read-boundary';
+import { assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
@@ -25,7 +26,7 @@ interface RootRequest {
 /** Explicit root-resource composition. The tenant plugin does not install this runtime. */
 export class AccessRootResourceRuntime {
   private readonly requests = new WeakMap<object, RootRequest>();
-  private readonly legacyReads = new WeakMap<object, () => void>();
+  private readonly legacyChecks = new WeakMap<object, () => void>();
   private readonly reader: AccessRootReadHandler;
   private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
@@ -73,40 +74,37 @@ export class AccessRootResourceRuntime {
       .map((value) => this.resolveIdentity(value))
       .filter((value): value is AccessCollectionIdentity => !!value)
       .map((value) => ({ ...value }));
-    if (!selected.length && (!collection || chart || !['list', 'get', 'count', 'export'].includes(actionName)))
-      return void (await next());
+    const legacyWrite = ['create', 'update'].includes(actionName);
+    const legacyAction = legacyWrite || ['list', 'get', 'count', 'export'].includes(actionName);
+    if (!selected.length && (!collection || chart || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
       const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
       if (!configured.length) {
-        if (chart || !['list', 'get', 'count', 'export'].includes(actionName)) return void (await next());
+        if (chart || !legacyAction) return void (await next());
         if (!capturedIdentities.some((identity) => this.prepared.configuration(ctx, identity)))
           return void (await next());
         const legacyCollection = target ?? collection;
         const model = legacyCollection.model;
-        this.legacyReads.set(ctx, () => {
+        this.legacyChecks.set(ctx, () => {
           if (
             ctx.db !== this.db ||
             this.db.getCollection(legacyCollection.name) !== legacyCollection ||
             legacyCollection.model !== model
           )
             invalid('Legacy read collection changed');
-          assertLegacyReadBoundary(
-            this.db,
-            legacyCollection,
-            ctx.action.params,
-            (collection) => {
-              const identity = this.resolveIdentity(collection);
-              return !!identity && !!this.prepared.configuration(ctx, identity);
-            },
-            ctx,
-          );
+          const protectedCollection = (collection: Collection) => {
+            const identity = this.resolveIdentity(collection);
+            return !!identity && !!this.prepared.configuration(ctx, identity);
+          };
+          assertLegacyReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
+          if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
         });
         try {
           await next();
         } finally {
-          this.legacyReads.delete(ctx);
+          this.legacyChecks.delete(ctx);
         }
         return;
       }
@@ -154,9 +152,9 @@ export class AccessRootResourceRuntime {
 
   /** Run after the existing ACL chain, before the legacy tenant guard and default action. */
   async dispatch(ctx: Context, next: Next): Promise<void> {
-    const legacyRead = this.legacyReads.get(ctx);
-    if (legacyRead) {
-      legacyRead();
+    const legacyCheck = this.legacyChecks.get(ctx);
+    if (legacyCheck) {
+      legacyCheck();
       return void (await next());
     }
     const request = this.requests.get(ctx);

@@ -563,6 +563,76 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     }
   });
 
+  it('keeps unrelated legacy scalar updates on their original handler', async () => {
+    try {
+      const response = await agent()
+        .resource('legacy_documents')
+        .update({ filterByTk: 2, values: { amount: 250 } });
+      expect(response.status).toBe(200);
+      expect((await app.db.getCollection('legacy_documents').model.findByPk(2))?.get('amount')).toBe(250);
+    } finally {
+      await app.db.getCollection('legacy_documents').model.update({ amount: 200 }, { where: { id: 2 }, hooks: false });
+    }
+  });
+
+  it('keeps legacy reference updates when the configured target has not been selected', async () => {
+    const sources = app.db.getCollection('legacy_sources').model;
+    selectedKeys.delete(identity.collectionKey);
+    await sources.update({ documentId: null }, { where: { id: 1 }, hooks: false });
+    try {
+      const response = await agent()
+        .resource('legacy_sources')
+        .update({ filterByTk: 1, values: { document: 2 } });
+      expect(response.status).toBe(200);
+      expect((await sources.findByPk(1))?.get('documentId')).toBe(2);
+    } finally {
+      selectedKeys.add(identity.collectionKey);
+      await sources.update({ documentId: 2 }, { where: { id: 1 }, hooks: false });
+    }
+  });
+
+  it.each(
+    (['create', 'update'] as const).flatMap((action) =>
+      ['foreignKey', 'reference'].map((shape) => ({ action, shape })),
+    ),
+  )(
+    'rejects legacy root $action references through $shape to a selected target hidden by its current rules',
+    async ({ action, shape }) => {
+      const original = (await store.read(identity))!;
+      const sources = app.db.getCollection('legacy_sources').model;
+      const snapshot = async () =>
+        (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => ({
+          id: row.get('id'),
+          tenantId: row.get('tenantId'),
+          documentId: row.get('documentId'),
+        }));
+      await sources.update({ documentId: null }, { where: { id: 1 }, hooks: false });
+      const before = await snapshot();
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent()
+          .resource('protected_documents')
+          .list({ fields: ['id'] });
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        const response = await agent()
+          .resource('legacy_sources')
+          [action]({
+            ...(action === 'update' ? { filterByTk: 1 } : {}),
+            values: shape === 'foreignKey' ? { documentId: 2 } : { document: 2 },
+          });
+        expect({ status: response.status, sources: await snapshot() }).toEqual({ status: 400, sources: before });
+        expect((await app.db.getCollection('protected_documents').model.findByPk(2))?.get('tenantId')).toBe('B');
+      } finally {
+        const added = (await snapshot()).filter((row) => !before.some((old) => old.id === row.id));
+        if (added.length) await sources.destroy({ where: { id: added.map((row) => row.id) }, hooks: false });
+        await sources.update({ documentId: 2 }, { where: { id: 1 }, hooks: false });
+        const current = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
   it('exports placeholder association targets with their own export grant and G or V scope', async () => {
     const request = (tenant: string, role = 'business-member') =>
       agent(tenant, role)

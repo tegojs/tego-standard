@@ -5062,3 +5062,17 @@ Ruling: 新增内部AccessMainWorkflowWriteRuntime，服务端明确选择main�
 按requesting-code-review模板作者串行自审，非独立复核：确认选中后持久key/name/对象/model核对、各写操作真实独立authority、规划不授权、输入在首次异步发现前捕获、当前规则每次读取、原事务完整回滚及withPrepared finally释放；无本批未修复Critical/Important。旧/新混合写入、全部关联写节点/外部来源/完整生命周期/跨实例配置/业务SQL并发原子隔离仍未由此完成；关系写入仍由原handler/planner决定所需PostgreSQL及隔离级别，本批仅新SQLite实测，不把旧PG结果算本轮。正式保存启用、业务试点、整分支独立复核和自动注册仍关闭。未启动PG/Redis/建库/新附件，未改核心/依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留。
 
 341本次默认签名3343明确gpg Timeout，调用实际退出1；事前捕获git34572/55992、gpg39380、pinentry83040的父链及创建时间18:06:48，pinentry父55428为原10月30日gpg-agent，未操作窗口或终止进程。四本次PID逐一消失/活动Git及签名和验证0/HEAD仍b6b3a34/原暂存树3f4fb1d49e699b79b94e2e4dfe3278ff71c83dd8不变/无未暂存/global true，独立guard实际0；仅补两份签名事实后按已有授权单次无签名，不称G或独立验签成功，不沿用旧Timeout。
+
+## 342. 旧根表单及工作流引用写入拒绝跨入已选规则表的旧路
+
+Ruling: 新增内部assertLegacyWriteBoundary，沿登记association/外键/目标侧外键及中间模型位置检查私有values，拒绝旧根create/update涉及已选规则表的尚未适配关系，不伪造旧根配置或把引用当作目标编辑授权。HTTP在真实ACL后检查本次已准备且有配置的选择，复用340旧读规划检查写入的filter/返回关系，finally释放；工作流在未选根同步resolver返回undefined前检查关系值和原查询规划，仍按明确服务器选择保守拒绝，不改原事务规划或真实各操作authority。未选目标及无关标量写继续旧链，不自动安装/启用。
+
+- [x] 真实认证Collection Manager旧legacy_sources，先置B/id1.documentId=null，再将protected_documents配置rules清空、直接新链列表确认[]。真实根create/update各以documentId:2或document:2请求同B目标；legacy-protected-write-boundary-red.log共8失败59过滤/67总、实际1/23.33秒（71144退出），含HTTP四项和真实Processor四项。旧HTTP状态200且实际新增B外键2或将原null改2；不是纯状态差异。每案finally只恢复隔离夹具本轮来源行/配置，未操作附件或正式业务库。
+- [x] 工作流真实Collection Manager新增未选legacyRuntimeWriteSources及BelongsTo，目标runtimeWriteDocuments仍按持久key显式选择；清空目标规则后，原create/update各两种输入均执行成功且持久source.documentId=2。新检查在旧默认Repository及附件处理前拒绝，执行/job ERROR、来源行完整不变，无query/list权威授权写。实现后green.log8过59过滤/67总、实际0/31.44秒（66906退出）。
+- [x] 新增兼容控制：其他已选表存在时无关legacy_documents标量更新正常；目标配置已保存但未选择时HTTP旧关联引用仍更新实际外键；工作流无选择清单时旧外键更新仍成功。没有把直接通过的兼容控制当新RED。五TS末format/oxlint0，代码后未改。
+- [x] 最终legacy-protected-write-boundary-regression.log五SQLite138过/8个PG专用明确跳过/146总、实际0/103.49秒（65803退出）：认证HTTP38/普通HTTP40/main write24/main query8/原tenant guard28，单worker逐文件。tenant完整客户端/服务端/依赖/dts build.log实际0（34715退出）。138/8聚焦/RED/341原140等不累加，非整分支回归，无本轮新PG/MySQL/MariaDB实测。
+- [x] 源snapshot一致：legacy write D7D205E6D6F4D9579155CBD0A55BC4DA87BC083A714F258B4B7CAF724273407D；root runtime 4802E9DCB82951F2E13926884629F0F2FF8C2A902E83FF1513A254131BF014F0；main write 25BA3CDB10D40F6F0B54C395647915BD096AFF357251B8C89CF1436F758D454E；认证HTTP 75972987B618F8E70207B877A8F246BD00B0FFA76309EB20A4D5B3901B73C6EE；write test AD6EEFBF9598CFDB52DCA14340B2D4DCC6798CD1FA0A202C4232573B1B80CA99。
+
+按requesting-code-review模板作者串行自审，非独立复核：只拒绝不执行混合写、不新增授权语法/根配置、不改归属、HTTP在ACL后决定，workflow拒绝不能作为持久身份或授权证明，既有配置阶段finally释放。注册关系模型检查也包含目标侧外键和纯中间行，但本批真实集成只新实测BelongsTo正/反输入，不称所有关联形态均验收；默认scope/后续hook、级联删除/全部写动作、外部来源、完整混合查询/写入支持、跨实例配置/业务SQL并发原子隔离、正式业务试点及整分支独立复核仍未完成。增加本次配置准备/原规划/登记关系遍历成本，不称零成本。未改核心/正式依赖锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新附件，全部日志/集群/旧目录保留。一次只读误猜tenant-resource-guard.ts不存在后实际定位server.ts，不计产品RED。
+
+342本次默认签名51298明确gpg Timeout，调用实际退出1；事前捕获git84540/34192、gpg51784（18:22:59）及pinentry62892（18:23:00）的父链和创建时间，pinentry父55428为原10月30日gpg-agent，未操作窗口或终止进程。四本次PID逐一消失/活动Git及签名验证与snapshot验证进程0/HEAD仍334590577668ca5d28f585ec334dabf4e1817b37/原暂存树79f8c8eb36a519fb2b805fabf403a9355d7f91f1不变/七文件暂存且无未暂存/global true，独立guard实际0；仅补两份本次签名事实，再独立guard0后按已有授权单次无签名提交，记N，不称G或独立验签成功，不沿用任一旧Timeout。

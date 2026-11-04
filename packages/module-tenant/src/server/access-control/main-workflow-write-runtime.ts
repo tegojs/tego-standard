@@ -1,9 +1,11 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { Application } from '@tego/server';
+import type { Application, Collection } from '@tego/server';
 
 import { AccessAclScopeAdapter } from './acl-scope';
 import { AccessConfigError } from './config-errors';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
+import { assertLegacyReadBoundary } from './legacy-read-boundary';
+import { assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { AccessMainRootResourceRegistry } from './main-root-resource-registry';
 import { AccessQueryService } from './query';
 import type { AccessWorkflowDestroyRequest } from './workflow-destroy-handler';
@@ -100,7 +102,24 @@ export class AccessMainWorkflowWriteRuntime {
     selected: readonly AccessCollectionIdentity[],
   ) {
     const selections = this.select(request, selected);
-    if (!selections) return undefined;
+    if (!selections) {
+      if (request.dataSourceName === 'main' && selected.length) {
+        const collection = this.app.db.getCollection(request.collectionName);
+        if (!collection || collection !== request.collection) invalid('Legacy workflow write target changed');
+        const protectedCollection = (target: Collection) =>
+          selected.some((identity) => identity.collectionName === target.name);
+        assertLegacyReadBoundary(
+          this.app.db,
+          collection,
+          request.params as object,
+          protectedCollection,
+          request.context,
+        );
+        if (action !== 'destroy')
+          assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
+      }
+      return undefined;
+    }
     const params = request.params;
     const captured = cloneDeep(params);
     return async (

@@ -673,11 +673,16 @@ export default class ScheduleTrigger {
     const listener = async (data, { transaction, context }) => {
       const eventTime = new Date();
       const savedAt = data.get?.('updatedAt') ?? data.updatedAt ?? eventTime;
-      const collection = this.workflow.app.dataSourceManager.dataSources
-        .get(dataSourceName)
-        .collectionManager.getCollection(collectionName);
+      const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+      const collection = dataSource.collectionManager.getCollection(collectionName);
       const tenantContext = context || (await buildEnabledTenantContext(this.workflow.app.db, collection, data));
-      if (!isCurrent()) return;
+      if (
+        !isCurrent() ||
+        this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
+        dataSource.collectionManager.getCollection(collectionName) !== collection
+      ) {
+        return;
+      }
       if (isTenantCollection(collection) && !tenantContext) {
         return;
       }

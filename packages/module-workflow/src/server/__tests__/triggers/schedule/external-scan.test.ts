@@ -265,6 +265,145 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
+  it.each(['collection', 'data source'])(
+    'rejects a saved record when its %s is replaced while tenant facts are being delivered',
+    async (replacementKind) => {
+      const sourceName = replacementKind === 'collection' ? 'another' : 'savedIdentitySource';
+      const collectionName = replacementKind === 'collection' ? 'savedIdentityCollections' : 'savedIdentityDocuments';
+      let originalDb = external;
+      let replacementDb = external;
+      if (replacementKind === 'data source') {
+        originalDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+        replacementDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+        identityDatabases.push(originalDb, replacementDb);
+        await app.dataSourceManager.add(
+          new SequelizeDataSource({
+            name: sourceName,
+            collectionManager: { database: originalDb },
+            resourceManager: {},
+          }),
+        );
+      }
+      const options = {
+        name: collectionName,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'label', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+        ],
+      };
+      const original = originalDb.collection({ ...options, tableName: `${collectionName}_old` });
+      await original.model.sync();
+      const trigger = installedDateTrigger();
+      trigger.off(workflow);
+      await workflow.update(
+        { config: { ...workflow.config, collection: `${sourceName}:${collectionName}` } },
+        { hooks: false },
+      );
+      const initialScan = vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
+      try {
+        trigger.on(workflow);
+      } finally {
+        initialScan.mockRestore();
+      }
+      const event = `${collectionName}.afterSaveWithAssociations`;
+      const listener = trigger.events.get(`${event}#${workflow.id}`);
+      const results = app.db.getModel('externalScheduleDocuments');
+      const plugin = app.pm.get('workflow');
+      await workflow.createNode({
+        type: 'create',
+        config: {
+          collection: 'externalScheduleDocuments',
+          params: { values: { label: 'Saved source identity task' } },
+        },
+      });
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const tenants = app.db.getRepository('tenants');
+      const findTenant = tenants.findOne.bind(tenants);
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => (release = resolve));
+      let factsRead = false;
+      const tenantRead = vi.spyOn(tenants, 'findOne').mockImplementation(async (options) => {
+        const tenant = await findTenant(options);
+        if (!factsRead && options?.filter?.id === 'B') {
+          expect(tenant.get('id')).toBe('B');
+          factsRead = true;
+          await hold;
+        }
+        return tenant;
+      });
+      let replacement;
+      try {
+        await observeThroughDeadline(trigger, due, async () => {
+          const save = original.repository.create({
+            values: { id: 1, tenantId: 'B', label: 'Original saved source', scheduledAt: new Date(due) },
+          });
+          try {
+            await waitForAssertion(() => expect(factsRead).toBe(true));
+            if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
+            replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
+            await replacement.model.sync();
+            await replacement.model.create(
+              { id: 1, tenantId: 'B', label: 'Replacement saved source', scheduledAt: new Date(due) },
+              { hooks: false },
+            );
+            if (replacementKind === 'data source') {
+              await app.dataSourceManager.add(
+                new SequelizeDataSource({
+                  name: sourceName,
+                  collectionManager: { database: replacementDb },
+                  resourceManager: {},
+                }),
+              );
+            }
+            expect(Date.now()).toBeLessThan(due);
+          } finally {
+            release();
+            await save;
+          }
+        });
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        expect(await workflow.countExecutions()).toBe(0);
+        expect(await results.count({ where: { label: 'Saved source identity task' } })).toBe(0);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+
+        const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+        await replacement.model.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+        await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+        await waitForAssertion(async () => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+          const executions = await workflow.getExecutions();
+          expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+            ['B', nextDue],
+          ]);
+          expect(executions[0].context.data.label).toBe('Replacement saved source');
+          expect(executions[0].tenantContext.currentTenantId).toBe('B');
+        });
+        expect(
+          (await results.findAll({ where: { label: 'Saved source identity task' } })).map((row) => row.get('tenantId')),
+        ).toEqual(['B']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        release();
+        tenantRead.mockRestore();
+        trigger.off(workflow);
+        originalDb.off(event, listener);
+        await results.destroy({ where: { label: 'Saved source identity task' }, hooks: false });
+      }
+    },
+  );
+
   it.each([
     { name: 'added', previous: [], current: ['category'], expectedCategory: true },
     { name: 'removed', previous: ['category'], current: [], expectedCategory: false },

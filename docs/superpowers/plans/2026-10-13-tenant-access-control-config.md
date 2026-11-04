@@ -4795,3 +4795,16 @@ Ruling: 原OnField在unit缺省时显示Days，但服务端getOnTimestampWithOff
 - [x] 本次默认GPG session44072实际Timeout128，事先捕获git26060/13824、gpg41544、pinentry79328父链及创建时间。首次独立guard实际1发现另一组活动Git进程（后继只读见39096/100668），未跳过、未更改HEAD/暂存或操作进程/窗口。其退出后重新独立guard实际0：本次四PID消失/活动Git签名0、HEAD仍4f3dc2c/原暂存树94b2bad9c2810e3d55e6f7977d195d031f6261f7不变/无未暂存。只补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；本项记N，不称G或独立验签成功，global保持true，不沿用本次或旧Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：界面缺省与既有服务端协议对齐，原onChange及已有显式单位保持；期望选中标签来自独立字面量，真实受控输出检验编辑结果，无mock调用断言或源码文本断言。本项无未修复Critical/Important。不予本项裁决：新建偏移时方向/空数值/零值与外部表单重置、任意非法unit输入/保存校验、全部复杂偏移/亚秒/日期域、完整配置原子快照、来源原地重建/保存监听器等待/跨实例持久身份、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TSX及两原记录，不改服务器代码/主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用，全部日志/原集群/旧目录/TEMP保留。
+
+## 322. 丢弃等待租户事实期间来源已替换的日期保存事件
+
+Ruling: 保存监听器在租户事实回读前解析来源，原等待后只核取消/生命周期，随后schedule重新按名称解析来源；同名来源替换使旧保存记录可登记新来源timer。监听器入口保留实际数据源及collection对象，等待后同时核当前登记对象与原取消/生命周期。保存时点、追赶边界、调用者事务及当前trigger协议保持，没有新增SQL、schema、依赖或record类型限制。
+
+- [x] 先核实际已装Repository.create确实await afterSaveWithAssociations事件。真实external SQLite两个独立tenantScoped来源，普通Repository.create持久B/id1/未来due，安装的真实保存监听器在主库tenant.findOne SQL完成且确认B后仅暂停交付；替换同名collection或独立数据源，新旧表/库保留，新行同B/id1/due而label不同。date-save-source-identity-red.log干净2失败73过滤/75总、实际1/15.11秒，session87047已退出，两案均实际execution1非0；不是§318—320 timer/读取/发现夹具重复。
+- [x] 最小监听器等待后身份核对后，date-save-source-identity-green.log两项通过73过滤/75总、实际0/21.46秒，session67616已退出。旧due零execution/业务行/两计数，随后显式新扫描新due各唯一B execution/Replacement saved source上下文/tenantContext B/业务行/两计数1，均核events/preparing/pending/executing。初始inspect仅在安装夹具监听器时抑制，真正被测保存事件/租户SQL/Node timer/执行/业务行均真实；替换finally释放屏障并await原save，清理额外按原库/本轮函数引用移除夹具监听器，不扩大清理。
+- [x] date-save-source-identity-regression.log九SQLite文件168全通过/无跳过/实际0/317.64秒（测试401.52并行累计），session76497已退出：external75/mode-date13/owner9/listener6/date-lifecycle5/record-identity1/Plugin24/boundary5/tenant workflow-operation-authority30。date-save-source-identity-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session80793已退出。168与聚焦两项、RED两项、§320的166及旧各轮不累加，非整分支回归。本项未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测；不把旧PG23计入本项。
+- [x] 两TS最终Prettier check/oxlint0，源snapshot一致：Date DBF67751D4143C6277006ABE1C0F140836819A099600BECDD9C813F37B3A2D27；external DAE7565A69A448C9CBDA60FAF3A468BAFD08598FFAE2CC6607269685A91D0D82。代码之后未改。前§321 c83171e13d2bafa6ef97fdad0dff90b80c11ff38及§320 4f3dc2c均实际提交0/N，后继独立审计实际0：干净树、九TS/TSX源snapshot一致、验证/签名0、PG停止/25466全部0/global true；§321最终树8e08330e00855c82e6a75c6878c4504c13ae81ea再次独立guard0后单次跳过事实保留，不复用旧Timeout/PID/session。
+
+- [x] 本次默认GPG session4791实际Timeout128，事先捕获git101424/87804、gpg67064、pinentry103500父链/创建时间；四PID消失/活动Git签名0、HEAD仍c83171e13/原暂存树2ee15917573cbeb03138852cb616787e40e761e3不变/无未暂存，后继独立guard实际0。仅补两原记录本次签名事实、再次守卫后按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查位于原租户事实await后、绑定上下文/计算时点/登记timer之前；当前来源对象比较不靠名称或模型数据猜测，原record/事务/保存时刻协议保持。负向有真实错误执行RED，恢复仍生成正确B任务，不以禁用保存监听器造绿。本项无未修复Critical/Important。不予本项裁决：替换后才到达旧库监听器的事件、同名数据源替换后原库监听器注销、同一对象原地物理重建/跨实例持久身份、完整配置原子快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、完整日期输入域及正式G消费者/业务试点/整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用，全部日志/原集群/旧目录/TEMP保留。

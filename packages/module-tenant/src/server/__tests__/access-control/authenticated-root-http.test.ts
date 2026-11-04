@@ -11,9 +11,11 @@ import { accessConfigHistory } from '../../access-control/config-history';
 import type { AccessCollectionIdentity, AccessConfigStore } from '../../access-control/config-store';
 import { AccessMainRootResourceRegistry } from '../../access-control/main-root-resource-registry';
 import { createTenantApp } from '../utils';
+import { isolatedPostgresDatabase } from './database';
 import { configFor, ownerCondition } from './fixtures';
 
 const coreFactoryEntry = process.env.TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY;
+const postgresUrl = process.env.TENANT_ACCESS_TEST_DATABASE_URL;
 const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.json', import.meta.url))(
   'node-xlsx',
 ) as {
@@ -65,7 +67,14 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
 
   beforeAll(async () => {
     const { createACL } = await import(/* @vite-ignore */ pathToFileURL(coreFactoryEntry!).href);
-    app = await createTenantApp({ aclFactory: createACL, extraPlugins: [ExportPlugin, DataVisualizationPlugin] });
+    const isolated = postgresUrl ? isolatedPostgresDatabase(postgresUrl) : undefined;
+    const database = isolated?.options;
+    await isolated?.close();
+    app = await createTenantApp({
+      aclFactory: createACL,
+      database,
+      extraPlugins: [ExportPlugin, DataVisualizationPlugin],
+    });
     expect(typeof (app.acl as any).registerActionParamsResolver).toBe('function');
     for (const id of ['H', 'B', 'C', 'X']) {
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
@@ -82,10 +91,18 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     await app.db.getRepository('roles').create({ values: { name: 'business-denied', strategy: { actions: [] } } });
     await app.db.getRepository('roles').create({ values: { name: 'business-target-only', strategy: { actions: [] } } });
     app.acl.getRole('business-target-only').grantAction('protected_documents:view', {});
+    await app.db.getRepository('roles').create({ values: { name: 'business-source-only', strategy: { actions: [] } } });
+    app.acl.getRole('business-source-only').grantAction('protected_sources:update', {});
     user = await app.db.getRepository('users').create({
       values: {
         username: 'protected-business-user',
-        roles: ['business-member', 'business-denied', 'business-no-export', 'business-target-only'],
+        roles: [
+          'business-member',
+          'business-denied',
+          'business-no-export',
+          'business-target-only',
+          'business-source-only',
+        ],
         tenants: ['B', 'C'],
         defaultTenantId: 'B',
       },
@@ -480,5 +497,53 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     const denied = await request('B', 'business-no-export');
     expect(denied.status).toBe(403);
     expect(denied.headers).not.toHaveProperty('content-disposition');
+  });
+
+  it.skipIf(!postgresUrl)(
+    'updates an owned root reference to G and V targets without modifying those targets',
+    async () => {
+      const sources = app.db.getCollection('protected_sources').model;
+      const documents = app.db.getCollection('protected_documents').model;
+      const before = await documents.findAll({ order: [['id', 'ASC']], raw: true });
+      try {
+        const owned = await agent()
+          .resource('protected_sources')
+          .update({ filterByTk: 1, values: { document: 2 } });
+        expect(owned.status).toBe(200);
+        expect((await sources.findByPk(1))?.get('documentId')).toBe(2);
+        const visible = await agent()
+          .resource('protected_sources')
+          .update({ filterByTk: 1, values: { document: 1 } });
+        expect(visible.status).toBe(200);
+        expect((await sources.findByPk(1))?.get('documentId')).toBe(1);
+        expect(await documents.findAll({ order: [['id', 'ASC']], raw: true })).toEqual(before);
+      } finally {
+        await sources.update({ documentId: 1 }, { where: { id: 1 }, hooks: false });
+      }
+    },
+  );
+
+  it.skipIf(!postgresUrl)('rejects a root reference to a hidden target without changing the source', async () => {
+    const response = await agent()
+      .resource('protected_sources')
+      .update({ filterByTk: 1, values: { document: 3 } });
+    expect(response.status).toBe(403);
+    expect((await app.db.getCollection('protected_sources').model.findByPk(1))?.get('documentId')).toBe(1);
+  });
+
+  it.skipIf(!postgresUrl)('requires a separate target read grant when changing a root reference', async () => {
+    const response = await agent('B', 'business-source-only')
+      .resource('protected_sources')
+      .update({ filterByTk: 1, values: { document: 2 } });
+    expect(response.status).toBe(403);
+    expect((await app.db.getCollection('protected_sources').model.findByPk(1))?.get('documentId')).toBe(1);
+  });
+
+  it.skipIf(!postgresUrl)('requires G on the source when changing a root reference to a visible target', async () => {
+    const response = await agent()
+      .resource('protected_sources')
+      .update({ filterByTk: 2, values: { document: 1 } });
+    expect(response.status).toBe(403);
+    expect((await app.db.getCollection('protected_sources').model.findByPk(2))?.get('documentId')).toBe(2);
   });
 });

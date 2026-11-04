@@ -5004,3 +5004,18 @@ Ruling: 新增内部AccessMainWorkflowQueryRuntime，服务器传入明确main�
 - [x] main-workflow-query-runtime-build.log tenant完整客户端/服务端/依赖/dts构建实际0（57318退出）；三TS最终Prettier check/oxlint0、diff check0，代码后未改。源snapshot一致：main-workflow runtime 07380C5CD6B6E0E11E656189DD29CBD1CD387B6689B496FFE5B9D6352636B2A8；main-root registry 22CCD6013B921A3F174231CA18399AC96B34497FB84D32730375A082A48A0680；新test F7C7C74911E960B5C06FA2F7FE8FCE13F766E8B13577A550882461A11BA1F83E。
 
 按requesting-code-review模板作者串行自审，非独立复核：同步选择复制表身份并按名称选中，持久key不符明确拒绝；executor只接受原request，发现前后及后续查询调用真实authority.assertCurrent。共享发现保留原HTTP守卫和主库读取选项，查询处理器沿原withPrepared finally释放，不安装ACL resolver/自动注册节点或正式启用。无未修复Critical/Important。不予本项裁决：未选中根查询跨入选中关联表的全入口门控、外部数据源、所有写节点/完整重载与跨实例配置、业务SQL并发原子隔离、业务试点及整分支独立复核，故不可据此正式启用。一次PowerShell数组传pnpm格式命令定位失败及snapshot非Git目录diff检查失败，均已在正确参数/功能树修正，非产品RED。本轮未启PG/Redis/建库/新附件，未改核心/正式依赖/锁文件/主检出/业务库/旧附件，日志/原集群/旧目录保留。
+
+## 338. 真实认证根表单关联引用写入复用原事务适配器
+
+Ruling: 显式内部根运行时将普通create/update/destroy交给既有AccessResourceMutationHandler，普通标量仍由原根handler执行；根表单关联值由原reference/target-FK适配器按既有类型限制分发。中性派生最终授权复用原ACL链，按内部操作分别取得list/update/源动作，不以目标授权替代来源授权。保留PostgreSQL关系写事务门控，不开放具体关联resource的add/remove/set或/_/写；不新增SQL/事务算法/schema，不改核心或正式安装。测试工具createTenantApp可显式选择经隔离URL验证的数据库，默认SQLite及其恢复逻辑保持，PG不执行sqlite_master恢复逻辑。
+
+- [x] 新认证根表单测试先在SQLite运行：red.log3失败24过滤/27总、实际1/17.49秒（94302退出）；初步green.log原24过/新3失败、实际1/12.08秒（24057退出）。实际栈确认既有关系写服务要求PostgreSQL，因此SQLite夹具不能证明本契约，不把这些运行称新产品RED或为其放宽数据库门控。
+- [x] 更正为本轮专用PG后，临时撤回writer选择、保留原RootMutationHandler复现：authenticated-reference-mutation-pg-red.log3失败24过滤/27总、实际1/12.88秒（67335退出）；正向G引用400非200，实际报Association fields...require their own write adapters，证明真实入口缺失。另两项400/403只是拒绝状态控制差异，不另称越权RED。恢复既有ResourceMutationHandler后pg-green.log3通过24过滤、实际0/16.90秒（36516退出）。
+- [x] 最终pg-verified.log4通过24过滤/28总、实际0/14.20秒（70349退出）：真实测试JWT/auth/acl/tenant/Collection Manager及持久角色用户租户成员关系；B来源id1依次引用G目标id2和V-only目标H/id1，实际外键2→1，全部目标行与归属保持原样。隐藏目标、只有source:update而无目标read权限、非G来源id2分别403且来源外键不变。source-only权限通过真实ACL启动登记，最终permission由原middleware计算，不伪造permission，不冒称密码登录/浏览器业务试点或权限配置重载。
+- [x] pg-regression.log原ResourceMutationHandler首次105过1失败/106总、实际1/91.73秒（50052退出），首例tenants.createdAt非空约束是认证应用表与简化事务夹具共用物理库冲突。未改产品/旧fixture造绿；另建本轮新库后pg-regression-isolated.log106全过/无跳过、实际0/102.96秒（22868退出）。
+- [x] sqlite-regression.log三文件92过/4个明确PG专用项跳过/96总、实际0/74.77秒（74477退出）：认证原24/普通HTTP40/旧tenant-resource-guard28。PG4/106/SQLite92及RED/旧轮不累加，非整分支回归。authenticated-reference-mutation-build.log tenant完整客户端/服务端/依赖/dts构建实际0（95506退出）；三TS最终Prettier check/oxlint0、diff check0，代码后未改。
+- [x] 源snapshot一致：root runtime 7314E94408A5B9137DDC795D026B3C94DADABA6B1DDF5D4E8508CB3CA3E9AB41；test utils 2BB01DCBAA747A6FD4A9B16531CA9ADC66ACA5794338EF3F48152DCB8434C1AD；认证HTTP 1578C292679FDBD3D048D11E2D8749AB4332D6605D0FC686E360E54AAC79E849。
+
+按requesting-code-review模板作者串行自审，非独立复核：原统一handler按真实值和关系类型分派，未知/混合组合拒绝且不重试旧链；派生权限按内部操作建立原生Action并独立经过最终ACL，源请求及派生准备沿原finally释放。认证根BelongsTo引用正向及独立G/目标读取拒绝已实测，原统一handler106项覆盖其余既有分派/回滚；不宣称已完成所有关系类型的认证验收、具体关联写、所有业务入口/未选根跨入选中目标门控、并发业务SQL原子隔离或正式试点。无未修复Critical/Important；正式自动安装/规则保存启用仍关闭。只读路径/Windows通配定位失败非产品RED。
+
+PG本轮启动前核精确原目录、pg_ctl无服务/25466全部记录0/snapshot验证0；显式-h127.0.0.1-p25466启动后核新PID97536、创建时间16:49:49.278699及精确目录命令，端口所有记录归该PID且仅127.0.0.1。SQL核目录/tenant_test/host127.0.0.1与32掩码/25466/postgres非恢复/零其他客户端。只创建tego_tenant_access_test_017b28d62c及tego_tenant_access_test_51916ba2c9两个新库；各验证实际退出后核owner tenant_test/零客户端，仅删除这两库、remaining0，再正常fast停PG实际0。原集群/authenticated-reference-mutation-pg.log/全部日志和旧目录保留，无新Redis服务/物理附件，未改业务库/主检出/正式依赖锁文件或旧附件，不复用任何旧PID/清理脚本。

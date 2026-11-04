@@ -6,7 +6,7 @@ import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
-import { AccessRootMutationHandler } from './root-mutation-handler';
+import { AccessResourceMutationHandler } from './resource-mutation-handler';
 import type { AccessRootReadContext } from './root-read-context';
 import { AccessRootReadHandler } from './root-read-handler';
 import { invalid, plain } from './write-support';
@@ -25,7 +25,7 @@ interface RootRequest {
 export class AccessRootResourceRuntime {
   private readonly requests = new WeakMap<object, RootRequest>();
   private readonly reader: AccessRootReadHandler;
-  private readonly writer: AccessRootMutationHandler;
+  private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
 
   constructor(
@@ -37,7 +37,7 @@ export class AccessRootResourceRuntime {
   ) {
     const queries = new AccessQueryService(db, prepared, resolveCollectionKey);
     this.reader = new AccessRootReadHandler(db, prepared, queries, resolveIdentity);
-    this.writer = new AccessRootMutationHandler(db, prepared, queries, resolveIdentity);
+    this.writer = new AccessResourceMutationHandler(db, prepared, queries, resolveIdentity);
     this.charts = new AccessChartQueryHandler(db, this.reader, resolveIdentity);
   }
 
@@ -124,13 +124,13 @@ export class AccessRootResourceRuntime {
     const request = this.requests.get(ctx);
     if (!request) return void (await next());
     request.assertCurrent();
-    const authorizeRead = async (collection: Collection): Promise<AccessRootReadContext> => {
+    const authorize = async (collection: Collection, actionName: string): Promise<AccessRootReadContext> => {
       request.assertCurrent();
       const resourcer = new Resourcer();
-      resourcer.define({ name: collection.name, actions: { list: {} } });
-      const action = resourcer.getAction(collection.name, 'list').clone();
-      Object.assign(action, { resourceName: collection.name, actionName: 'list' });
-      action.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
+      resourcer.define({ name: collection.name, actions: { [actionName]: {} } });
+      const action = resourcer.getAction(collection.name, actionName).clone();
+      Object.assign(action, { resourceName: collection.name, actionName });
+      action.mergeParams({ resourceName: collection.name, actionName, filterByTk: undefined });
       const decision = {
         db: this.db,
         action,
@@ -146,6 +146,7 @@ export class AccessRootResourceRuntime {
       request.assertCurrent();
       return decision;
     };
+    const authorizeRead = (collection: Collection) => authorize(collection, 'list');
     const context = ctx as unknown as AccessRootReadContext;
     if (request.resourceName === 'charts' && request.actionName === 'query')
       await this.charts.handle(context, request.actor, { source: authorizeRead, related: authorizeRead });
@@ -158,7 +159,11 @@ export class AccessRootResourceRuntime {
         authorizeRead,
       );
     else if (['create', 'update', 'destroy'].includes(request.actionName))
-      await this.writer.handle(context, request.actor, authorizeRead);
+      await this.writer.handle(context, request.actor, {
+        read: authorizeRead,
+        update: (collection) => authorize(collection, 'update'),
+        source: (collection, operation) => authorize(collection, operation),
+      });
     else invalid('Selected root action requires a dedicated runtime adapter');
     request.assertCurrent();
   }

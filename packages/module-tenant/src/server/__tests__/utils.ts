@@ -84,9 +84,13 @@ async function ensureExtraActionPluginsLoaded(app: MockServer, extraPlugins: any
 }
 
 export async function createTenantApp(
-  options: { extraPlugins?: any[]; aclFactory?: () => ACL } = {},
+  options: {
+    extraPlugins?: any[];
+    aclFactory?: () => ACL;
+    database?: NonNullable<Parameters<typeof createMockServer>[0]>['database'];
+  } = {},
 ): Promise<MockServer> {
-  const { extraPlugins = [], aclFactory } = options;
+  const { extraPlugins = [], aclFactory, database } = options;
   const normalizedExtraPlugins = extraPlugins.map((plugin) => {
     if (plugin !== 'audit-logs') {
       return plugin;
@@ -151,7 +155,7 @@ export async function createTenantApp(
     app = await createMockServer({
       registerActions: true,
       acl: !aclFactory,
-      database: { dialect: 'sqlite' },
+      database: database ?? { dialect: 'sqlite' },
       plugins: [
         ...(aclFactory ? [TestAclRuntimePlugin] : []),
         'acl',
@@ -177,8 +181,10 @@ export async function createTenantApp(
   //      no afterDefine/afterSync hooks, no FK ordering issues)
   //   2. Running load hooks for any unloaded plugins (ExportPlugin.load
   //      registers the 'export' action handler)
-  const check = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'");
-  if ((check[0] as any[]).length === 0) {
+  const check = app.db.inDialect('sqlite')
+    ? await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'")
+    : undefined;
+  if (check && (check[0] as any[]).length === 0) {
     const qi = app.db.sequelize.getQueryInterface();
     for (const model of Object.values(app.db.sequelize.models) as any[]) {
       try {

@@ -1,13 +1,14 @@
 import { Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
+import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { AccessQueryService } from './query';
 import { AccessRootMutationHandler } from './root-mutation-handler';
 import type { AccessRootReadContext } from './root-read-context';
 import { AccessRootReadHandler } from './root-read-handler';
-import { invalid } from './write-support';
+import { invalid, plain } from './write-support';
 
 interface RootRequest {
   resourceName: string;
@@ -24,6 +25,7 @@ export class AccessRootResourceRuntime {
   private readonly requests = new WeakMap<object, RootRequest>();
   private readonly reader: AccessRootReadHandler;
   private readonly writer: AccessRootMutationHandler;
+  private readonly charts: AccessChartQueryHandler;
 
   constructor(
     private readonly db: Database,
@@ -35,6 +37,7 @@ export class AccessRootResourceRuntime {
     const queries = new AccessQueryService(db, prepared, resolveCollectionKey);
     this.reader = new AccessRootReadHandler(db, prepared, queries, resolveIdentity);
     this.writer = new AccessRootMutationHandler(db, prepared, queries, resolveIdentity);
+    this.charts = new AccessChartQueryHandler(db, this.reader, resolveIdentity);
   }
 
   /** Wrap the existing ACL middleware, after server authentication and tenant selection. */
@@ -47,8 +50,20 @@ export class AccessRootResourceRuntime {
     if (ctx.db !== this.db || this.requests.has(ctx)) invalid('Invalid root resource request phase');
     const { resourceName, actionName, sourceId } = ctx.action;
     const parts = resourceName?.split('.') ?? [];
-    const collection = this.db.getCollection(parts[0]);
-    const targetName = parts.length === 2 ? collection?.getField(parts[1])?.target : undefined;
+    const chart = resourceName === 'charts' && actionName === 'query';
+    const values = chart ? Object.getOwnPropertyDescriptor(ctx.action.params, 'values')?.value : undefined;
+    const chartSource = plain(values) ? Object.getOwnPropertyDescriptor(values, 'dataSource')?.value : undefined;
+    const chartCollection = plain(values) ? Object.getOwnPropertyDescriptor(values, 'collection')?.value : undefined;
+    const chartDatabase =
+      typeof chartSource === 'string'
+        ? ctx.tego?.dataSourceManager?.dataSources.get(chartSource)?.collectionManager?.db
+        : undefined;
+    const collection = chart
+      ? typeof chartCollection === 'string' && (!chartDatabase || chartDatabase === this.db)
+        ? this.db.getCollection(chartCollection)
+        : undefined
+      : this.db.getCollection(parts[0]);
+    const targetName = !chart && parts.length === 2 ? collection?.getField(parts[1])?.target : undefined;
     const target = targetName ? this.db.getCollection(targetName) : undefined;
     const selected = [collection, target]
       .filter((value): value is Collection => !!value)
@@ -126,7 +141,9 @@ export class AccessRootResourceRuntime {
       return decision;
     };
     const context = ctx as unknown as AccessRootReadContext;
-    if (['list', 'get', 'count'].includes(request.actionName))
+    if (request.resourceName === 'charts' && request.actionName === 'query')
+      await this.charts.handle(context, request.actor, { source: authorizeRead, related: authorizeRead });
+    else if (['list', 'get', 'count'].includes(request.actionName))
       await this.reader.handleResourceWithRelatedContexts(context, request.actor, authorizeRead);
     else if (request.actionName === 'export')
       await this.reader.handleExportWithRelatedContexts(

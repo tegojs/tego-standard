@@ -4,6 +4,7 @@ import type { MockServer } from '@tachybase/test';
 import type { Model } from '@tego/server';
 
 import ExportPlugin from '../../../../../plugin-action-export/src/server';
+import DataVisualizationPlugin from '../../../../../plugin-block-charts/src/server/plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { registerAuthenticatedAccessRootRuntime } from '../../access-control/authenticated-root-runtime';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -41,10 +42,30 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
         response.on('end', () => done(null, Buffer.concat(chunks)));
         response.on('error', done);
       });
+  const chart = (
+    tenant = 'B',
+    role = 'business-member',
+    collection = 'protected_documents',
+    dataSource: unknown = 'main',
+  ) =>
+    agent(tenant, role)
+      .resource('charts')
+      .query({
+        values: {
+          uid: 'authenticated-total',
+          dataSource,
+          collection,
+          measures: [{ field: ['amount'], aggregation: 'sum', alias: 'total' }],
+          dimensions: [],
+          filter: {},
+          orders: [],
+          cache: { enabled: true, ttl: 30 },
+        },
+      });
 
   beforeAll(async () => {
     const { createACL } = await import(/* @vite-ignore */ pathToFileURL(coreFactoryEntry!).href);
-    app = await createTenantApp({ aclFactory: createACL, extraPlugins: [ExportPlugin] });
+    app = await createTenantApp({ aclFactory: createACL, extraPlugins: [ExportPlugin, DataVisualizationPlugin] });
     expect(typeof (app.acl as any).registerActionParamsResolver).toBe('function');
     for (const id of ['H', 'B', 'C', 'X']) {
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
@@ -339,5 +360,35 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     const response = await exportFile('B', 'business-member', 'legacy_documents');
     expect(response.status).toBe(200);
     expect(xlsx.parse(response.body)[0].data).toEqual([['amount'], [200]]);
+  });
+
+  it('aggregates authenticated G or V rows without reusing another tenant chart result', async () => {
+    const b = await chart();
+    expect(b.status).toBe(200);
+    expect(b.body).toEqual({ data: [{ total: 300 }] });
+    const c = await chart('C');
+    expect(c.status).toBe(200);
+    expect(c.body).toEqual({ data: [{ total: 400 }] });
+    const again = await chart();
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual({ data: [{ total: 300 }] });
+  });
+
+  it('requires collection list permission even when the chart resource allows the user', async () => {
+    const response = await chart('B', 'business-denied');
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('retains the original chart pipeline for an unselected table', async () => {
+    const response = await chart('B', 'business-member', 'legacy_documents');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ total: 200 }] });
+  });
+
+  it.each([null, ''])('does not bypass selected chart authorization with dataSource %j', async (dataSource) => {
+    const response = await chart('B', 'business-member', 'protected_documents', dataSource);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
   });
 });

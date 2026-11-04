@@ -4950,3 +4950,16 @@ Ruling: 在显式内部根运行时中将export分发到原AccessRootReadHandler
 按requesting-code-review模板作者串行自审，非独立复核：接线复用专用文件响应而非普通行数组；最终export权限与相关表list权限分开；缺权限和旧表控制真实经过认证/ACL/租户选择；配置及派生阶段沿原finally释放。无未修复Critical/Important。不予本项裁决：大批量worker导出、全部关联及图表/工作流入口统一接线、完整生命周期、授权事实到业务SQL原子隔离/跨实例协调、正式保存启用/业务试点/整分支独立复核。本轮使用测试JWT，不是密码signIn或浏览器业务试点；三行内存文件未产生物理附件，未启PG/Redis/建库，不改核心/正式依赖/锁文件/主检出/业务库/旧附件，不推送合并部署发版启用。日志及旧目录保留。
 
 默认签名session96286实际退出1，GPG明确Timeout；事先定位本次git102024/34404、gpg70184、pinentry92248的父链及创建时间，退出后四PID逐一消失且活动Git/签名0，HEAD仍36c486e、无未暂存、四个暂存文件与已审内容一致，独立guard实际0（当前树4951a4666a74fcbe9ca9089d43307ed8bff4b39d；未声称提交前已采集该树hash）。仅补本段签名事实后再独立guard，按已有授权本次单次跳过签名；最终提交记N，不称G或独立验签成功。未操作认证窗口或终止签名进程，global保持true，不沿用旧Timeout。
+
+## 334. 真实认证图表统计接入统一根请求阶段
+
+Ruling: 显式内部运行时识别charts:query实际主库目标表，在认证后、ACL前准备同一本请求配置，在ACL后复用原AccessChartQueryHandler。图表动作保持本次最终权限；来源与相关集合另外经过neutral list最终ACL，复用原G/V聚合，不把图表访问权当成集合读取权。数据源识别沿旧图表getDB或ctx.db的实际数据库路由，真正指向另一个数据库的表不被主库同名选择接管；选中后由已有严格parser验证。未选中/未配置表继续旧链，选中请求不进入旧结果cache。未改正式插件安装或新建sum接口。
+
+- [x] 真实认证应用加原DataVisualizationPlugin，客户端同一uid并开启cache依次请求B/C/B，手工期望总额300/400/300；另核无集合list权限403、未选legacy_documents原统计200。authenticated-chart-runtime-red.log干净1失败2通过14过滤/17总、实际1/14.18秒（18770退出）：B旧链200而非300，两个控制原过，不称旧链越权。最小接线后green.log17全过/无跳过、实际0/15.98秒（7260退出）。
+- [x] 首三文件regression.log145全过/无跳过、实际0/30.84秒（67983退出）。作者核旧图表空数据源回主库，而初版新选择只识别main/undefined，会绕过本次配置；新增null和空串真实请求，authenticated-chart-source-red.log干净2失败17过滤/19总、实际1/13.12秒（7972退出），均200非400。统一按实际数据库识别后已有parser拒绝非法来源，未选旧表保持兼容；verified-regression.log147过/0/23.20秒（66690退出）。
+- [x] 另试unknown-source只得到403与400状态差异，没有证明越权或新的业务失败；authenticated-chart-unknown-source-red.log1失败2通过17过滤/20总、实际1/15.52秒（98456退出），此状态差异夹具已撤回，不计新产品RED。保留按旧实际数据库路由选择的实现，不因未知源名称退回主库旧查询；未冒称真实外部数据源新实测。
+- [x] 最终authenticated-chart-runtime-final-regression.log三SQLite147全过/无跳过、实际0/18.25秒（12744退出）：认证HTTP19/原普通HTTP40/原图表HTTP88。147不与145/17/旧183或RED累加，非整分支回归。authenticated-chart-runtime-build.log tenant客户端/服务端/依赖/dts完整实际0（7124退出）；两TS最终Prettier check/oxlint0、diff check0，源snapshot一致：runtime 0B124EFB6B79EB7A0DAAC8D9F578A9F3645F0160C1FF543F0D5A7CA463A600C1；认证HTTP E0CEFD375235A35F42926AAAA8C4153122E746A837455738303E1DB3EB56644C。代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：图表权限与集合list权限不混用，复用原相关授权及finally释放；真实统计结果、缺权限和旧链兼容均直接断言业务输出。无未修复Critical/Important。不予本项裁决：完整外部来源生命周期/原地重建、所有关联与工作流入口统一安装、跨实例配置与业务SQL原子隔离、正式保存启用/业务试点/整分支独立复核。测试JWT不是密码signIn或浏览器验收。本轮未改核心/正式依赖/锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新物理附件，未部署发版正式启用；所有日志/旧目录保留。
+
+默认签名session10719实际Timeout退出128；事前捕获git10548/72612、gpg95540、pinentry45372父链与创建时间。四PID逐一消失/活动Git签名0、HEAD仍d37e826、原暂存树b01e4019d559e49bca494dc01fcc70a2d5f98ca8不变/无未暂存，独立guard实际0。仅补两记录后再独立guard，按已有授权本次单次跳过，最终提交记N，不称G或独立验签成功；未操作认证窗口/终止进程/global仍true，不复用旧Timeout。

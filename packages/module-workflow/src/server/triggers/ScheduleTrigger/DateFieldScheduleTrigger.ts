@@ -601,6 +601,14 @@ export default class ScheduleTrigger {
     }
     const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
     if (currentEndTime && currentEndTime < nextTime) return;
+    if (
+      (workflow.config.repeat || null) !== (enabled.config.repeat || null) &&
+      scheduledStartTime &&
+      scheduledStartTime <= nextTime &&
+      this.getRecordNextTime(enabled, data, false, new Date(nextTime - 1)) !== nextTime
+    ) {
+      return;
+    }
     bindTenantContext(data, context);
     this.workflow.trigger(
       workflow,

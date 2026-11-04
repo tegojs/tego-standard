@@ -839,6 +839,103 @@ describe('date-field scheduling from an external database', () => {
   );
 
   it.each([
+    { name: 'none', repeat: null, expectedDates: [] },
+    { name: 'numericShifted', repeat: 4000, expectedDates: [] },
+    { name: 'numericMatching', repeat: 3000, expectedDates: [0] },
+    { name: 'cronShifted', repeat: 'shifted', expectedDates: [] },
+    { name: 'cronMatching', repeat: '* * * * * *', expectedDates: [0] },
+  ])('rechecks a persisted repeat change at an existing deadline ($name)', async ({ name, repeat, expectedDates }) => {
+    const collection = external.collection({
+      name: `externalWorkflowRepeat_${name}`,
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+      ],
+    });
+    await collection.model.sync();
+    const trigger = installedDateTrigger();
+    const results = app.db.getModel('externalScheduleDocuments');
+    const workflows = app.db.getModel('workflows');
+    const plugin = app.pm.get('workflow');
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const currentRepeat = name === 'cronShifted' ? `${(due / 1000 + 2) % 60} * * * * *` : repeat;
+    const config = {
+      ...workflow.config,
+      collection: `another:${collection.name}`,
+      repeat: 6000,
+      endsOn: new Date(due).toISOString(),
+    };
+    await workflow.createNode({
+      type: 'create',
+      config: {
+        collection: 'externalScheduleDocuments',
+        params: { values: { label: 'Current workflow repeat task' } },
+      },
+    });
+    try {
+      await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+      const record = await collection.model.create(
+        { tenantId: 'B', scheduledAt: new Date(due - 6000) },
+        { hooks: false },
+      );
+      await observeThroughDeadline(trigger, due, async () => {
+        await trigger.reload();
+        await workflows.update(
+          { config: { ...config, repeat: currentRepeat } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+        expect(Date.now()).toBeLessThan(due);
+      });
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date) - due])).toEqual(
+        expectedDates.map((date) => ['B', date]),
+      );
+      const rows = await results.findAll({ where: { label: 'Current workflow repeat task' } });
+      expect(rows.map((row) => row.get('tenantId'))).toEqual(expectedDates.map(() => 'B'));
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect(workflow.config.repeat).toBe(currentRepeat);
+      expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+
+      if (expectedDates.length) return;
+      const nextDue = due + 2000;
+      if (!currentRepeat) {
+        await collection.model.update({ scheduledAt: new Date(nextDue) }, { where: { id: record.id }, hooks: false });
+      }
+      await workflows.update(
+        { config: { ...config, repeat: currentRepeat, endsOn: new Date(nextDue).toISOString() } },
+        { where: { id: workflow.id }, hooks: false },
+      );
+      expect(Date.now()).toBeLessThan(nextDue);
+      await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        expect(await workflow.countExecutions()).toBe(1);
+      });
+      const [execution] = await workflow.getExecutions();
+      expect([execution.tenantId, Date.parse(execution.context.date), execution.tenantContext.currentTenantId]).toEqual(
+        ['B', nextDue, 'B'],
+      );
+      const generated = await results.findAll({ where: { label: 'Current workflow repeat task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await results.destroy({ where: { label: 'Current workflow repeat task' }, hooks: false });
+    }
+  });
+
+  it.each([
     { limit: 1, expectedDates: [0] },
     { limit: 2, expectedDates: [0, 2000] },
   ])('enforces a persisted repeat limit of $limit after its first real execution', async ({ limit, expectedDates }) => {

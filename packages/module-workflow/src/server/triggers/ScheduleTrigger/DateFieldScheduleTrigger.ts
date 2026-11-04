@@ -586,7 +586,6 @@ export default class ScheduleTrigger {
     const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
       useMaster: true,
       transaction: null,
-      fields: ['id', 'config', 'allExecuted'],
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
     });
     if (!enabled || !isCurrent()) return;
@@ -620,13 +619,13 @@ export default class ScheduleTrigger {
       { context, transaction },
     );
 
-    if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {
+    if (!enabled.config.repeat || (enabled.config.limit && enabled.allExecuted >= enabled.config.limit - 1)) {
       return;
     }
 
-    const n = this.getRecordNextTime(workflow, data, true, repeatFrom);
+    const n = this.getRecordNextTime(enabled, data, true, repeatFrom);
     if (n) {
-      this.schedule(workflow, data, n, true);
+      this.schedule(enabled, data, n, true);
     }
   }
 

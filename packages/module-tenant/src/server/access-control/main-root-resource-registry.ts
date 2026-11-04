@@ -50,7 +50,33 @@ export class AccessMainRootResourceRegistry {
     prepared: AccessAclScopeAdapter,
     selectedKeys: readonly string[],
   ): Promise<AccessRootRuntimeSelection> {
+    if (ctx.db !== this.db) conflict();
+    const { resourceName, actionName, sourceId } = ctx.action;
+    const discovered = await this.discover(selectedKeys, () => {
+      if (
+        ctx.db !== this.db ||
+        ctx.action.resourceName !== resourceName ||
+        ctx.action.actionName !== actionName ||
+        ctx.action.sourceId !== sourceId
+      )
+        conflict();
+    });
+    return {
+      identities: discovered.identities,
+      runtime: new AccessRootResourceRuntime(
+        this.db,
+        prepared,
+        discovered.resolveIdentity,
+        discovered.resolveCollectionKey,
+        this.acl.middleware(),
+      ),
+    };
+  }
+
+  /** Persistent metadata discovery shared by HTTP and live workflow operation phases. */
+  async discover(selectedKeys: readonly string[], assertEntryCurrent: () => void) {
     this.assertCurrent();
+    assertEntryCurrent();
     const keys = [...selectedKeys];
     if (
       keys.length > 1000 ||
@@ -58,8 +84,6 @@ export class AccessMainRootResourceRegistry {
       new Set(keys).size !== keys.length
     )
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid server table selection');
-    if (ctx.db !== this.db) conflict();
-    const { resourceName, actionName, sourceId } = ctx.action;
     const metadata = this.db.getCollection('collections');
     if (!metadata) conflict();
     const metadataModel = metadata.model;
@@ -84,15 +108,8 @@ export class AccessMainRootResourceRegistry {
     const rows = keys.length ? await metadataModel.unscoped().findAll(query) : [];
     const assertCurrent = () => {
       this.assertCurrent();
-      if (
-        ctx.db !== this.db ||
-        ctx.action.resourceName !== resourceName ||
-        ctx.action.actionName !== actionName ||
-        ctx.action.sourceId !== sourceId ||
-        this.db.getCollection('collections') !== metadata ||
-        metadata.model !== metadataModel
-      )
-        conflict();
+      assertEntryCurrent();
+      if (this.db.getCollection('collections') !== metadata || metadata.model !== metadataModel) conflict();
     };
     assertCurrent();
     const identities: AccessCollectionIdentity[] = rows.map((row) => ({
@@ -127,16 +144,12 @@ export class AccessMainRootResourceRegistry {
     };
     return {
       identities,
-      runtime: new AccessRootResourceRuntime(
-        this.db,
-        prepared,
-        resolveIdentity,
-        (collection) => {
-          assertCurrent();
-          return this.collectionKey(collection);
-        },
-        this.acl.middleware(),
-      ),
+      resolveIdentity,
+      resolveCollectionKey: (collection: Collection) => {
+        assertCurrent();
+        return this.collectionKey(collection);
+      },
+      assertCurrent,
     };
   }
 }

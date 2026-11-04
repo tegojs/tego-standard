@@ -4993,3 +4993,14 @@ Ruling: 显式内部根运行时允许两段关联资源的export分发至既有
 按requesting-code-review模板作者串行自审，非独立复核：检查入口gate与现有导出dispatch、captureExportReadContext原生占位描述/最终目标权限、prepareRelated和XLSX暂存发布；无旧路回退或放宽参数，未选/无配置旧链及关联写入限制保持。无未修复Critical/Important。正式自动安装/规则保存启用、全部入口业务试点/跨实例配置与业务SQL并发原子隔离、整分支独立复核仍未完成。本轮未改核心/正式依赖/锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新物理附件，全部日志/原集群/旧目录保留。若干只读路径定位失败后用实际路径读取，均非产品RED。
 
 默认签名session53199明确GPG Timeout且实际退出1；事前捕获git46888/58216、gpg70560、pinentry6620父链及创建时间。四PID逐一消失、活动Git签名0、HEAD229ea9c/原暂存树2b8b10fae0328f715a204683ede9d26c5b95b4a7未变/无未暂存，独立guard实际0。仅补两原记录后再独立guard0才按既有授权本次单次无签名提交，记N；不称G或独立验签成功，未操作认证窗口/终止进程/global保持true，不复用任何旧Timeout/PID/session。
+
+## 337. 主库工作流查询按显式表身份发现并复用真实节点权威
+
+Ruling: 新增内部AccessMainWorkflowQueryRuntime，服务器传入明确main表名/持久key清单，逐次同步选择executor；选中后在executor内核主库collections持久key/name、实际collection/model/options.key，再交现有AccessWorkflowRootHandler.query。未选中保留原query路径，选中身份不符或配置/租户缺失不退回Repository。自动流程保留真实节点list权威与G/V，不额外要求人工角色，不改query为owned，不扩大到写节点。为复用原协议，将AccessMainRootResourceRegistry中原元数据发现提取为discover(selectedKeys, assertEntryCurrent)，HTTP仍保留自己的db/action守卫，workflow传真实操作assertCurrent，不伪造HTTP context。没有新增架构/持久层或核心改动。
+
+- [x] 新main-workflow-query-runtime.test.ts安装真实workflow/collection/user插件和Processor，持久Collection Manager tenantScoped表及key、配置历史、H/B/C行；插件启动queryResolver显式选新内部runtime，节点权威由该实际plugin.captureDataOperationAuthority取得。身份由可信trigger context的currentTenantId提供，无fixture permission Map/手设最终ACL，无浏览器或密码登录验收声明。
+- [x] main-workflow-query-runtime-red.log空选择契约干净2失败1通过/3总、实际1/8.69秒（46021退出）：B旧路径仅Owned B而非Visible/Owned B；服务器错误持久key仍旧路成功而非ERROR。未选中控制原过；不是旧路径越权，也不把控制称新RED。最小实现后green.log3全过/无跳过、实际0/8.52秒（37934退出）。
+- [x] 增加下一次执行读取最新规则和缺可信租户拒绝两个控制；main-workflow-query-runtime-regression.log四SQLite62全过/无跳过、实际0/13.57秒（65272退出）：新runtime5/原workflow-operation-authority30/认证HTTP24/原workflow query-resolver-plugin3。B结果Visible/Owned B，C为Visible/Owned C；取消visibility后下一执行仅Owned B；错误key和缺租户持久execution/job均ERROR且无数组结果，未选表仍仅Owned B。62不与3/RED/336的193或旧轮累加，非整分支回归。
+- [x] main-workflow-query-runtime-build.log tenant完整客户端/服务端/依赖/dts构建实际0（57318退出）；三TS最终Prettier check/oxlint0、diff check0，代码后未改。源snapshot一致：main-workflow runtime 07380C5CD6B6E0E11E656189DD29CBD1CD387B6689B496FFE5B9D6352636B2A8；main-root registry 22CCD6013B921A3F174231CA18399AC96B34497FB84D32730375A082A48A0680；新test F7C7C74911E960B5C06FA2F7FE8FCE13F766E8B13577A550882461A11BA1F83E。
+
+按requesting-code-review模板作者串行自审，非独立复核：同步选择复制表身份并按名称选中，持久key不符明确拒绝；executor只接受原request，发现前后及后续查询调用真实authority.assertCurrent。共享发现保留原HTTP守卫和主库读取选项，查询处理器沿原withPrepared finally释放，不安装ACL resolver/自动注册节点或正式启用。无未修复Critical/Important。不予本项裁决：未选中根查询跨入选中关联表的全入口门控、外部数据源、所有写节点/完整重载与跨实例配置、业务SQL并发原子隔离、业务试点及整分支独立复核，故不可据此正式启用。一次PowerShell数组传pnpm格式命令定位失败及snapshot非Git目录diff检查失败，均已在正确参数/功能树修正，非产品RED。本轮未启PG/Redis/建库/新附件，未改核心/正式依赖/锁文件/主检出/业务库/旧附件，日志/原集群/旧目录保留。

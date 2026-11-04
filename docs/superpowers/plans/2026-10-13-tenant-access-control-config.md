@@ -4980,3 +4980,16 @@ Ruling: 显式内部根运行时将两段关联资源的list/get/count交给原�
 后续主线只读校正：不要把旧workflow-query-plugin的fixture permission Map当作当前唯一实现。已有AccessWorkflowRootHandler.query通过实际插件captureDataOperationAuthority核验真实节点/执行/持久身份，并以该操作权威及逐表G/V组合，规格§291/299/301已有契约；自动流程不强加人工角色。尚需服务端稳定身份/明确选择及正式入口协调，不重复发明权威或冒用query-node authority作其他操作。当前未写下一fixture/代码/RED。
 
 默认签名session43547明确GPG Timeout且实际退出128；事前捕获git63504/89996、gpg80188、pinentry101692父链和创建时间。本次四PID逐一消失；前两次guard因其他瞬时Git54196/55288（CommandLine null）实际1，未跳过。其消失后独立guard实际0：活动Git签名0、HEAD0188dec/原暂存树6377ed47b754eb33b3fbb11f2b3461c7ab0ac45f未变/无未暂存/global true。仅补两原记录后再guard0才按既有授权本次单次无签名，记N；未操作认证窗口或终止进程，不复用旧Timeout/PID/session。
+
+## 336. 真实认证关联文件导出复用原目标权限与 XLSX 发布链
+
+Ruling: 显式内部根运行时允许两段关联资源的export分发至既有handleExportWithRelatedContexts。仅扩大入口动作清单，不新增查询/存储/文件发布实现；原解析器仍限制具体关联类型，来源/目标/中间层最终授权、G/V、完整性上限及发布前检查保持。本次认证实测/_/目标导出，不冒称全部具体关联导出或业务试点完成，关联写入继续关闭。
+
+- [x] 原真实auth/acl/tenant/ExportPlugin应用，经测试JWT、持久用户/角色/成员关系及实际租户选择请求protected_sources.document/_:export；真实node-xlsx解析Buffer，B为amount100/200、C为100/300，business-no-export返回403且无content-disposition。不手设最终permission，不新增存储或物理附件。
+- [x] authenticated-association-export-red.log干净1失败23过滤/24总、实际1/14.96秒（2230退出），B请求400非200，原因已确认是runtime关联动作gate未允许export。最小只加export至动作清单；green.log认证24全过/无跳过、实际0/20.30秒（69851退出）。
+- [x] authenticated-association-export-regression.log三SQLite193全过/无跳过、实际0/50.01秒（70055退出）：认证HTTP24/原普通HTTP40/导出129，覆盖原具体关联导出及发布失败控制。193不与24/RED/旧91等累加，非整分支回归。authenticated-association-export-build.log tenant完整客户端/服务端/依赖/dts构建实际0（66585退出）；两TS最终Prettier check/oxlint0、diff check0，代码后未改。
+- [x] 源snapshot一致：root runtime 93C3F46EBED85E23665727AB4172521408A5CBAA19445202B1D5B7E0EFA3F721；认证HTTP D31384A4E86317E080DD39161457B6AE81A45936A1962810E9C6114B3732EE34。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查入口gate与现有导出dispatch、captureExportReadContext原生占位描述/最终目标权限、prepareRelated和XLSX暂存发布；无旧路回退或放宽参数，未选/无配置旧链及关联写入限制保持。无未修复Critical/Important。正式自动安装/规则保存启用、全部入口业务试点/跨实例配置与业务SQL并发原子隔离、整分支独立复核仍未完成。本轮未改核心/正式依赖/锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新物理附件，全部日志/原集群/旧目录保留。若干只读路径定位失败后用实际路径读取，均非产品RED。
+
+默认签名session53199明确GPG Timeout且实际退出1；事前捕获git46888/58216、gpg70560、pinentry6620父链及创建时间。四PID逐一消失、活动Git签名0、HEAD229ea9c/原暂存树2b8b10fae0328f715a204683ede9d26c5b95b4a7未变/无未暂存，独立guard实际0。仅补两原记录后再独立guard0才按既有授权本次单次无签名提交，记N；不称G或独立验签成功，未操作认证窗口/终止进程/global保持true，不复用任何旧Timeout/PID/session。

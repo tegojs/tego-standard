@@ -79,7 +79,7 @@ export class AccessRootResourceRuntime {
       if (!configured.length) return void (await next());
       if (
         (parts.length !== 1 || sourceId !== undefined) &&
-        !(parts.length === 2 && ['list', 'get', 'count'].includes(actionName))
+        !(parts.length === 2 && ['list', 'get', 'count', 'export'].includes(actionName))
       )
         invalid('Selected association resources require a dedicated runtime adapter');
       const identity = configured[0];

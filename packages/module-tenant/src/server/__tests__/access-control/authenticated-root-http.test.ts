@@ -458,4 +458,27 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     expect(response.status).toBe(400);
     expect((await app.db.getCollection('protected_documents').model.findByPk(1))?.get('amount')).toBe(100);
   });
+
+  it('exports placeholder association targets with their own export grant and G or V scope', async () => {
+    const request = (tenant: string, role = 'business-member') =>
+      agent(tenant, role)
+        .resource('protected_sources.document', '_')
+        .export({ title: 'Target report', sort: ['id'], values: { columns: ['amount'] } })
+        .buffer(true)
+        .parse((response, done) => {
+          const chunks: Buffer[] = [];
+          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          response.on('end', () => done(null, Buffer.concat(chunks)));
+          response.on('error', done);
+        });
+    const b = await request('B');
+    expect(b.status).toBe(200);
+    expect(xlsx.parse(b.body)[0].data).toEqual([['amount'], [100], [200]]);
+    const c = await request('C');
+    expect(c.status).toBe(200);
+    expect(xlsx.parse(c.body)[0].data).toEqual([['amount'], [100], [300]]);
+    const denied = await request('B', 'business-no-export');
+    expect(denied.status).toBe(403);
+    expect(denied.headers).not.toHaveProperty('content-disposition');
+  });
 });

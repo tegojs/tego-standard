@@ -79,7 +79,7 @@ export class AccessRootResourceRuntime {
       if (!configured.length) return void (await next());
       if (
         (parts.length !== 1 || sourceId !== undefined) &&
-        !(parts.length === 2 && ['list', 'get', 'count', 'export'].includes(actionName))
+        !(parts.length === 2 && ['list', 'get', 'count', 'export', 'add', 'remove', 'set'].includes(actionName))
       )
         invalid('Selected association resources require a dedicated runtime adapter');
       const identity = configured[0];
@@ -158,7 +158,7 @@ export class AccessRootResourceRuntime {
         request.actor,
         authorizeRead,
       );
-    else if (['create', 'update', 'destroy'].includes(request.actionName))
+    else if (['create', 'update', 'destroy', 'add', 'remove', 'set'].includes(request.actionName))
       await this.writer.handle(context, request.actor, {
         read: authorizeRead,
         update: (collection) => authorize(collection, 'update'),

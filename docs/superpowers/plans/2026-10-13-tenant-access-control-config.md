@@ -5019,3 +5019,17 @@ Ruling: 显式内部根运行时将普通create/update/destroy交给既有Access
 按requesting-code-review模板作者串行自审，非独立复核：原统一handler按真实值和关系类型分派，未知/混合组合拒绝且不重试旧链；派生权限按内部操作建立原生Action并独立经过最终ACL，源请求及派生准备沿原finally释放。认证根BelongsTo引用正向及独立G/目标读取拒绝已实测，原统一handler106项覆盖其余既有分派/回滚；不宣称已完成所有关系类型的认证验收、具体关联写、所有业务入口/未选根跨入选中目标门控、并发业务SQL原子隔离或正式试点。无未修复Critical/Important；正式自动安装/规则保存启用仍关闭。只读路径/Windows通配定位失败非产品RED。
 
 PG本轮启动前核精确原目录、pg_ctl无服务/25466全部记录0/snapshot验证0；显式-h127.0.0.1-p25466启动后核新PID97536、创建时间16:49:49.278699及精确目录命令，端口所有记录归该PID且仅127.0.0.1。SQL核目录/tenant_test/host127.0.0.1与32掩码/25466/postgres非恢复/零其他客户端。只创建tego_tenant_access_test_017b28d62c及tego_tenant_access_test_51916ba2c9两个新库；各验证实际退出后核owner tenant_test/零客户端，仅删除这两库、remaining0，再正常fast停PG实际0。原集群/authenticated-reference-mutation-pg.log/全部日志和旧目录保留，无新Redis服务/物理附件，未改业务库/主检出/正式依赖锁文件或旧附件，不复用任何旧PID/清理脚本。
+
+## 339. 真实认证具体一对多连接写入接到已有事务入口
+
+Ruling: 显式内部根运行时仅在两段关联动作及写分发清单增加add/remove/set，复用§338已选择的AccessResourceMutationHandler。具体关系类型/来源/选择器由既有handler校验，来源同名操作最终ACL与G、目标操作及独立update最终ACL与修改前G、引用list与G/V、set隐式解绑检查及PostgreSQL事务保持，不开放/_/写或关联update，不新建SQL/事务协议/核心改动或正式安装。
+
+- [x] 真实Collection Manager fields Repository创建protected_documents.sources HasMany，外键documentId；真实auth/acl/tenant、测试JWT、持久角色用户/成员关系。正向依次add source3、set为source1并隐式解绑source3、remove source1，核实际外键、父业务字段及两端归属。独立控制set隐式解绑C目标、V-only来源、缺目标update均403且外键不变；缺update角色仍明确有两端add及目标list，不能以缺读取掩盖更新检查。不是密码signIn/浏览器业务试点或fixture最终permission。
+- [x] 初始authenticated-association-link-red.log4失败28过滤/32总、实际1/10.71秒（49783退出），正向入口400非200；其他拒绝状态差异不是独立越权RED。放行后green.log1失败7过24过滤、实际1/10.79秒（3357退出），正向403。diagnostic.log实际1（9265退出），只观察真实SQL确认父fixture以Model.create产生tenantId:null，来源G拒绝正确；不放宽产品授权。改用与原fixture一致的bulkCreate并在请求前断言实际tenant B，移除全部诊断日志。
+- [x] 撤回两行入口放行后confirmed-red.log4失败28过滤/32总、实际1/15.48秒（99512退出），正向归属断言先通过、add400非200，确认缺失接线。恢复两行后verified-green.log8过24过滤、实际0/13.79秒（65812退出）；补足缺update角色读取控制及父归属断言后final-pg.log8过24过滤、实际0/14.30秒（80204退出），含新具体关联4及原根引用4。两次PG绿灯不累加，不把夹具null故障称产品RED。
+- [x] authenticated-association-link-sqlite-regression.log三文件92过/8个PG专用项明确跳过/100总、实际0/89.78秒（56041退出）：原认证24/普通HTTP40/旧guard28。未机械重跑§338原统一handler106，不把旧结果计本轮。tenant完整客户端/服务端/依赖/dts build.log实际0（32942退出）；两TS最终Prettier check/oxlint0、diff check0，代码后未改。
+- [x] 源snapshot一致：root runtime A6A4BBFB8210F501EF6D6795A3DD18D0F89F60D9F734F970925674BF9AFC65C9；认证HTTP 2558ADBC31059F4AAA4FA3D088DA702ECF6316619D1026ED1C6F0DF4B4949AD5。
+
+按requesting-code-review模板作者串行自审，非独立复核：两行接线进入原严格类型分派，不删除来源或目标授权，不改原事务/锁序/差集/回滚/最后持久检查；派生准备沿finally释放，未选择/无配置及原关联读取保持。无未修复Critical/Important。不予本项裁决：其他关系的全部认证验收、未选根跨入选中关联表、外部来源/全部工作流写节点、跨实例配置与业务SQL并发原子隔离、业务试点及整分支独立复核。正式自动安装/规则保存启用仍关闭，未推送/合并/发版。
+
+本轮PG启动前核精确原目录、无服务/25466全部0/snapshot验证0；显式-h127.0.0.1-p25466启动，新PID31012、创建时间17:06:42.798934及精确命令和全部端口已核，SQL核目录/tenant_test/127.0.0.1与32掩码/25466/postgres非恢复/零其他客户端。只创建tego_tenant_access_test_8530af31d4；全部runner/build实际退出后新核同PID/创建时间/目录命令/所有端口、库owner tenant_test/零客户端，仅删除本轮库、remaining0，正常fast停PG实际0/pg_ctl无服务/端口全部0。集群、authenticated-association-link-pg.log及所有日志/旧目录保留。无新Redis服务/物理附件，核心仍干净d742a1c，未改正式依赖锁文件/主检出/业务库/旧附件。

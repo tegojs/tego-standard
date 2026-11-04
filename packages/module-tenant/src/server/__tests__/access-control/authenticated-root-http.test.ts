@@ -79,10 +79,11 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     for (const id of ['H', 'B', 'C', 'X']) {
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
     }
+    for (const action of ['add', 'remove', 'set']) app.acl.setAvailableAction(action, {});
     await app.db.getRepository('roles').create({
       values: {
         name: 'business-member',
-        strategy: { actions: ['view', 'count', 'create', 'update', 'destroy', 'export'] },
+        strategy: { actions: ['view', 'count', 'create', 'update', 'destroy', 'export', 'add', 'remove', 'set'] },
       },
     });
     await app.db
@@ -93,6 +94,12 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     app.acl.getRole('business-target-only').grantAction('protected_documents:view', {});
     await app.db.getRepository('roles').create({ values: { name: 'business-source-only', strategy: { actions: [] } } });
     app.acl.getRole('business-source-only').grantAction('protected_sources:update', {});
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: 'business-link-no-update', strategy: { actions: [] } } });
+    app.acl.getRole('business-link-no-update').grantAction('protected_documents:add', {});
+    app.acl.getRole('business-link-no-update').grantAction('protected_sources:add', {});
+    app.acl.getRole('business-link-no-update').grantAction('protected_sources:list', {});
     user = await app.db.getRepository('users').create({
       values: {
         username: 'protected-business-user',
@@ -102,6 +109,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
           'business-no-export',
           'business-target-only',
           'business-source-only',
+          'business-link-no-update',
         ],
         tenants: ['B', 'C'],
         defaultTenantId: 'B',
@@ -155,6 +163,16 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       collectionKey: sources.get('key'),
     };
     selectedKeys.add(sourceIdentity.collectionKey);
+    await app.db.getRepository('fields').create({
+      values: {
+        name: 'sources',
+        type: 'hasMany',
+        collectionName: 'protected_documents',
+        target: 'protected_sources',
+        foreignKey: 'documentId',
+      },
+      context: {},
+    });
     await app.db.getCollection('protected_sources').model.bulkCreate([
       { id: 1, tenantId: 'B', documentId: 1 },
       { id: 2, tenantId: 'C', documentId: 2 },
@@ -468,7 +486,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     expect(response.body.data).toEqual([{ id: 2 }]);
   });
 
-  it('keeps selected association writes closed', async () => {
+  it('keeps unsupported concrete association updates closed', async () => {
     const response = await agent()
       .resource('protected_sources.document', 1)
       .update({ values: { amount: 999 } });
@@ -545,5 +563,69 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .update({ filterByTk: 2, values: { document: 1 } });
     expect(response.status).toBe(403);
     expect((await app.db.getCollection('protected_sources').model.findByPk(2))?.get('documentId')).toBe(2);
+  });
+
+  it.skipIf(!postgresUrl)(
+    'writes concrete association links through add, set and remove without changing ownership',
+    async () => {
+      const documents = app.db.getCollection('protected_documents').model;
+      const sources = app.db.getCollection('protected_sources').model;
+      await documents.bulkCreate([{ id: 4, tenantId: 'B', name: 'Link parent', amount: 400 }]);
+      try {
+        expect((await documents.findByPk(4))?.get('tenantId')).toBe('B');
+        const added = await agent()
+          .resource('protected_documents.sources', 4)
+          .add({ values: [3] });
+        expect(added.status).toBe(200);
+        expect((await sources.findByPk(3))?.get('documentId')).toBe(4);
+        const replaced = await agent()
+          .resource('protected_documents.sources', 4)
+          .set({ values: [1] });
+        expect(replaced.status).toBe(200);
+        expect((await sources.findByPk(3))?.get('documentId')).toBeNull();
+        expect((await sources.findByPk(1))?.get('documentId')).toBe(4);
+        const removed = await agent()
+          .resource('protected_documents.sources', 4)
+          .remove({ values: [1] });
+        expect(removed.status).toBe(200);
+        expect((await sources.findByPk(1))?.get('documentId')).toBeNull();
+        for (const id of [1, 3]) expect((await sources.findByPk(id))?.get('tenantId')).toBe('B');
+        expect((await documents.findByPk(4))?.get('amount')).toBe(400);
+        expect((await documents.findByPk(4))?.get('tenantId')).toBe('B');
+      } finally {
+        await sources.update({ documentId: 1 }, { where: { id: 1 }, hooks: false });
+        await sources.update({ documentId: 3 }, { where: { id: 3 }, hooks: false });
+        await documents.destroy({ where: { id: 4 }, hooks: false });
+      }
+    },
+  );
+
+  it.skipIf(!postgresUrl)('rejects concrete association links when set would detach a target outside G', async () => {
+    const response = await agent()
+      .resource('protected_documents.sources', 2)
+      .set({ values: [3] });
+    expect(response.status).toBe(403);
+    const sources = app.db.getCollection('protected_sources').model;
+    expect((await sources.findByPk(2))?.get('documentId')).toBe(2);
+    expect((await sources.findByPk(3))?.get('documentId')).toBe(3);
+  });
+
+  it.skipIf(!postgresUrl)(
+    'requires source G for concrete association links even when the source is visible',
+    async () => {
+      const response = await agent()
+        .resource('protected_documents.sources', 1)
+        .add({ values: [3] });
+      expect(response.status).toBe(403);
+      expect((await app.db.getCollection('protected_sources').model.findByPk(3))?.get('documentId')).toBe(3);
+    },
+  );
+
+  it.skipIf(!postgresUrl)('requires an independent target update grant for concrete association links', async () => {
+    const response = await agent('B', 'business-link-no-update')
+      .resource('protected_documents.sources', 2)
+      .add({ values: [3] });
+    expect(response.status).toBe(403);
+    expect((await app.db.getCollection('protected_sources').model.findByPk(3))?.get('documentId')).toBe(3);
   });
 });

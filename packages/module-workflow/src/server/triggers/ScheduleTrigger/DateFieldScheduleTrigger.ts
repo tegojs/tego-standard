@@ -586,10 +586,11 @@ export default class ScheduleTrigger {
     const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
       useMaster: true,
       transaction: null,
-      fields: ['id', 'config'],
+      fields: ['id', 'config', 'allExecuted'],
       filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
     });
     if (!enabled || !isCurrent()) return;
+    if (enabled.config?.limit && enabled.allExecuted >= enabled.config.limit) return;
     if (typeof enabled.config?.collection !== 'string') return;
     const [currentDataSourceName, currentCollectionName] = parseCollectionName(enabled.config.collection);
     if (currentDataSourceName !== dataSourceName || currentCollectionName !== collectionName) return;

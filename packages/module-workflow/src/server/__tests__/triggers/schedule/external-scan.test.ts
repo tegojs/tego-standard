@@ -838,6 +838,114 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
+  it.each([
+    { limit: 1, expectedDates: [0] },
+    { limit: 2, expectedDates: [0, 2000] },
+  ])('enforces a persisted repeat limit of $limit after its first real execution', async ({ limit, expectedDates }) => {
+    const collection = external.collection({
+      name: `externalWorkflowLimit_${limit}`,
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+      ],
+    });
+    await collection.model.sync();
+    const trigger = installedDateTrigger();
+    const results = app.db.getModel('externalScheduleDocuments');
+    const workflows = app.db.getModel('workflows');
+    const plugin = app.pm.get('workflow');
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const config = {
+      ...workflow.config,
+      collection: `another:${collection.name}`,
+      repeat: 2000,
+      limit: 3,
+      endsOn: new Date(due + 4000).toISOString(),
+    };
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Current workflow limit task' } } },
+    });
+    const original = trigger.trigger.bind(trigger);
+    const calls: Promise<unknown>[] = [];
+    const observing = vi.spyOn(trigger, 'trigger').mockImplementation((...args) => {
+      const result = original(...args);
+      calls.push(result);
+      return result;
+    });
+    try {
+      await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+      const record = await collection.model.create({ tenantId: 'B', scheduledAt: new Date(due) }, { hooks: false });
+      await trigger.reload();
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        expect(await workflow.countExecutions()).toBe(1);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      });
+      await calls[0];
+      expect(Date.now()).toBeLessThan(due + 1500);
+      await workflows.update({ config: { ...config, limit } }, { where: { id: workflow.id }, hooks: false });
+      expect(Date.now()).toBeLessThan(due + 1500);
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, due + 4500 - Date.now())));
+      await Promise.allSettled(calls);
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date) - due])).toEqual(
+        expectedDates.map((date) => ['B', date]),
+      );
+      expect(await results.count({ where: { label: 'Current workflow limit task' } })).toBe(expectedDates.length);
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect(workflow.config.limit).toBe(limit);
+      expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+
+      const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+      await collection.model.update({ scheduledAt: new Date(nextDue) }, { where: { id: record.id }, hooks: false });
+      await workflows.update(
+        {
+          config: {
+            ...config,
+            repeat: null,
+            limit: expectedDates.length + 1,
+            endsOn: new Date(nextDue).toISOString(),
+          },
+        },
+        { where: { id: workflow.id }, hooks: false },
+      );
+      await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        expect(await workflow.countExecutions()).toBe(expectedDates.length + 1);
+      });
+      const generated = await workflow.getExecutions({ order: [['id', 'ASC']] });
+      expect(generated.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+        ...expectedDates.map((date) => ['B', due + date]),
+        ['B', nextDue],
+      ]);
+      const rows = await results.findAll({ where: { label: 'Current workflow limit task' } });
+      expect(rows.map((row) => row.get('tenantId'))).toEqual(expectedDates.map(() => 'B').concat('B'));
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length + 1, expectedDates.length + 1]);
+    } finally {
+      trigger.off(workflow);
+      await Promise.allSettled(calls);
+      observing.mockRestore();
+      await results.destroy({ where: { label: 'Current workflow limit task' }, hooks: false });
+    }
+  });
+
   it.each([true, false])(
     'rechecks a changed nonempty start date (moves beyond the old occurrence: %s)',
     async (movesPastDue) => {

@@ -5087,3 +5087,14 @@ Ruling: 将既有authenticated-root-http夹具从app.agent().login(user)直接�
 - [x] 首次Prettier check实际1，在测试启动前停止；格式化后check及oxlint实际0（零警告错误），再启动唯一测试runner，代码后未改。源snapshot SHA256一致A2B4AD4A70DD2F34DF0D0D55ABAA77877BA261CE8C7893F565986594AB1EFC87，diff check0。只有测试夹具及两原记录变更，无产品/导出类型/依赖/构建敏感改动，按项目聚焦验证规则不重复tenant包构建。
 
 按requesting-code-review模板作者串行自审，非独立复核：登录与业务请求均经过原真实认证，角色和租户仍由认证用户的持久关系解析，匿名控制仍使用无令牌agent，错误密码控制不复用有效token；凭据仅为本轮隔离测试常量，不记录实际token。无本批未修复Critical/Important。未改产品/核心/正式依赖锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新附件。正式自动安装、保存启用和业务试点仍关闭；完整混合查询写入/其他关系与外部来源/跨实例配置及业务SQL并发原子隔离/整分支独立复核仍未完成。全部日志/原集群/旧目录保留。
+
+## 344. 旧图表关联字段在缓存前拒绝跨入已选规则表
+
+Ruling: 旧图表未选根原先直接next，专用measures/dimensions/orders不在340通用Repository参数检查中。新增内部assertLegacyChartReadBoundary，将原图表两段field向量的首个登记关联映射为appends，复用原Repository读取规划检查关联和filter；HTTP真实charts最终ACL后、旧query/缓存前执行。按原图表checkPermission协议同时识别values包装及平铺参数，不改变已选图表专用handler/目标G/V/旧缓存或正式安装，不添加跨包运行时依赖，不伪造旧根规则。
+
+- [x] 真实密码登录与持久Collection Manager的legacy_sources.document→protected_documents。目标规则清空，直接新链列表[]；暂时仅移除该目标服务器选择，原图表真实返回关联sum200、分组targetAmount200/count1、按关联排序sourceId1、关联filter count1；重加同一目标选择，使用同uid/cache:true再次请求仍泄漏原结果。legacy-protected-chart-red.log四失败48过滤/52总、实际1/19.98秒（52790退出）；加强真实响应断言后的confirmed-red.log四失败48过滤/52总、实际1/16.76秒（27191退出），实际data分别为上述字面量，非仅HTTP状态差异。排序一行结果不称证明多行排序泄露，仅验证真实关联查询路径拒绝。
+- [x] 追加原图表平铺参数measure路径：flat-red.log一失败52过滤/53总、实际1/17.78秒（71377退出），实际data为[{total:200}]，此前未改变产品。最小实现后green.log五过48过滤/53总、实际0/20.41秒（54995退出）。每案finally恢复本轮隔离规则及明确服务器选择，不改业务库。
+- [x] 新增目标已选但源根自身count仍保持旧图表200/count1的兼容控制；原无关联旧图表及未选目标基线继续保持。最终legacy-protected-chart-regression.log三SQLite174过/8个PG专用明确跳过/182总、实际0/91.57秒（16463退出）：认证46/普通HTTP40/图表88，单worker逐文件。各轮/343原40/历史结果不累加，非整分支回归。
+- [x] tenant完整客户端/服务端/依赖/dts build.log实际0（9878退出）。三TS末Prettier check/oxlint0、diff check0，代码后未改；源snapshot一致legacy-read BDDB6C7BC93562E5CDD9A5C5F538E1B43722DFFB47FD5204EF28A1AA429B08EE；runtime A8DD2D2638FC8971BFCDDEA874D2A9A4F03A05C19FA47B671E25E6DCA066B692；认证HTTP DF68C24E5589869A1D290E479331201A89F8BED0856F305BD40C3D497A3FBC66。
+
+按requesting-code-review模板作者串行自审，非独立复核：字段向量只按旧图表实际首段关联发现，不尝试执行混合聚合；真实主库/其他数据库路由保持，已选且无配置仍保留旧路，本次配置阶段和WeakMap finally释放。检查发生在旧图表结果缓存之前，不因已缓存内容跳过最新明确选择。未裁决后续图表源list ACL或变量解析才注入的关联条件、自定义SQL/专用导出列、外部来源/完整生命周期/跨实例及业务SQL并发原子隔离；均不称已覆盖。完整混合支持/正式保存启用/业务试点/整分支独立复核仍未完成，正式自动安装继续关闭。本批未启PG/Redis/建库/新附件，未改核心/正式依赖锁文件/主检出/业务库/旧附件，日志/原集群/旧目录全部保留。两次只读误猜export.ts及root-export-handler.ts不存在，已读实际export-xlsx.ts和root-read-handler.ts，不计产品RED。

@@ -4,7 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
-import { assertLegacyReadBoundary } from './legacy-read-boundary';
+import { assertLegacyChartReadBoundary, assertLegacyReadBoundary } from './legacy-read-boundary';
 import { assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
@@ -55,7 +55,8 @@ export class AccessRootResourceRuntime {
     const { resourceName, actionName, sourceId } = ctx.action;
     const parts = resourceName?.split('.') ?? [];
     const chart = resourceName === 'charts' && actionName === 'query';
-    const values = chart ? Object.getOwnPropertyDescriptor(ctx.action.params, 'values')?.value : undefined;
+    const chartValues = chart ? Object.getOwnPropertyDescriptor(ctx.action.params, 'values')?.value : undefined;
+    const values = chart ? (chartValues === undefined ? ctx.action.params : chartValues) : undefined;
     const chartSource = plain(values) ? Object.getOwnPropertyDescriptor(values, 'dataSource')?.value : undefined;
     const chartCollection = plain(values) ? Object.getOwnPropertyDescriptor(values, 'collection')?.value : undefined;
     const chartDatabase =
@@ -75,14 +76,14 @@ export class AccessRootResourceRuntime {
       .filter((value): value is AccessCollectionIdentity => !!value)
       .map((value) => ({ ...value }));
     const legacyWrite = ['create', 'update'].includes(actionName);
-    const legacyAction = legacyWrite || ['list', 'get', 'count', 'export'].includes(actionName);
-    if (!selected.length && (!collection || chart || !legacyAction)) return void (await next());
+    const legacyAction = chart || legacyWrite || ['list', 'get', 'count', 'export'].includes(actionName);
+    if (!selected.length && (!collection || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
       const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
       if (!configured.length) {
-        if (chart || !legacyAction) return void (await next());
+        if (!legacyAction) return void (await next());
         if (!capturedIdentities.some((identity) => this.prepared.configuration(ctx, identity)))
           return void (await next());
         const legacyCollection = target ?? collection;
@@ -98,7 +99,9 @@ export class AccessRootResourceRuntime {
             const identity = this.resolveIdentity(collection);
             return !!identity && !!this.prepared.configuration(ctx, identity);
           };
-          assertLegacyReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
+          if (chart)
+            assertLegacyChartReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
+          else assertLegacyReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
         });
         try {

@@ -500,10 +500,110 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     expect(response.body).toEqual({ data: [{ total: 200 }] });
   });
 
+  it.each([
+    {
+      kind: 'measure',
+      flat: false,
+      query: { measures: [{ field: ['document', 'amount'], aggregation: 'sum', alias: 'total' }] },
+      expected: [{ total: 200 }],
+    },
+    {
+      kind: 'dimension',
+      flat: false,
+      query: {
+        measures: [{ field: ['id'], aggregation: 'count', alias: 'total' }],
+        dimensions: [{ field: ['document', 'amount'], alias: 'targetAmount' }],
+      },
+      expected: [{ total: 1, targetAmount: 200 }],
+    },
+    {
+      kind: 'order',
+      flat: false,
+      query: {
+        measures: [{ field: ['id'], alias: 'sourceId' }],
+        orders: [{ field: ['document', 'amount'], order: 'desc' }],
+      },
+      expected: [{ sourceId: 1 }],
+    },
+    {
+      kind: 'filter',
+      flat: false,
+      query: {
+        measures: [{ field: ['id'], aggregation: 'count', alias: 'total' }],
+        filter: { 'document.amount': 200 },
+      },
+      expected: [{ total: 1 }],
+    },
+    {
+      kind: 'flat measure',
+      flat: true,
+      query: { measures: [{ field: ['document', 'amount'], aggregation: 'sum', alias: 'total' }] },
+      expected: [{ total: 200 }],
+    },
+  ])(
+    'rejects legacy chart $kind paths into a selected target before cached results',
+    async ({ kind, flat, query, expected }) => {
+      const original = (await store.read(identity))!;
+      const request = () => {
+        const values = {
+          uid: `legacy-protected-${kind}`,
+          dataSource: 'main',
+          collection: 'legacy_sources',
+          dimensions: [],
+          orders: [],
+          filter: {},
+          cache: { enabled: true, ttl: 30 },
+          ...query,
+        };
+        return agent()
+          .resource('charts')
+          .query(flat ? values : { values });
+      };
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent()
+          .resource('protected_documents')
+          .list({ fields: ['id'] });
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        expect(legacy.body.data).toEqual(expected);
+        selectedKeys.add(identity.collectionKey);
+        const protectedResult = await request();
+        expect(protectedResult.body.data).toBeUndefined();
+        expect(protectedResult.status).toBe(400);
+        expect(protectedResult.body).not.toHaveProperty('data');
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        const latest = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
   it.each([null, ''])('does not bypass selected chart authorization with dataSource %j', async (dataSource) => {
     const response = await chart('B', 'business-member', 'protected_documents', dataSource);
     expect(response.status).toBe(400);
     expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('keeps root-only legacy chart measures when an associated target is selected', async () => {
+    const response = await agent()
+      .resource('charts')
+      .query({
+        values: {
+          dataSource: 'main',
+          collection: 'legacy_sources',
+          measures: [{ field: ['id'], aggregation: 'count', alias: 'total' }],
+          dimensions: [],
+          orders: [],
+          filter: {},
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ total: 1 }]);
   });
 
   it('reads a concrete association using separate source and target G or V scopes', async () => {

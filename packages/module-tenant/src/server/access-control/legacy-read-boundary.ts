@@ -2,6 +2,31 @@ import type { Collection, Database } from '@tego/server';
 
 import { cloneDeep, invalid, plain } from './write-support';
 
+/** Chart field vectors name one registered association; filters use the existing repository grammar. */
+export function assertLegacyChartReadBoundary(
+  db: Database,
+  source: Collection,
+  params: object,
+  protectedCollection: (collection: Collection) => boolean,
+  context: object,
+): void {
+  const captured = cloneDeep(params) as Record<string, unknown>;
+  // The original chart pipeline also accepts the query fields directly without a values envelope.
+  const values = captured.values === undefined ? captured : captured.values;
+  if (!plain(values)) invalid('Legacy chart values are unavailable');
+  const appends = new Set<string>();
+  for (const key of ['measures', 'dimensions', 'orders']) {
+    const entries = values[key];
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (!plain(entry) || !Array.isArray(entry.field) || entry.field.length < 2) continue;
+      if (typeof entry.field[0] !== 'string') invalid('Legacy chart requires registered association names');
+      appends.add(entry.field[0]);
+    }
+  }
+  assertLegacyReadBoundary(db, source, { appends: [...appends], filter: values.filter }, protectedCollection, context);
+}
+
 /** Inspect the existing repository plan; this neither authorizes nor executes a mixed read. */
 export function assertLegacyReadBoundary(
   db: Database,

@@ -593,15 +593,16 @@ export default class ScheduleTrigger {
     if (typeof enabled.config?.collection !== 'string') return;
     const [currentDataSourceName, currentCollectionName] = parseCollectionName(enabled.config.collection);
     if (currentDataSourceName !== dataSourceName || currentCollectionName !== collectionName) return;
+    const currentStartTime = getDataOptionTime(data, enabled.config.startsOn);
     if (workflow.config.startsOn) {
-      const currentStartTime = getDataOptionTime(data, enabled.config.startsOn);
       if (!currentStartTime) return;
       if (scheduledStartTime && scheduledStartTime <= nextTime && currentStartTime > nextTime) return;
     }
     const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
     if (currentEndTime && currentEndTime < nextTime) return;
     if (
-      (workflow.config.repeat || null) !== (enabled.config.repeat || null) &&
+      ((workflow.config.repeat || null) !== (enabled.config.repeat || null) ||
+        scheduledStartTime !== currentStartTime) &&
       scheduledStartTime &&
       scheduledStartTime <= nextTime &&
       this.getRecordNextTime(enabled, data, false, new Date(nextTime - 1)) !== nextTime

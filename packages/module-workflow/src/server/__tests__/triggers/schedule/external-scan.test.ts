@@ -839,6 +839,105 @@ describe('date-field scheduling from an external database', () => {
   );
 
   it.each([
+    { via: 'record', shift: 1000, expectedDates: [] },
+    { via: 'record', shift: 6000, expectedDates: [0] },
+    { via: 'workflow', shift: 1000, expectedDates: [] },
+    { via: 'workflow', shift: 6000, expectedDates: [0] },
+  ])('rechecks an earlier start phase via $via with shift $shift', async ({ via, shift, expectedDates }) => {
+    const collection = external.collection({
+      name: `externalStartPhase_${via}_${shift}`,
+      tenancy: 'tenantScoped',
+      fields: [
+        { name: 'tenantId', type: 'string' },
+        { name: 'scheduledAt', type: 'date' },
+        { name: 'shiftedAt', type: 'date' },
+      ],
+    });
+    await collection.model.sync();
+    const trigger = installedDateTrigger();
+    const results = app.db.getModel('externalScheduleDocuments');
+    const workflows = app.db.getModel('workflows');
+    const plugin = app.pm.get('workflow');
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const currentStart = due - 6000 - shift;
+    const config = {
+      ...workflow.config,
+      collection: `another:${collection.name}`,
+      repeat: 6000,
+      limit: 1,
+      endsOn: new Date(due).toISOString(),
+    };
+    const currentConfig = { ...config, startsOn: { field: via === 'record' ? 'scheduledAt' : 'shiftedAt' } };
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Current start phase task' } } },
+    });
+    try {
+      await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+      const record = await collection.model.create(
+        { tenantId: 'B', scheduledAt: new Date(due - 6000), shiftedAt: new Date(currentStart) },
+        { hooks: false },
+      );
+      await observeThroughDeadline(trigger, due, async () => {
+        await trigger.reload();
+        if (via === 'record') {
+          await collection.model.update(
+            { scheduledAt: new Date(currentStart) },
+            { where: { id: record.id }, hooks: false },
+          );
+        } else {
+          await workflows.update({ config: currentConfig }, { where: { id: workflow.id }, hooks: false });
+        }
+        expect(Date.now()).toBeLessThan(due);
+      });
+      await waitForAssertion(() => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+      });
+      const executions = await workflow.getExecutions();
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date) - due])).toEqual(
+        expectedDates.map((date) => ['B', date]),
+      );
+      const rows = await results.findAll({ where: { label: 'Current start phase task' } });
+      expect(rows.map((row) => row.get('tenantId'))).toEqual(expectedDates.map(() => 'B'));
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect(workflow.config.repeat).toBe(6000);
+      expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+
+      if (!expectedDates.length) {
+        const nextDue = due + 5000;
+        await workflows.update(
+          { config: { ...currentConfig, endsOn: new Date(nextDue).toISOString() } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+        expect(Date.now()).toBeLessThan(nextDue);
+        await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+      }
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        expect(await workflow.countExecutions()).toBe(1);
+      });
+      const [execution] = await workflow.getExecutions();
+      expect([execution.tenantId, Date.parse(execution.context.date), execution.tenantContext.currentTenantId]).toEqual(
+        ['B', due + (expectedDates.length ? 0 : 5000), 'B'],
+      );
+      expect(Date.parse(execution.context.data[currentConfig.startsOn.field])).toBe(currentStart);
+      const generated = await results.findAll({ where: { label: 'Current start phase task' } });
+      expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+    } finally {
+      trigger.off(workflow);
+      await results.destroy({ where: { label: 'Current start phase task' }, hooks: false });
+    }
+  });
+
+  it.each([
     { name: 'numeric', repeat: 3000, endAfter: 3000, expectedDates: [0, 3000] },
     { name: 'none', repeat: null, endAfter: 6000, expectedDates: [0] },
   ])(

@@ -4846,3 +4846,16 @@ Ruling: OnField的dir只由首次props初始化；同一受控组件加载符号
 - [x] 本次默认GPG session30988实际Timeout128，事先捕获git103280/45932、gpg54616、pinentry106432父链/创建时间；四PID消失/活动Git签名0、HEAD仍06033d2/原暂存树aa324cb0c4e9741caabe1022ea7d106fdfad2d44未变/无未暂存，后继独立guard实际0。仅补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout/PID/session。
 
 按requesting-code-review模板作者串行自审，非独立复核：效果只更新本地dir、不调用onChange或改unit；非零数值编辑同步到同号时React状态相等，不产生循环。显式Exactly at/空值的原处理未重写，开始及字段结束共用组件获同一修复。测试最终受控输出可抓遗漏同步/同步反号，原单位控制防止单位丢失。本项无未修复Critical/Important。不予本项裁决：外部零/空值重置与用户零值方向意图的区分、初始无offset输入、完整表单重置/格式范围/复杂日期域、自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权及正式G消费者/业务试点/整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。
+
+## 326. 同次修改配置并禁用时注销原日期监听器
+
+Ruling: Plugin.toggle在enabled配置更新时已有previous.config注销协议，但禁用分支仍将当前配置交给off。同次把collection或调度mode改掉并禁用，会找错旧事件键或旧mode，原数据库监听器留下。仅把previous()读取提到分支前，并让禁用分支在本次有原config时使用与原启用分支同形状的旧配置对象；未改调度器、SQL、schema、依赖或自动重绑协议，未改变enabledCache删除及事务/权限行为。
+
+- [x] 真实安装workflow实例/原外部SQLite日期来源/原Model.update启用钩子，两案分别同次改为另一个实际存在collection或静态mode并enabled:false。主库reload确认禁用与新配置均已持久化后，核原外部db.listeners(event)不再包含原监听器，另一个本轮无关函数保持；finally只按原配置off和本轮函数引用清理。workflow-disable-previous-config-red.log干净2失败77过滤/79总、实际1/7.06秒，直接退出：两案原库均仍包含原listener，非fixture错误，不把§324同名数据源替换注销重称RED。
+- [x] 最小禁用旧配置传递后workflow-disable-previous-config-green.log两项通过77过滤/实际0/7.39秒，直接退出。workflow-disable-previous-config-regression.log十二SQLite文件208全通过/无跳过/实际0/327.79秒（测试577.18并行累计），session57379已实际退出：external79/mode-date13/owner9/listener6/date-lifecycle5/record-identity1/Plugin24/boundary5/tenant workflow-operation-authority30/static-lifecycle24/static-discovery1/mode-static11。208与聚焦/RED及旧170不累加，非整分支回归。原缺表/缺列和静态deadline失败恢复用例按预期记录SQL错误且通过，非本项新RED。
+- [x] workflow-disable-previous-config-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session40413已退出。两TS最终Prettier check/oxlint0，源snapshot一致：Plugin 31C2E876A681FC7903EB01E172C659B7B122154E82B50F86EC2471FC3545EFBF；external EAC1528353320A8BA74A0E0E89C8524A9B5AEE9A3EB2C6C664D33C1527C7EEB4。代码后未改。一次只读猜测plugin-tenant/tenant-boundary路径不存在后用rg定位module-tenant及tenant-module-boundary，非产品RED；不改依赖。
+- [x] 前§325 bf9c931757c01d3840e964a12a2185758561125e实际0/N，原默认30988实际Timeout128、四PID消失/活动签名0/HEAD与原树不变、两次独立guard0后单次跳过事实保留，不沿用该Timeout。开工独立审计实际0：干净树/九TSX一致/验证签名0/PG停/25466全部0/global true。历史N/G保持。本项未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测。
+
+- [x] 本次默认GPG session54585实际Timeout128，事前捕获git21996/60548、gpg1288、pinentry32196父链/创建时间；四PID消失/活动Git签名0、HEAD仍bf9c931/原暂存树d5525466f084d86ab9429e424cbd1cc80096e8f1未变/无未暂存，后继独立guard实际0。仅补两原记录本次事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口/终止进程，不沿用本次或旧Timeout/PID/session。
+
+按requesting-code-review模板作者串行自审，非独立复核：新禁用分支复用既有启用配置更新的off对象形状，普通无config变化仍传原workflow；原配置决定旧mode及旧事件名，修复不靠猜测来源/批量移除。两个真实持久化反例均核原监听器移除和无关函数保留，测试清理不参与被测断言。本项无未修复Critical/Important。不予本项裁决：同次改变workflow.type的跨触发器注册迁移、自动重绑/完整启停、未注册来源后续出现、原地重建/跨实例身份、完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、日期编辑器零空/完整重置与完整日期域、正式G消费者/业务试点/整分支独立复核。仅Plugin/外部测试两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。

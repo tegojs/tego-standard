@@ -417,16 +417,16 @@ export default class PluginWorkflowServer extends Plugin {
       this.getLogger(workflow.id).error(`trigger type ${workflow.type} of workflow ${workflow.id} is not implemented`);
       return;
     }
+    const prev = workflow.previous();
     if (enable ?? workflow.get('enabled')) {
       // NOTE: remove previous listener if config updated
-      const prev = workflow.previous();
       if (prev.config) {
         trigger.off({ ...workflow.get(), ...prev });
       }
       trigger.on(workflow);
       this.enabledCache.set(workflow.id, workflow);
     } else {
-      trigger.off(workflow);
+      trigger.off(prev.config ? { ...workflow.get(), ...prev } : workflow);
       this.enabledCache.delete(workflow.id);
     }
   }

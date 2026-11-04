@@ -109,6 +109,35 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it.each(['collection', 'mode'])(
+    'unregisters the previous date listener when disabling with a changed %s',
+    async (change) => {
+      const trigger = installedDateTrigger();
+      const original = { ...workflow.get(), config: { ...workflow.config } };
+      const event = 'externalScheduleDocuments.afterSaveWithAssociations';
+      const listener = trigger.events.get(`${event}#${workflow.id}`);
+      const unrelated = () => undefined;
+      external.on(event, unrelated);
+      try {
+        expect(typeof listener).toBe('function');
+        expect(external.listeners(event)).toContain(listener);
+        const config =
+          change === 'collection'
+            ? { ...workflow.config, collection: 'another:externalSharedSchedules' }
+            : { mode: 0, startsOn: new Date(Date.now() + 60_000).toISOString() };
+        await workflow.update({ enabled: false, config });
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect(workflow.enabled).toBe(false);
+        expect(workflow.config).toEqual(config);
+        expect(external.listeners(event)).not.toContain(listener);
+        expect(external.listeners(event)).toContain(unrelated);
+      } finally {
+        trigger.off(original);
+        external.off(event, unrelated);
+      }
+    },
+  );
+
   it('unregisters the original database listener after a same-named data source is replaced', async () => {
     const originalDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
     const replacementDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });

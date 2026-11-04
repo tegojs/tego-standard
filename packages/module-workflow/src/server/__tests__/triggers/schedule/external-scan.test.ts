@@ -8,6 +8,7 @@ import { waitForAssertion, waitForWorkflowIdle } from '../../utils';
 describe('date-field scheduling from an external database', () => {
   let app: MockServer;
   let external: Database;
+  const identityDatabases: Database[] = [];
   let workflow;
   const now = new Date('2026-11-02T08:00:00.000Z');
   const scheduledAt = new Date(now.getTime() + 60_000);
@@ -98,6 +99,7 @@ describe('date-field scheduling from an external database', () => {
   afterAll(async () => {
     await app?.destroy();
     await external?.close();
+    for (const db of identityDatabases) await db.close();
   });
 
   function installedDateTrigger() {
@@ -106,6 +108,114 @@ describe('date-field scheduling from an external database', () => {
     };
     return installed.modes.get(1)!;
   }
+
+  it.each(['collection', 'data source'])(
+    'rejects a cached timer when its %s is replaced under the same name',
+    async (replacementKind) => {
+      const sourceName = replacementKind === 'collection' ? 'another' : 'identityScheduleSource';
+      const collectionName =
+        replacementKind === 'collection' ? 'identityCollectionSchedules' : 'identitySourceSchedules';
+      let originalDb = external;
+      let replacementDb = external;
+      if (replacementKind === 'data source') {
+        originalDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+        replacementDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+        identityDatabases.push(originalDb, replacementDb);
+        await app.dataSourceManager.add(
+          new SequelizeDataSource({
+            name: sourceName,
+            collectionManager: { database: originalDb },
+            resourceManager: {},
+          }),
+        );
+      }
+      const options = {
+        name: collectionName,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'label', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+        ],
+      };
+      const original = originalDb.collection({ ...options, tableName: `${collectionName}_old` });
+      await original.model.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getModel('externalScheduleDocuments');
+      const plugin = app.pm.get('workflow');
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Source identity task' } } },
+      });
+      await app.db
+        .getModel('workflows')
+        .update(
+          { config: { ...workflow.config, collection: `${sourceName}:${collectionName}` } },
+          { where: { id: workflow.id }, hooks: false },
+        );
+      await original.model.create(
+        { id: 1, tenantId: 'B', label: 'Original source', scheduledAt: new Date(due) },
+        { hooks: false },
+      );
+      let replacement;
+      try {
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
+          replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
+          await replacement.model.sync();
+          await replacement.model.create(
+            { id: 1, tenantId: 'B', label: 'Replacement source', scheduledAt: new Date(due) },
+            { hooks: false },
+          );
+          if (replacementKind === 'data source') {
+            await app.dataSourceManager.add(
+              new SequelizeDataSource({
+                name: sourceName,
+                collectionManager: { database: replacementDb },
+                resourceManager: {},
+              }),
+            );
+          }
+          expect(Date.now()).toBeLessThan(due);
+        });
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        expect(await workflow.countExecutions()).toBe(0);
+        expect(await results.count({ where: { label: 'Source identity task' } })).toBe(0);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([0, 0]);
+
+        const nextDue = Math.ceil((Date.now() + 2000) / 1000) * 1000;
+        await replacement.model.update({ scheduledAt: new Date(nextDue) }, { where: { id: 1 }, hooks: false });
+        await observeThroughDeadline(trigger, nextDue, () => trigger.reload());
+        await waitForAssertion(async () => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+          const executions = await workflow.getExecutions();
+          expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+            ['B', nextDue],
+          ]);
+          expect(executions[0].context.data.label).toBe('Replacement source');
+          expect(executions[0].tenantContext.currentTenantId).toBe('B');
+        });
+        const generated = await results.findAll({ where: { label: 'Source identity task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Source identity task' }, hooks: false });
+      }
+    },
+  );
 
   it.each([
     { name: 'added', previous: [], current: ['category'], expectedCategory: true },

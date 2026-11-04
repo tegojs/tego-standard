@@ -476,9 +476,9 @@ export default class ScheduleTrigger {
 
   schedule(workflow: WorkflowModel, record, nextTime, toggle = true, options = {}) {
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
-    const { filterTargetKey } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const { filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
     const recordKey = JSON.stringify(`${recordPk}`);
     if (toggle) {
@@ -490,7 +490,14 @@ export default class ScheduleTrigger {
           const isCurrent = this.captureCurrent(workflow);
           const timer = setTimeout(async () => {
             try {
-              if (isCurrent()) await this.trigger(workflow, record, nextTime);
+              const currentSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+              if (
+                isCurrent() &&
+                currentSource === dataSource &&
+                currentSource.collectionManager.getCollection(collectionName) === collection
+              ) {
+                await this.trigger(workflow, record, nextTime);
+              }
             } catch (error) {
               this.workflow.getLogger(workflow.id).error('failed to trigger scheduled record', error);
             } finally {

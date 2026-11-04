@@ -109,6 +109,64 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it('unregisters the original database listener after a same-named data source is replaced', async () => {
+    const originalDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+    const replacementDb = mockDatabase({ dialect: 'sqlite', storage: ':memory:', logging: false });
+    identityDatabases.push(originalDb, replacementDb);
+    const sourceName = 'listenerCleanupSource';
+    const collectionName = 'listenerCleanupDocuments';
+    const event = `${collectionName}.afterSaveWithAssociations`;
+    for (const db of [originalDb, replacementDb]) {
+      const collection = db.collection({
+        name: collectionName,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+        ],
+      });
+      await collection.model.sync();
+    }
+    await app.dataSourceManager.add(
+      new SequelizeDataSource({ name: sourceName, collectionManager: { database: originalDb }, resourceManager: {} }),
+    );
+    const trigger = installedDateTrigger();
+    trigger.off(workflow);
+    await workflow.update(
+      { config: { ...workflow.config, collection: `${sourceName}:${collectionName}` } },
+      { hooks: false },
+    );
+    const initialScan = vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
+    try {
+      trigger.on(workflow);
+    } finally {
+      initialScan.mockRestore();
+    }
+    const [listener] = originalDb.listeners(event);
+    const unrelated = () => undefined;
+    replacementDb.on(event, unrelated);
+    try {
+      expect(originalDb.listeners(event)).toHaveLength(1);
+      await app.dataSourceManager.add(
+        new SequelizeDataSource({
+          name: sourceName,
+          collectionManager: { database: replacementDb },
+          resourceManager: {},
+        }),
+      );
+      trigger.off(workflow);
+      expect(originalDb.listeners(event)).toHaveLength(0);
+      expect(replacementDb.listeners(event)).toEqual([unrelated]);
+      trigger.off(workflow);
+      expect(originalDb.listeners(event)).toHaveLength(0);
+      expect(replacementDb.listeners(event)).toEqual([unrelated]);
+    } finally {
+      trigger.off(workflow);
+      originalDb.off(event, listener);
+      replacementDb.off(event, unrelated);
+    }
+  });
+
   it.each([
     { replacementKind: 'collection', duringRead: false, duringDiscovery: false },
     { replacementKind: 'data source', duringRead: false, duringDiscovery: false },

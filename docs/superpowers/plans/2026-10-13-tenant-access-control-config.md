@@ -4821,3 +4821,15 @@ Ruling: §322的来源捕获点在每次事件调用入口；同名数据源已�
 - [x] 本次默认GPG session16694实际Timeout128，事先捕获git66416/27884、gpg107000、pinentry92264父链/创建时间；四PID消失/活动Git签名0、HEAD仍93fbc6e/原暂存树a2493625f37054b20360260b2611d01fe4f9a49d不变/无未暂存，后继独立guard实际0。仅补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：捕获来源与实际监听器注册处在同一同步调用中，复用§322等待后检查，原取消/生命周期、上下文及事务协议未删。旧数据库继续真实写入仍可成功，只有其旧注册向新来源安排任务被拒；显式新扫描恢复正向执行。原同名collection在途阶段保留，未把resetFields后的无效旧Repository路径伪造成产品反例。本项无未修复Critical/Important。不予本项裁决：同名数据源替换后旧库监听器注销、自动重绑及完整启停、未注册来源后续出现、原地模型/物理表重建、跨实例持久身份、完整配置原子快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、完整日期输入域及正式G消费者/业务试点/整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用，所有日志/原集群/旧目录/TEMP保留。
+
+## 324. 从原数据库注销日期保存监听器
+
+Ruling: §323把监听器绑定到注册来源，但off仍按同名数据源重新查当前db；来源替换后注销落在新库，旧库保留原函数。注册时以原事件键保存仅调用原db.off(event, listener)的清理闭包，off调用并删除该闭包。公共events Map仍保存原监听器，原取消标识及timer清理保持；没有新增SQL、schema、依赖、自动重绑或批量移除其他监听器。
+
+- [x] 真实external SQLite两个独立数据库/SequelizeDataSource/同名DataSourceManager.add，专用listenerCleanupSource/listenerCleanupDocuments。注册原库监听器后替换来源，原off应使旧库实际listeners(event)从1到0；新库同事件的无关函数必须保留，重复off仍正确。date-listener-source-cleanup-red.log干净1失败76过滤/77总、实际1/7.75秒：原库仍有一个AsyncFunction listener，非fixture错误。初始inspect仅安装夹具时抑制，注册/注销均真实，finally只按本轮函数引用清理，内存数据库交原suite关闭，无旧资源物理清理。
+- [x] 最小闭包实现后date-listener-source-cleanup-green.log 1通过76过滤、实际0/7.61秒，直接退出。date-listener-source-cleanup-regression.log九SQLite文件170全通过/无跳过/实际0/324.69秒（测试406.27并行累计），session89237已实际退出：external77/mode-date13/owner9/listener6/date-lifecycle5/record-identity1/Plugin24/boundary5/tenant workflow-operation-authority30。原缺表扫描失败恢复用例按预期记录SQL错误且通过，不是本项RED。170与聚焦/RED及历史169不累加，非整分支回归。
+- [x] date-listener-source-cleanup-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session24979已退出。两TS最终Prettier check/oxlint0；源snapshot一致：Date 19E05F7377C64704ED862783120941809820A1703073ABCC498A43BD40680DD2；external AD1EFBFEA08176B35AF909A5623B2ED1C7E3C2942610BAE8324F63AA9A3F63A8。代码后未改。本项未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测。只读错误大小写目录查询后按实际schedule路径读取，非产品RED。
+
+- [x] 本次默认GPG session20180实际Timeout128，事先捕获git35128/81276、gpg15652、pinentry105108父链/创建时间；四PID消失/活动Git签名0、HEAD仍095508b/原暂存树dc71a08f970be719747af3736e49c49255243102未变/无未暂存，后继独立guard实际0。仅补两记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不沿用本次或旧Timeout/PID/session。
+
+按requesting-code-review模板作者串行自审，非独立复核：清理闭包与注册使用相同db/event/listener，off同步删除两Map条目，重复注销无副作用；不再依赖当前来源存在，不影响新库无关监听器。原events协议和取消/timer路径未删，本项无未修复Critical/Important。不予本项裁决：任意workflow配置变化后的完整注销、自动重绑/完整启停、未注册来源后续出现、同一对象原地重建/跨实例持久身份、完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、完整日期域及正式G消费者/业务试点/整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；所有日志/原PG集群/旧目录/TEMP保留。

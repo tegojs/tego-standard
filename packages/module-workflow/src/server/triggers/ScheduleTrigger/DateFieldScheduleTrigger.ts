@@ -167,6 +167,8 @@ function getBoundTenantContext(record) {
 export default class ScheduleTrigger {
   events = new Map();
 
+  private eventCleanups = new Map<string, () => void>();
+
   private timer: NodeJS.Timeout | null = null;
 
   private cache: Map<string, any> = new Map();
@@ -692,7 +694,9 @@ export default class ScheduleTrigger {
 
     this.events.set(name, listener);
     // @ts-ignore
-    dataSource.collectionManager.db.on(event, listener);
+    const { db } = dataSource.collectionManager;
+    db.on(event, listener);
+    this.eventCleanups.set(name, () => db.off(event, listener));
     this.inspect([workflow]);
   }
 
@@ -707,14 +711,12 @@ export default class ScheduleTrigger {
     }
 
     const { collection } = workflow.config;
-    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const [, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
-      const listener = this.events.get(name);
-      // @ts-ignore
-      const { db } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager;
-      db.off(event, listener);
+      this.eventCleanups.get(name)?.();
+      this.eventCleanups.delete(name);
       this.events.delete(name);
     }
   }

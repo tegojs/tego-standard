@@ -5098,3 +5098,14 @@ Ruling: 旧图表未选根原先直接next，专用measures/dimensions/orders不
 - [x] tenant完整客户端/服务端/依赖/dts build.log实际0（9878退出）。三TS末Prettier check/oxlint0、diff check0，代码后未改；源snapshot一致legacy-read BDDB6C7BC93562E5CDD9A5C5F538E1B43722DFFB47FD5204EF28A1AA429B08EE；runtime A8DD2D2638FC8971BFCDDEA874D2A9A4F03A05C19FA47B671E25E6DCA066B692；认证HTTP DF68C24E5589869A1D290E479331201A89F8BED0856F305BD40C3D497A3FBC66。
 
 按requesting-code-review模板作者串行自审，非独立复核：字段向量只按旧图表实际首段关联发现，不尝试执行混合聚合；真实主库/其他数据库路由保持，已选且无配置仍保留旧路，本次配置阶段和WeakMap finally释放。检查发生在旧图表结果缓存之前，不因已缓存内容跳过最新明确选择。未裁决后续图表源list ACL或变量解析才注入的关联条件、自定义SQL/专用导出列、外部来源/完整生命周期/跨实例及业务SQL并发原子隔离；均不称已覆盖。完整混合支持/正式保存启用/业务试点/整分支独立复核仍未完成，正式自动安装继续关闭。本批未启PG/Redis/建库/新附件，未改核心/正式依赖锁文件/主检出/业务库/旧附件，日志/原集群/旧目录全部保留。两次只读误猜export.ts及root-export-handler.ts不存在，已读实际export-xlsx.ts和root-read-handler.ts，不计产品RED。
+
+## 345. 旧导出显示列自动展开的关联在文件发布前检查已选规则边界
+
+Ruling: 普通旧export参数中的values.columns/JSON columns由导出器稍后转换成appends，340通用读取规划未看到这批派生关联。内部root runtime在真实export最终ACL后，私有复制params，复用导出包既有normalizeExportColumns/filterExportColumnsByCollection/columns2Appends，额外对派生appends执行同一assertLegacyReadBoundary，选中且本次有配置的目标明确拒绝，不执行混合导出或伪造旧根配置。导出包仅重导出上述三项原工具及原ExportColumnsError，未新增权限执行器/路由/自动安装；非法列继续400，不改渲染/worker/阈值/正式依赖。
+
+- [x] 真实密码认证legacy_sources.document→protected_documents，目标新规则清空并直接列表[]。临时移除该目标明确选择时，真实node-xlsx解析旧导出为[['Target amount'],[200]]；恢复选择后，原导出仍发布attachment; filename=export_B.xlsx。legacy-protected-export-columns-red.log两失败54过滤/56总、实际1/12.52秒（28253退出），分别为values.columns和JSON query columns，失败在不得发布下载头，未把该次选中后文件内容另称已解析。每案finally仅恢复隔离规则/选择，不产生新物理附件。
+- [x] 最小实现后green.log两过54过滤/56总、实际0/27.51秒（28525退出），未选目标基线仍真实解析到旧文件；选中后400且无content-disposition。原普通根/关联新导出、旧表标量导出、角色export独立授权及340/342/344控制继续保留。
+- [x] 最终legacy-protected-export-columns-regression.log三SQLite217过/8个PG专用明确跳过/225总、实际0/54.40秒（84739退出）：认证48/普通HTTP40/导出129，单worker逐文件。与344原174及各聚焦/RED/历史轮不累加，非整分支回归。
+- [x] export-build.log导出包完整客户端/服务端/依赖/dts实际0后才启动tenant-build.log租户完整构建实际0，同一调用69272已实际退出0。三TS末Prettier check/oxlint0，diff check0，代码后未改。源snapshot一致：runtime1F705F588FCB5C9DD6E4F4FE79FFB7012A5C6081E66C2E34415CF60240E7B3F2；认证HTTP895B183ECEE97E40B1CA56ABABDDB7F4DEC29E585C30BC96B2871FE155FA90F5；export index00A44F7AF484877BCA4F069DDCF61306D4BCB6FC9DCF326377BACB396B7D52A3。
+
+按requesting-code-review模板作者串行自审，非独立复核：列输入使用真实导出器协议和实际collection字段过滤，保留body列优先及JSON列兼容，不使用新模型严格四段列限制去收窄旧导出；只检查不授权，列解析错误保持400，WeakMap/配置阶段仍finally释放，无根配置或引用认领。只实测普通旧根到BelongsTo目标显示列；具体旧关联资源的导出列根转换、完整关系/混合支持、后续hook与worker生命周期、外部来源、图表源list ACL/变量后注入关系、自定义SQL/跨实例配置及业务SQL并发原子隔离仍待核查，不能据此正式启用。导出增加一次列派生关联规划，不称零成本。未启PG/Redis/建库/新附件，未改核心/正式依赖锁文件/主检出/业务库/旧附件；日志/原集群/旧目录全部保留。一次只读误猜src/server.ts不存在后已读实际server/index.ts，非产品RED。

@@ -33,6 +33,7 @@ export type {
   ExportXlsxColumn,
   ExportXlsxRequest,
 } from './actions';
+export { columns2Appends, ExportColumnsError, filterExportColumnsByCollection, normalizeExportColumns } from './utils';
 
 type ExportTenantContext = {
   currentTenant?: any;

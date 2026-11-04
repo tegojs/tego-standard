@@ -1,3 +1,9 @@
+import {
+  columns2Appends,
+  ExportColumnsError,
+  filterExportColumnsByCollection,
+  normalizeExportColumns,
+} from '@tachybase/plugin-action-export';
 import { Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
@@ -11,7 +17,7 @@ import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
 import type { AccessRootReadContext } from './root-read-context';
 import { AccessRootReadHandler } from './root-read-handler';
-import { invalid, plain } from './write-support';
+import { cloneDeep, invalid, plain } from './write-support';
 
 interface RootRequest {
   resourceName: string;
@@ -102,6 +108,20 @@ export class AccessRootResourceRuntime {
           if (chart)
             assertLegacyChartReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
           else assertLegacyReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
+          if (actionName === 'export') {
+            const params = cloneDeep(ctx.action.params);
+            try {
+              const columns = filterExportColumnsByCollection(
+                normalizeExportColumns(params.values?.columns ?? params.columns),
+                legacyCollection,
+              );
+              const appends = columns2Appends(columns, ctx);
+              assertLegacyReadBoundary(this.db, legacyCollection, { appends }, protectedCollection, ctx);
+            } catch (error) {
+              if (error instanceof ExportColumnsError) invalid(error.message);
+              throw error;
+            }
+          }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
         });
         try {

@@ -41,10 +41,15 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .set('X-Authenticator', 'basic')
       .set('X-Role', role)
       .set('X-Tenant-Id', tenant);
-  const exportFile = (tenant = 'B', role = 'business-member', collection = 'protected_documents') =>
+  const exportFile = (
+    tenant = 'B',
+    role = 'business-member',
+    collection = 'protected_documents',
+    params: object = { title: 'Access report', sort: ['id'], values: { columns: ['amount'] } },
+  ) =>
     agent(tenant, role)
       .resource(collection)
-      .export({ title: 'Access report', sort: ['id'], values: { columns: ['amount'] } })
+      .export(params)
       .buffer(true)
       .parse((response, done) => {
         const chunks: Buffer[] = [];
@@ -475,6 +480,36 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     expect(response.status).toBe(200);
     expect(xlsx.parse(response.body)[0].data).toEqual([['amount'], [200]]);
   });
+
+  it.each(['body', 'queryJson'] as const)(
+    'rejects legacy export %s columns that expand a selected target',
+    async (kind) => {
+      const original = (await store.read(identity))!;
+      const columns = [{ dataIndex: ['document', 'amount'], title: 'Target amount' }];
+      const params = kind === 'body' ? { values: { columns } } : { columns: JSON.stringify(columns) };
+      const request = () => exportFile('B', 'business-member', 'legacy_sources', params);
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent()
+          .resource('protected_documents')
+          .list({ fields: ['id'] });
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        expect(xlsx.parse(legacy.body)[0].data).toEqual([['Target amount'], [200]]);
+        selectedKeys.add(identity.collectionKey);
+        const protectedFile = await request();
+        expect(protectedFile.headers).not.toHaveProperty('content-disposition');
+        expect(protectedFile.status).toBe(400);
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        const latest = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
+      }
+    },
+  );
 
   it('aggregates authenticated G or V rows without reusing another tenant chart result', async () => {
     const b = await chart();

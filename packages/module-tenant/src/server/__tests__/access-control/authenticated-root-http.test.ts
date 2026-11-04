@@ -1,17 +1,12 @@
 import { pathToFileURL } from 'node:url';
 import type { MockServer } from '@tachybase/test';
-import type { Collection, Model } from '@tego/server';
+import type { Model } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { registerAuthenticatedAccessRootRuntime } from '../../access-control/authenticated-root-runtime';
 import { accessConfigHistory } from '../../access-control/config-history';
-import {
-  accessCollectionKey,
-  AccessConfigStore,
-  type AccessCollectionIdentity,
-} from '../../access-control/config-store';
-import { resolveModelMetadata } from '../../access-control/model-metadata';
-import { AccessRootResourceRuntime } from '../../access-control/root-resource-runtime';
+import type { AccessCollectionIdentity, AccessConfigStore } from '../../access-control/config-store';
+import { AccessMainRootResourceRegistry } from '../../access-control/main-root-resource-registry';
 import { createTenantApp } from '../utils';
 import { configFor, ownerCondition } from './fixtures';
 
@@ -23,6 +18,8 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
   let user: Model;
   let identity: AccessCollectionIdentity;
   let unconfiguredIdentity: AccessCollectionIdentity;
+  let store: AccessConfigStore;
+  const selectedKeys = new Set<string>();
   let unregister: (() => void) | undefined;
   const agent = (tenant = 'B', role = 'business-member') =>
     app.agent().login(user).set('X-Role', role).set('X-Tenant-Id', tenant);
@@ -76,23 +73,11 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       collectionName: 'unconfigured_documents',
     };
     const identities = [identity, unconfiguredIdentity];
-    const resolveIdentity = (collection: Collection) =>
-      identities.find((value) => value.collectionName === collection.name);
-    const key = (collection: Collection) =>
-      accessCollectionKey(
-        resolveIdentity(collection) ?? {
-          dataSourceKey: 'main',
-          collectionKey: collection.name,
-          collectionName: collection.name,
-        },
-      );
+    identities.forEach((value) => selectedKeys.add(value.collectionKey));
     app.db.collection(accessConfigHistory);
     await app.db.getCollection('tenantAccessRevisions').model.sync();
-    const store = new AccessConfigStore(app.db, (requested) =>
-      resolveModelMetadata(app.db.getCollection(requested.collectionName), {
-        resolveCollectionKey: key,
-      }),
-    );
+    const registry = new AccessMainRootResourceRegistry(app);
+    store = registry.store;
     await store.save(
       identity,
       {
@@ -135,8 +120,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     );
     const adapter = new AccessAclScopeAdapter(app.acl, 'main', store, app.db);
     unregister = adapter.register();
-    const runtime = new AccessRootResourceRuntime(app.db, adapter, resolveIdentity, key, app.acl.middleware());
-    registerAuthenticatedAccessRootRuntime(app.resourcer, runtime, identities);
+    registerAuthenticatedAccessRootRuntime(app.resourcer, (ctx) => registry.select(ctx, adapter, [...selectedKeys]));
   });
 
   afterAll(async () => {
@@ -226,5 +210,87 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .destroy({ filterByTk: record!.get('id') });
     expect(removed.status).toBe(200);
     expect(await app.db.getRepository('protected_documents').count({ filter: { name: 'New B' } })).toBe(0);
+  });
+
+  it('discovers a newly selected table on the next request without activating saved rules by themselves', async () => {
+    const record = await app.db.getRepository('collections').findOne({ filterByTk: 'legacy_documents' });
+    const legacy = { dataSourceKey: 'main', collectionKey: record.get('key'), collectionName: 'legacy_documents' };
+    await store.save(
+      legacy,
+      { ...configFor({ type: 'constant', value: true }), revision: 0 },
+      { userId: user.get('id') },
+    );
+    const before = await agent()
+      .resource('legacy_documents')
+      .list({ fields: ['id'], sort: ['id'] });
+    expect(before.status).toBe(200);
+    expect(before.body.data).toEqual([{ id: 2 }]);
+    selectedKeys.add(legacy.collectionKey);
+    try {
+      const after = await agent()
+        .resource('legacy_documents')
+        .list({ fields: ['id'], sort: ['id'] });
+      expect(after.status).toBe(200);
+      expect(after.body.data).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+    } finally {
+      selectedKeys.delete(legacy.collectionKey);
+    }
+  });
+
+  it('rejects a selected runtime table whose persistent key no longer matches metadata', async () => {
+    const collection = app.db.getCollection('protected_documents');
+    const key = collection.options.key;
+    collection.options.key = 'different-runtime-key';
+    try {
+      const response = await agent()
+        .resource('protected_documents')
+        .list({ fields: ['id'], sort: ['id'] });
+      expect(response.status).toBe(409);
+      expect(response.body).not.toHaveProperty('data');
+    } finally {
+      collection.options.key = key;
+    }
+  });
+
+  it('does not fall back when a selected registered table is absent from persistent selection', async () => {
+    const model = app.db.getCollection('collections').model;
+    await model.update(
+      { key: 'different-persistent-key' },
+      {
+        where: { name: identity.collectionName },
+        hooks: false,
+      },
+    );
+    try {
+      const response = await agent()
+        .resource('protected_documents')
+        .list({ fields: ['id'] });
+      expect(response.status).toBe(409);
+      expect(response.body).not.toHaveProperty('data');
+    } finally {
+      await model.update(
+        { key: identity.collectionKey },
+        {
+          where: { name: identity.collectionName },
+          hooks: false,
+        },
+      );
+    }
+  });
+
+  it('uses a new configuration snapshot for the next authenticated request', async () => {
+    const original = (await store.read(identity))!;
+    await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+    try {
+      const response = await agent()
+        .resource('protected_documents')
+        .list({ fields: ['id'] });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+      expect(response.body.meta.count).toBe(0);
+    } finally {
+      const latest = (await store.read(identity))!;
+      await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
+    }
   });
 });

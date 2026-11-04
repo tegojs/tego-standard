@@ -5119,3 +5119,13 @@ Ruling: §344只检查图表输入，但旧checkPermission稍后会将来源list
 - [x] legacy-chart-final-role-filter-build.log租户包完整客户端/服务端/依赖/dts构建实际0（42467已退出）。两TS最终Prettier check/oxlint0、diff check0，源码与snapshot一致，代码后未改：runtime C14106C0F876BDAAC7643BFCFD4EE886201E14A1F3B8A30262BFC93E5B06433B；认证HTTP 6EE1C384D0BFB8D64AB0FC10C62C53279472D80CFADB478808841E47B6AE203F。
 
 按requesting-code-review模板作者串行自审，非独立复核：核实际持久角色/密码认证、最终ACL中间件及绑定、根计数与真实关联filter对照、缓存前最新选择检查、原prepared和WeakMap finally释放及派生Action提取兼容。没有本批未修复Critical/Important；新增一次来源list最终ACL及读取规划有成本，不称零成本。未裁决来源ACL在检查后变化、后续变量或自定义hook注入关系、自定义SQL、具体旧关联导出根转换/全部关系及worker生命周期；不是完整混合查询支持或并发原子隔离。跨实例配置/业务SQL并发原子隔离、正式保存启用/业务试点及整分支独立复核仍未完成。未启PG/Redis/建库/新附件，无本轮新PG/MySQL/MariaDB实测；未改核心/正式依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留。核心独立status0仍干净d742a1c569579e05187b8260f14d48af0d8ccbae。
+
+## 347. 真实具体旧关联资源导出列验证目标根解析和已选规则拒绝
+
+Ruling: 先核核心Database.getCollection(name)协议，原本支持一层“来源.关联”并返回实际目标collection，columns2Appends使用action.resourceName并不构成已证缺陷；不改核心/导出器或伪造旧根配置。本批只在原认证夹具增加legacy_documents.sources HasMany到未选legacy_sources，再由其document BelongsTo到已选protected_documents。按已有导出链验证具体来源id2和两种列输入，不为直接通过的行为制造RED。
+
+- [x] 真实Collection Manager字段、持久密码登录及原角色/租户选择；根记录legacy_documents2及来源legacy_sources1实际归属B，来源legacyDocumentId2/documentId2。将目标新规则清空，直接新链列表[]；临时移除该目标明确选择后，具体legacy_documents.sources/2的body columns及JSON query columns均真实导出，经node-xlsx解析为[['Target amount'],[200]]。恢复选择后均400且没有content-disposition。每案finally恢复隔离配置和选择，不产生物理附件。
+- [x] legacy-association-export-columns-focused.log两项直接通过58过滤/60总、实际0/11.23秒（13719已退出）；不是新产品RED或修复。最终legacy-association-export-columns-regression.log认证单SQLite文件52过/8个PG专用明确跳过/60总、实际0/24.33秒（73918已退出），检查新增真实关联字段对全部认证读写/图表/文件导出路径的影响。52/聚焦两项/346原178及各旧轮不累加，非整分支回归。
+- [x] 仅一测试TS及两原记录，没有产品/导出类型/依赖/构建敏感改动，按聚焦验证规则不重复包构建。最终Prettier check/oxlint0、diff check0，代码后未改；源码与snapshot SHA256一致BC1C40C8D769FCA2EA2DD519FB031A0BF3AD8765A2CFCF4BCBAEC07BDE161497。
+
+按requesting-code-review模板作者串行自审，非独立复核：具体来源通过真实resource(source, id)协议进入原Repository，列由实际目标根解析，未选基线用真实Buffer/XLSX，选中后在发布前拒绝；不把该拒绝称完整混合导出支持。没有本批未修复Critical/Important。不予本项裁决：其他关系/外部来源/大导出worker生命周期、后续变量/hook与权限并发变化、完整混合读写及跨实例配置/业务SQL并发原子隔离。真实持久密码fixture仍含测试active状态服务，非正式账号状态、浏览器或业务试点。正式自动安装、保存启用与整分支独立复核仍未完成。未启PG/Redis/建库/新附件，未改产品/核心/正式依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留。

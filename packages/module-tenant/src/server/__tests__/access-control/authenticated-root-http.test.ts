@@ -46,9 +46,10 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     role = 'business-member',
     collection = 'protected_documents',
     params: object = { title: 'Access report', sort: ['id'], values: { columns: ['amount'] } },
+    sourceId?: string | number,
   ) =>
     agent(tenant, role)
-      .resource(collection)
+      .resource(collection, sourceId)
       .export(params)
       .buffer(true)
       .parse((response, done) => {
@@ -208,7 +209,19 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
         fields: [{ name: 'document', type: 'belongsTo', target: 'protected_documents', foreignKey: 'documentId' }],
       },
     });
-    await app.db.getCollection('legacy_sources').model.bulkCreate([{ id: 1, tenantId: 'B', documentId: 2 }]);
+    await app.db.getRepository('fields').create({
+      values: {
+        name: 'sources',
+        type: 'hasMany',
+        collectionName: 'legacy_documents',
+        target: 'legacy_sources',
+        foreignKey: 'legacyDocumentId',
+      },
+      context: {},
+    });
+    await app.db
+      .getCollection('legacy_sources')
+      .model.bulkCreate([{ id: 1, tenantId: 'B', documentId: 2, legacyDocumentId: 2 }]);
     app.db.collection(accessConfigHistory);
     await app.db.getCollection('tenantAccessRevisions').model.sync();
     const registry = new AccessMainRootResourceRegistry(app);
@@ -488,6 +501,36 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       const columns = [{ dataIndex: ['document', 'amount'], title: 'Target amount' }];
       const params = kind === 'body' ? { values: { columns } } : { columns: JSON.stringify(columns) };
       const request = () => exportFile('B', 'business-member', 'legacy_sources', params);
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent()
+          .resource('protected_documents')
+          .list({ fields: ['id'] });
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        expect(xlsx.parse(legacy.body)[0].data).toEqual([['Target amount'], [200]]);
+        selectedKeys.add(identity.collectionKey);
+        const protectedFile = await request();
+        expect(protectedFile.headers).not.toHaveProperty('content-disposition');
+        expect(protectedFile.status).toBe(400);
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        const latest = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it.each(['body', 'queryJson'] as const)(
+    'checks legacy association export %s columns against the actual target collection',
+    async (kind) => {
+      const original = (await store.read(identity))!;
+      const columns = [{ dataIndex: ['document', 'amount'], title: 'Target amount' }];
+      const params = kind === 'body' ? { values: { columns } } : { columns: JSON.stringify(columns) };
+      const request = () => exportFile('B', 'business-member', 'legacy_documents.sources', params, 2);
       try {
         await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
         const direct = await agent()

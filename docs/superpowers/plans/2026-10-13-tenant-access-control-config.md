@@ -5033,3 +5033,18 @@ Ruling: 显式内部根运行时仅在两段关联动作及写分发清单增加
 按requesting-code-review模板作者串行自审，非独立复核：两行接线进入原严格类型分派，不删除来源或目标授权，不改原事务/锁序/差集/回滚/最后持久检查；派生准备沿finally释放，未选择/无配置及原关联读取保持。无未修复Critical/Important。不予本项裁决：其他关系的全部认证验收、未选根跨入选中关联表、外部来源/全部工作流写节点、跨实例配置与业务SQL并发原子隔离、业务试点及整分支独立复核。正式自动安装/规则保存启用仍关闭，未推送/合并/发版。
 
 本轮PG启动前核精确原目录、无服务/25466全部0/snapshot验证0；显式-h127.0.0.1-p25466启动，新PID31012、创建时间17:06:42.798934及精确命令和全部端口已核，SQL核目录/tenant_test/127.0.0.1与32掩码/25466/postgres非恢复/零其他客户端。只创建tego_tenant_access_test_8530af31d4；全部runner/build实际退出后新核同PID/创建时间/目录命令/所有端口、库owner tenant_test/零客户端，仅删除本轮库、remaining0，正常fast停PG实际0/pg_ctl无服务/端口全部0。集群、authenticated-association-link-pg.log及所有日志/旧目录保留。无新Redis服务/物理附件，核心仍干净d742a1c，未改正式依赖锁文件/主检出/业务库/旧附件。
+
+## 340. 旧根跨入已选规则表的 HTTP 与工作流读取拒绝旧路绕过
+
+Ruling: 新增内部assertLegacyReadBoundary，复用实际Repository.buildQueryOptions的filter/fields/appends/except/sort/include规划结果，按登记模型检查目标/中间表及排序路径；输入私有复制，规划不授权或执行混合读取，不伪造根配置或另写筛选语法。HTTP在真实ACL后、旧tenant guard及handler前检查，准备已选表的本次配置，finally释放；未选或无配置目标仍走旧链。工作流在原同步resolver返回undefined前检查主库未选根的实际query，跨入明确服务器选择的目标时拒绝，普通未选查询仍返回undefined。保留原同步executor协议/真实节点权威/G/V，不引入人工ACL或旧Repository重试；正式自动安装仍关闭。
+
+- [x] 真实Collection Manager建立未选legacy_sources，B/id1关联protected_documents的B/id2。将目标规则清空后，真实认证直接目标列表先确认为[]，旧根标量仍{id1}；再经旧根展开/筛选。legacy-protected-boundary-red.log两失败32过滤/34总、实际1/17.01秒（80036退出）。改断言同时输出状态及真实payload后confirmed-red.log同两失败、实际1/11.95秒（58871退出）：旧展开实际返回被新规则拒绝的doc2金额200/名称，旧关联筛选仍返回{id1}，不是纯状态差异或夹具错误。实现后green.log两过32过滤、实际0/12.57秒（83514退出）。
+- [x] HTTP扩展到appends/fields/点路径filter/嵌套逻辑filter/sort/count/角色自带关系filter七种入口，均400且无data；真实角色list条件在ACL完成后仍被检查。另验证仅保存但未选择目标保持旧展开。expanded-green.log32过/8个PG专用明确跳过/40总、实际0/15.41秒（16987退出）。三SQLite原兼容regression.log100过/8跳过/108总、实际0/71.59秒（92117退出），含原guard28。作者自审补齐规划器真实context参数并将旧链检查限制为读取动作，final-auth.log32过/8跳过、实际0/15.14秒（23878退出）。
+- [x] 真实Processor新增legacyRuntimeSources/B关联runtimeDocuments/B，目标规则清空；legacy-protected-workflow-boundary-red.log两失败5过滤/7总、实际1/10.53秒（59561退出）：旧展开持久job结果含Owned B目标，旧filter仍返回Legacy B。仅在main runtime同步选择前复用同一检查后green.log7全过/无跳过、实际0/10.75秒（46781退出）。补普通旧根标量及无选中目标展开控制，不把直接通过控制称新RED。未修改QueryInstruction/Plugin或同步选择接口。
+- [x] 最终legacy-protected-boundary-final-regression.log五SQLite113过/8个PG专用明确跳过/121总、实际0/36.78秒（99694退出）：认证HTTP32/普通HTTP40/main workflow8/原workflow-operation-authority30/原query-resolver-plugin3。113/100/32/7/聚焦/RED/历史轮不累加，非整分支回归。tenant完整客户端/服务端/依赖/dts build.log实际0（30086退出）；五TS末Prettier check/oxlint0、diff check0，代码后未改。
+- [x] 源snapshot一致：legacy boundary 02654463A92B907575AAD83A0E896DC9F641E490E042422B073F1CE84A9F7F26；root runtime E02A9DFF3D39AE8F846C23607166B5810F14E9EE35A7F62C097710B5F1DE83FE；main workflow 060CCDE51F3045F8C78886704F0299E62B35F7622E0A9B8FF1AA032C943959B8；认证HTTP 7A25DBF11CFFD597D65686B9165EFE4172DAE4785E013CD975A93FF29FD78C42；workflow test 38E74C82ABD818602BD431A0CCC9F47161363B10224894553A52BAB021C1A3C6。
+- [x] 交接后核实际七文件diff及五源码hash一致，再独立补跑认证HTTP/main workflow两文件，handoff-verify.log40过/8个PG专用跳过/48总、实际0/22.69秒（75364已退出）；与113项集中回归不累加，代码未再修改。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查规划器原生上下文及私有复制、关联/中间模型登记、最终ACL时序、作用域finally释放及同步拒绝后无旧路重试。核心CodeGraph两次只读核实际FilterParser/OptionsParser，再读未展示的Repository.buildQueryOptions，无须改核心或索引。无本批未修复Critical/Important；旧根的配置准备增加元数据SQL和规划成本，不称零成本。HTTP只对已选且存在配置的目标执行新边界；工作流显式选择缺配置本来就拒绝，此边界仍对明确选中名称拒绝，不以拒绝作为持久身份或授权凭证。
+
+本批为明确拒绝尚未适配的混合路径，不能称旧/新根关联查询已完整可用。不予本项裁决：模型默认scope/后续自定义hook才注入的关系、未选图表的关联度量及专用导出列/全部写路径、外部数据源/完整生命周期/跨实例配置及业务SQL并发原子隔离；均须沿真实入口继续核查。正式业务试点、保存启用及整分支独立复核仍未完成，禁止据此正式启用。本轮未启PG/Redis/建库/新附件，原PG停止及25466全部0保持；未改核心/正式依赖锁文件/主检出/业务库/旧附件。全部日志/原集群/旧目录保留。

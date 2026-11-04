@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { assertLegacyReadBoundary } from './legacy-read-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
@@ -24,6 +25,7 @@ interface RootRequest {
 /** Explicit root-resource composition. The tenant plugin does not install this runtime. */
 export class AccessRootResourceRuntime {
   private readonly requests = new WeakMap<object, RootRequest>();
+  private readonly legacyReads = new WeakMap<object, () => void>();
   private readonly reader: AccessRootReadHandler;
   private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
@@ -71,12 +73,43 @@ export class AccessRootResourceRuntime {
       .map((value) => this.resolveIdentity(value))
       .filter((value): value is AccessCollectionIdentity => !!value)
       .map((value) => ({ ...value }));
-    if (!selected.length) return void (await next());
+    if (!selected.length && (!collection || chart || !['list', 'get', 'count', 'export'].includes(actionName)))
+      return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
       const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
-      if (!configured.length) return void (await next());
+      if (!configured.length) {
+        if (chart || !['list', 'get', 'count', 'export'].includes(actionName)) return void (await next());
+        if (!capturedIdentities.some((identity) => this.prepared.configuration(ctx, identity)))
+          return void (await next());
+        const legacyCollection = target ?? collection;
+        const model = legacyCollection.model;
+        this.legacyReads.set(ctx, () => {
+          if (
+            ctx.db !== this.db ||
+            this.db.getCollection(legacyCollection.name) !== legacyCollection ||
+            legacyCollection.model !== model
+          )
+            invalid('Legacy read collection changed');
+          assertLegacyReadBoundary(
+            this.db,
+            legacyCollection,
+            ctx.action.params,
+            (collection) => {
+              const identity = this.resolveIdentity(collection);
+              return !!identity && !!this.prepared.configuration(ctx, identity);
+            },
+            ctx,
+          );
+        });
+        try {
+          await next();
+        } finally {
+          this.legacyReads.delete(ctx);
+        }
+        return;
+      }
       if (
         (parts.length !== 1 || sourceId !== undefined) &&
         !(parts.length === 2 && ['list', 'get', 'count', 'export', 'add', 'remove', 'set'].includes(actionName))
@@ -121,6 +154,11 @@ export class AccessRootResourceRuntime {
 
   /** Run after the existing ACL chain, before the legacy tenant guard and default action. */
   async dispatch(ctx: Context, next: Next): Promise<void> {
+    const legacyRead = this.legacyReads.get(ctx);
+    if (legacyRead) {
+      legacyRead();
+      return void (await next());
+    }
     const request = this.requests.get(ctx);
     if (!request) return void (await next());
     request.assertCurrent();

@@ -3,6 +3,7 @@ import type { Application } from '@tego/server';
 import { AccessAclScopeAdapter } from './acl-scope';
 import { AccessConfigError } from './config-errors';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
+import { assertLegacyReadBoundary } from './legacy-read-boundary';
 import { AccessMainRootResourceRegistry } from './main-root-resource-registry';
 import { AccessQueryService } from './query';
 import type { AccessWorkflowQueryRequest } from './workflow-query-handler';
@@ -35,7 +36,21 @@ export class AccessMainWorkflowQueryRuntime {
     )
       invalid('Invalid main workflow table selection');
     const selectedRoot = selections.find((identity) => identity.collectionName === request.collectionName);
-    if (request.dataSourceName !== 'main' || !selectedRoot) return undefined;
+    if (request.dataSourceName !== 'main') return undefined;
+    if (!selectedRoot) {
+      if (selections.length) {
+        const collection = this.app.db.getCollection(request.collectionName);
+        if (!collection || collection !== request.collection) invalid('Legacy workflow query target changed');
+        assertLegacyReadBoundary(
+          this.app.db,
+          collection,
+          request.query as object,
+          (target) => selections.some((identity) => identity.collectionName === target.name),
+          request.context,
+        );
+      }
+      return undefined;
+    }
     // Selection remains synchronous. All persistent discovery belongs to the selected executor.
     return async (incoming) => {
       if (incoming !== request) invalid('Workflow query executor request changed');

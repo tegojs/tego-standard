@@ -72,6 +72,21 @@ describe('explicit main-source workflow query runtime', () => {
       { id: 2, name: 'Owned B', tenantId: 'B' },
       { id: 3, name: 'Owned C', tenantId: 'C' },
     ]);
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: 'legacyRuntimeSources',
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'name', type: 'string' },
+          { name: 'tenantId', type: 'string' },
+          { name: 'document', type: 'belongsTo', target: source.collectionName, foreignKey: 'documentId' },
+        ],
+      },
+    });
+    await app.db
+      .getCollection('legacyRuntimeSources')
+      .model.bulkCreate([{ id: 1, name: 'Legacy B', tenantId: 'B', documentId: 2 }]);
   });
 
   beforeEach(async () => {
@@ -160,5 +175,50 @@ describe('explicit main-source workflow query runtime', () => {
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(Array.isArray(job.result)).toBe(false);
+  });
+
+  it.each(['appends', 'filter'] as const)('rejects legacy-to-protected workflow %s paths', async (kind) => {
+    const original = (await runtime.registry.store.read(source))!;
+    try {
+      await runtime.registry.store.save(source, { ...original, rules: [] }, { userId: 28 });
+      const [node] = await workflow.getNodes();
+      await node.update({
+        config: {
+          collection: 'legacyRuntimeSources',
+          multiple: true,
+          params: {
+            fields: ['name'],
+            paginate: false,
+            ...(kind === 'appends' ? { appends: ['document'] } : { filter: { 'document.name': 'Owned B' } }),
+          },
+        },
+      });
+      const { execution, job } = await execute();
+      expect(job.result).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Legacy B' })]));
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+      expect(Array.isArray(job.result)).toBe(false);
+    } finally {
+      const current = (await runtime.registry.store.read(source))!;
+      await runtime.registry.store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+    }
+  });
+
+  it('keeps legacy scalar reads and unselected association targets on the existing query path', async () => {
+    const [node] = await workflow.getNodes();
+    const config = {
+      collection: 'legacyRuntimeSources',
+      multiple: true,
+      params: { fields: ['name'], paginate: false },
+    };
+    await node.update({ config });
+    const scalar = await execute();
+    expect(scalar.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(scalar.job.result).toEqual([{ name: 'Legacy B' }]);
+    selected = [];
+    await node.update({ config: { ...config, params: { ...config.params, appends: ['document'] } } });
+    const unselected = await execute();
+    expect(unselected.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(unselected.job.result[0].document.id).toBe(2);
   });
 });

@@ -100,6 +100,10 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     app.acl.getRole('business-link-no-update').grantAction('protected_documents:add', {});
     app.acl.getRole('business-link-no-update').grantAction('protected_sources:add', {});
     app.acl.getRole('business-link-no-update').grantAction('protected_sources:list', {});
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: 'business-legacy-scope', strategy: { actions: [] } } });
+    app.acl.getRole('business-legacy-scope').grantAction('legacy_sources:list', { filter: { 'document.amount': 200 } });
     user = await app.db.getRepository('users').create({
       values: {
         username: 'protected-business-user',
@@ -110,6 +114,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
           'business-target-only',
           'business-source-only',
           'business-link-no-update',
+          'business-legacy-scope',
         ],
         tenants: ['B', 'C'],
         defaultTenantId: 'B',
@@ -178,6 +183,18 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       { id: 2, tenantId: 'C', documentId: 2 },
       { id: 3, tenantId: 'B', documentId: 3 },
     ]);
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: 'legacy_sources',
+        tenancy: 'tenantScoped',
+        timestamps: false,
+        createdBy: false,
+        updatedBy: false,
+        fields: [{ name: 'document', type: 'belongsTo', target: 'protected_documents', foreignKey: 'documentId' }],
+      },
+    });
+    await app.db.getCollection('legacy_sources').model.bulkCreate([{ id: 1, tenantId: 'B', documentId: 2 }]);
     app.db.collection(accessConfigHistory);
     await app.db.getCollection('tenantAccessRevisions').model.sync();
     const registry = new AccessMainRootResourceRegistry(app);
@@ -492,6 +509,58 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .update({ values: { amount: 999 } });
     expect(response.status).toBe(400);
     expect((await app.db.getCollection('protected_documents').model.findByPk(1))?.get('amount')).toBe(100);
+  });
+
+  it.each(['appends', 'fields', 'filter', 'nestedFilter', 'sort', 'count', 'roleFilter'] as const)(
+    'rejects unsupported legacy-to-protected %s paths instead of using the old target rules',
+    async (kind) => {
+      const original = (await store.read(identity))!;
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent()
+          .resource('protected_documents')
+          .list({ fields: ['id'] });
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        const scalar = await agent()
+          .resource('legacy_sources')
+          .list({ fields: ['id'] });
+        expect(scalar.status).toBe(200);
+        expect(scalar.body.data).toEqual([{ id: 1 }]);
+        const queries = {
+          appends: { fields: ['id'], appends: ['document'] },
+          fields: { fields: ['id', 'document.amount'] },
+          filter: { fields: ['id'], filter: { 'document.amount': 200 } },
+          nestedFilter: { fields: ['id'], filter: { $and: [{ document: { amount: { $eq: 200 } } }] } },
+          sort: { fields: ['id'], sort: ['document.amount'] },
+          roleFilter: { fields: ['id'] },
+        };
+        const resource = agent('B', kind === 'roleFilter' ? 'business-legacy-scope' : 'business-member').resource(
+          'legacy_sources',
+        );
+        const response =
+          kind === 'count'
+            ? await resource.count({ filter: { 'document.amount': 200 } })
+            : await resource.list(queries[kind]);
+        expect({ status: response.status, data: response.body.data }).toEqual({ status: 400, data: undefined });
+      } finally {
+        const current = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it('keeps a saved but unselected association target on the legacy path', async () => {
+    selectedKeys.delete(identity.collectionKey);
+    try {
+      const response = await agent()
+        .resource('legacy_sources')
+        .list({ fields: ['id'], appends: ['document'] });
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].document.id).toBe(2);
+    } finally {
+      selectedKeys.add(identity.collectionKey);
+    }
   });
 
   it('exports placeholder association targets with their own export grant and G or V scope', async () => {

@@ -5109,3 +5109,13 @@ Ruling: 普通旧export参数中的values.columns/JSON columns由导出器稍后
 - [x] export-build.log导出包完整客户端/服务端/依赖/dts实际0后才启动tenant-build.log租户完整构建实际0，同一调用69272已实际退出0。三TS末Prettier check/oxlint0，diff check0，代码后未改。源snapshot一致：runtime1F705F588FCB5C9DD6E4F4FE79FFB7012A5C6081E66C2E34415CF60240E7B3F2；认证HTTP895B183ECEE97E40B1CA56ABABDDB7F4DEC29E585C30BC96B2871FE155FA90F5；export index00A44F7AF484877BCA4F069DDCF61306D4BCB6FC9DCF326377BACB396B7D52A3。
 
 按requesting-code-review模板作者串行自审，非独立复核：列输入使用真实导出器协议和实际collection字段过滤，保留body列优先及JSON列兼容，不使用新模型严格四段列限制去收窄旧导出；只检查不授权，列解析错误保持400，WeakMap/配置阶段仍finally释放，无根配置或引用认领。只实测普通旧根到BelongsTo目标显示列；具体旧关联资源的导出列根转换、完整关系/混合支持、后续hook与worker生命周期、外部来源、图表源list ACL/变量后注入关系、自定义SQL/跨实例配置及业务SQL并发原子隔离仍待核查，不能据此正式启用。导出增加一次列派生关联规划，不称零成本。未启PG/Redis/建库/新附件，未改核心/正式依赖锁文件/主检出/业务库/旧附件；日志/原集群/旧目录全部保留。一次只读误猜src/server.ts不存在后已读实际server/index.ts，非产品RED。
+
+## 346. 旧图表最终来源角色过滤在缓存前检查已选规则边界
+
+Ruling: §344只检查图表输入，但旧checkPermission稍后会将来源list权限条件合入filter。本批内部root runtime复用原派生Action构造，对非root旧图表来源执行真实finalizeRelated ACL中间件，再用captureFinalActionPermission核对resource/action/role绑定，并将最终合入的Action参数交给原assertLegacyReadBoundary。检查在旧query及缓存之前；不以acl.can或fixture Map冒充最终权限，不伪造旧来源配置或重复prepare该来源的新配置。原root角色不合入来源list条件的分支保留，异步前后核原图表action/数据库/collection/model；新增action守卫仅限本次图表路径，旧关联normalizer仍按原协议运行。未修改图表插件、核心、正式依赖或自动安装。
+
+- [x] 新真实密码认证测试覆盖values及平铺参数：请求仅legacy_sources根count(id)、filter:{}，持久business-legacy-scope来源list条件为document.amount=200。临时新建本轮来源id4、真实归属B并引用C目标3；原来源id1引用B目标2。目标新规则清空后直接列表[]；临时移除目标明确选择时business-member根count2、scoped角色count1，证明确有真实角色关系筛选；恢复目标选择，同uid/cache:true原仍返回[{total:1}]。legacy-chart-final-role-filter-red.log干净2失败56过滤/58总、实际1/14.52秒（85426已退出），不是纯状态差异。每案finally仅删除本轮id4并恢复选择/隔离规则。
+- [x] 最小实现后green.log两过56过滤/58总、实际0/14.33秒（3446已退出）。作者核查补明确role类型检查，并将新增action守卫限定图表，不扩大旧关联路径行为；最终legacy-chart-final-role-filter-regression.log三SQLite178过/8个PG专用明确跳过/186总、实际0/46.10秒（91709已退出）：认证50/普通HTTP40/图表88，单worker逐文件。178/聚焦两项/RED及旧轮不累加，非整分支回归。
+- [x] legacy-chart-final-role-filter-build.log租户包完整客户端/服务端/依赖/dts构建实际0（42467已退出）。两TS最终Prettier check/oxlint0、diff check0，源码与snapshot一致，代码后未改：runtime C14106C0F876BDAAC7643BFCFD4EE886201E14A1F3B8A30262BFC93E5B06433B；认证HTTP 6EE1C384D0BFB8D64AB0FC10C62C53279472D80CFADB478808841E47B6AE203F。
+
+按requesting-code-review模板作者串行自审，非独立复核：核实际持久角色/密码认证、最终ACL中间件及绑定、根计数与真实关联filter对照、缓存前最新选择检查、原prepared和WeakMap finally释放及派生Action提取兼容。没有本批未修复Critical/Important；新增一次来源list最终ACL及读取规划有成本，不称零成本。未裁决来源ACL在检查后变化、后续变量或自定义hook注入关系、自定义SQL、具体旧关联导出根转换/全部关系及worker生命周期；不是完整混合查询支持或并发原子隔离。跨实例配置/业务SQL并发原子隔离、正式保存启用/业务试点及整分支独立复核仍未完成。未启PG/Redis/建库/新附件，无本轮新PG/MySQL/MariaDB实测；未改核心/正式依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留。核心独立status0仍干净d742a1c569579e05187b8260f14d48af0d8ccbae。

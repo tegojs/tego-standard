@@ -641,6 +641,52 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     expect(response.body.data).toEqual([{ total: 1 }]);
   });
 
+  it.each([false, true])('checks chart source role filters before cached results with flat=%s', async (flat) => {
+    const original = (await store.read(identity))!;
+    const sources = app.db.getCollection('legacy_sources').model;
+    await sources.bulkCreate([{ id: 4, tenantId: 'B', documentId: 3 }]);
+    expect((await sources.findByPk(4))?.get('tenantId')).toBe('B');
+    const request = (role = 'business-legacy-scope') => {
+      const values = {
+        uid: `legacy-chart-role-${flat}`,
+        dataSource: 'main',
+        collection: 'legacy_sources',
+        measures: [{ field: ['id'], aggregation: 'count', alias: 'total' }],
+        dimensions: [],
+        orders: [],
+        filter: {},
+        cache: { enabled: true, ttl: 30 },
+      };
+      return agent('B', role)
+        .resource('charts')
+        .query(flat ? values : { values });
+    };
+    try {
+      await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+      const direct = await agent()
+        .resource('protected_documents')
+        .list({ fields: ['id'] });
+      expect(direct.status).toBe(200);
+      expect(direct.body.data).toEqual([]);
+      selectedKeys.delete(identity.collectionKey);
+      const unfiltered = await request('business-member');
+      expect(unfiltered.status).toBe(200);
+      expect(unfiltered.body.data).toEqual([{ total: 2 }]);
+      const scoped = await request();
+      expect(scoped.status).toBe(200);
+      expect(scoped.body.data).toEqual([{ total: 1 }]);
+      selectedKeys.add(identity.collectionKey);
+      const protectedResult = await request();
+      expect(protectedResult.body.data).toBeUndefined();
+      expect(protectedResult.status).toBe(400);
+    } finally {
+      selectedKeys.add(identity.collectionKey);
+      await sources.destroy({ where: { id: 4 }, hooks: false });
+      const latest = (await store.read(identity))!;
+      await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
+    }
+  });
+
   it('reads a concrete association using separate source and target G or V scopes', async () => {
     const visible = await agent()
       .resource('protected_sources.document', 1)

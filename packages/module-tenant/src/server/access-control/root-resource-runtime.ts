@@ -10,6 +10,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { captureFinalActionPermission } from './final-action-permission';
 import { assertLegacyChartReadBoundary, assertLegacyReadBoundary } from './legacy-read-boundary';
 import { assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
@@ -32,7 +33,7 @@ interface RootRequest {
 /** Explicit root-resource composition. The tenant plugin does not install this runtime. */
 export class AccessRootResourceRuntime {
   private readonly requests = new WeakMap<object, RootRequest>();
-  private readonly legacyChecks = new WeakMap<object, () => void>();
+  private readonly legacyChecks = new WeakMap<object, () => void | Promise<void>>();
   private readonly reader: AccessRootReadHandler;
   private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
@@ -48,6 +49,23 @@ export class AccessRootResourceRuntime {
     this.reader = new AccessRootReadHandler(db, prepared, queries, resolveIdentity);
     this.writer = new AccessResourceMutationHandler(db, prepared, queries, resolveIdentity);
     this.charts = new AccessChartQueryHandler(db, this.reader, resolveIdentity);
+  }
+
+  private relatedDecision(ctx: Context, collection: Collection, actionName: string) {
+    const resourcer = new Resourcer();
+    resourcer.define({ name: collection.name, actions: { [actionName]: {} } });
+    const action = resourcer.getAction(collection.name, actionName).clone();
+    Object.assign(action, { resourceName: collection.name, actionName });
+    action.mergeParams({ resourceName: collection.name, actionName, filterByTk: undefined });
+    return {
+      db: this.db,
+      action,
+      permission: undefined as unknown,
+      state: ctx.state,
+      get: ctx.get.bind(ctx),
+      logger: ctx.logger,
+      throw: ctx.throw.bind(ctx),
+    };
   }
 
   /** Wrap the existing ACL middleware, after server authentication and tenant selection. */
@@ -94,13 +112,20 @@ export class AccessRootResourceRuntime {
           return void (await next());
         const legacyCollection = target ?? collection;
         const model = legacyCollection.model;
-        this.legacyChecks.set(ctx, () => {
+        const assertCurrent = () => {
           if (
             ctx.db !== this.db ||
+            (chart &&
+              (ctx.action.resourceName !== resourceName ||
+                ctx.action.actionName !== actionName ||
+                ctx.action.sourceId !== sourceId)) ||
             this.db.getCollection(legacyCollection.name) !== legacyCollection ||
             legacyCollection.model !== model
           )
             invalid('Legacy read collection changed');
+        };
+        this.legacyChecks.set(ctx, async () => {
+          assertCurrent();
           const protectedCollection = (collection: Collection) => {
             const identity = this.resolveIdentity(collection);
             return !!identity && !!this.prepared.configuration(ctx, identity);
@@ -108,6 +133,21 @@ export class AccessRootResourceRuntime {
           if (chart)
             assertLegacyChartReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
           else assertLegacyReadBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection, ctx);
+          // The original root-role chart branch does not add a source list filter.
+          if (chart && capturedActor.roleName !== 'root') {
+            if (typeof capturedActor.roleName !== 'string') invalid('Legacy chart role is unavailable');
+            const decision = this.relatedDecision(ctx, legacyCollection, 'list');
+            // This source uses the legacy mechanism: no selected configuration or delegation is prepared for it.
+            await this.finalizeRelated(decision as unknown as Context, async () => {});
+            assertCurrent();
+            const permission = captureFinalActionPermission(decision.permission, {
+              resourceName: legacyCollection.name,
+              actionName: 'list',
+              roleName: capturedActor.roleName,
+            });
+            if (!permission.allowed) invalid('Legacy chart source list permission is unavailable');
+            assertLegacyReadBoundary(this.db, legacyCollection, decision.action.params, protectedCollection, ctx);
+          }
           if (actionName === 'export') {
             const params = cloneDeep(ctx.action.params);
             try {
@@ -177,7 +217,7 @@ export class AccessRootResourceRuntime {
   async dispatch(ctx: Context, next: Next): Promise<void> {
     const legacyCheck = this.legacyChecks.get(ctx);
     if (legacyCheck) {
-      legacyCheck();
+      await legacyCheck();
       return void (await next());
     }
     const request = this.requests.get(ctx);
@@ -185,20 +225,7 @@ export class AccessRootResourceRuntime {
     request.assertCurrent();
     const authorize = async (collection: Collection, actionName: string): Promise<AccessRootReadContext> => {
       request.assertCurrent();
-      const resourcer = new Resourcer();
-      resourcer.define({ name: collection.name, actions: { [actionName]: {} } });
-      const action = resourcer.getAction(collection.name, actionName).clone();
-      Object.assign(action, { resourceName: collection.name, actionName });
-      action.mergeParams({ resourceName: collection.name, actionName, filterByTk: undefined });
-      const decision = {
-        db: this.db,
-        action,
-        permission: undefined as unknown,
-        state: ctx.state,
-        get: ctx.get.bind(ctx),
-        logger: ctx.logger,
-        throw: ctx.throw.bind(ctx),
-      };
+      const decision = this.relatedDecision(ctx, collection, actionName);
       request.related.push(decision);
       await this.prepared.prepare(decision, request.identities);
       await this.finalizeRelated(decision as unknown as Context, async () => {});

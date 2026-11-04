@@ -1,0 +1,52 @@
+import React, { useState } from 'react';
+import { Application, DataSourceApplicationProvider } from '@tachybase/client';
+import { createForm, FormProvider } from '@tachybase/schema';
+import { fireEvent, render } from '@tachybase/test/client';
+
+import { OnField } from '../triggers/schedule/OnField';
+
+describe('schedule date-field offset editor', () => {
+  it.each([
+    { unit: undefined, label: 'Seconds' },
+    { unit: 86400000, label: 'Days' },
+    { unit: 60000, label: 'Minutes' },
+  ])('shows the effective $label unit while editing an existing offset', ({ unit, label }) => {
+    const app = new Application({
+      dataSourceManager: {
+        collections: [
+          {
+            name: 'tasks',
+            fields: [{ name: 'scheduledAt', type: 'date', uiSchema: { title: 'Scheduled at' } }],
+          },
+        ],
+      },
+    });
+    const form = createForm({ values: { collection: 'tasks' } });
+    function Editor() {
+      const [value, setValue] = useState({ field: 'scheduledAt', offset: 2, ...(unit ? { unit } : {}) });
+      return (
+        <>
+          <OnField value={value} onChange={setValue} />
+          <output aria-label="Saved date offset">{JSON.stringify(value)}</output>
+        </>
+      );
+    }
+    const { container, getByRole, getByLabelText } = render(
+      <DataSourceApplicationProvider dataSourceManager={app.dataSourceManager}>
+        <FormProvider form={form}>
+          <Editor />
+        </FormProvider>
+      </DataSourceApplicationProvider>,
+    );
+
+    const selectedUnit = () => container.querySelectorAll('.ant-select-selection-item')[2];
+    expect(selectedUnit()).toHaveTextContent(label);
+    fireEvent.change(getByRole('spinbutton'), { target: { value: '5' } });
+    expect(JSON.parse(getByLabelText('Saved date offset').textContent)).toEqual({
+      field: 'scheduledAt',
+      offset: 5,
+      ...(unit ? { unit } : {}),
+    });
+    expect(selectedUnit()).toHaveTextContent(label);
+  });
+});

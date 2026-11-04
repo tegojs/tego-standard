@@ -52,7 +52,7 @@ export function OnField({ value: propsValue, onChange }) {
             onChange={(v) => onChange({ ...value, offset: (v ?? 0) * dir })}
           />
           <Select
-            value={value.unit || 86400000}
+            value={value.unit || 1000}
             onChange={(unit) => onChange({ ...value, unit })}
             options={[
               { value: 86400000, label: lang('Days') },

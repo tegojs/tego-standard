@@ -4782,3 +4782,16 @@ Ruling: §318/319分别在timer登记后和trigger进入后捕获来源；发现
 - [x] 本次默认GPG session47922实际Timeout128，事先捕获git54824/1916、gpg37212、pinentry66580父链及创建时间；四PID消失、活动Git签名0、HEAD仍30476b07/原暂存树d365927b0f2e4327b9611c401c1aed0bb1bf572b不变/无未暂存，后继独立guard实际0。仅补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口或终止进程，不复用本次或任何旧Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：捕获与发现开始之间无await，比较位于原循环检查点且每次schedule前执行；旧列表不能清理或登记替换来源的timer；查询失败仍在原catch内，其他工作流独立处理，finally仅清理本轮标识。六个真实来源阶段兼含负向及显式新扫描恢复，未以禁用全部执行造绿。无本项未修复Critical/Important。不予本项裁决：同一对象原地物理重建/模型变化、跨实例持久来源身份、保存监听器等待期间来源替换、提前appends查询后再次变化/完整配置原子快照、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用，所有日志/原集群/旧目录/TEMP保留。
+
+## 321. 日期偏移编辑器显示实际缺省单位
+
+Ruling: 原OnField在unit缺省时显示Days，但服务端getOnTimestampWithOffset/getDataOptionTime始终以1000毫秒解释该配置，原真实执行用例也以offset1表示1秒。用户打开已有无unit偏移或只修改数值时，界面展示的单位与实际任务不同。仅将客户端缺省显示改为Seconds；不改服务器默认值、不迁移配置，也不把已明确保存的Days/Hours/Minutes改成Seconds。开始及按字段结束共用原OnField组件，没有新locale key、schema、依赖或接口。
+
+- [x] 真实OnField/FieldsSelect、Ant Design控件、Application数据源集合上下文及FormProvider集成测试；无mock组件/翻译/表单。初始scheduledAt/offset2，unit分别缺省、86400000或60000。date-offset-editor-unit-red.log干净1失败2通过/3总、实际1/57.84秒，session67841已退出：缺省项选中内容实际Days非Seconds，两个显式单位控制原过。测试从实际控件修改数值至5，核真实受控配置输出，明确单位不丢失/缺省单位不被静默写入。本项不是来源身份夹具重复，也不是修改服务端单位造绿。
+- [x] 一行缺省显示修复后date-offset-editor-unit-green.log两个client文件4全通过/无跳过/实际0/56.61秒，session75879已退出：新三项与原variable一项。date-offset-editor-unit-server-regression.log原mode-date-field文件13全通过/无跳过/实际0/25.54秒，session33356已退出，含无unit的原真实保存事件/+offset精确日期契约。两个运行分别记4与13，不与§320的166或RED累计；非整分支回归。date-offset-editor-unit-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session17375已退出。
+- [x] 两TSX最终Prettier check/oxlint0、源snapshot一致：OnField 7592CA47A0304DF91103B8135633CADF9731655BE157E13D237040B0D476CD80；client test B17FDD9CCB27547AA69A8356FD6316C6F35CCE47303E1F80582D6095F91104B9。代码之后未改。首次生产格式check1经机械write/check/lint0后才启动GREEN，非产品RED；一处Windows依赖通配只读搜索失败，按真实目录读取，未改依赖。本项为jsdom组件集成验证，未运行已登录浏览器/API业务试点、PG/MySQL/MariaDB，未启PG/建库/Redis服务/新物理附件。
+- [x] 前§320默认47922实际Timeout128，事前git54824/1916、gpg37212、pinentry66580父链/创建时间捕获；逐一消失/活动签名0、HEAD30476b07/原树d365927b0f2e4327b9611c401c1aed0bb1bf572b不变/无未暂存，独立guard0。仅补两记录后四文件树98670dfc45c9b9083735c6700ee8bca299f317ef再次独立guard0，按授权单次跳过，4f3dc2c32e70c708d36091fe08d34a3f45d8f7d1实际0/N。提交后独立审计整体0：干净树、七TS源snapshot一致、验证/签名0、PG停止/25466全部记录0/global true。历史N/G事实保持，不沿用该Timeout到本项。
+
+- [x] 本次默认GPG session44072实际Timeout128，事先捕获git26060/13824、gpg41544、pinentry79328父链及创建时间。首次独立guard实际1发现另一组活动Git进程（后继只读见39096/100668），未跳过、未更改HEAD/暂存或操作进程/窗口。其退出后重新独立guard实际0：本次四PID消失/活动Git签名0、HEAD仍4f3dc2c/原暂存树94b2bad9c2810e3d55e6f7977d195d031f6261f7不变/无未暂存。只补两原记录本次签名事实后再次守卫，再按已有授权单次跳过；本项记N，不称G或独立验签成功，global保持true，不沿用本次或旧Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：界面缺省与既有服务端协议对齐，原onChange及已有显式单位保持；期望选中标签来自独立字面量，真实受控输出检验编辑结果，无mock调用断言或源码文本断言。本项无未修复Critical/Important。不予本项裁决：新建偏移时方向/空数值/零值与外部表单重置、任意非法unit输入/保存校验、全部复杂偏移/亚秒/日期域、完整配置原子快照、来源原地重建/保存监听器等待/跨实例持久身份、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TSX及两原记录，不改服务器代码/主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用，全部日志/原集群/旧目录/TEMP保留。

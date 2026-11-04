@@ -5048,3 +5048,17 @@ Ruling: 新增内部assertLegacyReadBoundary，复用实际Repository.buildQuery
 按requesting-code-review模板作者串行自审，非独立复核：检查规划器原生上下文及私有复制、关联/中间模型登记、最终ACL时序、作用域finally释放及同步拒绝后无旧路重试。核心CodeGraph两次只读核实际FilterParser/OptionsParser，再读未展示的Repository.buildQueryOptions，无须改核心或索引。无本批未修复Critical/Important；旧根的配置准备增加元数据SQL和规划成本，不称零成本。HTTP只对已选且存在配置的目标执行新边界；工作流显式选择缺配置本来就拒绝，此边界仍对明确选中名称拒绝，不以拒绝作为持久身份或授权凭证。
 
 本批为明确拒绝尚未适配的混合路径，不能称旧/新根关联查询已完整可用。不予本项裁决：模型默认scope/后续自定义hook才注入的关系、未选图表的关联度量及专用导出列/全部写路径、外部数据源/完整生命周期/跨实例配置及业务SQL并发原子隔离；均须沿真实入口继续核查。正式业务试点、保存启用及整分支独立复核仍未完成，禁止据此正式启用。本轮未启PG/Redis/建库/新附件，原PG停止及25466全部0保持；未改核心/正式依赖锁文件/主检出/业务库/旧附件。全部日志/原集群/旧目录保留。
+
+## 341. 工作流真实新增、修改、删除节点接入按表选择和持久身份发现
+
+Ruling: 新增内部AccessMainWorkflowWriteRuntime，服务端明确选择main表名/持久key，复用MainRootResourceRegistry的主库发现和既有AccessWorkflowRootHandler三项写适配；原create/update/destroy同步resolver选择executor，原异步事务planner规划新事务，未选表返回undefined保留旧路，选中后缺配置/错误身份/缺可信租户明确失败、不重试Repository。规划无执行权限，执行仍核真实plugin.captureDataOperationAuthority的对应create/update/destroy证明、保存的执行身份及事务；不借list/query权威，不向自动工作流强加人工角色ACL。不改核心、工作流Plugin/指令协议或正式自动安装。
+
+- [x] 新main-workflow-write-runtime.test用真实workflow/collection/user/Processor及持久Collection Manager表/key/配置历史，可信触发租户B，G为tenantId等于当前租户且amount>=100，V为name=Visible；实际H/id1、B/id2、C/id3及同B但非G/id4。空接线契约RED3失败1通过/4总、实际1/11.40秒（1220退出）：旧修改/删除均处理2行非期望1，旧不满足G的新增执行RESOLVED非ERROR。不是权限Map、HTTP身份或模拟业务Repository。实现后green4全过、实际0/9.68秒（30447退出）。
+- [x] 集中控制验证成功新增实际归属B及持久金额，跨租户tenantId显式拒绝；批量更新/删除仅id2，V-only及同租户非G显式主键修改/删除均失败且业务行不变。错误持久key和缺可信执行租户分别覆盖三种写，均execution/job ERROR且原业务行不变；未选表仍按原路径可更新id4。复用同一节点先成功写入、清空规则后下一执行返回{length:0,data:[]}且业务行保持；真实afterUpdate业务异常回滚。
+- [x] 首次扩展controls.log16过1失败/17总、实际1/10.60秒（49707退出），唯一失败是测试错误预期跨租户tenantId会被忽略；实际既有服务ACCESS_OWNERSHIP_CHANGE_FORBIDDEN正确拒绝，已改为不提交owner的成功新增及独立拒绝控制，未改产品契约造绿。
+- [x] 作者自审新异步发现边界：实际元数据findAll完成SQL后仅暂停交付、修改原executor.params.values.name，values-confirmed-red.log干净1失败18过滤/19总、实际1/47.09秒（29859退出），持久id2实际变为Changed after selection。最小在同步选择时私有捕获params，沿发现/最终检查复核原参数及真实authority，异常交由原事务回滚。最初beforeFind夹具因主库发现hooks:false未触发，values-red.log1失败但写入仍Selected value（24271退出），不是产品RED；已改真实SQL交付包装并先断言实际修改发生，无伪造数据或权限。一次Prettier check失败在测试前停止，随后format/lint0再运行，不计产品RED。verified-green.log19全过无跳过、实际0/11.93秒（73476退出）。
+- [x] 最终main-workflow-write-runtime-regression.log四SQLite140全过无跳过、实际0/36.60秒（82459退出）：新write19/原main query8/原write-authority83/原operation-authority30，使用单worker逐文件运行。tenant完整客户端/服务端/依赖/dts build.log实际0（2192退出）。140/19/4/RED/历史轮不累加，非整分支回归。两TS末Prettier check/oxlint0，代码后未改；源snapshot一致runtime450F7851AE0FD7B0CA2DCCBFB5333877059C9233FAE624EC1CAD4F24CC184BD0，test7EF793C259ECA7299A0B71AC9CF08156BB186DCCC98A117AB39117349DC94DE5。
+
+按requesting-code-review模板作者串行自审，非独立复核：确认选中后持久key/name/对象/model核对、各写操作真实独立authority、规划不授权、输入在首次异步发现前捕获、当前规则每次读取、原事务完整回滚及withPrepared finally释放；无本批未修复Critical/Important。旧/新混合写入、全部关联写节点/外部来源/完整生命周期/跨实例配置/业务SQL并发原子隔离仍未由此完成；关系写入仍由原handler/planner决定所需PostgreSQL及隔离级别，本批仅新SQLite实测，不把旧PG结果算本轮。正式保存启用、业务试点、整分支独立复核和自动注册仍关闭。未启动PG/Redis/建库/新附件，未改核心/依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留。
+
+341本次默认签名3343明确gpg Timeout，调用实际退出1；事前捕获git34572/55992、gpg39380、pinentry83040的父链及创建时间18:06:48，pinentry父55428为原10月30日gpg-agent，未操作窗口或终止进程。四本次PID逐一消失/活动Git及签名和验证0/HEAD仍b6b3a34/原暂存树3f4fb1d49e699b79b94e2e4dfe3278ff71c83dd8不变/无未暂存/global true，独立guard实际0；仅补两份签名事实后按已有授权单次无签名，不称G或独立验签成功，不沿用旧Timeout。

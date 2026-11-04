@@ -4910,3 +4910,17 @@ Ruling: 主线下一步是把真实请求链的准备、现有ACL、受保护读
 按requesting-code-review模板作者串行自审，非独立复核：新链只消费服务端选择和最终ACL，不从客户端标志认定迁移；只在明确配置存在时接管，错误无旧路回退。请求与派生阶段在成功、拒绝及异常时释放，不更改现有事务所有权、tenantId或G/V计算。实际配置发现及完整插件认证/租户切换链尚未接入该编排，本轮身份仍由服务端夹具提供；不能称真实登录、正式插件生命周期、关联入口覆盖、外部租户权威、全部并发隔离、性能或业务试点已完成。该内部模块未从正式server入口导出/安装，无自动注册或启用。本轮未启PG/建库/Redis/新物理附件，不改主检出、核心源码、正式依赖/锁文件或业务库/旧附件；日志/原PG集群/旧目录/TEMP保留。
 
 下一主线沿此编排接入隔离安装应用的真实认证和租户选择，并核实与既有tenantResourceGuard的顺序及未迁移表兼容；再补逐请求稳定配置发现与按表执行选择。正式业务仍关闭，不能把上述隔离编排当成业务启用凭证。
+
+## 331. 将根资源运行时接入已安装认证及租户选择链
+
+Ruling: 主线沿§330补齐显式认证入口安装函数registerAuthenticatedAccessRootRuntime。准备阶段在auth、setCurrentRole及setCurrentTenant之后且在ACL之前，只从服务端state读取当前用户/角色/租户；执行阶段在ACL之后、tenantResourceGuard及dataSource之前消费选中请求。注册时复制服务端表身份清单，不从header或action values直接生成可信身份。不在正式插件入口安装或导出，不自动保存、迁移或启用业务表。
+
+- [x] 真实安装auth/acl/tenant等插件、SQLite持久角色/用户/租户成员关系和Collection Manager业务表；agent.login签发测试令牌，经真实认证插件验证和原角色/租户选择，不手设currentUser/currentRole/currentTenant或最终permission。仍是测试认证状态服务及签名令牌夹具，未执行密码signIn、已登录浏览器或实际业务试点。
+- [x] createTenantApp仅新增可选aclFactory。明确选择时关闭初始化时的默认ACL中间件，由首个测试插件beforeLoad在任何业务插件登记权限之前选择本地核心createACL并登记真实ACL中间件；正常无factory路径保持原初始化。不是应用安装后更换ACL、热补原型或伪造最终权限。本地核心原已有需要的resolver，无需无目的修改核心；正式依赖/锁文件未变。测试使用TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY=D:/Dev/TegoJS/tego/packages/core/lib/acl/index.js。
+- [x] 新安装函数空实现时authenticated-root-http-red.log干净2失败2通过/4总，实际1/15.22秒，session31173已退出：B列表只有id2而不是G或V的[id1,id2]；可见但不可写记录更新仍走旧链返回200。后者原链过滤后不执行写入，不将其冒称旧链越权成功。这是新入口编排缺失的RED。最小安装后green.log原4全过、实际0/14.86秒，session93077已退出。
+- [x] 最终新7项覆盖B/C切换、用户及角色subject条件、list/get/count、真实create/update/destroy及持久tenantId、V-only拒写、无操作权限/匿名/伪造非成员租户403、未选旧表及已选无配置表保持旧隔离。非成员租户业务请求明确403，不冒称回退默认租户。计数权限由持久角色strategy显式授予count，未把view自动扩为count或绕过ACL。
+- [x] 首轮四文件回归74过6失败/80总、实际1/81.89秒；新增无配置表的测试元数据resolver错误固定到首表，并将普通业务伪造租户错误预期为默认租户，沿实际堆栈/契约纠正夹具，非新产品RED。第二轮79过1失败/80、实际1/82.15秒，角色用户subject的ID字面量须采用已有规范化字符串，纠正后聚焦仍6过1失败/7、实际1/12.24秒，失败已经移到未授予count的403；按既有策略显式授予count后focused-confirmed.log新7全过/无跳过、实际0/13.19秒。上述错误及进程均实际退出后才继续。
+- [x] authenticated-root-http-verified-regression.log最终三个文件52全过/无跳过、实际0/13.98秒，session42059已退出：新认证7/原HTTP40/原配置只读HTTP5。旧tenant-resource-guard28在本轮两次四文件运行中均通过，但两次命令整体为1，未将其称为全绿回归。52/7/28及旧轮不累加，非整分支回归。
+- [x] 首次包构建authenticated-root-http-build.log实际1，session20036已退出：Resourcer默认推导的最小上下文不能传给服务器Context。为两处真实服务端中间件参数明确Context类型，不改变运行时代码；随后authenticated-root-http-build-verified.log tenant客户端/服务端/依赖/dts完整构建实际0，session91131已退出。三TS最终Prettier check/oxlint0，源snapshot一致：runtime 66F61F72A9FB6FF5DCAD6051C49F499F44466AD93EB1B672DF6237CD6A3A3BD0；HTTP C246C4E12D65DCB25F4B06AF8E78F980E3A5D6DBE8D809947BC091E58A2D8EB2；utils 137017AF085B8F326C622E8B8E8B7AF724B1968791158E79A9268842D11AA4BA。最终测试后仅类型注解变化，包构建已验证；代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：用户/角色/租户取自已完成的原认证链，G/V使用原最终ACL及handler；未配置/未选择的表可证明仍进入旧守卫，受保护表在旧守卫之前消费，避免V被旧同租户条件重新裁掉。本项无未修复Critical/Important。不予本项裁决：逐请求动态发现全部稳定表身份、关联及其他入口的统一正式安装、完整应用重载/卸载、跨实例配置及授权事实到业务SQL原子隔离、正式规则保存启用/本地业务试点和整分支独立复核。下一步集中逐请求配置发现与按表执行选择，不回日期边角。本轮未改核心源码、正式依赖/锁文件、主检出、业务库或旧附件，未启动PG/Redis/建库/新物理附件，未部署发版或正式启用；全部日志/原集群/旧目录/TEMP保留。

@@ -1,5 +1,5 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-import { AppSupervisor, Plugin } from '@tego/server';
+import { AppSupervisor, Plugin, type ACL } from '@tego/server';
 
 import PluginTenantServer from '..';
 import PluginAuditLogs from '../../../../plugin-audit-logs/src/server';
@@ -83,8 +83,10 @@ async function ensureExtraActionPluginsLoaded(app: MockServer, extraPlugins: any
   }
 }
 
-export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
-  const { extraPlugins = [] } = options;
+export async function createTenantApp(
+  options: { extraPlugins?: any[]; aclFactory?: () => ACL } = {},
+): Promise<MockServer> {
+  const { extraPlugins = [], aclFactory } = options;
   const normalizedExtraPlugins = extraPlugins.map((plugin) => {
     if (plugin !== 'audit-logs') {
       return plugin;
@@ -101,6 +103,15 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   });
 
   await cleanupPreviousApp();
+
+  // Choose the actual ACL implementation before any plugin registers permissions.
+  // The default core middleware is disabled only when this explicit factory is supplied.
+  class TestAclRuntimePlugin extends Plugin {
+    async beforeLoad() {
+      this.app.mainDataSource.acl = aclFactory!();
+      this.app.resourcer.use(this.app.acl.middleware(), { tag: 'acl', after: 'auth' });
+    }
+  }
 
   class TestAuthStatusPlugin extends Plugin {
     async load() {
@@ -139,9 +150,10 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   try {
     app = await createMockServer({
       registerActions: true,
-      acl: true,
+      acl: !aclFactory,
       database: { dialect: 'sqlite' },
       plugins: [
+        ...(aclFactory ? [TestAclRuntimePlugin] : []),
         'acl',
         'error-handler',
         'users',

@@ -661,8 +661,7 @@ export default class ScheduleTrigger {
 
   on(workflow: WorkflowModel) {
     const isCurrent = this.captureCurrent(workflow);
-    const { collection } = workflow.config;
-    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
@@ -670,11 +669,11 @@ export default class ScheduleTrigger {
       return;
     }
 
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
     const listener = async (data, { transaction, context }) => {
       const eventTime = new Date();
       const savedAt = data.get?.('updatedAt') ?? data.updatedAt ?? eventTime;
-      const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
-      const collection = dataSource.collectionManager.getCollection(collectionName);
       const tenantContext = context || (await buildEnabledTenantContext(this.workflow.app.db, collection, data));
       if (
         !isCurrent() ||
@@ -693,7 +692,7 @@ export default class ScheduleTrigger {
 
     this.events.set(name, listener);
     // @ts-ignore
-    this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager.db.on(event, listener);
+    dataSource.collectionManager.db.on(event, listener);
     this.inspect([workflow]);
   }
 

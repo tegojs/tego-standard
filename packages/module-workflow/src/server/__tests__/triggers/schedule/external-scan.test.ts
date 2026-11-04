@@ -265,11 +265,17 @@ describe('date-field scheduling from an external database', () => {
     },
   );
 
-  it.each(['collection', 'data source'])(
-    'rejects a saved record when its %s is replaced while tenant facts are being delivered',
-    async (replacementKind) => {
-      const sourceName = replacementKind === 'collection' ? 'another' : 'savedIdentitySource';
-      const collectionName = replacementKind === 'collection' ? 'savedIdentityCollections' : 'savedIdentityDocuments';
+  it.each([
+    { replacementKind: 'collection', beforeEvent: false },
+    { replacementKind: 'data source', beforeEvent: false },
+    { replacementKind: 'data source', beforeEvent: true },
+  ])(
+    'rejects a saved record when its $replacementKind is replaced (replacement before saved event: $beforeEvent)',
+    async ({ replacementKind, beforeEvent }) => {
+      const suffix = beforeEvent ? 'BeforeEvent' : '';
+      const sourceName = replacementKind === 'collection' ? 'another' : `savedIdentitySource${suffix}`;
+      const collectionName =
+        (replacementKind === 'collection' ? 'savedIdentityCollections' : 'savedIdentityDocuments') + suffix;
       let originalDb = external;
       let replacementDb = external;
       if (replacementKind === 'data source') {
@@ -334,35 +340,43 @@ describe('date-field scheduling from an external database', () => {
         return tenant;
       });
       let replacement;
+      const replaceSource = async () => {
+        if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
+        replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
+        await replacement.model.sync();
+        await replacement.model.create(
+          { id: 1, tenantId: 'B', label: 'Replacement saved source', scheduledAt: new Date(due) },
+          { hooks: false },
+        );
+        if (replacementKind === 'data source') {
+          await app.dataSourceManager.add(
+            new SequelizeDataSource({
+              name: sourceName,
+              collectionManager: { database: replacementDb },
+              resourceManager: {},
+            }),
+          );
+        }
+        expect(Date.now()).toBeLessThan(due);
+      };
       try {
         await observeThroughDeadline(trigger, due, async () => {
-          const save = original.repository.create({
-            values: { id: 1, tenantId: 'B', label: 'Original saved source', scheduledAt: new Date(due) },
-          });
+          let save: Promise<unknown> | undefined;
           try {
+            if (beforeEvent) await replaceSource();
+            save = original.repository.create({
+              values: { id: 1, tenantId: 'B', label: 'Original saved source', scheduledAt: new Date(due) },
+            });
             await waitForAssertion(() => expect(factsRead).toBe(true));
-            if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
-            replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
-            await replacement.model.sync();
-            await replacement.model.create(
-              { id: 1, tenantId: 'B', label: 'Replacement saved source', scheduledAt: new Date(due) },
-              { hooks: false },
-            );
-            if (replacementKind === 'data source') {
-              await app.dataSourceManager.add(
-                new SequelizeDataSource({
-                  name: sourceName,
-                  collectionManager: { database: replacementDb },
-                  resourceManager: {},
-                }),
-              );
-            }
-            expect(Date.now()).toBeLessThan(due);
+            if (!beforeEvent) await replaceSource();
           } finally {
             release();
             await save;
           }
         });
+        if (replacementKind === 'data source') {
+          expect((await original.model.findByPk(1)).get('label')).toBe('Original saved source');
+        }
         await waitForAssertion(() => {
           expect(plugin.events).toHaveLength(0);
           expect(plugin.preparing).toBeFalsy();

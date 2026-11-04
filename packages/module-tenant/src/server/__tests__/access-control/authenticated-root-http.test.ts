@@ -1,7 +1,9 @@
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import type { MockServer } from '@tachybase/test';
 import type { Model } from '@tego/server';
 
+import ExportPlugin from '../../../../../plugin-action-export/src/server';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { registerAuthenticatedAccessRootRuntime } from '../../access-control/authenticated-root-runtime';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -11,6 +13,11 @@ import { createTenantApp } from '../utils';
 import { configFor, ownerCondition } from './fixtures';
 
 const coreFactoryEntry = process.env.TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY;
+const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.json', import.meta.url))(
+  'node-xlsx',
+) as {
+  parse(data: Buffer): Array<{ data: unknown[][] }>;
+};
 
 /** Installed auth/ACL/tenant plugins, using an explicitly selected local core ACL before plugin load. */
 describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () => {
@@ -23,22 +30,39 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
   let unregister: (() => void) | undefined;
   const agent = (tenant = 'B', role = 'business-member') =>
     app.agent().login(user).set('X-Role', role).set('X-Tenant-Id', tenant);
+  const exportFile = (tenant = 'B', role = 'business-member', collection = 'protected_documents') =>
+    agent(tenant, role)
+      .resource(collection)
+      .export({ title: 'Access report', sort: ['id'], values: { columns: ['amount'] } })
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+        response.on('error', done);
+      });
 
   beforeAll(async () => {
     const { createACL } = await import(/* @vite-ignore */ pathToFileURL(coreFactoryEntry!).href);
-    app = await createTenantApp({ aclFactory: createACL });
+    app = await createTenantApp({ aclFactory: createACL, extraPlugins: [ExportPlugin] });
     expect(typeof (app.acl as any).registerActionParamsResolver).toBe('function');
     for (const id of ['H', 'B', 'C', 'X']) {
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
     }
     await app.db.getRepository('roles').create({
-      values: { name: 'business-member', strategy: { actions: ['view', 'count', 'create', 'update', 'destroy'] } },
+      values: {
+        name: 'business-member',
+        strategy: { actions: ['view', 'count', 'create', 'update', 'destroy', 'export'] },
+      },
     });
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: 'business-no-export', strategy: { actions: ['view'] } } });
     await app.db.getRepository('roles').create({ values: { name: 'business-denied', strategy: { actions: [] } } });
     user = await app.db.getRepository('users').create({
       values: {
         username: 'protected-business-user',
-        roles: ['business-member', 'business-denied'],
+        roles: ['business-member', 'business-denied', 'business-no-export'],
         tenants: ['B', 'C'],
         defaultTenantId: 'B',
       },
@@ -292,5 +316,28 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       const latest = (await store.read(identity))!;
       await store.save(identity, { ...original, revision: latest.revision }, { userId: user.get('id') });
     }
+  });
+
+  it('exports the authenticated G or V rows as a real XLSX file', async () => {
+    const b = await exportFile();
+    expect(b.status).toBe(200);
+    expect(b.headers['content-disposition']).toContain('Access%20report_B.xlsx');
+    expect(xlsx.parse(b.body)[0].data).toEqual([['amount'], [100], [200]]);
+    const c = await exportFile('C');
+    expect(c.status).toBe(200);
+    expect(c.headers['content-disposition']).toContain('Access%20report_C.xlsx');
+    expect(xlsx.parse(c.body)[0].data).toEqual([['amount'], [100], [300]]);
+  });
+
+  it('does not borrow list permission to authorize an XLSX export', async () => {
+    const response = await exportFile('B', 'business-no-export');
+    expect(response.status).toBe(403);
+    expect(response.headers).not.toHaveProperty('content-disposition');
+  });
+
+  it('retains the original export pipeline and tenant guard for an unselected table', async () => {
+    const response = await exportFile('B', 'business-member', 'legacy_documents');
+    expect(response.status).toBe(200);
+    expect(xlsx.parse(response.body)[0].data).toEqual([['amount'], [200]]);
   });
 });

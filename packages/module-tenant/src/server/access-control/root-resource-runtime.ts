@@ -128,6 +128,12 @@ export class AccessRootResourceRuntime {
     const context = ctx as unknown as AccessRootReadContext;
     if (['list', 'get', 'count'].includes(request.actionName))
       await this.reader.handleResourceWithRelatedContexts(context, request.actor, authorizeRead);
+    else if (request.actionName === 'export')
+      await this.reader.handleExportWithRelatedContexts(
+        context as AccessRootReadContext & Context,
+        request.actor,
+        authorizeRead,
+      );
     else if (['create', 'update', 'destroy'].includes(request.actionName))
       await this.writer.handle(context, request.actor, authorizeRead);
     else invalid('Selected root action requires a dedicated runtime adapter');

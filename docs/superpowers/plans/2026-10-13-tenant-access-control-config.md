@@ -4937,3 +4937,16 @@ Ruling: 将§331测试中手写identity/key/metadata回调移入AccessMainRootRe
 - [x] 首main-root-selection-build.log实际1（31212退出）：Sequelize FindOptions类型遗漏运行时支持的hooks选项。沿已有查询写法将完全相同的选项提取为局部query对象，保留hooks:false、useMaster:true、transaction:null、投影与边界；main-root-selection-build-verified.log tenant客户端/服务端/依赖/dts完整实际0（66692退出）。最终三TS Prettier check/oxlint0，源snapshot一致：mount 37EC765DBC75D3059A5EDE8324EDC2035F636C11FB36EB2C36A213C3CC2C1682；registry 62D2746A1F507615BA8850F264621588B2A73A3ED073BECB76F3C0CF186EA911；HTTP C0CCAF73D369DC88DF40E8E87049F3EB8524FA2ED246404B4D1176728D5EE0A7。最终回归后仅抽取相同查询选项对象，后继构建已验证；不将构建首败称成功。
 
 按requesting-code-review模板作者串行自审，非独立复核：显式稳定键选择与已保存规则分开；持久表键和运行时引用不一致/已选身份缺失均拒绝且不走旧链；认证actor在异步发现前捕获，每请求独立runtime/配置阶段不共享结果。新发现增加每个非空选择请求一次主库元数据查询，并遍历当前collection引用；原prepare仍会读取本次选择清单内各表配置，不称零成本或已做性能优化。本项无未修复Critical/Important。不予本项裁决：外部数据源自动安装、完整主库重载/卸载、全部关联/图表/导出/工作流等入口统一正式安装、配置与业务SQL的全程原子隔离/跨实例事实协调、正式规则保存启用、业务试点和整分支独立复核。后续继续实际业务入口闭环，不回日期候选，不凭本项启用正式表。本轮未改核心源码、正式依赖/锁文件、主检出、业务库/旧附件，未启动PG/Redis/建库/新物理附件；日志/原集群/旧目录/TEMP均保留。
+
+## 333. 真实认证根表导出接入既有G/V文件处理器
+
+Ruling: 在显式内部根运行时中将export分发到原AccessRootReadHandler.handleExportWithRelatedContexts，复用本次export最终ACL、G/V读取、相关集合独立list授权、内存XLSX渲染及发布前校验。未选择表继续原导出和租户守卫；没有export权限不能借list权限下载。没有新增路由、SQL、依赖或文件存储，不在正式插件入口自动安装或启用。
+
+- [x] 真实安装ExportPlugin的认证应用新增三项：B下载amount为100/200，C为100/300，真实node-xlsx解析文件并核文件名租户后缀；仅view角色导出403且无下载头；未选择legacy_documents继续旧链仅导出B的200。保留原11项认证读写及选择验证，使用原agent.resource请求协议。
+- [x] 首authenticated-root-export-red.log三个404来自手写/api与测试prefix不符；confirmed-red.log选中表400是真实缺接线，旧表空文件来自自动id不是显式collection字段的夹具错误。改为实际amount字段后clean-red.log干净1失败2通过11过滤/14总、实际1/12.16秒（12094退出）：选中export被“requires a dedicated runtime adapter”拒绝，两个控制原过。不把夹具错误或旧导出称越权。
+- [x] 最小接线后authenticated-root-export-green.log14全通过/无跳过、实际0/11.65秒（5845退出）；authenticated-root-export-regression.log三文件183全通过/无跳过、实际0/32.61秒（53431退出）：认证HTTP14/原普通HTTP40/原导出HTTP129。183不与14、RED或旧轮累加，非整分支回归。
+- [x] authenticated-root-export-build.log tenant客户端/服务端/依赖/dts完整实际0（39359退出）。两TS最终Prettier check/oxlint0、diff check0、源snapshot一致：root runtime 268F33AF534E8E937A63A66AC6E2F1239A4272E7A749BE2C4FE16ABD5614F60B；认证HTTP 5F9F4A427A97A6B774D6F53EF8F20AE892D00A48E17C1A9F0E8D001C6A686721。代码后未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：接线复用专用文件响应而非普通行数组；最终export权限与相关表list权限分开；缺权限和旧表控制真实经过认证/ACL/租户选择；配置及派生阶段沿原finally释放。无未修复Critical/Important。不予本项裁决：大批量worker导出、全部关联及图表/工作流入口统一接线、完整生命周期、授权事实到业务SQL原子隔离/跨实例协调、正式保存启用/业务试点/整分支独立复核。本轮使用测试JWT，不是密码signIn或浏览器业务试点；三行内存文件未产生物理附件，未启PG/Redis/建库，不改核心/正式依赖/锁文件/主检出/业务库/旧附件，不推送合并部署发版启用。日志及旧目录保留。
+
+默认签名session96286实际退出1，GPG明确Timeout；事先定位本次git102024/34404、gpg70184、pinentry92248的父链及创建时间，退出后四PID逐一消失且活动Git/签名0，HEAD仍36c486e、无未暂存、四个暂存文件与已审内容一致，独立guard实际0（当前树4951a4666a74fcbe9ca9089d43307ed8bff4b39d；未声称提交前已采集该树hash）。仅补本段签名事实后再独立guard，按已有授权本次单次跳过签名；最终提交记N，不称G或独立验签成功。未操作认证窗口或终止签名进程，global保持true，不沿用旧Timeout。

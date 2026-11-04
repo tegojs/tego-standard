@@ -171,6 +171,41 @@ describe.skipIf(!postgresUrl)('date-field schedules use primary tenant authority
     },
   );
 
+  it('discovers a daily schedule whose start predates the signed 32-bit epoch range', async () => {
+    const documents = app.db.getCollection('primaryScheduleDocuments').model;
+    const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+    const start = new Date(Date.UTC(1900, 0, 1) + (due % 86_400_000));
+    const config = { ...workflow.config, repeat: 86_400_000, endsOn: new Date(due).toISOString() };
+    await app.db.getModel('workflows').update({ config }, { where: { id: workflow.id }, hooks: false });
+    await documents.update({ scheduledAt: start }, { where: { id: 1 }, hooks: false });
+    await documents.bulkCreate([
+      { id: 2, tenantId: 'C', label: 'Distant first', scheduledAt: new Date(due + 3_600_000) },
+      { id: 3, tenantId: 'C', label: 'Distant historical repeat', scheduledAt: new Date(start.getTime() + 3_600_000) },
+    ]);
+    const current = await app.db.getRepository('workflows').findOne({ filterByTk: workflow.id, useMaster: true });
+    expect((await trigger.loadRecordsToSchedule(current, new Date())).map((record) => record.get('id'))).toEqual([1]);
+    expect(Date.now()).toBeLessThan(due);
+    await trigger.reload();
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, due - Date.now()) + 100));
+    const plugin = app.pm.get('workflow');
+    await waitForAssertion(async () => {
+      expect(plugin.events).toHaveLength(0);
+      expect(plugin.preparing).toBeFalsy();
+      expect(plugin.pending).toHaveLength(0);
+      expect(plugin.executing).toBeFalsy();
+      const executions = await workflow.getExecutions({ useMaster: true });
+      expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+        ['B', due],
+      ]);
+      expect(Date.parse(executions[0].context.data.scheduledAt)).toBe(start.getTime());
+      expect(executions[0].tenantContext.currentTenantId).toBe('B');
+    });
+    const generated = await app.db.getCollection('primaryScheduleResults').model.findAll({ useMaster: true });
+    expect(generated.map((record) => [record.get('tenantId'), record.get('label')])).toEqual([['B', 'Generated']]);
+    await workflow.reload({ useMaster: true, transaction: null });
+    expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+  });
+
   it('discovers daily schedules using a mapped physical date column', async () => {
     const collection = app.db.collection({
       name: 'mappedScheduleDocuments',

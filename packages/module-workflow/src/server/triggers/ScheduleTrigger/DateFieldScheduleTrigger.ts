@@ -61,7 +61,7 @@ function getDataOptionTime(record, on, dir = 1) {
 
 const DialectTimestampFnMap: { [key: string]: (col: string) => string } = {
   postgres(col) {
-    return `CAST(FLOOR(extract(epoch from ${col})) AS INTEGER)`;
+    return `CAST(FLOOR(extract(epoch from ${col})) AS BIGINT)`;
   },
   mysql(col) {
     return `CAST(FLOOR(UNIX_TIMESTAMP(${col})) AS SIGNED INTEGER)`;

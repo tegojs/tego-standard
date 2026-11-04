@@ -19,6 +19,53 @@ describe('static schedule discovery lifecycle', () => {
   });
 
   it.each([
+    { repeat: 2000, endOffset: -1000, expectedDates: [] },
+    { repeat: 2000, endOffset: 0, expectedDates: [0] },
+    { repeat: '*/2 * * * * *', endOffset: -1000, expectedDates: [] },
+    { repeat: '*/2 * * * * *', endOffset: 0, expectedDates: [0] },
+  ])(
+    'bounds the first static occurrence of $repeat by end offset $endOffset ms',
+    async ({ repeat, endOffset, expectedDates }) => {
+      const workflow = await app.db.getRepository('workflows').create({
+        values: { type: 'schedule', enabled: false, config: { mode: 0 } },
+      });
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'staticLifecycleResults', params: { values: { label: 'First bounded static task' } } },
+      });
+      const due = Math.ceil((Date.now() + 2000) / 2000) * 2000;
+      try {
+        await workflow.update({
+          enabled: true,
+          config: {
+            mode: 0,
+            startsOn: new Date(due).toISOString(),
+            endsOn: new Date(due + endOffset).toISOString(),
+            repeat,
+          },
+        });
+        expect(Date.now()).toBeLessThan(due - 1000);
+        await waitForFastAssertion(() => expect(Date.now()).toBeGreaterThan(due + 2500), 10000);
+        const plugin = app.pm.get('workflow');
+        await waitForFastAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions({ order: [['id', 'ASC']] });
+        expect(executions.map((execution) => Date.parse(execution.context.date) - due)).toEqual(expectedDates);
+        const rows = await app.db.getRepository('staticLifecycleResults').find();
+        expect(rows.map((row) => row.label)).toEqual(expectedDates.map(() => 'First bounded static task'));
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect([workflow.executed, workflow.allExecuted]).toEqual([expectedDates.length, expectedDates.length]);
+      } finally {
+        await workflow.update({ enabled: false });
+      }
+    },
+  );
+
+  it.each([
     { repeat: 2000, endOffset: 1000, expectedDates: [0] },
     { repeat: 2000, endOffset: 2000, expectedDates: [0, 2000] },
     { repeat: '*/2 * * * * *', endOffset: 1000, expectedDates: [0] },

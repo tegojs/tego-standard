@@ -4730,3 +4730,16 @@ Ruling: 旧timer在来源读取时仍使用捕获的workflow.config.appends，�
 - [x] 本次默认GPG session59213实际Timeout128，事先捕获git98672/57488、gpg109168、pinentry78872父链及创建时间。退出后独立guard实际0：四PID全消失、活动Git/签名0、HEAD仍d68ceb9、原暂存树711f217d0a0c373e4cae20bd984db771a7fcef29不变、无未暂存改动。只补两原记录本次签名事实后，再核计划内五文件与独立guard，按已有授权单次跳过；本项记N，不称G或独立验签成功。global保持true，不操作认证窗口、不复用本Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：来源选择在投影使用前核对，避免新来源关联套用旧表；末尾最终回读保留，原停用及延迟边界有后继回归证据；真实关联增删和不变控制防止简单丢弃合法发生。无本项未修复Critical/Important。不予本项裁决：提前配置查询完成后再次改变appends的原子隔离、完整配置快照、初始静态起止边界（只读候选尚无fixture/RED）、改变cron后继timer独立边界、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、稳定来源身份、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。本项未重跑PG，不将旧PG23算本轮结果。不推送合并发布或正式启用。
+
+## 317. 静态重复任务首次开始遵守结束边界
+
+Ruling: 原getNextTime在startsOn仍位于未来时直接返回该时点，未核对启用重复的endsOn，导致配置在首次开始前已结束的数字/cron任务仍执行一次。将原重复分支的结束解析前移复用，未来首次返回同样拒绝startTime>endTime，等值允许；无重复时仍按原行为忽略隐藏的endsOn。不增加查询、schema、依赖或配置保存校验器，不将本项称为全部初始输入验证。
+
+- [x] 真实SQLite安装实例、原Repository保存启用、原Node timer/主库回读/队列/业务节点。数字2000及cron */2 * * * * *各以结束早于未来首次开始1000ms为反例，结束恰等于开始为合法控制。static-first-end-bound-red.log干净2失败2通过20过滤/24总、实际1/30.78秒，session74153已退出：两个提前结束项实际execution日期[0]非[]，两个等值控制原过。新测试仅机械Prettier write后oxlint0，未伪造时钟/SQL/结果。
+- [x] 最小未来首次结束比较后static-first-end-bound-green.log四项通过20过滤、实际0/30.50秒，session37059已退出。负向经过due+2500仍零execution/业务行/两计数；等值各精确原due唯一execution/业务行/两计数1，均显式核events/preparing/pending/executing。负向不是仅等待idle就断言，原真实时钟经过本次及下一周期窗口。
+- [x] static-first-end-bound-regression.log五SQLite文件65全通过/无跳过/实际0/131.19秒（测试159.20并行累计），session55192已退出：static-lifecycle24/static-discovery1/mode-static11/Plugin24/boundary5。static-first-end-bound-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session86277已退出。四项含于65，65/§316的160/各轮GREEN和RED不累加，非整分支回归。未启PG/建库/Redis服务/新物理附件，不将旧PG23算本项新验证。
+- [x] 两TS最终Prettier check/oxlint0，源snapshot一致：Static 829B13943DDD702FAAB043CCE500EB7B93E6F9F6F9A30AFBB50D4151E6A59260；static-lifecycle 3D2A4D58B67D08B030F276C00EFB5D918151D0CF15404ACCD3F77D447539A4A4。代码之后未改。前§316 8bde94532e03de6552300b83198f26d506dd0e0a实际提交0/N：默认59213 Timeout128，捕获git98672/57488、gpg109168、pinentry78872全退出/活动签名0、HEAD仍d68ceb9/原树711f217d0a0c373e4cae20bd984db771a7fcef29未变的独立guard0；仅补两记录后五文件树c8993a509001845c5cc71499300f36c335cab82e再独立guard0后按授权单次跳过。提交后独立审计0：干净树、三TS源snapshot一致、验证/签名0、pg_ctl无服务/25466全部记录0/global true。不称G/验签成功，不沿用旧Timeout。§311/314/315及297—300原N、312/313及301—310原G保持。
+
+- [x] 本次默认GPG session26687实际Timeout128，事先捕获git59468/86708、gpg60288、pinentry95916父链及创建时间。退出后独立guard实际0：四PID全消失/活动Git签名0，HEAD仍8bde945、原暂存树45f092192343cbe70af76655a833e1afdb676af4不变、无未暂存改动。只补两原记录本次事实后，再核计划内四文件及独立guard，按已有授权单次跳过；本项记N，不称G或独立验签成功，global保持true，不操作认证窗口，不复用本次或§316 Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：初始分支和后继重复复用同一结束解析，保留无重复兼容、原周期/额度/主库最终核验；数字和cron均有真实非法首次反例与等值合法控制。无本项未修复Critical/Important。不予本项裁决：初始配置保存时的格式/范围校验、无重复时隐藏endsOn的产品策略、全部日期域/亚秒/复杂偏移、完整配置原子快照及appends查询后再次变更、改变cron后继timer独立边界、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、稳定来源身份、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，未改主检出/核心/正式依赖/锁文件/业务库或旧附件；不推送合并发布/正式启用，原集群/全部日志/旧目录和TEMP保留。

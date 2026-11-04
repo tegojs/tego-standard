@@ -66,11 +66,11 @@ export default class StaticScheduleTrigger {
     currentDate.setMilliseconds(nextSecond ? 1000 : 0);
     const timestamp = currentDate.getTime();
     const startTime = parseDateWithoutMs(config.startsOn);
+    const endTime = config.repeat && config.endsOn ? parseDateWithoutMs(config.endsOn) : null;
     if (startTime > timestamp) {
-      return startTime;
+      return endTime != null && startTime > endTime ? null : startTime;
     }
     if (config.repeat) {
-      const endTime = config.endsOn ? parseDateWithoutMs(config.endsOn) : null;
       if (endTime && endTime < timestamp) {
         return null;
       }

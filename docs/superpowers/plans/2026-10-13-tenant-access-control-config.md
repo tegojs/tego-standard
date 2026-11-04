@@ -5076,3 +5076,14 @@ Ruling: 新增内部assertLegacyWriteBoundary，沿登记association/外键/目�
 按requesting-code-review模板作者串行自审，非独立复核：只拒绝不执行混合写、不新增授权语法/根配置、不改归属、HTTP在ACL后决定，workflow拒绝不能作为持久身份或授权证明，既有配置阶段finally释放。注册关系模型检查也包含目标侧外键和纯中间行，但本批真实集成只新实测BelongsTo正/反输入，不称所有关联形态均验收；默认scope/后续hook、级联删除/全部写动作、外部来源、完整混合查询/写入支持、跨实例配置/业务SQL并发原子隔离、正式业务试点及整分支独立复核仍未完成。增加本次配置准备/原规划/登记关系遍历成本，不称零成本。未改核心/正式依赖锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新附件，全部日志/集群/旧目录保留。一次只读误猜tenant-resource-guard.ts不存在后实际定位server.ts，不计产品RED。
 
 342本次默认签名51298明确gpg Timeout，调用实际退出1；事前捕获git84540/34192、gpg51784（18:22:59）及pinentry62892（18:23:00）的父链和创建时间，pinentry父55428为原10月30日gpg-agent，未操作窗口或终止进程。四本次PID逐一消失/活动Git及签名验证与snapshot验证进程0/HEAD仍334590577668ca5d28f585ec334dabf4e1817b37/原暂存树79f8c8eb36a519fb2b805fabf403a9355d7f91f1不变/七文件暂存且无未暂存/global true，独立guard实际0；仅补两份本次签名事实，再独立guard0后按已有授权单次无签名提交，记N，不称G或独立验签成功，不沿用任一旧Timeout。
+
+## 343. 真实密码登录凭据贯通已选业务入口验证
+
+Ruling: 将既有authenticated-root-http夹具从app.agent().login(user)直接签发测试JWT改为真实持久密码用户调用POST /auth:signIn；后续agent只使用返回Bearer token、basic认证及原角色/租户headers。沿现有已安装auth/ACL/tenant和显式内部runtime验证实际读写链，不新增产品授权逻辑或安装入口。这是既有功能的真实路径验证，测试直接通过，不制造或宣称新产品RED。
+
+- [x] users Repository创建本轮隔离密码用户及原角色/成员关系，真实密码字段加密与BasicAuth校验；signIn后核返回用户为持久业务用户、hasPassword=true、无password/resetToken，取得非空token。新增auth:check再核相同持久身份；错误密码返回401且无token。未手设currentUser/currentRole/currentTenant或最终permission。
+- [x] 原全部SQLite业务控制改用该密码登录令牌：B/C列表与get/count、实际新增修改删除及tenantId持久归属、V-only拒写、操作ACL/非成员租户拒绝、关联读取、真实XLSX解析及图表B/C/B隔离、规则刷新/稳定表身份、旧链及混合路径拒绝。不是密码登录后另切回测试JWT，也不把测试用active状态服务当正式账号状态或浏览器业务试点。
+- [x] password-authenticated-access-regression.log单文件40过/8个PG专用明确跳过/48总、实际0/19.97秒（82975已退出），仅在原snapshot顺序执行。无本轮PG实测，不把旧PG关系写结果算本轮；40/342原138/各历史轮不累加，非整分支回归。
+- [x] 首次Prettier check实际1，在测试启动前停止；格式化后check及oxlint实际0（零警告错误），再启动唯一测试runner，代码后未改。源snapshot SHA256一致A2B4AD4A70DD2F34DF0D0D55ABAA77877BA261CE8C7893F565986594AB1EFC87，diff check0。只有测试夹具及两原记录变更，无产品/导出类型/依赖/构建敏感改动，按项目聚焦验证规则不重复tenant包构建。
+
+按requesting-code-review模板作者串行自审，非独立复核：登录与业务请求均经过原真实认证，角色和租户仍由认证用户的持久关系解析，匿名控制仍使用无令牌agent，错误密码控制不复用有效token；凭据仅为本轮隔离测试常量，不记录实际token。无本批未修复Critical/Important。未改产品/核心/正式依赖锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新附件。正式自动安装、保存启用和业务试点仍关闭；完整混合查询写入/其他关系与外部来源/跨实例配置及业务SQL并发原子隔离/整分支独立复核仍未完成。全部日志/原集群/旧目录保留。

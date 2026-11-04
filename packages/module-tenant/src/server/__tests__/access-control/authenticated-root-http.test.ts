@@ -26,13 +26,21 @@ const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.
 describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () => {
   let app: MockServer;
   let user: Model;
+  let token: string;
+  const account = 'protected-business-user';
+  const password = 'tenant-access-test-password';
   let identity: AccessCollectionIdentity;
   let unconfiguredIdentity: AccessCollectionIdentity;
   let store: AccessConfigStore;
   const selectedKeys = new Set<string>();
   let unregister: (() => void) | undefined;
   const agent = (tenant = 'B', role = 'business-member') =>
-    app.agent().login(user).set('X-Role', role).set('X-Tenant-Id', tenant);
+    app
+      .agent()
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role)
+      .set('X-Tenant-Id', tenant);
   const exportFile = (tenant = 'B', role = 'business-member', collection = 'protected_documents') =>
     agent(tenant, role)
       .resource(collection)
@@ -106,7 +114,8 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     app.acl.getRole('business-legacy-scope').grantAction('legacy_sources:list', { filter: { 'document.amount': 200 } });
     user = await app.db.getRepository('users').create({
       values: {
-        username: 'protected-business-user',
+        username: account,
+        password,
         roles: [
           'business-member',
           'business-denied',
@@ -243,11 +252,39 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     const adapter = new AccessAclScopeAdapter(app.acl, 'main', store, app.db);
     unregister = adapter.register();
     registerAuthenticatedAccessRootRuntime(app.resourcer, (ctx) => registry.select(ctx, adapter, [...selectedKeys]));
+    const signedIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({ account, password });
+    expect(signedIn.status).toBe(200);
+    expect(String(signedIn.body.data.user.id)).toBe(String(user.get('id')));
+    expect(signedIn.body.data.user.hasPassword).toBe(true);
+    expect(signedIn.body.data.user).not.toHaveProperty('password');
+    expect(signedIn.body.data.user).not.toHaveProperty('resetToken');
+    expect(signedIn.body.data.token).toEqual(expect.any(String));
+    expect(signedIn.body.data.token.length).toBeGreaterThan(0);
+    token = signedIn.body.data.token;
   });
 
   afterAll(async () => {
     unregister?.();
     await app?.destroy();
+  });
+
+  it('resolves the password-issued bearer token to the persisted business user', async () => {
+    const response = await agent().get('/auth:check');
+    expect(response.status).toBe(200);
+    expect(String(response.body.data.id)).toBe(String(user.get('id')));
+    expect(response.body.data.hasPassword).toBe(true);
+    expect(response.body.data).not.toHaveProperty('password');
+    expect(response.body.data).not.toHaveProperty('resetToken');
+  });
+
+  it('does not issue a business credential for an incorrect password', async () => {
+    const response = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account, password: 'incorrect-password' });
+    expect(response.status).toBe(401);
+    expect(response.body).not.toHaveProperty('data.token');
   });
 
   it('uses authenticated tenant selection and G or V before the legacy tenant guard', async () => {

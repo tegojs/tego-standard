@@ -4883,3 +4883,15 @@ Ruling: 服务端getOnTimestampWithOffset/getDataOptionTime对缺省offset均以
 - [x] 前§327 c0e4fdb29cbe7267ba51f84d045b89325d0d505a实际0/N，原默认31684 Timeout128、本次四PID消失/活动签名0、原HEAD及暂存树不变、两次独立guard0后单次跳过事实保持，不沿用旧Timeout/PID/session。开工独立审计整体0：干净功能树/十TSX一致/验证签名0/PG停/25466全部0/global true，历史N/G不改称。
 
 按requesting-code-review模板作者串行自审，非独立复核：nullish缺省只在已有方向计算处归零，已存在数值的绝对值及方向协议保持；零值时原本地方向状态得以保留，后续输入真实写出正确符号，单位未静默变更。效果/服务器/配置保存路径未修改。本项无未修复Critical/Important。不予本项裁决：字段仍存在的外部零/null重置与用户零方向意图区分、明确NaN/Infinity或其他非法格式的统一校验、完整collection切换/保存范围、跨触发器type迁移/自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、完整日期域及正式G消费者/业务试点/整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；全部日志/原PG集群/旧目录/TEMP保留。
+
+## 329. 修改触发器类型时注销原注册
+
+Ruling: 实际工作流更新动作允许修改type；同次合法改变type及config时，旧toggle只按当前type调用off，遗留原日期监听器。注销使用previous.type对应的原触发器与previous配置，启用新注册仍使用当前触发器；未知当前type的既有处理保持。本项是在用户要求收缩边角之前已开始的最后一项修复，完成收尾后不继续扩展调度器或日期编辑器候选。
+
+- [x] 真实安装app、外部SQLite及原Model.update，分别保存enabled true/false，主库reload确认type/config/enabled已持久化后检查旧函数移除、无关函数保留。enabled true由真实新来源Repository.create驱动collection触发器、队列、execution及业务节点各一次；false均为零。均核events/preparing/pending/executing及两计数。workflow-previous-trigger-type-red.log干净2失败79过滤/81总，实际1/8.19秒；green.log两项过79过滤，实际0/7.47秒，均已实际退出。
+- [x] 集中相关回归：workflow-previous-trigger-type-regression.log原Plugin24/collection23/collection-lifecycle2共49项全过、无跳过，实际0/31.63秒，session98263已退出；listener-regression.log新type两项及原同次改config禁用两项共4过77过滤，实际0/6.81秒直接退出。49与4为独立运行，不累加聚焦/RED/历史结果，非整分支回归；未机械重跑旧十二文件。
+- [x] workflow-previous-trigger-type-build.log仅workflow客户端/服务端/依赖/dts完整构建实际0，session12513已退出。两TS最终Prettier check/oxlint0、源snapshot一致：Plugin 2590BE2AF04B24D9363A1ED601CB0B86237B2742E828160BFFFD43D2D7D301BE；external DF10DCA5D122C1D59C35D92FFC1CB9E71907CB75A30126BFC1601AE197EDF542。一次tegod build --help被旧CLI误当全量构建，已按本次新PID/创建时间/完整命令定位，只停止本次snapshot构建进程树，原调用实际退出1；不是产品RED或成功构建。随后读取真实CLI协议，使用明确包名完成上述包级构建。未修改业务库、正式依赖、锁文件、旧附件或无关进程。
+
+按requesting-code-review模板作者串行自审，非独立复核：原trigger协议及配置快照形状不变，原type存在时准确注销原注册；新collection触发器实际业务结果证明未只删除监听而漏启新注册，无SQL或schema变化。不将卸载/未知触发器、任意跨类型配置兼容、自动重绑或完整生命周期称为完成。
+
+用户最新方向：停止无穷扩展边角，集中新权限规则接入业务读写；已明确授权相关核心包D:/Dev/TegoJS/tego修改/重构，覆盖此前不改核心的旧限制。核心当前feat/tenant-access-control、HEAD d742a1c569579e05187b8260f14d48af0d8ccbae，工作树干净；实际本地ACL源码已存在registerActionParamsResolver，不再把“核心不能改”当阻断。正式部署/发版、业务表迁移或启用尚未授权，不改standard主检出。剩余主线按表执行选择、真实认证入口接线及业务闭环集中推进；跨实例原子隔离/附件未知结果等尚未完成，不能虚构放行。

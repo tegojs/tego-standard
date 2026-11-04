@@ -418,15 +418,17 @@ export default class PluginWorkflowServer extends Plugin {
       return;
     }
     const prev = workflow.previous();
+    const previousTrigger = prev.type ? this.triggers.get(prev.type) : trigger;
+    const previousWorkflow = prev.config || prev.type ? { ...workflow.get(), ...prev } : workflow;
     if (enable ?? workflow.get('enabled')) {
-      // NOTE: remove previous listener if config updated
-      if (prev.config) {
-        trigger.off({ ...workflow.get(), ...prev });
+      // NOTE: remove the previous registration if its type or config changed.
+      if (prev.config || prev.type) {
+        previousTrigger?.off(previousWorkflow);
       }
       trigger.on(workflow);
       this.enabledCache.set(workflow.id, workflow);
     } else {
-      trigger.off(prev.config ? { ...workflow.get(), ...prev } : workflow);
+      previousTrigger?.off(previousWorkflow);
       this.enabledCache.delete(workflow.id);
     }
   }

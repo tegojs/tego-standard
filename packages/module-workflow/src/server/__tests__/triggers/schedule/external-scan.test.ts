@@ -109,6 +109,64 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
+  it.each([true, false])('unregisters the previous trigger type while saving enabled: %s', async (enabled) => {
+    const trigger = installedDateTrigger();
+    const original = { ...workflow.get(), config: { ...workflow.config } };
+    const event = 'externalScheduleDocuments.afterSaveWithAssociations';
+    const listener = trigger.events.get(`${event}#${workflow.id}`);
+    const sourceName = `typeChangeSource${enabled ? 'Enabled' : 'Disabled'}`;
+    const resultsName = `typeChangeResults${enabled ? 'Enabled' : 'Disabled'}`;
+    const source = external.collection({
+      name: sourceName,
+      tenancy: 'shared',
+      fields: [{ name: 'label', type: 'string' }],
+    });
+    const results = app.db.collection({
+      name: resultsName,
+      tenancy: 'shared',
+      fields: [{ name: 'label', type: 'string' }],
+    });
+    await source.model.sync();
+    await results.model.sync();
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: resultsName, params: { values: { label: 'Changed trigger task' } } },
+    });
+    const unrelated = () => undefined;
+    external.on(event, unrelated);
+    try {
+      expect(typeof listener).toBe('function');
+      expect(external.listeners(event)).toContain(listener);
+      const config = { mode: 1, collection: `another:${sourceName}` };
+      await workflow.update({ type: 'collection', enabled, config });
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.type, workflow.enabled, workflow.config]).toEqual(['collection', enabled, config]);
+      expect(external.listeners(event)).not.toContain(listener);
+      expect(external.listeners(event)).toContain(unrelated);
+      const plugin = app.pm.get('workflow');
+      expect(plugin.ready).toBe(true);
+      await source.repository.create({ values: { label: 'Changed collection source' } });
+      await waitForAssertion(async () => {
+        expect(plugin.events).toHaveLength(0);
+        expect(plugin.preparing).toBeFalsy();
+        expect(plugin.pending).toHaveLength(0);
+        expect(plugin.executing).toBeFalsy();
+        const executions = await workflow.getExecutions();
+        expect(executions).toHaveLength(enabled ? 1 : 0);
+        if (enabled) expect(executions[0].context.data.label).toBe('Changed collection source');
+        expect((await results.repository.find()).map((row) => row.label)).toEqual(
+          enabled ? ['Changed trigger task'] : [],
+        );
+      });
+      await workflow.reload({ useMaster: true, transaction: null });
+      expect([workflow.executed, workflow.allExecuted]).toEqual(enabled ? [1, 1] : [0, 0]);
+    } finally {
+      trigger.off(original);
+      await workflow.update({ enabled: false });
+      external.off(event, unrelated);
+    }
+  });
+
   it.each(['collection', 'mode'])(
     'unregisters the previous date listener when disabling with a changed %s',
     async (change) => {

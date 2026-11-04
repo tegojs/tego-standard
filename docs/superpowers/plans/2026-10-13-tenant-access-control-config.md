@@ -4872,3 +4872,14 @@ Ruling: 实际ScheduleConfig在collection变化时把startsOn置为Object.create
 - [x] 本次默认GPG session31684实际Timeout128，事前捕获git63360/67292、gpg76824、pinentry97608父链/创建时间；四PID消失/活动Git签名0、HEAD仍7fd093b/原暂存树12855adf02540617466252125cad6d09a623819a未变/无未暂存，后继独立guard实际0。仅补两原记录本次事实后再次守卫，再按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口/终止进程，不沿用本次或旧Timeout/PID/session。
 
 按requesting-code-review模板作者串行自审，非独立复核：原dir渲染条件在字段清空后随本地状态消失，依赖同时包含field和offset；重新选字段不会恢复旧方向，且效果不调用onChange，不静默补offset/unit。原非零方向和单位控制均继续通过。字段仍存在且offset为零时未新增强制Exactly at行为。本项无未修复Critical/Important。不予本项裁决：字段仍存在的外部零/null重置与用户零值方向意图区分、初始无offset后选择Before/After、完整collection切换表单/保存校验及全部日期域、跨触发器type迁移/自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；全部日志/原PG集群/旧目录/TEMP保留。
+
+## 328. 新建日期偏移从缺省零值选择方向
+
+Ruling: 服务端getOnTimestampWithOffset/getDataOptionTime对缺省offset均以0解释；OnField首次从已选字段/尚无offset状态选择Before或After，却直接Math.abs(undefined)乘方向，生成非有限配置并在JSON中成为null。仅在原方向选择计算中用offset ?? 0，不改服务端缺省1000毫秒、序列化、明确单位或原非零/重置状态同步。
+
+- [x] 真实OnField/FieldsSelect/Ant Design/Application集合上下文/FormProvider，从{field:'scheduledAt'}出发，实际打开方向下拉分别选择Before/After，核受控配置offset0、实际InputNumber显示0且方向保留；再编辑5，最终分别-5/+5，缺省Seconds正确且unit未被补写。无mock组件/表单/翻译。date-offset-editor-initial-direction-red.log干净2失败7过滤/9总、实际1/98.18秒，session85354已退出：选择方向后JSON实际offset:null非0，失败在真实受控输出，非fixture错误；不是§325非零方向或§327无字段重置同案。
+- [x] 单行缺省零值处理后date-offset-editor-initial-direction-green.log两client文件10全通过/无跳过/实际0/105.40秒，session41482已退出：新两项+原空重置两项/非零方向两项/单位三项+variable一项。date-offset-editor-initial-direction-server-regression.log日期模式13全通过/无跳过/实际0/35.04秒，session33065已退出。10与13是独立运行，不与旧208/8/聚焦/RED各轮累加，非整分支回归，jsdom不是已登录浏览器/API业务试点。
+- [x] date-offset-editor-initial-direction-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session83766已退出。两TSX最终Prettier check/oxlint0，源snapshot一致：OnField 8862010B4BADDB712DF265C03F68CD8DA1103F569345AAB52034F4B37629A6A5；client test 8C8C83CEDC1B843EE8B9A654AC578B15F42CECC041ACFD34302A4EDE50454892。代码后未改。未启PG/建库/Redis服务/新物理附件，无PG/MySQL/MariaDB新实测。
+- [x] 前§327 c0e4fdb29cbe7267ba51f84d045b89325d0d505a实际0/N，原默认31684 Timeout128、本次四PID消失/活动签名0、原HEAD及暂存树不变、两次独立guard0后单次跳过事实保持，不沿用旧Timeout/PID/session。开工独立审计整体0：干净功能树/十TSX一致/验证签名0/PG停/25466全部0/global true，历史N/G不改称。
+
+按requesting-code-review模板作者串行自审，非独立复核：nullish缺省只在已有方向计算处归零，已存在数值的绝对值及方向协议保持；零值时原本地方向状态得以保留，后续输入真实写出正确符号，单位未静默变更。效果/服务器/配置保存路径未修改。本项无未修复Critical/Important。不予本项裁决：字段仍存在的外部零/null重置与用户零方向意图区分、明确NaN/Infinity或其他非法格式的统一校验、完整collection切换/保存范围、跨触发器type迁移/自动重绑/完整启停、持久来源身份/完整配置快照、最终权限到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、已入队撤销、TTL锁所有权、完整日期域及正式G消费者/业务试点/整分支独立复核。仅两TSX及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布或正式启用；全部日志/原PG集群/旧目录/TEMP保留。

@@ -43,7 +43,7 @@ export function OnField({ value: propsValue, onChange }) {
           value={dir}
           onChange={(v) => {
             setDir(v);
-            onChange({ ...value, offset: Math.abs(value.offset) * v });
+            onChange({ ...value, offset: Math.abs(value.offset ?? 0) * v });
           }}
           options={[
             { value: 0, label: lang('Exactly at') },

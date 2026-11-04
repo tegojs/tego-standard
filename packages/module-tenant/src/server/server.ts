@@ -3,6 +3,7 @@ import { Plugin, uid } from '@tego/server';
 
 import packageJson from '../../package.json';
 import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
+import { hasPreservedAccessResourceAction } from './access-control/preserved-resource-action';
 import { createAccessConfigRevisions } from './actions/access-config-revisions';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
@@ -134,6 +135,7 @@ function getAssociationTargetCollection(db: any, association: any) {
 }
 
 function normalizeAssociationReadPlaceholder(ctx: any, db: any) {
+  if (hasPreservedAccessResourceAction(ctx)) return;
   if (ctx.action?.sourceId !== '_' || !['get', 'list'].includes(ctx.action?.actionName)) {
     return;
   }

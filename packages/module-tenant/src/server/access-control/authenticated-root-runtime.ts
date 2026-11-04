@@ -36,7 +36,7 @@ export function registerAuthenticatedAccessRootRuntime(
     {
       tag: 'tenantAccessRootPreparation',
       after: ['auth', 'setCurrentRole', 'setCurrentTenant'],
-      before: 'acl',
+      before: ['tenantAssociationReadPlaceholder', 'acl'],
     },
   );
   resourcer.use((ctx: Context, next) => requests.get(ctx)?.dispatch(ctx, next) ?? next(), {

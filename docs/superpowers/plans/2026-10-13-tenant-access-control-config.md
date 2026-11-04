@@ -4963,3 +4963,20 @@ Ruling: 显式内部运行时识别charts:query实际主库目标表，在认证
 按requesting-code-review模板作者串行自审，非独立复核：图表权限与集合list权限不混用，复用原相关授权及finally释放；真实统计结果、缺权限和旧链兼容均直接断言业务输出。无未修复Critical/Important。不予本项裁决：完整外部来源生命周期/原地重建、所有关联与工作流入口统一安装、跨实例配置与业务SQL原子隔离、正式保存启用/业务试点/整分支独立复核。测试JWT不是密码signIn或浏览器验收。本轮未改核心/正式依赖/锁文件/主检出/业务库/旧附件，未启PG/Redis/建库/新物理附件，未部署发版正式启用；所有日志/旧目录保留。
 
 默认签名session10719实际Timeout退出128；事前捕获git10548/72612、gpg95540、pinentry45372父链与创建时间。四PID逐一消失/活动Git签名0、HEAD仍d37e826、原暂存树b01e4019d559e49bca494dc01fcc70a2d5f98ca8不变/无未暂存，独立guard实际0。仅补两记录后再独立guard，按已有授权本次单次跳过，最终提交记N，不称G或独立验签成功；未操作认证窗口/终止进程/global仍true，不复用旧Timeout。
+
+## 335. 真实认证关联读取保留原生资源描述并复用既有处理器
+
+Ruling: 显式内部根运行时将两段关联资源的list/get/count交给原读取处理器，仍由原协议解析器限制具体关系类型与动作；关联写入和关联导出继续明确拒绝。本次实测BelongsTo具体get及/_/目标list，未宣称所有关联类型/动作均已实测。来源与目标各自的最终ACL及G/V保持独立；不新增查询算法、SQL或依赖。
+
+- [x] 原认证应用增加持久Collection Manager来源表及真实BelongsTo字段/外键，真实来源B/id1指向H/id1可见目标、来源C/id2指向B/id2、来源B/id3指向C/id3隐藏目标；来源表稳定key显式选择并保存owner规则。新增target-only持久角色/用户角色关系，通过真实ACL.grantAction授予目标view，最终权限仍经实际middleware计算，不伪造permission；该单表授权为启动时ACL登记，不冒称已验证权限配置持久化重载。
+- [x] authenticated-association-runtime-red.log3失败1通过19过滤/23总、实际1/11.71秒（56107退出）：具体get和/_/list均400非200，证明入口缺失；来源缺权限项的400/403差异只是拒绝控制，不另称新越权RED，关联写入关闭控制原过。仅开放读取分发后green.log22过1失败/23总、实际1/14.64秒（88053退出），具体来源/目标G/V及缺来源权限已过，/_/仍400。
+- [x] 沿真实栈核tenant插件原normalizeAssociationReadPlaceholder在新准备前将resourceName改为目标、sourceId清空，但保留旧resourceOf及传输元数据，新handler误按普通根协议拒绝。新准备明确在tenantAssociationReadPlaceholder前；仅服务端已选择且已完成配置准备的请求用内部WeakSet保留原生描述，旧normalizer对该请求不改写，finally释放。未选择/无配置仍走原规范化，无客户端flag或全局关闭。中间未通过用例不是夹具错误；未修改核心或放宽原读取参数校验。
+- [x] integrated-green.log认证23全过/无跳过、实际0/16.13秒（86034退出）：V目标{id1}、隐藏来源403且无data、隐藏目标200/null、target-only具体关联403、同角色/_/仅G目标{id2}、关联update400且amount仍100。原19项根CRUD、逐请求选择、导出、图表及拒绝控制保持。
+- [x] authenticated-association-runtime-regression.log三SQLite91全过/无跳过、实际0/74.19秒（30906退出）：认证HTTP23/原普通HTTP40/旧tenant-resource-guard28（含原/_/兼容）。91不与23/旧147/183/RED累加，非整分支回归。tenant完整客户端/服务端/依赖/dts build.log实际0（47086退出）；五TS最终Prettier check/oxlint0、diff check0，代码后未改。
+- [x] 五TS源snapshot一致：preserved-resource-action B4D37EA7CDC30D01C72677252F81F80641A1500A760C0EBA0C69A913C3433244；root runtime 5C6EA10C826C5EBA5EBF6456A16A024404D063A815D0BE85354FBC2EC1959162；authenticated mount 353EBCEFBA537D64411B2892CAD2FE862D9048B1CE697A440B667DD28ADA894B；tenant server 65B8FD670159994272D5A493F93449056CDEAC915088DFED0A2D87E09F3DACAD；认证HTTP B1B52671403E0DC10721A3E1BE38928DD47EFEB8D3353A11B888D136DE93D26C。
+
+按requesting-code-review模板作者串行自审，非独立复核：新保留描述标记只在服务端选中且配置准备成功后建立，成功/拒绝/异常沿finally释放；旧链未选请求可由原28项兼容证明。关联读写按动作分开，不删除全部关联限制；原目标ACL与独立来源list最终权限仍真实执行。无未修复Critical/Important。不予本项裁决：全部关系类型及关联导出/写入的认证闭环、外部来源、完整重载/卸载与跨实例事实/业务SQL原子隔离、正式规则保存启用/业务试点/整分支独立复核。内部保留标记不自动安装根运行时，未新建路由或正式启用。一次读取错误文件路径/Windows通配及CodeGraph两次未完整给出所需符号后用实际源码定位，均非产品RED。本轮未启PG/Redis/建库/新物理附件，未改核心/正式依赖/锁文件/主检出/业务库/旧附件，全部日志/旧目录保留。
+
+后续主线只读校正：不要把旧workflow-query-plugin的fixture permission Map当作当前唯一实现。已有AccessWorkflowRootHandler.query通过实际插件captureDataOperationAuthority核验真实节点/执行/持久身份，并以该操作权威及逐表G/V组合，规格§291/299/301已有契约；自动流程不强加人工角色。尚需服务端稳定身份/明确选择及正式入口协调，不重复发明权威或冒用query-node authority作其他操作。当前未写下一fixture/代码/RED。
+
+默认签名session43547明确GPG Timeout且实际退出128；事前捕获git63504/89996、gpg80188、pinentry101692父链和创建时间。本次四PID逐一消失；前两次guard因其他瞬时Git54196/55288（CommandLine null）实际1，未跳过。其消失后独立guard实际0：活动Git签名0、HEAD0188dec/原暂存树6377ed47b754eb33b3fbb11f2b3461c7ab0ac45f未变/无未暂存/global true。仅补两原记录后再guard0才按既有授权本次单次无签名，记N；未操作认证窗口或终止进程，不复用旧Timeout/PID/session。

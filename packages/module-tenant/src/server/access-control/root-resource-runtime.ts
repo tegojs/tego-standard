@@ -4,6 +4,7 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
+import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessRootMutationHandler } from './root-mutation-handler';
 import type { AccessRootReadContext } from './root-read-context';
@@ -76,7 +77,10 @@ export class AccessRootResourceRuntime {
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
       const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
       if (!configured.length) return void (await next());
-      if (parts.length !== 1 || sourceId !== undefined)
+      if (
+        (parts.length !== 1 || sourceId !== undefined) &&
+        !(parts.length === 2 && ['list', 'get', 'count'].includes(actionName))
+      )
         invalid('Selected association resources require a dedicated runtime adapter');
       const identity = configured[0];
       const config = this.prepared.configuration(ctx, identity);
@@ -103,10 +107,12 @@ export class AccessRootResourceRuntime {
         },
       };
       this.requests.set(ctx, request);
+      const releaseAction = preserveAccessResourceAction(ctx);
       try {
         await next();
         request.assertCurrent();
       } finally {
+        releaseAction();
         this.requests.delete(ctx);
         for (const context of request.related) this.prepared.release(context);
       }

@@ -80,10 +80,12 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .getRepository('roles')
       .create({ values: { name: 'business-no-export', strategy: { actions: ['view'] } } });
     await app.db.getRepository('roles').create({ values: { name: 'business-denied', strategy: { actions: [] } } });
+    await app.db.getRepository('roles').create({ values: { name: 'business-target-only', strategy: { actions: [] } } });
+    app.acl.getRole('business-target-only').grantAction('protected_documents:view', {});
     user = await app.db.getRepository('users').create({
       values: {
         username: 'protected-business-user',
-        roles: ['business-member', 'business-denied', 'business-no-export'],
+        roles: ['business-member', 'business-denied', 'business-no-export', 'business-target-only'],
         tenants: ['B', 'C'],
         defaultTenantId: 'B',
       },
@@ -119,10 +121,33 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     };
     const identities = [identity, unconfiguredIdentity];
     identities.forEach((value) => selectedKeys.add(value.collectionKey));
+    const sources = await app.db.getRepository('collections').create({
+      values: {
+        name: 'protected_sources',
+        tenancy: 'tenantScoped',
+        timestamps: false,
+        createdBy: false,
+        updatedBy: false,
+        fields: [{ name: 'document', type: 'belongsTo', target: 'protected_documents', foreignKey: 'documentId' }],
+      },
+      context: {},
+    });
+    const sourceIdentity = {
+      dataSourceKey: 'main',
+      collectionName: 'protected_sources',
+      collectionKey: sources.get('key'),
+    };
+    selectedKeys.add(sourceIdentity.collectionKey);
+    await app.db.getCollection('protected_sources').model.bulkCreate([
+      { id: 1, tenantId: 'B', documentId: 1 },
+      { id: 2, tenantId: 'C', documentId: 2 },
+      { id: 3, tenantId: 'B', documentId: 3 },
+    ]);
     app.db.collection(accessConfigHistory);
     await app.db.getCollection('tenantAccessRevisions').model.sync();
     const registry = new AccessMainRootResourceRegistry(app);
     store = registry.store;
+    await store.save(sourceIdentity, { ...configFor(ownerCondition), revision: 0 }, { userId: user.get('id') });
     await store.save(
       identity,
       {
@@ -390,5 +415,47 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     const response = await chart('B', 'business-member', 'protected_documents', dataSource);
     expect(response.status).toBe(400);
     expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('reads a concrete association using separate source and target G or V scopes', async () => {
+    const visible = await agent()
+      .resource('protected_sources.document', 1)
+      .get({ fields: ['id'] });
+    expect(visible.status).toBe(200);
+    expect(visible.body.data).toEqual({ id: 1 });
+    const hiddenSource = await agent()
+      .resource('protected_sources.document', 2)
+      .get({ fields: ['id'] });
+    expect(hiddenSource.status).toBe(403);
+    expect(hiddenSource.body).not.toHaveProperty('data');
+    const hiddenTarget = await agent()
+      .resource('protected_sources.document', 3)
+      .get({ fields: ['id'] });
+    expect(hiddenTarget.status).toBe(200);
+    expect(hiddenTarget.body.data).toBeNull();
+  });
+
+  it('requires source list permission for a concrete association independently of the target grant', async () => {
+    const response = await agent('B', 'business-target-only')
+      .resource('protected_sources.document', 1)
+      .get({ fields: ['id'] });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('reads placeholder association targets without a concrete source or source list permission', async () => {
+    const response = await agent('B', 'business-target-only')
+      .resource('protected_sources.document', '_')
+      .list({ fields: ['id'], sort: ['id'] });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 2 }]);
+  });
+
+  it('keeps selected association writes closed', async () => {
+    const response = await agent()
+      .resource('protected_sources.document', 1)
+      .update({ values: { amount: 999 } });
+    expect(response.status).toBe(400);
+    expect((await app.db.getCollection('protected_documents').model.findByPk(1))?.get('amount')).toBe(100);
   });
 });

@@ -4895,3 +4895,18 @@ Ruling: 实际工作流更新动作允许修改type；同次合法改变type及c
 按requesting-code-review模板作者串行自审，非独立复核：原trigger协议及配置快照形状不变，原type存在时准确注销原注册；新collection触发器实际业务结果证明未只删除监听而漏启新注册，无SQL或schema变化。不将卸载/未知触发器、任意跨类型配置兼容、自动重绑或完整生命周期称为完成。
 
 用户最新方向：停止无穷扩展边角，集中新权限规则接入业务读写；已明确授权相关核心包D:/Dev/TegoJS/tego修改/重构，覆盖此前不改核心的旧限制。核心当前feat/tenant-access-control、HEAD d742a1c569579e05187b8260f14d48af0d8ccbae，工作树干净；实际本地ACL源码已存在registerActionParamsResolver，不再把“核心不能改”当阻断。正式部署/发版、业务表迁移或启用尚未授权，不改standard主检出。剩余主线按表执行选择、真实认证入口接线及业务闭环集中推进；跨实例原子隔离/附件未知结果等尚未完成，不能虚构放行。
+
+## 330. 将根资源权限阶段与实际读写组装为可复用请求链
+
+Ruling: 主线下一步是把真实请求链的准备、现有ACL、受保护读写及收尾从测试夹具移入可复用产品实现，不再新增日期调度边角。新AccessRootResourceRuntime仅接受服务端明确选择的身份/表清单；prepare包围既有ACL，dispatch位于旧租户守卫和默认动作之前，使用本次最终权限调用原根读取及写入处理器。未选中或尚无配置的表继续原链；选中表未支持的动作及具体关联资源明确拒绝，不重试旧Repository。不在正式插件入口自动安装，不开放管理保存、业务表迁移或启用。
+
+- [x] 原HTTP夹具移除手工拼接的QueryService、根handler及中性list权限构造，改为调用产品请求链，保留原真实角色模型、ACL、SQL及资源URL。新编排空实现契约RED为root-resource-runtime-red.log：两项失败35过滤/37总、实际1/4.72秒，普通核心链仅返回B/id3，期望G或V的B集合[id1,id3]，请求实际200且分页/计数不符。这是新编排缺失的RED，不把原handler已有正确行为重称新Bug。
+- [x] 实现保留私有WeakMap阶段、调用前身份快照、资源/模型及原配置阶段复核，finally释放根和派生授权上下文；中性派生决策仍走传入的真实ACL链，不继承请求筛选或借用操作权限。初次实现错误地用“受保护入口选择”推导所有规则事实表的元数据键，27项失败/10项通过；沿真实participants规则堆栈核实后，将元数据稳定键解析与入口选择分别注入，未扩大participants操作授权。修正后原37项全过，实际0/8.71秒、session58580已退出。初次失败不是新产品RED。
+- [x] 增加未选中表沿普通核心动作、已选但无配置时保留原ACL、已选未知动作在普通写handler前拒绝三项控制；每次HTTP请求结束后同时断言原配置阶段不可复用，涵盖成功及已有失败/回滚。root-resource-runtime-regression.log三个文件77全通过/无跳过/实际0/17.81秒、session87017已退出：HTTP40/核心契约13/原ACL范围24。包括G/V读取、分页/计数、角色与字段限制、V-only拒写、历史首次认领、真实新增修改删除及hook失败回滚。77不累加原37、RED或§329结果，非整分支回归。
+- [x] root-resource-runtime-build.log tenant客户端/服务端/依赖/dts完整构建实际0、session9027已退出。最终两TS Prettier check/oxlint0，源snapshot一致：runtime BF715304917F77F0D08F6B186F91AADB610C3D93651B9C6DC596228F06A8D608；HTTP 58FF24D62860FAD35621BDFEFC20F4CA72A7612FB9D339BB4EAAEC93FD3861FE。代码后未改。
+- [x] 主线依赖核查：在snapshot实际module-tenant包内解析到@tego/server@1.6.24，ACL.prototype.registerActionParamsResolver确为undefined；本地核心已构建ACL入口为function，核心源码也已有扩展点。本轮使用既有TENANT_ACCESS_CORE_ACL_ENTRY接入本地构建，不改正式依赖/锁文件或无必要重构核心，不要求先发布才继续隔离开发。一次从workspace根直接require因该根不声明server依赖失败，已按真实包解析；不是产品RED。一次Prettier的PowerShell数组被pnpm拼为单个模式，实际2后立即停止后继，改明确路径后格式/lint0。
+- [x] 前§329默认GPG提交25c8449de634c0dceaeb0bead66d6ba53fe4550d实际0，后继独立verify-commit实际0/G；提交后独立审计实际0：干净树/十源snapshot一致/验证签名进程0/原PG停/25466全记录0/global true。§328同为G，旧N/G保持，不沿用任何旧Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：新链只消费服务端选择和最终ACL，不从客户端标志认定迁移；只在明确配置存在时接管，错误无旧路回退。请求与派生阶段在成功、拒绝及异常时释放，不更改现有事务所有权、tenantId或G/V计算。实际配置发现及完整插件认证/租户切换链尚未接入该编排，本轮身份仍由服务端夹具提供；不能称真实登录、正式插件生命周期、关联入口覆盖、外部租户权威、全部并发隔离、性能或业务试点已完成。该内部模块未从正式server入口导出/安装，无自动注册或启用。本轮未启PG/建库/Redis/新物理附件，不改主检出、核心源码、正式依赖/锁文件或业务库/旧附件；日志/原PG集群/旧目录/TEMP保留。
+
+下一主线沿此编排接入隔离安装应用的真实认证和租户选择，并核实与既有tenantResourceGuard的顺序及未迁移表兼容；再补逐请求稳定配置发现与按表执行选择。正式业务仍关闭，不能把上述隔离编排当成业务启用凭证。

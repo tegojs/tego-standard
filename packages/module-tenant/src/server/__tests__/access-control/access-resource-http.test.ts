@@ -1,13 +1,10 @@
 import { pathToFileURL } from 'node:url';
 import { mockServer, supertest, type MockServer } from '@tachybase/test';
-import { ACL, Resourcer, type Collection, type Context } from '@tego/server';
+import { ACL, type Collection, type Context } from '@tego/server';
 
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { accessCollectionKey } from '../../access-control/config-store';
-import { AccessQueryService } from '../../access-control/query';
-import { AccessRootMutationHandler } from '../../access-control/root-mutation-handler';
-import type { AccessRootReadContext } from '../../access-control/root-read-context';
-import { AccessRootReadHandler } from '../../access-control/root-read-handler';
+import { AccessRootResourceRuntime } from '../../access-control/root-resource-runtime';
 import { grantStoredScope, seedAclScopes } from './acl-database';
 import { configStore, mainIdentity, seedConfigStore } from './config-database';
 import { seedDatabase } from './database';
@@ -23,6 +20,7 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
   let adapter: AccessAclScopeAdapter;
   let store: ReturnType<typeof configStore>;
   let unregister: (() => void) | undefined;
+  let lastContext: Context | undefined;
   let principal: { tenantId: string; roleName: string; userId: number };
   const identity = (collection: Collection) => ({
     ...mainIdentity,
@@ -31,6 +29,7 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
   });
 
   beforeEach(async () => {
+    lastContext = undefined;
     app = mockServer({
       acl: false,
       registerActions: true,
@@ -94,12 +93,12 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
     await store.save(mainIdentity, { ...exampleConfig, revision: 0 }, { userId: 28 });
     adapter = new AccessAclScopeAdapter(acl, 'main', store, db);
     unregister = adapter.register();
-    const queries = new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection)));
-    const handler = new AccessRootReadHandler(db, adapter, queries, (collection) =>
-      collection.name === 'documents' ? identity(collection) : undefined,
-    );
-    const writer = new AccessRootMutationHandler(db, adapter, queries, (collection) =>
-      collection.name === 'documents' ? identity(collection) : undefined,
+    const runtime = new AccessRootResourceRuntime(
+      db,
+      adapter,
+      (collection) => (collection.name === 'documents' ? identity(collection) : undefined),
+      (collection) => accessCollectionKey(identity(collection)),
+      acl.middleware(),
     );
     principal = { tenantId: 'B', roleName: 'member', userId: 28 };
 
@@ -110,61 +109,26 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
         ctx.state.currentRole = actor.roleName;
         ctx.state.currentTenant = { id: actor.tenantId };
         ctx.state.accessTestActor = actor;
-        await adapter.prepare(ctx, [mainIdentity]);
-        try {
-          await next();
-        } finally {
-          adapter.release(ctx);
-        }
+        lastContext = ctx;
+        await runtime.prepare(ctx, actor, [mainIdentity], next);
       },
       { tag: 'access-test-preparation', after: 'auth' },
     );
     app.resourcer.use(acl.middleware(), { tag: 'access-test-acl', after: 'access-test-preparation' });
+    app.resourcer.use((ctx, next) => runtime.dispatch(ctx, next), {
+      tag: 'access-test-dispatch',
+      after: 'access-test-acl',
+    });
     app.resourcer.define({
       name: 'documents',
       actions: Object.fromEntries(
-        ['list', 'get', 'count'].map((action) => [
-          action,
-          async (ctx: Context & { permission: unknown }) => {
-            if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
-            await handler.handleResourceWithRelatedContexts(ctx, ctx.state.accessTestActor, async () => null);
-          },
-        ]),
+        ['list', 'get', 'count', 'create', 'update', 'destroy'].map((action) => [action, {}]),
       ),
     });
-    for (const action of ['create', 'update', 'destroy'])
-      app.resourcer.registerActionHandler(`documents:${action}`, async (resourceContext) => {
-        const ctx = resourceContext as Context & { permission: unknown };
-        if (!('permission' in ctx)) throw new Error('ACL middleware did not finalize this request');
-        const related: AccessRootReadContext[] = [];
-        try {
-          await writer.handle(ctx, ctx.state.accessTestActor, async (collection) => {
-            const resourcer = new Resourcer();
-            resourcer.define({ name: collection.name, actions: { list: {} } });
-            const action = resourcer.getAction(collection.name, 'list').clone();
-            Object.assign(action, { resourceName: collection.name, actionName: 'list' });
-            action.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
-            const decision = {
-              db,
-              action,
-              permission: undefined as unknown,
-              state: ctx.state,
-              get: ctx.get.bind(ctx),
-              logger: ctx.logger,
-              throw: ctx.throw.bind(ctx),
-            };
-            related.push(decision);
-            await adapter.prepare(decision, [mainIdentity]);
-            await acl.middleware()(decision as never, async () => {});
-            return decision;
-          });
-        } finally {
-          for (const decision of related) adapter.release(decision);
-        }
-      });
   });
 
   afterEach(async () => {
+    if (lastContext) expect(() => adapter.configuration(lastContext, mainIdentity)).toThrow();
     unregister?.();
     unregister = undefined;
     await app?.destroy();
@@ -292,6 +256,59 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([{ id: 3 }]);
     expect(response.body.meta.count).toBe(1);
+  });
+
+  it('leaves unselected resources on their ordinary core handlers', async () => {
+    const ordinary = app.db.collection({
+      name: 'ordinaryDocuments',
+      timestamps: false,
+      fields: [{ name: 'tenantId', type: 'string' }],
+    });
+    await ordinary.model.sync();
+    await ordinary.model.bulkCreate([
+      { id: 1, tenantId: 'B' },
+      { id: 2, tenantId: 'C' },
+    ]);
+    acl.getRole('member')!.grantAction('ordinaryDocuments:list', { fields: ['id'] });
+    app.resourcer.define({ name: 'ordinaryDocuments', actions: { list: {} } });
+    const response = await app
+      .agent()
+      .resource('ordinaryDocuments')
+      .list({ fields: ['id'], sort: ['id'] });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it('keeps an unconfigured selected table on its original ACL and core handler', async () => {
+    const metadata = await app.db.getRepository('collections').findOne({ filterByTk: 'documents' });
+    const options = { ...metadata!.getDataValue('options') };
+    delete options.tenantAccess;
+    await metadata!.update({ options }, { hooks: false });
+    expect(await store.read(mainIdentity)).toBeNull();
+    const response = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'], sort: ['id'] });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 3 }]);
+  });
+
+  it('blocks unsupported selected actions before their ordinary handler can write', async () => {
+    acl.getRole('member')!.grantAction('documents:archive', {});
+    app.resourcer.define({
+      name: 'documents',
+      actions: {
+        archive: async (ctx) => {
+          await app.db.getRepository('documents').update({ filterByTk: 3, values: { name: 'Unprotected archive' } });
+          ctx.body = { archived: true };
+        },
+      },
+    });
+    const before = (await app.db.getCollection('documents').model.findByPk(3))!.get('name');
+    const response = await app.agent().resource('documents').archive();
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data.archived');
+    expect((await app.db.getCollection('documents').model.findByPk(3))!.get('name')).toBe(before);
   });
 
   async function grantMutation(operation: 'create' | 'update' | 'destroy', filter?: Record<string, unknown>) {

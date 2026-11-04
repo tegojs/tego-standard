@@ -110,18 +110,19 @@ describe('date-field scheduling from an external database', () => {
   }
 
   it.each([
-    { replacementKind: 'collection', duringRead: false },
-    { replacementKind: 'data source', duringRead: false },
-    { replacementKind: 'collection', duringRead: true },
-    { replacementKind: 'data source', duringRead: true },
+    { replacementKind: 'collection', duringRead: false, duringDiscovery: false },
+    { replacementKind: 'data source', duringRead: false, duringDiscovery: false },
+    { replacementKind: 'collection', duringRead: true, duringDiscovery: false },
+    { replacementKind: 'data source', duringRead: true, duringDiscovery: false },
+    { replacementKind: 'collection', duringRead: false, duringDiscovery: true },
+    { replacementKind: 'data source', duringRead: false, duringDiscovery: true },
   ])(
-    'rejects a cached timer when its $replacementKind is replaced under the same name (during SQL read: $duringRead)',
-    async ({ replacementKind, duringRead }) => {
-      const sourceName =
-        replacementKind === 'collection' ? 'another' : `identityScheduleSource${duringRead ? 'Read' : ''}`;
+    'rejects a cached timer when its $replacementKind is replaced under the same name (during SQL read: $duringRead, during discovery: $duringDiscovery)',
+    async ({ replacementKind, duringRead, duringDiscovery }) => {
+      const suffix = duringDiscovery ? 'Discovery' : duringRead ? 'Read' : '';
+      const sourceName = replacementKind === 'collection' ? 'another' : `identityScheduleSource${suffix}`;
       const collectionName =
-        (replacementKind === 'collection' ? 'identityCollectionSchedules' : 'identitySourceSchedules') +
-        (duringRead ? 'Read' : '');
+        (replacementKind === 'collection' ? 'identityCollectionSchedules' : 'identitySourceSchedules') + suffix;
       let originalDb = external;
       let replacementDb = external;
       if (replacementKind === 'data source') {
@@ -180,11 +181,26 @@ describe('date-field scheduling from an external database', () => {
             return data;
           })
         : undefined;
+      let scanComplete = false;
+      const findAll = original.model.findAll.bind(original.model);
+      const sourceScan = duringDiscovery
+        ? vi.spyOn(original.model, 'findAll').mockImplementation(async (options) => {
+            const records = await findAll(options);
+            if (!scanComplete) {
+              expect(records.map((row) => [row.get('label'), row.get('tenantId')])).toEqual([['Original source', 'B']]);
+              scanComplete = true;
+              await hold;
+            }
+            return records;
+          })
+        : undefined;
       let replacement;
       try {
         await observeThroughDeadline(trigger, due, async () => {
-          await trigger.reload();
+          const reload = trigger.reload();
           try {
+            if (duringDiscovery) await waitForAssertion(() => expect(scanComplete).toBe(true));
+            else await reload;
             if (duringRead) await waitForAssertion(() => expect(readComplete).toBe(true));
             if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
             replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
@@ -206,6 +222,7 @@ describe('date-field scheduling from an external database', () => {
             else expect(Date.now()).toBeLessThan(due);
           } finally {
             release();
+            await reload;
           }
         });
         await waitForAssertion(() => {
@@ -241,6 +258,7 @@ describe('date-field scheduling from an external database', () => {
       } finally {
         release();
         sourceRead?.mockRestore();
+        sourceScan?.mockRestore();
         trigger.off(workflow);
         await results.destroy({ where: { label: 'Source identity task' }, hooks: false });
       }

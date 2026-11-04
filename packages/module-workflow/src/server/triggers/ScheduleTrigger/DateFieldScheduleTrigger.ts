@@ -248,9 +248,19 @@ export default class ScheduleTrigger {
         const inspection = {};
         this.inspections.set(key, inspection);
         try {
+          const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
+          const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+          const collection = dataSource?.collectionManager.getCollection(collectionName);
           const records = await this.loadRecordsToSchedule(workflow, now);
           for (const record of records) {
-            if (!isCurrent() || this.inspections.get(key) !== inspection) return;
+            if (
+              !isCurrent() ||
+              this.inspections.get(key) !== inspection ||
+              this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
+              dataSource?.collectionManager.getCollection(collectionName) !== collection
+            ) {
+              return;
+            }
             const nextTime = this.getRecordNextTime(workflow, record, false, now);
             // Refresh only successfully discovered records; failed scans keep their live handles.
             this.schedule(workflow, record, nextTime, false);

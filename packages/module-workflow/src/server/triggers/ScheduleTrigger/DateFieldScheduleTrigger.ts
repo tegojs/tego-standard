@@ -521,11 +521,14 @@ export default class ScheduleTrigger {
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
     const repeatFrom = new Date(Math.max(Date.now(), new Date(nextTime).getTime()));
-    const isCurrent = this.captureCurrent(workflow);
+    const isWorkflowCurrent = this.captureCurrent(workflow);
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
-    const collection = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const isCurrent = () =>
+      isWorkflowCurrent() &&
+      this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) === dataSource &&
+      dataSource.collectionManager.getCollection(collectionName) === collection;
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
     const tenantAware = isTenantCollection(collection);

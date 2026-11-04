@@ -109,12 +109,19 @@ describe('date-field scheduling from an external database', () => {
     return installed.modes.get(1)!;
   }
 
-  it.each(['collection', 'data source'])(
-    'rejects a cached timer when its %s is replaced under the same name',
-    async (replacementKind) => {
-      const sourceName = replacementKind === 'collection' ? 'another' : 'identityScheduleSource';
+  it.each([
+    { replacementKind: 'collection', duringRead: false },
+    { replacementKind: 'data source', duringRead: false },
+    { replacementKind: 'collection', duringRead: true },
+    { replacementKind: 'data source', duringRead: true },
+  ])(
+    'rejects a cached timer when its $replacementKind is replaced under the same name (during SQL read: $duringRead)',
+    async ({ replacementKind, duringRead }) => {
+      const sourceName =
+        replacementKind === 'collection' ? 'another' : `identityScheduleSource${duringRead ? 'Read' : ''}`;
       const collectionName =
-        replacementKind === 'collection' ? 'identityCollectionSchedules' : 'identitySourceSchedules';
+        (replacementKind === 'collection' ? 'identityCollectionSchedules' : 'identitySourceSchedules') +
+        (duringRead ? 'Read' : '');
       let originalDb = external;
       let replacementDb = external;
       if (replacementKind === 'data source') {
@@ -158,27 +165,48 @@ describe('date-field scheduling from an external database', () => {
         { id: 1, tenantId: 'B', label: 'Original source', scheduledAt: new Date(due) },
         { hooks: false },
       );
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => (release = resolve));
+      let readComplete = false;
+      const findOne = original.repository.findOne.bind(original.repository);
+      const sourceRead = duringRead
+        ? vi.spyOn(original.repository, 'findOne').mockImplementation(async (options) => {
+            const data = await findOne(options);
+            if (!readComplete && options?.filterByTk === 1) {
+              expect(data.get('label')).toBe('Original source');
+              readComplete = true;
+              await hold;
+            }
+            return data;
+          })
+        : undefined;
       let replacement;
       try {
         await observeThroughDeadline(trigger, due, async () => {
           await trigger.reload();
-          if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
-          replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
-          await replacement.model.sync();
-          await replacement.model.create(
-            { id: 1, tenantId: 'B', label: 'Replacement source', scheduledAt: new Date(due) },
-            { hooks: false },
-          );
-          if (replacementKind === 'data source') {
-            await app.dataSourceManager.add(
-              new SequelizeDataSource({
-                name: sourceName,
-                collectionManager: { database: replacementDb },
-                resourceManager: {},
-              }),
+          try {
+            if (duringRead) await waitForAssertion(() => expect(readComplete).toBe(true));
+            if (replacementKind === 'collection') originalDb.removeCollection(collectionName);
+            replacement = replacementDb.collection({ ...options, tableName: `${collectionName}_new` });
+            await replacement.model.sync();
+            await replacement.model.create(
+              { id: 1, tenantId: 'B', label: 'Replacement source', scheduledAt: new Date(due) },
+              { hooks: false },
             );
+            if (replacementKind === 'data source') {
+              await app.dataSourceManager.add(
+                new SequelizeDataSource({
+                  name: sourceName,
+                  collectionManager: { database: replacementDb },
+                  resourceManager: {},
+                }),
+              );
+            }
+            if (duringRead) expect(Date.now()).toBeGreaterThanOrEqual(due);
+            else expect(Date.now()).toBeLessThan(due);
+          } finally {
+            release();
           }
-          expect(Date.now()).toBeLessThan(due);
         });
         await waitForAssertion(() => {
           expect(plugin.events).toHaveLength(0);
@@ -211,6 +239,8 @@ describe('date-field scheduling from an external database', () => {
         await workflow.reload({ useMaster: true, transaction: null });
         expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
       } finally {
+        release();
+        sourceRead?.mockRestore();
         trigger.off(workflow);
         await results.destroy({ where: { label: 'Source identity task' }, hooks: false });
       }

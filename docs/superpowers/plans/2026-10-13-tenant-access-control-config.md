@@ -4756,3 +4756,16 @@ Ruling: 已登记的日期timer仅保留来源名称，timer回调进入trigger�
 - [x] 本次默认GPG session37301实际Timeout128，事先捕获git49112/85512、gpg106628、pinentry90396父链及创建时间。退出后四PID消失/活动Git签名0、HEAD仍916ddc3、原树b139c3432722f00cfe8ed793ecd1f996ff3e6e97未变/无未暂存的独立guard实际0。只补两记录本次签名事实后，再核计划内四文件及独立guard，按已有授权单次跳过；记N，不称G或独立验签成功，global保持true，不操作认证窗口，不复用旧Timeout。
 
 按requesting-code-review模板作者串行自审，非独立复核：同名同主键同租户反例隔离身份变化，两个实际来源替换入口及显式新扫描保护恢复行为；对象引用比较不依赖名称、模型数据或租户猜测，原timer句柄比较清理保持。无本项未修复Critical/Important。不予本项裁决：timer已进入trigger后SQL在途时替换来源、发现SQL已读而尚未交付时替换、同一对象原地重建物理表/模型、跨进程持久来源身份、完整配置原子快照、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布/正式启用，所有日志/原集群/旧目录/TEMP保留。
+
+## 319. 丢弃来自已替换来源的在途日期读取
+
+Ruling: §318只在timer进入trigger前核来源身份。进入后真实来源SQL等待读取交付期间，同名来源替换仍让旧调用继续入队。trigger入口捕获实际数据源及collection对象，将原isCurrent检查组合为原生命周期/取消标识与这两个当前登记对象同时匹配；复用各原有await后检查点。没有新增SQL、schema、依赖或record类型限制，原直接调用及事务/保存追赶协议保持，不宣称已入队撤销或完整原子隔离。
+
+- [x] 复用§318来源夹具增加独立duringRead阶段与独立来源名/表名。原Node timer已进入trigger，原Repository.findOne实际SQL完成、确认返回Original source后仅暂停交付，再替换同名collection或独立数据源、同一B/id1/due的新表数据；原表/原库保留。不改SQL结果、不伪造时钟。date-inflight-source-identity-red.log仅两个新阶段的干净2失败69过滤/71总、实际1/15.09秒，session79697已退出：旧调用均实际execution1非0。不是把§318旧timer案例重复称新RED。
+- [x] 最小入口对象身份组合后date-inflight-source-identity-green.log四项通过67过滤、实际0/34.58秒，session68538已退出：两个新在途阶段与两个原timer阶段均旧due零execution/业务行/两计数，随后显式新扫描新due唯一B/Replacement source上下文/tenantContext B/业务行/两计数1，核events/preparing/pending/executing。SQL屏障在替换finally释放，观察方法在清理恢复；没有让夹具依赖已修改的生产结果生成期望值。
+- [x] date-inflight-source-identity-regression.log九SQLite文件164全通过/无跳过/实际0/288.92秒（测试372.29并行累计），session35218已退出：external71/mode-date13/owner9/listener6/date-lifecycle5/record-identity1/Plugin24/boundary5/tenant workflow-operation-authority30。date-inflight-source-identity-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session88137已退出。164/162/旧160及各轮不累加，非整分支回归；无SQL路由/dialect改变，本轮未启PG/建库/Redis服务/新物理附件，不将旧PG23算新验证。
+- [x] 两TS最终Prettier check/oxlint0，源snapshot一致：Date 2940FDB3E3E2C920D0D372B79A00DAE05661AB97D61A9D7DC70350855DDD4829；external 3E24B5D732DDA323D4C4232FE7AB843CE618C7D84312F175B18CC9275736BB40。代码之后未改。前§318 242e9495b6007db779bb5e564d8eb878a25b849c提交实际0/N：默认37301 Timeout128，事前git49112/85512、gpg106628、pinentry90396全退出/活动签名0、HEAD仍916ddc3/原树b139c3432722f00cfe8ed793ecd1f996ff3e6e97未变/无未暂存，独立guard0；只补两原记录后四文件树231e4d44e6335ba05107d03b411759e5cbe088c4再guard0按授权单次跳过。提交后独立审计0：干净树/两TS一致/验证签名0/PG停/25466全部0/global true，不称G/验签成功，不沿用旧Timeout。§311/314—317及297—300原N、312/313及301—310原G保持。
+
+- [x] 本次默认GPG session14103实际Timeout128，事先捕获git99408/8788、gpg81592、pinentry92268父链及创建时间。退出后四PID消失/活动Git签名0、HEAD仍242e949、原树71efd8a08630d5b142453ff665796ee9c7b50779未变/无未暂存，独立guard实际0。只补两原记录本次签名事实后，再核计划内四文件及独立guard，按已有授权单次跳过；本项记N，不称G或独立验签成功，global保持true，不操作认证窗口，不复用本次或旧Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：新来源身份检查覆盖原租户事实、投影、来源数据和最终工作流等异步检查点，原权限/额度/发生逻辑未删；两个阶段使用同一恢复断言，避免以丢弃全部执行造绿；直接调用传入对象仍只需原协议，未凭constructor猜测身份。无本项未修复Critical/Important。不予本项裁决：发现SQL旧列表交付到schedule之间来源替换、同一对象原地物理重建/模型变化、跨实例持久来源身份、已入队后撤销、完整配置原子快照、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、持久租约/跨实例去重、完整启停、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖/锁文件/业务库/旧附件，不推送合并发布/正式启用，全部日志/原集群/旧目录/TEMP保留。

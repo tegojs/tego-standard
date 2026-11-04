@@ -558,9 +558,18 @@ export default class ScheduleTrigger {
       context = context || (await buildTenantContext(this.workflow.app.db, collection, record));
     }
     if (!isCurrent()) return;
+    const sourceWorkflow = await this.workflow.app.db.getRepository('workflows').findOne({
+      fields: ['config'],
+      useMaster: true,
+      transaction: null,
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+    });
+    if (!sourceWorkflow || !isCurrent() || typeof sourceWorkflow.config?.collection !== 'string') return;
+    const [sourceName, sourceCollectionName] = parseCollectionName(sourceWorkflow.config.collection);
+    if (sourceName !== dataSourceName || sourceCollectionName !== collectionName) return;
     const data = await repository.findOne({
       filterByTk: recordPk,
-      appends: workflow.config.appends,
+      appends: sourceWorkflow.config.appends,
       context,
       transaction: tenantAware ? (transaction ?? null) : transaction,
       ...(tenantAware ? { useMaster: true } : {}),

@@ -108,6 +108,92 @@ describe('date-field scheduling from an external database', () => {
   }
 
   it.each([
+    { name: 'added', previous: [], current: ['category'], expectedCategory: true },
+    { name: 'removed', previous: ['category'], current: [], expectedCategory: false },
+    { name: 'unchanged', previous: ['category'], current: ['category'], expectedCategory: true },
+  ])(
+    'reads the persisted appends before dispatching a cached date ($name)',
+    async ({ name, previous, current, expectedCategory }) => {
+      const categories = external.collection({
+        name: `externalAppendCategories_${name}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'title', type: 'string' },
+        ],
+      });
+      const collection = external.collection({
+        name: `externalAppendSchedules_${name}`,
+        tenancy: 'tenantScoped',
+        fields: [
+          { name: 'tenantId', type: 'string' },
+          { name: 'scheduledAt', type: 'date' },
+          { name: 'category', type: 'belongsTo', target: categories.name, foreignKey: 'categoryId' },
+        ],
+      });
+      await categories.model.sync();
+      await collection.model.sync();
+      const trigger = installedDateTrigger();
+      const results = app.db.getModel('externalScheduleDocuments');
+      const workflows = app.db.getModel('workflows');
+      const plugin = app.pm.get('workflow');
+      const due = Math.ceil((Date.now() + 3000) / 1000) * 1000;
+      const config = {
+        ...workflow.config,
+        collection: `another:${collection.name}`,
+        appends: previous,
+      };
+      await workflow.createNode({
+        type: 'create',
+        config: { collection: 'externalScheduleDocuments', params: { values: { label: 'Current appends task' } } },
+      });
+      try {
+        const category = await categories.model.create(
+          { tenantId: 'B', title: 'Current B category' },
+          { hooks: false },
+        );
+        await collection.model.create(
+          { tenantId: 'B', scheduledAt: new Date(due), categoryId: category.get('id') },
+          { hooks: false },
+        );
+        await workflows.update({ config }, { where: { id: workflow.id }, hooks: false });
+        await observeThroughDeadline(trigger, due, async () => {
+          await trigger.reload();
+          await workflows.update(
+            { config: { ...config, appends: current } },
+            { where: { id: workflow.id }, hooks: false },
+          );
+          expect(Date.now()).toBeLessThan(due);
+        });
+        await waitForAssertion(() => {
+          expect(plugin.events).toHaveLength(0);
+          expect(plugin.preparing).toBeFalsy();
+          expect(plugin.pending).toHaveLength(0);
+          expect(plugin.executing).toBeFalsy();
+        });
+        const executions = await workflow.getExecutions();
+        expect(executions.map((execution) => [execution.tenantId, Date.parse(execution.context.date)])).toEqual([
+          ['B', due],
+        ]);
+        expect(executions[0].tenantContext.currentTenantId).toBe('B');
+        expect(executions[0].context.data.category).toEqual(
+          expectedCategory
+            ? expect.objectContaining({ id: category.get('id'), title: 'Current B category', tenantId: 'B' })
+            : undefined,
+        );
+        const generated = await results.findAll({ where: { label: 'Current appends task' } });
+        expect(generated.map((row) => row.get('tenantId'))).toEqual(['B']);
+        await workflow.reload({ useMaster: true, transaction: null });
+        expect(workflow.config.appends).toEqual(current);
+        expect([workflow.executed, workflow.allExecuted]).toEqual([1, 1]);
+      } finally {
+        trigger.off(workflow);
+        await results.destroy({ where: { label: 'Current appends task' }, hooks: false });
+      }
+    },
+  );
+
+  it.each([
     { field: 'order', column: 'order' },
     { field: 'scheduledAt', column: 'scheduled_at' },
   ])('discovers daily schedules using physical column $column for date field $field', async ({ field, column }) => {

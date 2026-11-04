@@ -4717,3 +4717,16 @@ Ruling: PostgreSQL原周期literal将合法日期epoch向下取整后CAST为INTE
 - [x] 本次默认GPG session93471实际Timeout128，事先捕获git76060/89696、gpg79144、pinentry45152父链/创建时间。首次独立guard实际1，发现另一项活动Git/GPG/认证进程，未跳过、未更改HEAD/暂存、未操作窗口或终止进程；其退出后重新独立guard实际0，捕获四PID全消失/活动Git签名0、HEAD仍4b948f7/原树598523a5227e1d9c07a955eb0589a9962958334d不变/无未暂存。仅补两原记录本次签名事实、复核计划内四文件后，按已有授权单次跳过；须记N，不称G或验签成功，global保持true，不复用本次Timeout到后继项。
 
 按requesting-code-review模板作者串行自审，非独立复核：宽整数保留原取整/取模语义，不引入浮点近似或新日期限制；真实SQL反例及原timer业务结果覆盖因果，完整PG文件保护现有主库/事务/字段映射兼容，SQLite原生成式保持。无本项未修复Critical/Important。不予本项裁决：全部数据库日期域、2038后真实未来timer、亚秒/全部复杂偏移、当前appends完整交付、完整配置原子快照、改变cron后继timer独立边界、最终事实到业务SQL并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、稳定来源身份、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。仅两TS及两原记录，不改主检出/核心/正式依赖，不推送合并发布或正式启用；原集群/所有日志/旧目录及D盘TEMP/TMP目录保留。
+
+## 316. 日期来源读取使用当前关联展开配置
+
+Ruling: 旧timer在来源读取时仍使用捕获的workflow.config.appends，其他写者已持久新增关联时execution缺少数据，移除关联时仍携带旧关联。来源读取前新增一次主库/null的config投影查询，核enabled/type/mode和同一解析来源后使用当前appends；原来源读取后的完整工作流查询及启用、额度、来源、发生时点检查全部保留。当前发生触发对象、归属上下文、调用者事务及后继续排协议不变。每次dispatch增加一次主库查询，不称零成本或完整配置原子快照。
+
+- [x] 真实external SQLite三个独立tenantScoped来源及对应belongsTo目标，B真实关联持久化，原reload/SQL/Node timer登记后原Model.update(hooks:false)分别新增、移除或保持category展开。date-current-appends-red.log干净2失败1通过64过滤/67总、实际1/19.13秒，session1081已退出：新增项context.data.category实际undefined，移除项仍为B关联对象；不变控制原过。未伪造SQL/关联响应/时钟/结果。既有mode-date-field appends契约及真实collection字段定义已核对。
+- [x] 最小提前回读后date-current-appends-green.log三项通过64过滤、实际0/19.47秒，session48078已退出：精确due唯一B execution、关联新增/移除/不变分别匹配当前配置，tenantContext.currentTenantId=B、B业务行及两计数1。显式核events/preparing/pending/executing，不以idle helper单独返回作为证明。
+- [x] 首次九文件date-current-appends-regression.log为157通过3失败/160总、实际1/261.21秒，session49197已退出。三失败均是原date-lifecycle两个SQL交付屏障误将新增config-only查询当作原最终完整回读，因投影无id在屏障内报错；只为两屏障加!options.fields限定，原SQL及全部结果/延迟/停止断言不变，不把此夹具失败称新产品RED。最终date-current-appends-final-regression.log九SQLite文件160全通过/无跳过/实际0/260.84秒（测试349.12并行累计），session66753已退出：external67/mode-date13/owner9/listener6/date-lifecycle5/record-identity1/Plugin24/boundary5/tenant workflow-operation-authority30。三项含于160，不累加各轮或旧PG，非整分支回归。
+- [x] date-current-appends-build.log workflow客户端/服务端/依赖/声明完整构建实际0，session89780已退出。三TS最终Prettier check/oxlint0，源snapshot SHA256一致：Date CA8CBF5C8563E10CE51F003B677FD9204D76184978A85EB1AFCDA1EA2F4A1D1F；external 6010FDC7CF92EECDDA0372429FB2E5CD75C8D2F9C0D537E20772DCE16A83B479；date-lifecycle 79A9DFFE4E2F55D56DB33BDF293356F7F3C352C909D53DB8616FB9891EAE7CC7。代码之后未改。只读猜测vitest.config.ts不存在后按rg找到实际.mts，非产品RED。未启PG/建库/Redis服务/新物理附件；保留全部日志/原集群/旧目录，未改主检出/核心/正式依赖/锁文件/业务库或旧附件。
+
+- [x] 本次默认GPG session59213实际Timeout128，事先捕获git98672/57488、gpg109168、pinentry78872父链及创建时间。退出后独立guard实际0：四PID全消失、活动Git/签名0、HEAD仍d68ceb9、原暂存树711f217d0a0c373e4cae20bd984db771a7fcef29不变、无未暂存改动。只补两原记录本次签名事实后，再核计划内五文件与独立guard，按已有授权单次跳过；本项记N，不称G或独立验签成功。global保持true，不操作认证窗口、不复用本Timeout。
+
+按requesting-code-review模板作者串行自审，非独立复核：来源选择在投影使用前核对，避免新来源关联套用旧表；末尾最终回读保留，原停用及延迟边界有后继回归证据；真实关联增删和不变控制防止简单丢弃合法发生。无本项未修复Critical/Important。不予本项裁决：提前配置查询完成后再次改变appends的原子隔离、完整配置快照、初始静态起止边界（只读候选尚无fixture/RED）、改变cron后继timer独立边界、最终权限到业务SQL完整并发隔离、原子额度预留、无事件自动发现、长查询/回拨/补跑、稳定来源身份、持久租约/跨实例去重、完整启停/已入队撤销、TTL锁所有权、正式G消费者/业务试点及整分支独立复核。本项未重跑PG，不将旧PG23算本轮结果。不推送合并发布或正式启用。

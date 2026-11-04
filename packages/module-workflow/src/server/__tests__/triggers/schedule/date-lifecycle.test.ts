@@ -297,7 +297,7 @@ describe('date schedule discovery lifecycle', () => {
       const findOne = repository.findOne.bind(repository);
       const authority = vi.spyOn(repository, 'findOne').mockImplementation(async (options) => {
         const result = await findOne(options);
-        if (!checked && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
+        if (!checked && !options?.fields && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
           expect(result.id).toBe(workflow.id);
           checked = true;
           await hold;
@@ -382,7 +382,7 @@ describe('date schedule discovery lifecycle', () => {
     const findOne = repository.findOne.bind(repository);
     const authority = vi.spyOn(repository, 'findOne').mockImplementation(async (options) => {
       const result = await findOne(options);
-      if (options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
+      if (!options?.fields && options?.filter?.enabled === true && options.filter['config.mode'] === 1) {
         expect(result.id).toBe(workflow.id);
         checked = true;
         await hold;

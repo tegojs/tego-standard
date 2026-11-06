@@ -5249,3 +5249,16 @@ Ruling: 另核真实DestroyInstruction及显式AccessMainWorkflowWriteRuntime安
 - [x] 两TS末Prettier check/oxlint0、diff check0，31源snapshot一致且验证后源码未改：main workflow write runtime DB3FC2DDC1D808ED7E4D53732A522618162362753E334F04BB1FA259D670D13A；test 4D0504B6053ED079FAE4A0115E1792CC663E458EC038E59337B84932EA527521。
 
 按requesting-code-review模板作者串行自审，非独立复核：确认同步选择拒绝发生在旧Repository之前，错误沿原事务处理而不回退；选中根原独立destroy权威/执行器及规划不变，未选和无关选择保持旧行为；复用原有向引用图与有界循环检查，不新增业务SQL。无本批未修复Critical/Important。本批只完成工作流旧根登记级联的拒绝边界，不代表完整级联授权执行、间接级联全形态的Processor实测、后续hook/未登记数据库外键、外部来源/worker生命周期、跨进程配置/业务SQL并发原子隔离、完整混合写入、正式保存启用/业务试点或整分支独立复核完成。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收。核心重新只读核干净d742a1c569579e05187b8260f14d48af0d8ccbae，正式依赖/锁文件、主检出、业务库及旧附件未改；日志/原集群/旧目录保留，不推送合并部署发版或正式启用。
+
+后继§356默认签名提交02cc27ad6cb113a70d4516e2ea7830555492646d实际退出0，独立verify-commit实际0/G，无Timeout或无签名回退。
+
+## 357. 拒绝旧分组移动经排序范围外键跨入已选目标
+
+Ruling: 核实核心move动作、update策略别名及现有TenantSortableCollection协议：targetScope可写排序字段登记的scopeKey，targetId跨分组时也会复制目标记录的scopeKey，并非普通values参数。原显式root runtime未将旧move纳入边界。最小改动只在真实ACL后、旧租户移动及默认动作前，沿原默认/自定义sortField以及HasMany隐式外键排序字段确定登记scopeKey；当输入可能改变范围时，将该字段位置交给既有assertLegacyWriteBoundary，拒绝跨入已选且本次已准备配置的目标。不读取目标业务行、不执行混合移动，不借来源move/update权限授权关联目标，不改核心排序器/tenant-move、事务或实际归属，不自动安装或正式启用。按元数据保守拒绝，不能把同一范围不变或目标恰好可见当作完整混合授权执行。
+
+- [x] 真实持久密码Bearer/basic+角色/tenant B、持久Collection Manager来源BelongsTo及默认sort/自定义position范围均为documentId。目标清空新规则后直接list为200/[]；移除目标选择时旧移动200并将来源documentId从1改为2，恢复选择后原代码仍200且实际改外键/排序。legacy-move-boundary-red.log两失败/80过滤/82总、实际1/15.48秒（78505已退出）；最小green两过/80过滤/82总、实际0/9.44秒（84262已退出）。拒绝断言同时核来源完整快照，而非仅检查响应码。
+- [x] 最终四项控制分别覆盖targetScope、targetId+自定义排序字段、无关标量范围、已选但未配置的关联目标。两拒绝用例还验证无move动作ACL为403、未指定真实范围的空操作与只置顶保持200、移除目标选择后原请求恢复成功，来源/目标真实tenantId不变且目标业务行完全不变。legacy-move-boundary-controls-final.log四过/80过滤/84总、实际0/16.32秒（83185已退出）。此前controls.log两过/两失败实际1/15.86秒（65060已退出）：新增控制的单条model.create触发原租户钩子，来源不归B导致旧移动404，非产品RED；改为既有bulkCreate夹具播种并先核真实B归属后通过，未更改产品或伪造最终permission。
+- [x] legacy-move-boundary-regression.log三SQLite文件144过/8个原PG专用项跳过/152总、实际0/116.83秒（83950已退出）：认证76过/8跳过、普通HTTP40、原tenant-resource-guard28。单worker逐文件，144/四控制/两RED/两green/历史轮不累加，非整分支回归。legacy-move-boundary-build-tenant.log完整客户端/服务端/依赖/dts实际0（28871已退出），前runner实际退出后才后继。
+- [x] 两TS末Prettier check/oxlint0、diff check0，31源snapshot一致，回归和构建后源码未改：root runtime 8D75E22F515B50BC8787D8FD06B19A6FB9E60DEE2DECC57E6A394F7414696CD8；认证HTTP 51E3C36AF1CF046645F212E37F36C69F916C6787ABA75B56945E5531CCBC6D40。
+
+按requesting-code-review模板作者串行自审，非独立复核：核实际move别名、两种范围写入来源、最终ACL及旧写入先后顺序、登记外键而非任意targetScope字段、默认/自定义排序、未配置与未选择兼容、拒绝后无默认写入、置顶不被误当作换组。不新增业务SQL/事务算法/依赖或选中move执行器；旧move增加既有配置准备/登记关联遍历成本，不称零成本。无本批未修复Critical/Important。本项只验收真实HTTP根move两种范围引用旁路，未声称完整移动授权、HasMany具体移动全形态、后续hook/元数据并发漂移、PG并发原子隔离、外部来源/worker生命周期、完整混合upsert、正式保存启用/业务试点或整分支独立复核完成。损坏PG未启动/重试，未启Redis/建库/新物理附件，无PG/MySQL/MariaDB本轮业务验收。核心重新只读核干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库及旧附件未改，日志/原集群/旧目录保留。新外部Git先使guard实际1，重新只读核精确身份/创建/父链/命令/可执行及实际目录后才独立guard0，不豁免未知Git、不杀进程/操作窗口/删锁；不推送合并部署发版或正式启用。

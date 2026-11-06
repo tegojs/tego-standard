@@ -547,6 +547,119 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     },
   );
 
+  it.each(['targetScope', 'targetId'] as const)(
+    'rejects a legacy move through %s into a selected reference target',
+    async (shape) => {
+      const name = `legacy_move_${shape}`;
+      await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [
+            { name: 'document', type: 'belongsTo', target: 'protected_documents', foreignKey: 'documentId' },
+            { name: 'sort', type: 'sort', scopeKey: 'documentId' },
+            { name: 'position', type: 'sort', scopeKey: 'documentId' },
+          ],
+        },
+      });
+      const sources = app.db.getCollection(name).model;
+      await sources.bulkCreate([
+        { id: 1, tenantId: 'B', documentId: 1, sort: 1, position: 1 },
+        { id: 2, tenantId: 'B', documentId: 2, sort: 1, position: 1 },
+      ]);
+      const snapshot = async () => (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const before = await snapshot();
+      const documents = app.db.getCollection('protected_documents').model;
+      const beforeDocuments = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const original = (await store.read(identity))!;
+      const request = () =>
+        agent()
+          .resource(name)
+          .move({
+            sourceId: 1,
+            ...(shape === 'targetScope' ? { targetScope: { documentId: 2 } } : { targetId: 2, sortField: 'position' }),
+          });
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent().resource('protected_documents').list();
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        expect((await sources.findByPk(1))?.get()).toMatchObject({ tenantId: 'B', documentId: 2 });
+        for (const row of before) await sources.update(row, { where: { id: row.id }, hooks: false });
+        selectedKeys.add(identity.collectionKey);
+        const rejected = await request();
+        expect({ status: rejected.status, rows: await snapshot() }).toEqual({ status: 400, rows: before });
+        expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+        const denied = await agent('B', 'business-no-export')
+          .resource(name)
+          .move({ sourceId: 1, targetScope: { documentId: 2 } });
+        expect(denied.status).toBe(403);
+        expect(await snapshot()).toEqual(before);
+        const unchanged = await agent()
+          .resource(name)
+          .move({ sourceId: 1, targetScope: { other: 2 } });
+        expect(unchanged.status).toBe(200);
+        expect(await snapshot()).toEqual(before);
+        const sticky = await agent().resource(name).move({ sourceId: 1, sticky: true });
+        expect(sticky.status).toBe(200);
+        expect((await sources.findByPk(1))?.get()).toMatchObject({ tenantId: 'B', documentId: 1, sort: 0 });
+        for (const row of before) await sources.update(row, { where: { id: row.id }, hooks: false });
+        selectedKeys.delete(identity.collectionKey);
+        const restored = await request();
+        expect(restored.status).toBe(200);
+        expect((await sources.findByPk(1))?.get()).toMatchObject({ tenantId: 'B', documentId: 2 });
+        expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        for (const row of before) await sources.update(row, { where: { id: row.id }, hooks: false });
+        const current = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it.each(['scalar', 'unconfigured'] as const)(
+    'keeps a legacy move with a %s scope on its original path',
+    async (kind) => {
+      const name = `legacy_move_${kind}`;
+      const scopeKey = kind === 'scalar' ? 'stage' : 'documentId';
+      await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [
+            kind === 'scalar'
+              ? { name: 'stage', type: 'integer' }
+              : { name: 'document', type: 'belongsTo', target: 'unconfigured_documents', foreignKey: 'documentId' },
+            { name: 'sort', type: 'sort', scopeKey },
+          ],
+        },
+      });
+      const sources = app.db.getCollection(name).model;
+      await sources.bulkCreate([{ id: 1, tenantId: 'B', [scopeKey]: 1, sort: 1 }]);
+      expect((await sources.findByPk(1))?.get()).toMatchObject({ tenantId: 'B', [scopeKey]: 1 });
+      const documents = app.db.getCollection('unconfigured_documents').model;
+      const beforeDocuments = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const moved = await agent()
+        .resource(name)
+        .move({ sourceId: 1, targetScope: { [scopeKey]: 2 } });
+      expect(moved.status).toBe(200);
+      expect((await sources.findByPk(1))?.get()).toMatchObject({ tenantId: 'B', [scopeKey]: 2 });
+      expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+    },
+  );
+
   it.each(['firstOrCreate', 'updateOrCreate'] as const)(
     'rejects a legacy %s match through a selected target hidden by its current rules',
     async (action) => {

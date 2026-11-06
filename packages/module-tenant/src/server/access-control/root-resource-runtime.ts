@@ -105,9 +105,15 @@ export class AccessRootResourceRuntime {
     const legacyUpsert = ['firstOrCreate', 'updateOrCreate'].includes(actionName);
     const legacyWrite = legacyUpsert || ['create', 'update'].includes(actionName);
     const legacyDestroy = actionName === 'destroy';
+    const legacyMove = actionName === 'move';
     const legacyImport = actionName === 'importXlsx';
     const legacyAction =
-      chart || legacyWrite || legacyDestroy || legacyImport || ['list', 'get', 'count', 'export'].includes(actionName);
+      chart ||
+      legacyWrite ||
+      legacyDestroy ||
+      legacyMove ||
+      legacyImport ||
+      ['list', 'get', 'count', 'export'].includes(actionName);
     if (!selected.length && (!collection || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
@@ -171,6 +177,29 @@ export class AccessRootResourceRuntime {
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
           if (legacyDestroy) assertLegacyDestroyBoundary(this.db, legacyCollection, protectedCollection);
+          if (legacyMove) {
+            const params = ctx.action.params;
+            const association = parts.length === 2 ? collection.model.associations[parts[1]] : undefined;
+            const sortName =
+              association?.associationType === 'HasMany'
+                ? `${(association as typeof association & { foreignKey: string }).foreignKey}Sort`
+                : (params.sortField ?? 'sort');
+            const field = legacyCollection.getField(sortName);
+            const scopeKey = field?.type === 'sort' ? field.options.scopeKey : undefined;
+            const scope = typeof scopeKey === 'string' ? params.targetScope?.[scopeKey] : undefined;
+            // Moving between records can also copy the destination record's scope key.
+            if (
+              params.sourceId &&
+              typeof scopeKey === 'string' &&
+              (params.targetId || (scope !== undefined && scope !== null && scope !== ''))
+            )
+              assertLegacyWriteBoundary(
+                this.db,
+                legacyCollection,
+                { values: { [scopeKey]: null } },
+                protectedCollection,
+              );
+          }
           if (legacyUpsert) {
             const params = cloneDeep(ctx.action.params);
             const filter = Repository.valuesToFilter(params.values, params.filterKeys);

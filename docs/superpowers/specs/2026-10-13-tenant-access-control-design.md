@@ -876,6 +876,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 集合事件的持久condition及appends也是实际业务读入口。原CollectionTrigger按条件count、按有效appends重新findOne，然后把业务值写入execution.context.data，不经过目标HTTP list。真实密码Bearer/basic、无管理snippet角色tenant B、持久Collection Manager和空G/V证明：未选来源纯标量update，在目标直接list200/[]时仍200并持久完整隐藏B关联记录，见实施§366确认RED。workflow拥有层新增可选启动捕获collectionReadGuard，原changed/blacklist之后、每次内部count/findOne之前执行；非函数、Promise/非法返回或异常均拒绝、不回退，顶层request冻结，同一私有params交规划和原查询。显式主库边界核真实collection绑定与选择，复用既有读取规划拒绝已选根及关联目标/through，不借事件来源create/update或普通数据节点list权威授权目标，不新增选中执行器，也不改原事务、isCurrent前后校验、租户/身份传递、同步/异步触发协议或正式安装。十一项新认证控制覆盖appends、condition、默认关联create回滚、异步入队前拒绝、失败关闭、原ACL先行及无lookup兼容；六SQLite文件184过/8原PG专用跳过、workflow和tenant完整构建通过，拒绝后业务及execution/jobs快照不变，移除选择恢复。原生命周期两项仅兼容回归，不重造同一RED。本项不是完整事件读取授权/选中执行器、事件data预携关联值投影、任意hook/元数据漂移、currentUser模板关联、外部source/worker新规则、跨进程撤权或PG并发隔离验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。
 
+当前用户模板的关联补读也须独立检查业务边界。真实密码Bearer/basic、无管理snippet角色tenant B、持久users业务关联、目标空G/V及实际本地模板输出证明：auth:check仅有用户标量，目标直接list200/[]时，原send仍200输出Hidden B/200/B，见实施§367干净RED。custom-request新增可选启动捕获currentUserReadGuard，在原配置角色/URL校验后、实际users.findOne及出站I/O前调用；顶层request冻结，同一私有params交规划与查询，非函数、Promise/非法返回或异常拒绝、不回退。显式组合复用既有主库读取边界拒绝已选目标/through，不借当前用户或send授权业务list，不改变共享users租户语义、原模板提取、认证缓存或归属，不正式安装。八项本轮控制加十项旧控制共十八过，五SQLite文件171过/8原PG专用跳过、custom-request与tenant完整构建实际0；拒绝无新增接收请求，两业务表及用户完整持久行不变，移除选择恢复。该结果不是认证上下文预携关联值投影、完整模板授权/选中执行器、任意hook/元数据漂移、外部source/worker、跨进程撤权或PG并发隔离验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -4,6 +4,7 @@ import { appendArrayColumn, Context, Gateway, Next, parse } from '@tego/server';
 import axios from 'axios';
 
 import type { captureCurrentRecordReadGuard } from '../current-record-read-guard';
+import type { captureCurrentUserReadGuard } from '../current-user-read-guard';
 import CustomRequestPlugin from '../plugin';
 
 const getHeaders = (headers: Record<string, any>) => {
@@ -49,6 +50,7 @@ const getCurrentUserAppends = (str: string, user) => {
 export async function send(
   this: CustomRequestPlugin,
   currentRecordReadGuard: ReturnType<typeof captureCurrentRecordReadGuard>,
+  currentUserReadGuard: ReturnType<typeof captureCurrentUserReadGuard>,
   ctx: Context,
   next: Next,
 ) {
@@ -115,13 +117,16 @@ export async function send(
     ctx.auth.user,
   );
   if (userAppends.length) {
-    currentUser =
-      (
-        await ctx.db.getRepository('users').findOne({
-          filterByTk: ctx.auth.user.id,
-          appends: userAppends,
-        })
-      )?.toJSON() || {};
+    const userRepo = ctx.db.getRepository('users');
+    const params = { filterByTk: ctx.auth.user.id, appends: userAppends };
+    await currentUserReadGuard({
+      database: ctx.db,
+      collectionName: 'users',
+      collection: userRepo.collection,
+      params,
+      context: ctx,
+    });
+    currentUser = (await userRepo.findOne(params))?.toJSON() || {};
   }
 
   const variables = {

@@ -4,10 +4,13 @@ import { InstallOptions, Logger, LoggerOptions, Plugin, type PluginOptions } fro
 import { listByCurrentRole } from './actions/listByCurrentRole';
 import { send } from './actions/send';
 import { captureCurrentRecordReadGuard, type CustomRequestCurrentRecordReadGuard } from './current-record-read-guard';
+import { captureCurrentUserReadGuard, type CustomRequestCurrentUserReadGuard } from './current-user-read-guard';
 
 export interface CustomRequestPluginOptions extends PluginOptions {
   /** Server bootstrap only; veto unadapted reads before business or outbound I/O. */
   currentRecordReadGuard?: CustomRequestCurrentRecordReadGuard;
+  /** Server bootstrap only; veto template-driven user association reads. */
+  currentUserReadGuard?: CustomRequestCurrentUserReadGuard;
 }
 
 export class CustomRequestPlugin extends Plugin {
@@ -32,10 +35,11 @@ export class CustomRequestPlugin extends Plugin {
 
   async load() {
     const currentRecordReadGuard = captureCurrentRecordReadGuard(this.options.currentRecordReadGuard);
+    const currentUserReadGuard = captureCurrentUserReadGuard(this.options.currentUserReadGuard);
     this.app.resourcer.define({
       name: 'customRequests',
       actions: {
-        send: send.bind(this, currentRecordReadGuard),
+        send: send.bind(this, currentRecordReadGuard, currentUserReadGuard),
         listByCurrentRole,
       },
     });

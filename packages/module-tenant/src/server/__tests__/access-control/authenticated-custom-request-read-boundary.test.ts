@@ -5,6 +5,7 @@ import type { MockServer } from '@tachybase/test';
 
 import CustomRequestPlugin from '../../../../../plugin-action-custom-request/src/server';
 import { captureCurrentRecordReadGuard } from '../../../../../plugin-action-custom-request/src/server/current-record-read-guard';
+import { captureCurrentUserReadGuard } from '../../../../../plugin-action-custom-request/src/server/current-user-read-guard';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { registerAuthenticatedAccessRootRuntime } from '../../access-control/authenticated-root-runtime';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -22,9 +23,11 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
   let identity: AccessCollectionIdentity;
   let sourceIdentity: AccessCollectionIdentity;
   let token: string;
+  let userId: number;
   let unregister: () => void;
   let boundary: AccessMainCustomRequestReadBoundary;
   let guardMode: 'boundary' | 'async' | 'invalid' | 'throw';
+  let userGuardMode: 'boundary' | 'async' | 'invalid' | 'throw';
   const selectedKeys = new Set<string>();
   const received: unknown[] = [];
   const role = 'custom-request-business-member';
@@ -61,6 +64,18 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
             name: 'custom-request',
             packageName: '@tachybase/plugin-action-custom-request',
             workspaceSource: true,
+            currentUserReadGuard: (request) => {
+              expect(Object.isFrozen(request)).toBe(true);
+              expect(request.collectionName).toBe('users');
+              expect(request.params.filterByTk).toBe(userId);
+              if (userGuardMode === 'async') return Promise.resolve();
+              if (userGuardMode === 'invalid') return true;
+              if (userGuardMode === 'throw') throw new Error('Current-user guard refused');
+              boundary.assert(
+                request,
+                [identity, sourceIdentity].filter((entry) => selectedKeys.has(entry.collectionKey)),
+              );
+            },
             currentRecordReadGuard: (request) => {
               expect(Object.isFrozen(request)).toBe(true);
               if (guardMode === 'async') return Promise.resolve();
@@ -78,6 +93,9 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
     boundary = new AccessMainCustomRequestReadBoundary(app);
     (app.pm.get('custom-request') as CustomRequestPlugin).options.currentRecordReadGuard = () => {
       throw new Error('Startup guard was replaced');
+    };
+    (app.pm.get('custom-request') as CustomRequestPlugin).options.currentUserReadGuard = () => {
+      throw new Error('Startup user guard was replaced');
     };
     for (const id of ['H', 'B', 'C'])
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
@@ -102,6 +120,16 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
       },
     });
     identity = { dataSourceKey: 'main', collectionKey: target.get('key'), collectionName: targetName };
+    await app.db.getRepository('fields').create({
+      context: {},
+      values: {
+        collectionName: 'users',
+        name: 'boundaryDocument',
+        type: 'belongsTo',
+        target: targetName,
+        foreignKey: 'boundaryDocumentId',
+      },
+    });
     const source = await app.db.getRepository('collections').create({
       context: {},
       values: {
@@ -125,6 +153,31 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
       { id: 2, name: 'Hidden B', amount: 200, tenantId: 'B' },
       { id: 3, name: 'Owned C', amount: 300, tenantId: 'C' },
     ]);
+    userId = user.get('id');
+    await app.db.getRepository('users').update({ filterByTk: userId, values: { boundaryDocumentId: 2 } });
+    await app.db.getRepository('customRequests').create({
+      values: {
+        key: 'current-user',
+        roles: [role],
+        options: {
+          url: `http://127.0.0.1:${port}/capture`,
+          method: 'POST',
+          data: {
+            userId: '{{ currentUser.id }}',
+            name: '{{ currentUser.boundaryDocument.name }}',
+            amount: '{{ currentUser.boundaryDocument.amount }}',
+            tenantId: '{{ currentUser.boundaryDocument.tenantId }}',
+          },
+        },
+      },
+    });
+    for (const [key, roles, data] of [
+      ['scalar-user', [role], { userId: '{{ currentUser.id }}', username: '{{ currentUser.username }}' }],
+      ['forbidden-user', ['root'], { name: '{{ currentUser.boundaryDocument.name }}' }],
+    ] as const)
+      await app.db.getRepository('customRequests').create({
+        values: { key, roles, options: { url: `http://127.0.0.1:${port}/capture`, method: 'POST', data } },
+      });
     await app.db.getRepository('customRequests').create({
       values: {
         key: 'boundary',
@@ -180,6 +233,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
     selectedKeys.clear();
     received.length = 0;
     guardMode = 'boundary';
+    userGuardMode = 'boundary';
   });
 
   async function businessRows() {
@@ -221,6 +275,84 @@ describe.skipIf(!coreFactoryEntry)('authenticated custom request read boundary',
     selectedKeys.clear();
     expect((await request()).status).toBe(200);
     expect(received.at(-1)).toEqual({ record: { id: 2, name: 'Hidden B', amount: 200, tenantId: 'B' } });
+  });
+
+  it('does not interpolate a selected hidden current-user association into an outbound request', async () => {
+    const before = await businessRows();
+    const userBefore = await app.db.getCollection('users').model.findByPk(userId, { raw: true });
+    expect(userBefore).toMatchObject({ id: userId, boundaryDocumentId: 2, defaultTenantId: 'B' });
+    expect(app.db.getCollection('users').getField('tenantId')).toBeUndefined();
+    expect(
+      (
+        await app.db.getRepository('fields').findOne({
+          filter: { collectionName: 'users', name: 'boundaryDocument' },
+        })
+      ).get('target'),
+    ).toBe(targetName);
+    const checked = await agent().get('/auth:check');
+    expect(checked.status).toBe(200);
+    expect(checked.body.data.id).toBe(userId);
+    expect(checked.body.data).not.toHaveProperty('boundaryDocument');
+    const request = () => agent().resource('customRequests').send({ filterByTk: 'current-user' });
+    expect((await request()).status).toBe(200);
+    expect(received).toEqual([{ userId, name: 'Hidden B', amount: 200, tenantId: 'B' }]);
+    selectedKeys.add(identity.collectionKey);
+    const direct = await agent().resource(targetName).list();
+    expect(direct.status).toBe(200);
+    expect(direct.body.data).toEqual([]);
+    const count = received.length;
+    const response = await request();
+    expect({ status: response.status, received: received.slice(count) }).toEqual({ status: 400, received: [] });
+    expect(await businessRows()).toEqual(before);
+    expect(await app.db.getCollection('users').model.findByPk(userId, { raw: true })).toEqual(userBefore);
+    selectedKeys.clear();
+    expect((await request()).status).toBe(200);
+    expect(received.at(-1)).toEqual({ userId, name: 'Hidden B', amount: 200, tenantId: 'B' });
+  });
+
+  it.each(['async', 'invalid', 'throw'] as const)('does not send after a %s current-user guard', async (mode) => {
+    userGuardMode = mode;
+    const before = await businessRows();
+    const userBefore = await app.db.getCollection('users').model.findByPk(userId, { raw: true });
+    const response = await agent().resource('customRequests').send({ filterByTk: 'current-user' });
+    expect(response.status).toBe(500);
+    expect(response.body.errors[0].message).toMatch(
+      mode === 'throw' ? /Current-user guard refused/ : /must return undefined synchronously/,
+    );
+    expect(received).toEqual([]);
+    expect(await businessRows()).toEqual(before);
+    expect(await app.db.getCollection('users').model.findByPk(userId, { raw: true })).toEqual(userBefore);
+  });
+
+  it('keeps scalar current-user templates without invoking either business read guard', async () => {
+    selectedKeys.add(identity.collectionKey);
+    guardMode = userGuardMode = 'throw';
+    const before = await businessRows();
+    const response = await agent().resource('customRequests').send({ filterByTk: 'scalar-user' });
+    expect(response.status).toBe(200);
+    expect(received).toEqual([{ userId, username: role }]);
+    expect(await businessRows()).toEqual(before);
+  });
+
+  it('checks persisted request roles before the current-user association guard', async () => {
+    userGuardMode = 'throw';
+    const before = await businessRows();
+    expect((await agent().resource('customRequests').send({ filterByTk: 'forbidden-user' })).status).toBe(403);
+    expect(received).toEqual([]);
+    expect(await businessRows()).toEqual(before);
+  });
+
+  it('keeps unrelated selections compatible with captured current-user association reads', async () => {
+    selectedKeys.add(sourceIdentity.collectionKey);
+    guardMode = 'throw';
+    const before = await businessRows();
+    expect((await agent().resource('customRequests').send({ filterByTk: 'current-user' })).status).toBe(200);
+    expect(received).toEqual([{ userId, name: 'Hidden B', amount: 200, tenantId: 'B' }]);
+    expect(await businessRows()).toEqual(before);
+  });
+
+  it('rejects non-function current-user startup guards', () => {
+    expect(() => captureCurrentUserReadGuard(true as never)).toThrow(/must be a function/);
   });
 
   it('refuses an unselected current record appending a selected hidden target', async () => {

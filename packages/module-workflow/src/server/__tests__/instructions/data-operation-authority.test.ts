@@ -35,6 +35,10 @@ describe('workflow > live data operation authority', () => {
               captureWorkflowDataOperationAuthority(request).assertCurrent();
               return query;
             },
+            selectResolver: (request) => {
+              captureWorkflowDataOperationAuthority(request).assertCurrent();
+              return query;
+            },
             destroyResolver: (request) => {
               captureWorkflowDataOperationAuthority(request).assertCurrent();
               return destroy;
@@ -97,10 +101,10 @@ describe('workflow > live data operation authority', () => {
     await app?.destroy();
   });
 
-  const node = (type: 'query' | 'destroy', extra = {}) =>
+  const node = (type: 'query' | 'select' | 'destroy', extra = {}) =>
     workflow.createNode({
       type,
-      config: { collection: documents.name, ...(type === 'query' ? { multiple: true } : {}) },
+      config: { collection: documents.name, ...(type !== 'destroy' ? { multiple: true } : {}) },
       ...extra,
     });
   async function run() {
@@ -113,15 +117,15 @@ describe('workflow > live data operation authority', () => {
     return { execution, jobs: await execution.getJobs({ order: [['id', 'ASC']] }) };
   }
 
-  it.each(['query', 'destroy'] as const)(
+  it.each(['query', 'select', 'destroy'] as const)(
     'binds %s to the real execution, target, operation and transaction',
     async (type) => {
       const configured = await node(type);
       const { execution, jobs } = await run();
       expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(jobs[0].result).toEqual(type === 'query' ? [{ name: 'Configured record' }] : 1);
+      expect(jobs[0].result).toEqual(type !== 'destroy' ? [{ name: 'Configured record' }] : 1);
       expect(captured[0]).toMatchObject({
-        actionName: type === 'query' ? 'list' : 'destroy',
+        actionName: type !== 'destroy' ? 'list' : 'destroy',
         dataSourceName: 'main',
         collectionName: documents.name,
         workflowId: workflow.id,
@@ -137,12 +141,15 @@ describe('workflow > live data operation authority', () => {
     },
   );
 
-  it.each(['query', 'destroy'] as const)('expires %s authority and its assertion after completion', async (type) => {
-    await node(type);
-    expect((await run()).execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-    expect(() => captureWorkflowDataOperationAuthority(requests[0])).toThrow(/authority/i);
-    expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
-  });
+  it.each(['query', 'select', 'destroy'] as const)(
+    'expires %s authority and its assertion after completion',
+    async (type) => {
+      await node(type);
+      expect((await run()).execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(() => captureWorkflowDataOperationAuthority(requests[0])).toThrow(/authority/i);
+      expect(() => captured[0].assertCurrent()).toThrow(/authority/i);
+    },
+  );
 
   it('rejects copied requests and objects with forged context without evaluating getters', async () => {
     const original = query;

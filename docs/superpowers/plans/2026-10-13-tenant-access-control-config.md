@@ -5207,3 +5207,19 @@ Ruling: 核心实际注册firstOrCreate/updateOrCreate并由create策略授予�
 - [x] 两TS最终Prettier check/oxlint0，源与snapshot一致且回归/构建后代码未改：root runtime 1B17452C959E528E01E4F60047B7CE7FDD48BF4FE43508CFDB183B8D68CEF251；认证HTTP1EA83A82233B03FBA3B55BC269188D74BE2FC13ECD1C55F1C8D181517AFFE0AB。diff check及暂存内容以后继提交前检查为准。
 
 按requesting-code-review模板作者串行自审，非独立复核：派生条件复用原Repository协议，不自制filterKeys语法；只在既有准备阶段捕获的配置下拒绝，未选目标及无关标量保持旧实现，最终ACL在先，不修改调用方参数/业务记录/引用归属。无本批未修复Critical/Important。不予本项裁决：别名新增分支的实际租户归属、完整选中或混合upsert执行/独立操作授权/事务原子隔离、具体关联导入及其他关系、外部来源/worker生命周期、后续变量/hook/自定义SQL或权限漂移、跨进程配置、正式保存启用/业务试点/整分支独立复核。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不替代并发隔离。核心/正式依赖锁文件/主检出/业务库/旧附件未改，全部日志/原集群/旧目录保留；未推送合并部署发版或正式启用。当前实现和验证已完成但尚未提交，默认签名原子提交和独立验签以后继实际结果为准，不沿用旧Timeout/PID或绕过未知Git活动。
+
+后继§353默认签名提交0fefea82291090efda7c1c36bb94869f1f4a330b实际退出0（82139），独立verify-commit实际0/G（241ffa），无Timeout或无签名回退。前述待提交文字仅记录当时状态，不表示§353当前未提交。
+
+## 354. 将真实工作流 select 及 summary 接入当前读取规则
+
+Ruling: 先核真实select指令独立于query，原实现直接Repository读取再提取summary；不能因queryResolver已安装而假定覆盖。SQL指令另有片段授权及不透明SQL/手动tenant条件协议，本项没有将其认定为新漏洞或修改。最小方案由拥有指令的workflow层提供独立启动配置selectResolver，复用WorkflowQueryRequest/Resolver读取契约，但在真实Processor内绑定select自己的live list操作权威。内部夹具显式组合AccessMainWorkflowQueryRuntime.resolve，复用持久配置发现、G/V读取、旧根边界及阶段检查；不借query请求或写操作授权，不改tenant生产runtime或正式安装。
+
+- [x] 持久Collection Manager key及真实Processor三项RED：清空目标规则后普通query为[]，仅改同一节点为select，原仍返回Owned B；当前G/V的query含Visible(H)和Owned B，原select summary只有Owned B；旧根summary=document.name在目标未选时成功，恢复选择且目标直接query=[]后原仍返回隐藏名称。workflow-select-runtime-red.log三失败/10过滤/13总、实际1/20.29秒（50267已退出），均为真实持久执行结果差异，非缺hook推断。最小接线green.log三过/10过滤/13总、实际0/17.23秒（84507已退出）。
+- [x] 保留原解析、分页/排序/tree参数及summary派生appends，仅从选中执行器的read query移除展示summary；冻结原请求，选中后检查多条数组或单条对象/null结果，再使用原summary及failOnEmpty处理。只有同步undefined沿用旧Repository及tenant过滤，异步选择/执行拒绝/非法结果均不回退；构造器拒绝非函数并固定启动回调。未配置selectResolver保持旧路径。
+- [x] 控制三文件61过/无跳过、实际0/39.71秒（34786已退出）：main-workflow-query-runtime26、query-resolver-plugin14、data-operation-authority21。覆盖B/C当前G/V、未选兼容、持久key冲突、配置刷新、缺tenant、发现期间filter/fields变化、summary跨选中目标拒绝、单条记录与单条summary、multiple×failOnEmpty四种空结果状态、启动配置固定/异步选择/结果形状、select自己的list绑定及结束后过期。原有查询控制继续保留。最初format命令实际2因PowerShell数组经pnpm CMD shim合为单参，改为明确列出三个路径后format/oxlint0，非产品RED；一次rg猜测不存在的packages/test/src为只读定位失败，未当测试证据。
+- [x] workflow-select-runtime-regression.log七SQLite文件158过/无跳过、实际0/139.34秒（92591已退出）：上述26/14/21，以及旧tenant-filter56、query17、query-resolver22、query-instruction2，单worker逐文件。158/61/三RED/历史轮不累加，非整分支回归。workflow-select-runtime-build-workflow.log及build-tenant.log分别完整客户端/服务端/依赖/dts实际0（31251及29111均已退出），前一实际退出后才启动后一。
+- [x] 五TS最终Prettier check/oxlint0、diff check0，源与snapshot一致，回归和两包构建后代码未改：Plugin 6BFA048BFA00126A5757F31A1D9D9D57EF106789E231FAABD7E0F4100AFE2AC3；SelectInstruction 84AED022A3FC3C9E568DC49C8B262ACACD23FEC7FCFE628DBC72A2C0F005E024；main query runtime test 4C42EFDE7C9394CB3C48DFC71B0B57A72061620115379E130ED9DC39BE138CD5；query-resolver-plugin test 65FF19B7E8F546F789F222705D216285C65498A59F87DBDE70D3727CBE821A2C；authority test 29EFD4A276073520043D04BA60BDEEF6F291F7632F7FD81113A52E1EB15A7503。
+
+按requesting-code-review模板作者串行自审，非独立复核：独立select入口不隐式复用queryResolver；选中结果才进入summary，错误不转旧查询，原事务及实际归属不改。构造器/生命周期控制验证启动捕获，真实持久规则测试验证结果，未伪造最终permission；变更仅五TS及两原记录。无本批未修复Critical/Important。不予本项裁决：完整关系/tree与外部来源、worker/延时/重试完整生命周期、后续变量/hook/自定义SQL及权限漂移、完整混合upsert、跨进程配置/业务SQL并发原子隔离、正式保存启用/业务试点/整分支独立复核。损坏PG未启动或重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不替代这些检查。核心、正式依赖/锁文件、主检出、业务库及旧附件未改，全部日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
+
+恢复时重新核HEAD仍§353、五文件未暂存且索引为空；提交前守卫发现新外部Git时实际1。仅只读核精确PID/创建时间/父链/可执行/命令及实际cwd均属于D:/Dev/TomyJan/WutheringWaves-UIResources后更新精确排除，再独立guard0；不把所有外部Git豁免，不沿用旧PID存在或退出假设，未杀进程、操作窗口或删除锁。当前实现与验证完成但尚未提交；七文件原子默认签名提交与独立验签以后继实际输出为准，无新Timeout，不复用历史签名回退条件。

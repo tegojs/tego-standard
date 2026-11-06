@@ -85,6 +85,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   updateTransactionPlanner?: WorkflowWriteTransactionPlanner;
   /** Server bootstrap only; selected executors own read authorization and querying. */
   queryResolver?: WorkflowQueryResolver;
+  /** Explicit select-list execution, before the instruction extracts its summary. */
+  selectResolver?: WorkflowQueryResolver;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
   destroyResolver?: WorkflowDestroyResolver;
   /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */
@@ -295,7 +297,7 @@ export default class PluginWorkflowServer extends Plugin {
       ),
     );
     this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
-    this.registerInstruction('select', SelectInstruction);
+    this.registerInstruction('select', new SelectInstruction(this, this.options.selectResolver));
     this.registerInstruction(
       'update',
       new UpdateInstruction(this, this.options.updateResolver, this.options.updateTransactionPlanner),

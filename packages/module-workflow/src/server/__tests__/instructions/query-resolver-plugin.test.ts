@@ -1,12 +1,14 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
+import { QueryInstruction } from '../../instructions/QueryInstruction';
+import { SelectInstruction } from '../../instructions/SelectInstruction';
 import type PluginWorkflow from '../../Plugin';
 
-describe('workflow query resolver plugin lifecycle', () => {
+describe.each(['query', 'select'] as const)('workflow %s resolver plugin lifecycle', (instruction) => {
   let app: MockServer;
   let plugin: PluginWorkflow;
-  let mode: 'scoped' | 'empty' | 'denied';
+  let mode: 'scoped' | 'empty' | 'denied' | 'async-selection' | 'invalid-result';
   let workflow;
 
   beforeAll(async () => {
@@ -18,17 +20,21 @@ describe('workflow query resolver plugin lifecycle', () => {
         [
           'workflow',
           {
-            queryResolver: () => async (request) => {
-              if (mode === 'denied') throw new Error('current execution has no access');
-              if (mode === 'empty') return [];
-              return request.collection.repository.find({
-                ...request.query,
-                filter: {
-                  $and: [request.query.filter || {}, { tenantId: request.context.state.currentTenantId }],
-                },
-                context: request.context,
-                transaction: request.transaction,
-              });
+            [`${instruction}Resolver`]: () => {
+              if (mode === 'async-selection') return Promise.resolve(undefined);
+              return async (request) => {
+                if (mode === 'denied') throw new Error('current execution has no access');
+                if (mode === 'empty') return [];
+                if (mode === 'invalid-result') return 42;
+                return request.collection.repository.find({
+                  ...request.query,
+                  filter: {
+                    $and: [request.query.filter || {}, { tenantId: request.context.state.currentTenantId }],
+                  },
+                  context: request.context,
+                  transaction: request.transaction,
+                });
+              };
             },
           },
         ],
@@ -46,7 +52,7 @@ describe('workflow query resolver plugin lifecycle', () => {
     await collection.repository.create({ values: { id: 1, title: 'visible', tenantId: 'branch' } });
     await collection.repository.create({ values: { id: 2, title: 'hidden', tenantId: 'other' } });
     // A later options mutation must not replace the executor selection captured at startup.
-    plugin.options.queryResolver = () => undefined;
+    plugin.options[`${instruction}Resolver`] = () => undefined;
   });
 
   beforeEach(async () => {
@@ -61,7 +67,7 @@ describe('workflow query resolver plugin lifecycle', () => {
       },
     });
     await workflow.createNode({
-      type: 'query',
+      type: instruction,
       config: { collection: 'queryDocuments', multiple: true, failOnEmpty: true },
     });
   });
@@ -103,5 +109,26 @@ describe('workflow query resolver plugin lifecycle', () => {
     expect(execution.status).toBe(EXECUTION_STATUS.FAILED);
     expect(job.status).toBe(JOB_STATUS.FAILED);
     expect(job.result).toEqual([]);
+  });
+
+  it('rejects a non-function resolver at construction', () => {
+    const Instruction = instruction === 'query' ? QueryInstruction : SelectInstruction;
+    expect(() => new Instruction(plugin, false as never)).toThrow(/resolver must be a function/);
+  });
+
+  it('does not fall back to the original repository after an asynchronous selection', async () => {
+    mode = 'async-selection';
+    const { execution, job } = await execute();
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toMatch(/resolver must select an executor/);
+  });
+
+  it.each([true, false])('rejects an invalid executor result for multiple=%s', async (multiple) => {
+    mode = 'invalid-result';
+    const [node] = await workflow.getNodes();
+    await node.update({ config: { ...node.config, multiple } });
+    const { execution, job } = await execute();
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.result.message).toMatch(/Invalid (query|select) executor result/);
   });
 });

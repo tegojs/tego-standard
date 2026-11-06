@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { Application } from '@tego/server';
 
 import { AccessAclScopeAdapter } from './acl-scope';
@@ -8,7 +9,7 @@ import { AccessMainRootResourceRegistry } from './main-root-resource-registry';
 import { AccessQueryService } from './query';
 import type { AccessWorkflowQueryRequest } from './workflow-query-handler';
 import { AccessWorkflowRootHandler, type AccessWorkflowOperationAuthority } from './workflow-root-handler';
-import { invalid } from './write-support';
+import { cloneDeep, invalid } from './write-support';
 
 /** Explicit server selection only; never installed by the tenant plugin. */
 export class AccessMainWorkflowQueryRuntime {
@@ -51,14 +52,21 @@ export class AccessMainWorkflowQueryRuntime {
       }
       return undefined;
     }
+    const query = request.query;
+    const captured = cloneDeep(query);
     // Selection remains synchronous. All persistent discovery belongs to the selected executor.
     return async (incoming) => {
       if (incoming !== request) invalid('Workflow query executor request changed');
       const authority = this.captureAuthority(request);
       authority.assertCurrent();
+      const assertCurrent = () => {
+        authority.assertCurrent();
+        if (request.query !== query || !isDeepStrictEqual(cloneDeep(query), captured))
+          invalid('Workflow query parameters changed during discovery');
+      };
       const discovered = await this.registry.discover(
         selections.map((identity) => identity.collectionKey),
-        () => authority.assertCurrent(),
+        assertCurrent,
       );
       for (const selection of selections) {
         const actual = discovered.identities.find((identity) => identity.collectionName === selection.collectionName);

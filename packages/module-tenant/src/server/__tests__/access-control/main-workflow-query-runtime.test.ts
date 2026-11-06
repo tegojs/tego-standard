@@ -5,6 +5,7 @@ import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugi
 import { accessConfigHistory } from '../../access-control/config-history';
 import type { AccessCollectionIdentity } from '../../access-control/config-store';
 import { AccessMainWorkflowQueryRuntime } from '../../access-control/main-workflow-query-runtime';
+import type { AccessWorkflowQueryRequest } from '../../access-control/workflow-query-handler';
 import { configFor, ownerCondition } from './fixtures';
 
 describe('explicit main-source workflow query runtime', () => {
@@ -14,6 +15,7 @@ describe('explicit main-source workflow query runtime', () => {
   let source: AccessCollectionIdentity;
   let selected: AccessCollectionIdentity[];
   let workflow;
+  let activeQueryRequest: AccessWorkflowQueryRequest | undefined;
 
   beforeAll(async () => {
     app = await createMockServer({
@@ -22,7 +24,15 @@ describe('explicit main-source workflow query runtime', () => {
         'error-handler',
         'collection',
         'user',
-        ['workflow', { queryResolver: (request) => runtime.resolve(request, selected) }],
+        [
+          'workflow',
+          {
+            queryResolver: (request) => {
+              activeQueryRequest = request;
+              return runtime.resolve(request, selected);
+            },
+          },
+        ],
       ],
     });
     plugin = app.pm.get('workflow') as WorkflowPlugin;
@@ -90,6 +100,7 @@ describe('explicit main-source workflow query runtime', () => {
   });
 
   beforeEach(async () => {
+    activeQueryRequest = undefined;
     selected = [{ ...source }];
     workflow = await app.db.getRepository('workflows').create({
       values: {
@@ -175,6 +186,46 @@ describe('explicit main-source workflow query runtime', () => {
     expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(Array.isArray(job.result)).toBe(false);
+  });
+
+  it.each(['filter', 'fields'] as const)('rejects query %s changed during persistent discovery', async (kind) => {
+    const [node] = await workflow.getNodes();
+    await node.update({
+      config: {
+        ...node.config,
+        params: { fields: ['name'], filter: { id: { $eq: 2 } }, paginate: false },
+      },
+    });
+    const baseline = await execute();
+    expect(baseline.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(baseline.job.result).toEqual([{ name: 'Owned B' }]);
+    activeQueryRequest = undefined;
+    const metadata = app.db.getCollection('collections').model;
+    const original = metadata.findAll;
+    let changed = false;
+    const delivery = vi.spyOn(metadata, 'findAll').mockImplementation(async function (options) {
+      const result = await original.call(this, options);
+      if (activeQueryRequest && !changed) {
+        changed = true;
+        if (kind === 'filter') {
+          (activeQueryRequest.query.filter as { id: { $eq: number } }).id.$eq = 1;
+        } else {
+          (activeQueryRequest.query.fields as string[])[0] = 'tenantId';
+        }
+      }
+      return result;
+    });
+    try {
+      const { execution, job } = await execute();
+      expect(changed).toBe(true);
+      expect({ status: execution.status, result: Array.isArray(job.result) ? job.result : null }).toEqual({
+        status: EXECUTION_STATUS.ERROR,
+        result: null,
+      });
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+    } finally {
+      delivery.mockRestore();
+    }
   });
 
   it.each(['appends', 'filter'] as const)('rejects legacy-to-protected workflow %s paths', async (kind) => {

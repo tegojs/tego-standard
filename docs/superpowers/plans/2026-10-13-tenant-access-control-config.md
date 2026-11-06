@@ -5141,3 +5141,13 @@ Ruling: 原配置并发HTTP测试已有独立app/pool和发布屏障，但身份
 本轮PostgreSQL环境阻断必须保留：启动前核原精确data目录/17版本/pg_ctl无服务/25466全部记录0/snapshot验证0，明确-h127.0.0.1-p25466启动实际0（77911已退出）。新PID55364/创建时间2026-11-06T12:49:18.097496+08:00/精确目录命令及全部端口核对；SQL核data目录/tenant_test/host127.0.0.1及双方32位掩码/25466/postgres非恢复/零其他客户端。仅尝试创建本轮tego_tenant_access_test_9c5ae748f1：默认template1缺base/1/4171，实际1；核新库count0及模板身份后，指定template0仍缺base/4/4171，实际1。PG日志另有logical replication launcher缺global/6100。没有创建成功的数据库、没有修复/改写模板或重建集群、没有删除任何库/旧文件。新核同PID/创建时间/目录/全部端口及新库count0/零其他客户端后，正常fast停PG并核pg_ctl无服务/全部端口0，cleanup调用实际0（67402已退出）。原集群及authenticated-config-publication-pg.log保留；无新事实不得自动重试该损坏集群，不以另建集群/换端口绕过原授权范围。本轮新PG/MySQL/MariaDB业务验收均未完成；SQLite通过绝不替代PG并发/原子隔离。
 
 按requesting-code-review模板作者串行自审，非独立复核：对照真实登录/最终ACL、独立初始化和持久key发现、先允许后撤销的实际业务写入、同一物理SQLite文件但独立应用与连接、请求快照不跨请求缓存及清理时先关闭peer再销毁共享supervisor。无本批未修复Critical/Important。测试仍有TestAuthStatusPlugin的active状态服务和mock token控制服务，不称正式账号状态、跨进程隔离或浏览器业务试点；规则保存不是自动选表/正式启用。只验证顺序提交后新请求刷新，不裁决并发保存/已准备请求时序、跨进程实例、关系撤销与业务SQL并发原子隔离、外部来源/worker完整生命周期和整分支独立复核。SQLite临时目录tego-auth-config-*及所有日志保留，无新物理附件；未改产品/核心/正式依赖锁文件/主检出/业务库/旧附件，未推送合并部署发版或正式启用。
+
+## 349. 逐表工作流查询在持久身份发现期间保持原节点查询完整性
+
+Ruling: QueryInstruction仅冻结request顶层，原root handler在调用时才捕获query；MainWorkflowQueryRuntime的异步持久表身份发现此前只核节点权威，不核内部可变query。已选查询现于同步resolve阶段私有复制query，并在发现及原discovered守卫复核时检查原query对象和完整内容不变。漂移明确失败，不接受改后查询或退回旧Repository；复用原有有界cloneDeep及节点list权威，不改workflow指令/核心/事务协议、G/V或正式安装。未选表分支保持原行为，不把本项扩大成所有入口参数冻结。
+
+- [x] 真实Processor、持久Collection Manager key及原G/V规则，先验证节点filter id=2、fields name返回[{name:'Owned B'}]。包装真实主库collections.findAll，在其SQL完成交付时才改原query嵌套filter的id为1，或fields数组为tenantId；没有替换发现结果或伪造操作authority。main-workflow-query-discovery-red.log干净两失败/8过滤/10总、实际1/23.86秒（48568已退出），实际成功结果分别为[{name:'Visible'}]及[{tenantId:'B'}]。两者仍在G/V范围内，因此只证明节点查询完整性缺口，不称权限越界或其他租户数据泄漏。
+- [x] 最小实现后green.log查询runtime全10过/无跳过、实际0/10.24秒（31953已退出）。最终main-workflow-query-discovery-regression.log三SQLite64过/无跳过、实际0/27.00秒（92180已退出）：查询runtime10/写runtime24/operation-authority30，单worker逐文件。原B/C的G或V、未选旧查询、缺可信租户、错误持久key、规则刷新及旧混合路径拒绝保持；64/10/RED及历史轮不累加，非整分支回归。
+- [x] main-workflow-query-discovery-build.log租户完整客户端/服务端/依赖/dts构建实际0（29416已退出）。两TS最终Prettier check/oxlint0、diff check0，源码与snapshot一致，代码后未改：runtime 0C161F6BE5FA563E8A2090492EDEF4B968A1D44337A1C9F3EAA60182475CF225；test 4853A3B03C18A63D9B6A12EF5C8B900319531B614F6AE4493CF5515F50BF4487。
+
+按requesting-code-review模板作者串行自审，非独立复核：同步捕获发生在发现异步之前，原query不被修改，真实SQL及节点操作绑定保持，finally恢复测试方法；深复制/比较有成本且沿用原大小/深度边界，不称零成本或数据库锁。无本批未修复Critical/Important。不予本项裁决：同进程之外的配置刷新、业务SQL并发原子隔离、全部关联写节点/外部来源、旧入口后续变量或hook、自定义SQL及worker完整生命周期、完整混合支持、正式保存启用/业务试点/整分支独立复核。损坏PG集群未重启或重试，未启Redis/建库/创建物理附件；本轮无PG/MySQL/MariaDB业务实测，不以SQLite替代。未改核心/正式依赖锁文件/主检出/业务库/旧附件，日志/原集群/旧目录全部保留，未推送合并部署发版或正式启用。

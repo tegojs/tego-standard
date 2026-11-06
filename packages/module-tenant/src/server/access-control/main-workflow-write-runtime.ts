@@ -56,6 +56,21 @@ export class AccessMainWorkflowWriteRuntime {
     return this.resolve('destroy', request, selected);
   }
 
+  /** Upsert has no dedicated operation authority or atomic selected executor yet. */
+  assertUpdateOrCreateBoundary(
+    request: AccessWorkflowScalarWriteRequest,
+    selected: readonly AccessCollectionIdentity[],
+  ) {
+    if (this.select(request, selected)) invalid('Selected workflow upserts require a dedicated adapter');
+    if (request.dataSourceName !== 'main' || !selected.length) return;
+    const collection = this.app.db.getCollection(request.collectionName);
+    if (!collection || collection !== request.collection) invalid('Legacy workflow upsert target changed');
+    const protectedCollection = (target: Collection) =>
+      selected.some((identity) => identity.collectionName === target.name);
+    assertLegacyReadBoundary(this.app.db, collection, request.params as object, protectedCollection, request.context);
+    assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
+  }
+
   private select(target: AccessWorkflowWriteTransactionTarget, selected: readonly AccessCollectionIdentity[]) {
     const selections = selected.map((identity) => ({ ...identity }));
     if (

@@ -55,7 +55,7 @@ import EndInstruction from './instructions/EndInstruction';
 import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
 import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
-import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
+import UpdateOrCreateInstruction, { type WorkflowUpdateOrCreateGuard } from './instructions/UpdateOrCreateInstruction';
 import type {
   WorkflowCreateResolver,
   WorkflowUpdateResolver,
@@ -78,6 +78,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   /** Server bootstrap only; selected executors own the complete write and response projection. */
   createResolver?: WorkflowCreateResolver;
   updateResolver?: WorkflowUpdateResolver;
+  /** Server bootstrap only; veto unsupported upserts before attachment or business I/O. */
+  updateOrCreateGuard?: WorkflowUpdateOrCreateGuard;
   /** Target-only async planning for new node transactions; caller transactions remain unchanged. */
   createTransactionPlanner?: WorkflowWriteTransactionPlanner;
   updateTransactionPlanner?: WorkflowWriteTransactionPlanner;
@@ -282,7 +284,7 @@ export default class PluginWorkflowServer extends Plugin {
       'create',
       new CreateInstruction(this, this.options.createResolver, this.options.createTransactionPlanner),
     );
-    this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
+    this.registerInstruction('updateorcreate', new UpdateOrCreateInstruction(this, this.options.updateOrCreateGuard));
     this.registerInstruction(
       'destroy',
       new DestroyInstruction(

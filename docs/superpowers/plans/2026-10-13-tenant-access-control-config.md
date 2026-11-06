@@ -5181,3 +5181,16 @@ Ruling: §350后沿真实importXlsx和核心ToOneValueParser核查，旧导入�
 §351提交前曾被外部Git进程归属不明阻断：守卫实际1，在任何git add前发现活跃GitHub Desktop push进程35912，创建2026-11-06 14:14:51、父26876，命令push --progress -- origin 3.7:3.7；重新以同PID/创建时间确认仍活，当时未确定目标仓库，未终止或操作应用/认证窗口，也未绕过守卫。HEAD仍e1cba75，四文件未暂存、索引为空；核心独立status0仍干净d742a1c。两TS末Prettier check/oxlint0且与snapshot/上述hash一致，阻断期间没有本批commit或签名尝试，也没有新Timeout/无签名回退条件。
 
 后继2026-11-06 14:46后只读核到该push的remote-https为另一远端，六进程35912/37740/18372/41500/57476/52000的当前工作目录均为D:/Dev/TomyJan/WutheringWaves-UIResources；与本功能树origin及Git common目录不同。进程目录诊断只读取该链的目录元数据，未改进程、应用或仓库。守卫只排除这六个已核PID、精确创建时间、父链、命令和实际目录均匹配的外部push进程；任何新/未知Git、活动签名、snapshot验证或本仓库锁仍拒绝。首次原始DateTime精确相等误忽略了CIM/Get-Process子毫秒精度差，交叉核PID时发现矛盾，未暂存；修为同PID及创建时间差小于1毫秒后，另一次过宽git名称匹配误中GitHubDesktop.exe而守卫1，收窄真实git可执行名后独立guard实际0，准确报告六外部进程仍活而非全局Git0。两TS与原验证hash保持，随后才进入四文件原子默认签名提交流程；提交及独立验签以后继实际输出为准，不沿用任何旧Timeout，不把别的仓库push当作本会话操作。
+
+## 352. 阻止未适配的工作流 upsert 绕过已选业务写入边界
+
+Ruling: 真实UpdateOrCreateInstruction独立于create/update resolver，不能从缺少hook直接断言越权。先用原Processor和持久Collection Manager表核普通update/create的G拒绝，再仅修改同一节点类型为updateorcreate，确认发生原不允许的实际修改/新增。最小方案在拥有指令的workflow层新增启动时捕获的同步updateOrCreateGuard，于附件资源处理和业务SQL前调用；内部MainWorkflowWriteRuntime对已选根拒绝未适配upsert，对旧根复用既有读写规划边界。守卫不绑定或借用list/update/create操作权威，不执行任一upsert分支，不改变原事务/认领协议；没有守卫时保持旧实现。显式组合须同时安装该守卫，不自动安装、选表或正式启用。完整upsert执行器及独立操作授权/并发隔离仍需后续验证，不能因PG损坏放宽门控。
+
+- [x] 原runtimeWriteDocuments的G为当前tenant且amount>=100，id4为B/amount5；普通update显式id4失败且全部行不变，改同一持久节点类型后原upsert成功改name。普通create amount5回滚，改为upsert后原新增amount5/tenantId B。workflow-upsert-boundary-red.log两失败/24过滤/26总、实际1/20.90秒（7863已退出），差异明确显示name变化和新增id5/B，不是伪造权限或仅源码缺hook。最小接线green.log两过/24过滤/26总、实际0/9.89秒（54309已退出）。
+- [x] 最终runtime新增十二项：上述两个真实对照、安装守卫后未选根现有/缺失两分支兼容、启动时捕获而不读取后改options、无效构造器、选中G目标在无效内存附件解析前拒绝、Promise/非undefined守卫返回拒绝，以及旧根的外键/引用/关联filter/appends跨选中目标拒绝且两表不变。没有上传或物理附件。扩展首轮controls.log实际1/11.58秒（45840已退出），28过/6失败：六个断言误把Processor错误对象当字符串；按原Processor协议改读job.result.message，非新产品RED。
+- [x] workflow-upsert-boundary-regression.log实际运行三文件110过/无跳过、实际0/138.09秒（72633已退出）：写runtime36、旧tenant-filter56、write-resolver-plugin18。原命令第四路径漏instructions目录，被Vitest过滤而未运行，不称四文件通过；正确路径单独authority.log 19过/无跳过、实际0/6.37秒。各轮不累加，非整分支回归。build-workflow.log及build-tenant.log两包完整客户端/服务端/依赖/dts分别实际0（42245已退出；tenant直接退出），逐一等待实际退出后才后继。
+- [x] 四TS最终Prettier check/oxlint0、diff check0，验证后代码未改，源与snapshot一致：Plugin 2920FEF0BEBA8BDD716DB8AF73D136501B46D268EF0D0339A9A9D37CE554497C；upsert指令3E93F7EBDB96D2DD17D77F31EE7642E90E09564CF9DD8D5948303BE27C531F4C；runtime D2AE92F80BC1509FBE73C43890FA4404FF135E42E451B7C53BF0154BF1ADFDBD；test F345C66CE34D45D4EFF7BEB8A5531C16B64D4C64E1E186AAAF1AC0F3491016B5。一次Windows rg通配及猜测核心devtools路径失败均为只读定位问题，非测试RED。
+
+按requesting-code-review模板作者串行自审，非独立复核：启动回调只作拒绝、无效返回不进入默认写入，原附件和事务顺序无守卫时不变；检查原解析参数及原appends、不改输入/最终授权，不把旧租户归属限制当G。无本批未修复Critical/Important。不予本项裁决：完整选中upsert执行/角色操作授权/原子隔离、其他写节点及外部数据源/worker完整生命周期、后续变量/hook/自定义SQL与权限漂移、完整混合支持、跨进程配置、正式保存启用/业务试点/整分支独立复核。损坏PG未启动或重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不能替代并发原子隔离。核心/正式依赖锁文件/主检出/业务库/旧附件未改，日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
+
+本轮起始独立审计实际0：HEAD f4d1791、干净树/26源snapshot一致、原PG停/25466全部0、global true；重新核六个外部push的实际身份/父链/命令/目录后只排除该精确链，并非全局Git0。§351默认签名f4d1791及独立verify G已完成，无Timeout。§352当前实现和上述验证已完成但尚未提交；默认签名提交与独立验签结果以后继实际输出为准，不沿用旧PID/Timeout或绕过活动签名。

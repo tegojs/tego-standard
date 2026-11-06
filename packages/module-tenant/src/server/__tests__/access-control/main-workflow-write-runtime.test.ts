@@ -1,6 +1,7 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../../../../module-workflow/src/server/constants';
+import UpdateOrCreateInstruction from '../../../../../module-workflow/src/server/instructions/UpdateOrCreateInstruction';
 import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugin';
 import { accessConfigHistory } from '../../access-control/config-history';
 import type { AccessCollectionIdentity } from '../../access-control/config-store';
@@ -17,6 +18,7 @@ describe('explicit main-source workflow write runtime', () => {
   let workflow;
   let failAfterUpdate: boolean;
   let activeWriteRequest: AccessWorkflowScalarWriteRequest | undefined;
+  let upsertGuardMode: 'boundary' | 'async' | 'invalid';
 
   beforeAll(async () => {
     app = await createMockServer({
@@ -34,6 +36,11 @@ describe('explicit main-source workflow write runtime', () => {
               return runtime.resolveUpdate(request, selected);
             },
             destroyResolver: (request) => runtime.resolveDestroy(request, selected),
+            updateOrCreateGuard: (request) => {
+              if (upsertGuardMode === 'async') return Promise.resolve();
+              if (upsertGuardMode === 'invalid') return true;
+              runtime.assertUpdateOrCreateBoundary(request, selected);
+            },
             createTransactionPlanner: (target) => runtime.plan(target, selected),
             updateTransactionPlanner: (target) => runtime.plan(target, selected),
             destroyTransactionPlanner: (target) => runtime.plan(target, selected),
@@ -82,6 +89,9 @@ describe('explicit main-source workflow write runtime', () => {
     await app.db.getCollection('tenants').model.bulkCreate(['B', 'C', 'H'].map((id) => ({ id, enabled: true })));
     await app.db.collection(accessConfigHistory).model.sync();
     runtime = new AccessMainWorkflowWriteRuntime(app, (request) => plugin.captureDataOperationAuthority(request));
+    plugin.options.updateOrCreateGuard = () => {
+      throw new Error('Startup upsert guard was not captured');
+    };
     const config = configFor({
       type: 'all',
       children: [
@@ -116,6 +126,7 @@ describe('explicit main-source workflow write runtime', () => {
     selected = [{ ...source }];
     failAfterUpdate = false;
     activeWriteRequest = undefined;
+    upsertGuardMode = 'boundary';
     const model = app.db.getCollection(source.collectionName).model;
     await model.destroy({ where: {}, hooks: false });
     await model.bulkCreate([
@@ -190,6 +201,130 @@ describe('explicit main-source workflow write runtime', () => {
     expect(job.status).toBe(JOB_STATUS.ERROR);
     expect(await rows()).toEqual(before);
   });
+
+  it.each(['update', 'create'] as const)('does not bypass selected G by changing %s to upsert', async (type) => {
+    const before = await rows();
+    const node = await workflow.createNode({
+      type,
+      config: {
+        collection: source.collectionName,
+        params: {
+          filterByTk: type === 'update' ? 4 : 999,
+          values: { name: 'Upsert outside G', amount: 5 },
+        },
+      },
+    });
+    const control = await run();
+    expect(control.execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(control.job.status).toBe(JOB_STATUS.ERROR);
+    expect(await rows()).toEqual(before);
+
+    await node.update({ type: 'updateorcreate' });
+    const { execution, job } = await run();
+    expect({ status: execution.status, rows: await rows() }).toEqual({
+      status: EXECUTION_STATUS.ERROR,
+      rows: before,
+    });
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+  });
+
+  it.each([true, false])('preserves unselected upsert with a configured guard (existing: %s)', async (existing) => {
+    selected = [];
+    await workflow.createNode({
+      type: 'updateorcreate',
+      config: {
+        collection: source.collectionName,
+        params: { filterByTk: existing ? 4 : 999, values: { name: 'Legacy upsert', amount: 5 } },
+      },
+    });
+    const { execution, job } = await run();
+    expect(execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+    expect(job.status).toBe(JOB_STATUS.RESOLVED);
+    expect((await rows()).find((row) => row.name === 'Legacy upsert')).toEqual({
+      id: existing ? 4 : 5,
+      name: 'Legacy upsert',
+      amount: 5,
+      tenantId: 'B',
+    });
+    expect(await rows()).toHaveLength(existing ? 4 : 5);
+  });
+
+  it('rejects a non-function upsert guard at instruction installation', () => {
+    expect(() => new UpdateOrCreateInstruction(plugin, false as never)).toThrow(/guard must be a function/);
+  });
+
+  it('rejects a selected G upsert before preparing attachment resources', async () => {
+    const before = await rows();
+    const field = app.db.getCollection(source.collectionName).getField('name');
+    const original = field.options.interface;
+    field.options.interface = 'attachment';
+    try {
+      await workflow.createNode({
+        type: 'updateorcreate',
+        config: {
+          collection: source.collectionName,
+          params: { filterByTk: 2, values: { name: 'data:invalid', amount: 200 } },
+        },
+      });
+      const { execution, job } = await run();
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+      expect(job.result.message).toMatch(/Selected workflow upserts require a dedicated adapter/);
+      expect(await rows()).toEqual(before);
+    } finally {
+      if (original === undefined) delete field.options.interface;
+      else field.options.interface = original;
+    }
+  });
+
+  it.each(['async', 'invalid'] as const)('does not proceed after an %s upsert guard result', async (mode) => {
+    selected = [];
+    upsertGuardMode = mode;
+    const before = await rows();
+    await workflow.createNode({
+      type: 'updateorcreate',
+      config: {
+        collection: source.collectionName,
+        params: { filterByTk: 2, values: { name: 'Must not persist' } },
+      },
+    });
+    const { execution, job } = await run();
+    expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+    expect(job.status).toBe(JOB_STATUS.ERROR);
+    expect(job.result.message).toMatch(/guard must return undefined synchronously/);
+    expect(await rows()).toEqual(before);
+  });
+
+  it.each(['foreignKey', 'reference', 'filter', 'appends'] as const)(
+    'rejects legacy upsert crossing a selected target through %s',
+    async (shape) => {
+      const before = await rows();
+      const legacy = app.db.getCollection('legacyRuntimeWriteSources').model;
+      const legacyBefore = (await legacy.findAll()).map((row) => row.toJSON());
+      await workflow.createNode({
+        type: 'updateorcreate',
+        config: {
+          collection: 'legacyRuntimeWriteSources',
+          params: {
+            filterByTk: 1,
+            values: {
+              name: 'Must not persist',
+              ...(shape === 'foreignKey' ? { documentId: 2 } : {}),
+              ...(shape === 'reference' ? { document: { id: 2 } } : {}),
+            },
+            ...(shape === 'filter' ? { filter: { 'document.name': 'Owned B' } } : {}),
+            ...(shape === 'appends' ? { appends: ['document'] } : {}),
+          },
+        },
+      });
+      const { execution, job } = await run();
+      expect(execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(job.status).toBe(JOB_STATUS.ERROR);
+      expect(job.result.message).toMatch(/selected access collections/);
+      expect((await legacy.findAll()).map((row) => row.toJSON())).toEqual(legacyBefore);
+      expect(await rows()).toEqual(before);
+    },
+  );
 
   it('keeps unselected configured tables on the existing workflow update path', async () => {
     selected = [];

@@ -15,15 +15,29 @@ import {
   withWorkflowDataSourceTransaction,
   workflowTenantRecordMutationMissError,
 } from '../helpers/tenant-context';
+import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
+import type { WorkflowWriteRequest } from './write-resolver';
+
+/** Server-only synchronous veto; this grants no authority to execute either write branch. */
+export type WorkflowUpdateOrCreateGuard = (request: Omit<WorkflowWriteRequest, 'transaction'>) => void;
 
 /**
  * Runs the update or create instruction workflow instruction.
  */
 export class UpdateOrCreateInstruction extends Instruction {
+  constructor(
+    workflow: Plugin,
+    private readonly guard?: WorkflowUpdateOrCreateGuard,
+  ) {
+    super(workflow);
+    if (guard !== undefined && typeof guard !== 'function')
+      throw new TypeError('Update-or-create guard must be a function');
+  }
+
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params: { appends = [], ...params } = {} } = node.config;
     const [dataSourceName, collectionName] = parseCollectionName(collection);
@@ -36,6 +50,22 @@ export class UpdateOrCreateInstruction extends Instruction {
     const fieldNames = Object.keys(params.values);
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
     const repositoryContext = processor.getRepositoryContext();
+
+    if (this.guard) {
+      const result: unknown = this.guard(
+        Object.freeze({
+          dataSourceName,
+          collectionName,
+          collection: c,
+          params: { ...options, appends },
+          context: repositoryContext,
+        }),
+      );
+      if (result !== undefined) {
+        await result;
+        throw new TypeError('Update-or-create guard must return undefined synchronously');
+      }
+    }
 
     const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
     const token = this.workflow.app.authManager.jwt.sign({ userId });

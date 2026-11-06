@@ -5,12 +5,20 @@ import { parseCollectionName, uid } from '@tego/server';
 
 import { APPROVAL_ACTION_STATUS, APPROVAL_STATUS } from '../constants/status';
 import { getTenantValuesFromExecution } from '../helpers/tenant-filter';
+import { captureApprovalSnapshotReadGuard, type ApprovalSnapshotReadGuard } from '../snapshot-read-guard';
 import { getWorkflowAppends, sendApprovalMessage } from '../tools';
 import ApprovalTrigger from '../triggers/Approval';
 import { ApprovalJobStatusMap, getNegotiationMode, parseAssignees } from './tools';
 
 /** 工作流节点:审批节点  */
 export default class ApprovalInstruction extends Instruction {
+  private readonly assertSnapshotRead: ReturnType<typeof captureApprovalSnapshotReadGuard>;
+
+  constructor(workflow, snapshotReadGuard?: ApprovalSnapshotReadGuard) {
+    super(workflow);
+    this.assertSnapshotRead = captureApprovalSnapshotReadGuard(snapshotReadGuard);
+  }
+
   async run(node, prevJob, processor) {
     const job = await processor.saveJob({
       status: JOB_STATUS.PENDING,
@@ -158,6 +166,7 @@ export default class ApprovalInstruction extends Instruction {
     }
     // NOTE: 审批对象数据, 可能在此期间变更, 需要拿到最新的审批对象数据, 更新到最新的 snapshot
     /** 以下为更新 snapshot 逻辑 */
+    let readGuardRejected = false;
     try {
       const approval = records[0].approval;
       const [dataSourceName, collectionName] = parseCollectionName(approval.collectionName);
@@ -176,11 +185,26 @@ export default class ApprovalInstruction extends Instruction {
         transaction: processor.transaction,
       });
 
-      const data = await repository.findOne({
+      const params = {
         filterByTk: approval.get('dataKey'),
         appends: getWorkflowAppends(workflow.config, collection as any, this.workflow.app),
         transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
-      });
+      };
+      if (this.assertSnapshotRead) {
+        try {
+          await this.assertSnapshotRead({
+            dataSourceName,
+            collectionName,
+            collection,
+            params,
+            context: processor.getRepositoryContext(),
+          });
+        } catch (error) {
+          readGuardRejected = true;
+          throw error;
+        }
+      }
+      const data = await repository.findOne(params);
 
       await RecordRepo.update({
         values: {
@@ -191,7 +215,10 @@ export default class ApprovalInstruction extends Instruction {
         },
         transaction: processor.transaction,
       });
-    } catch {}
+    } catch (error) {
+      // Preserve legacy refresh-error handling, but never swallow a read-boundary refusal.
+      if (readGuardRejected) throw error;
+    }
     /** 以上为更新 snapshot 逻辑 */
     return job;
   }

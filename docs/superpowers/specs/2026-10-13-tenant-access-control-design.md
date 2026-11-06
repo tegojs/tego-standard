@@ -878,6 +878,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 当前用户模板的关联补读也须独立检查业务边界。真实密码Bearer/basic、无管理snippet角色tenant B、持久users业务关联、目标空G/V及实际本地模板输出证明：auth:check仅有用户标量，目标直接list200/[]时，原send仍200输出Hidden B/200/B，见实施§367干净RED。custom-request新增可选启动捕获currentUserReadGuard，在原配置角色/URL校验后、实际users.findOne及出站I/O前调用；顶层request冻结，同一私有params交规划与查询，非函数、Promise/非法返回或异常拒绝、不回退。显式组合复用既有主库读取边界拒绝已选目标/through，不借当前用户或send授权业务list，不改变共享users租户语义、原模板提取、认证缓存或归属，不正式安装。八项本轮控制加十项旧控制共十八过，五SQLite文件171过/8原PG专用跳过、custom-request与tenant完整构建实际0；拒绝无新增接收请求，两业务表及用户完整持久行不变，移除选择恢复。该结果不是认证上下文预携关联值投影、完整模板授权/选中执行器、任意hook/元数据漂移、外部source/worker、跨进程撤权或PG并发隔离验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。
 
+审批分配人提交后的快照刷新是一次新的业务读取，不能用已有待办或旧快照授权。真实密码Bearer/basic、无管理snippet角色tenant B和持久Collection Manager证明：旧快照Initial B/200/B形成后，经正常业务update改为Hidden B refreshed/275/B，再切入空G/V且业务list200/[]，原submit202仍在后续resume持久并通过详情暴露新值，见实施§368干净RED。审批指令新增可选构造捕获snapshotReadGuard，在实际findOne前执行顶层冻结request，复用同一私有查询参数；仅同步undefined继续，非函数、Promise/非法返回或异常拒绝，守卫拒绝单独穿透原刷新catch交Processor保存ERROR，不改变原非守卫异常兼容行为。显式主库读取边界核真实collection绑定并复用既有关系规划拒绝已选根及关联目标/through，不借submit、分配人或普通节点权威授权业务list，不新增选中执行器，不改原事务/归属或正式安装。八项真实认证控制、十SQLite文件144项相关回归无跳过、审批与tenant完整构建实际0。提交本身仍202且已保存的决定不回滚；只拒绝后续新读取，不撤销旧approval.data或approvalExecutions.snapshot，移除选择恢复用新待办，不称ERROR执行可原地重提。首轮通知依赖及分页协议夹具失败与干净RED分别记录，不混报。该项不是审批触发/创建其他读取、旧快照投影撤回、完整审批授权/原子性/生命周期、外部source/worker、跨进程撤权或PG并发隔离验收；createTenantApp仍含既有active适配，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

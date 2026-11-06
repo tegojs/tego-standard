@@ -16,6 +16,7 @@ import { assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
+import { AccessRootImportHandler } from './root-import-handler';
 import type { AccessRootReadContext } from './root-read-context';
 import { AccessRootReadHandler } from './root-read-handler';
 import { cloneDeep, invalid, plain } from './write-support';
@@ -37,6 +38,7 @@ export class AccessRootResourceRuntime {
   private readonly reader: AccessRootReadHandler;
   private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
+  private readonly importer: AccessRootImportHandler;
 
   constructor(
     private readonly db: Database,
@@ -49,6 +51,7 @@ export class AccessRootResourceRuntime {
     this.reader = new AccessRootReadHandler(db, prepared, queries, resolveIdentity);
     this.writer = new AccessResourceMutationHandler(db, prepared, queries, resolveIdentity);
     this.charts = new AccessChartQueryHandler(db, this.reader, resolveIdentity);
+    this.importer = new AccessRootImportHandler(db, prepared, queries, resolveIdentity);
   }
 
   private relatedDecision(ctx: Context, collection: Collection, actionName: string) {
@@ -244,7 +247,15 @@ export class AccessRootResourceRuntime {
         request.actor,
         authorizeRead,
       );
-    else if (['create', 'update', 'destroy', 'add', 'remove', 'set'].includes(request.actionName))
+    else if (request.actionName === 'importXlsx') {
+      const upload = ctx.request as typeof ctx.request & { body?: { columns?: unknown } };
+      await this.importer.handle(
+        context,
+        request.actor,
+        { buffer: ctx.file?.buffer, columns: upload.body?.columns },
+        authorizeRead,
+      );
+    } else if (['create', 'update', 'destroy', 'add', 'remove', 'set'].includes(request.actionName))
       await this.writer.handle(context, request.actor, {
         read: authorizeRead,
         update: (collection) => authorize(collection, 'update'),

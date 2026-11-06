@@ -4,6 +4,7 @@ import type { MockServer } from '@tachybase/test';
 import type { Model } from '@tego/server';
 
 import ExportPlugin from '../../../../../plugin-action-export/src/server';
+import ImportPlugin from '../../../../../plugin-action-import/src/server';
 import DataVisualizationPlugin from '../../../../../plugin-block-charts/src/server/plugin';
 import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
 import { registerAuthenticatedAccessRootRuntime } from '../../access-control/authenticated-root-runtime';
@@ -20,6 +21,7 @@ const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.
   'node-xlsx',
 ) as {
   parse(data: Buffer): Array<{ data: unknown[][] }>;
+  build(data: Array<{ name: string; data: unknown[][] }>): Buffer;
 };
 
 /** Installed auth/ACL/tenant plugins, using an explicitly selected local core ACL before plugin load. */
@@ -41,6 +43,17 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .set('X-Authenticator', 'basic')
       .set('X-Role', role)
       .set('X-Tenant-Id', tenant);
+  const importFile = (data: unknown[][], tenant = 'B', role = 'business-member', collection = 'protected_documents') =>
+    agent(tenant, role)
+      .post(`/${collection}:importXlsx`)
+      .attach('file', xlsx.build([{ name: 'Import', data }]), { filename: 'authenticated-import.xlsx' })
+      .field(
+        'columns',
+        JSON.stringify([
+          { dataIndex: ['name'], defaultTitle: 'Name' },
+          { dataIndex: ['amount'], defaultTitle: 'Amount' },
+        ]),
+      );
   const exportFile = (
     tenant = 'B',
     role = 'business-member',
@@ -87,7 +100,7 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     app = await createTenantApp({
       aclFactory: createACL,
       database,
-      extraPlugins: [ExportPlugin, DataVisualizationPlugin],
+      extraPlugins: [ExportPlugin, ImportPlugin, DataVisualizationPlugin],
     });
     expect(typeof (app.acl as any).registerActionParamsResolver).toBe('function');
     for (const id of ['H', 'B', 'C', 'X']) {
@@ -97,13 +110,22 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     await app.db.getRepository('roles').create({
       values: {
         name: 'business-member',
-        strategy: { actions: ['view', 'count', 'create', 'update', 'destroy', 'export', 'add', 'remove', 'set'] },
+        strategy: {
+          actions: ['view', 'count', 'create', 'update', 'destroy', 'export', 'importXlsx', 'add', 'remove', 'set'],
+        },
       },
     });
     await app.db
       .getRepository('roles')
       .create({ values: { name: 'business-no-export', strategy: { actions: ['view'] } } });
     await app.db.getRepository('roles').create({ values: { name: 'business-denied', strategy: { actions: [] } } });
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: 'business-create-only', strategy: { actions: ['create'] } } });
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: 'business-import-name-only', strategy: { actions: [] } } });
+    app.acl.getRole('business-import-name-only').grantAction('protected_documents:importXlsx', { fields: ['name'] });
     await app.db.getRepository('roles').create({ values: { name: 'business-target-only', strategy: { actions: [] } } });
     app.acl.getRole('business-target-only').grantAction('protected_documents:view', {});
     await app.db.getRepository('roles').create({ values: { name: 'business-source-only', strategy: { actions: [] } } });
@@ -125,6 +147,8 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
         roles: [
           'business-member',
           'business-denied',
+          'business-create-only',
+          'business-import-name-only',
           'business-no-export',
           'business-target-only',
           'business-source-only',
@@ -332,6 +356,108 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
       .list({ fields: ['id'], sort: ['id'] });
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([{ id: 2 }]);
+  });
+
+  it.each(['B', 'C'])('imports a real workbook under authenticated tenant %s and the selected G', async (tenant) => {
+    const name = `Authenticated import ${tenant}`;
+    const documents = app.db.getCollection('protected_documents').model;
+    try {
+      const response = await importFile(
+        [
+          ['Name', 'Amount'],
+          [name, 400],
+        ],
+        tenant,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ data: [], meta: { successCount: 1, failureCount: 0 } });
+      const rows = await documents.findAll({ where: { name }, attributes: ['name', 'amount', 'tenantId'] });
+      expect(rows.map((row) => row.get())).toEqual([{ name, amount: 400, tenantId: tenant }]);
+    } finally {
+      await documents.destroy({ where: { name }, hooks: false });
+    }
+  });
+
+  it.each([
+    ['business-create-only', 403],
+    ['business-import-name-only', 400],
+  ] as const)('rejects an authenticated import outside role %s grants', async (role, status) => {
+    const documents = app.db.getCollection('protected_documents').model;
+    const before = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+    const response = await importFile(
+      [
+        ['Name', 'Amount'],
+        ['Import denied', 400],
+      ],
+      'B',
+      role,
+    );
+    expect(response.status).toBe(status);
+    expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+  });
+
+  it('rejects an authenticated visibility-only import without retaining business rows', async () => {
+    const original = (await store.read(identity))!;
+    const documents = app.db.getCollection('protected_documents').model;
+    const before = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+    try {
+      await store.save(
+        identity,
+        { ...original, rules: original.rules.filter((rule) => rule.category === 'visibility') },
+        { userId: user.get('id') },
+      );
+      const response = await importFile([
+        ['Name', 'Amount'],
+        ['Visible import denied', 100],
+      ]);
+      expect(response.status).toBe(403);
+      expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+    } finally {
+      const current = (await store.read(identity))!;
+      await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+    }
+  });
+
+  it('rolls back every authenticated import row when a later business hook fails', async () => {
+    const documents = app.db.getCollection('protected_documents').model;
+    const before = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+    documents.addHook('beforeCreate', 'authenticated-import-failure', (row) => {
+      if (row.get('name') === 'Later import rejected') throw new Error('Authenticated import business failure');
+    });
+    try {
+      const response = await importFile([
+        ['Name', 'Amount'],
+        ['Earlier import row', 400],
+        ['Later import rejected', 500],
+      ]);
+      expect(response.status).toBe(500);
+      expect(response.body.errors[0].message).toContain('Authenticated import business failure');
+      expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+    } finally {
+      documents.removeHook('beforeCreate', 'authenticated-import-failure');
+    }
+  });
+
+  it('keeps an unselected authenticated import on the original importer and tenant guard', async () => {
+    const documents = app.db.getCollection('legacy_documents').model;
+    const name = 'Legacy authenticated import';
+    try {
+      const response = await importFile(
+        [
+          ['Name', 'Amount'],
+          [name, 400],
+        ],
+        'B',
+        'business-member',
+        'legacy_documents',
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.meta).toMatchObject({ successCount: 1, failureCount: 0 });
+      const rows = await documents.findAll({ where: { name }, attributes: ['name', 'amount', 'tenantId'] });
+      expect(rows.map((row) => row.get())).toEqual([{ name, amount: 400, tenantId: 'B' }]);
+    } finally {
+      await documents.destroy({ where: { name }, hooks: false });
+    }
   });
 
   it('retains operation ACL and rejects anonymous access', async () => {

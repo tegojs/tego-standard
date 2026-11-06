@@ -836,6 +836,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 §349补齐逐表工作流查询的发现阶段请求完整性：同步选中executor时私有捕获原query，异步持久表key发现及原返回守卫核query对象和完整内容不变，漂移明确拒绝、不执行改后查询或回退旧Repository。真实Processor的filter/fields交错用例先红后绿，原结果从Owned B变成Visible或tenantId B，证明查询完整性而非G/V越权；三SQLite64过、tenant完整构建0，详见实施§349。未改节点list权威、普通query的G或V、事务协议或正式安装；不把此项称全部入口/并发原子隔离，原损坏PG集群不重试，正式保存启用和业务试点仍关闭。
 
+§350将显式逐表根runtime的importXlsx接入原AccessRootImportHandler，dispatch在真实ACL及原内存multipart上传后执行，复用原字段授权、候选G、实际归属和文件事务；只取原上传buffer/columns，不改默认导入器或正式安装。真实密码认证B/C导入先400后成功并核持久归属，create-only/字段限制/V-only拒写及后行失败全回滚、未选旧导入兼容均验证。四SQLite129过/8个PG专用跳过，窄multipart类型修正后认证59过/8跳过及tenant完整构建0，详见实施§350。未把SQLite标量导入算作本轮PG关系导入或并发隔离；旧根导入跨已选目标/完整混合支持仍未裁决，损坏PG不重试，正式保存启用与业务试点继续关闭。原workflow真实规划字段清单及captureFilter已有输入稳定性契约，无已证缺陷，不重复制造RED。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -880,6 +880,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 审批分配人提交后的快照刷新是一次新的业务读取，不能用已有待办或旧快照授权。真实密码Bearer/basic、无管理snippet角色tenant B和持久Collection Manager证明：旧快照Initial B/200/B形成后，经正常业务update改为Hidden B refreshed/275/B，再切入空G/V且业务list200/[]，原submit202仍在后续resume持久并通过详情暴露新值，见实施§368干净RED。审批指令新增可选构造捕获snapshotReadGuard，在实际findOne前执行顶层冻结request，复用同一私有查询参数；仅同步undefined继续，非函数、Promise/非法返回或异常拒绝，守卫拒绝单独穿透原刷新catch交Processor保存ERROR，不改变原非守卫异常兼容行为。显式主库读取边界核真实collection绑定并复用既有关系规划拒绝已选根及关联目标/through，不借submit、分配人或普通节点权威授权业务list，不新增选中执行器，不改原事务/归属或正式安装。八项真实认证控制、十SQLite文件144项相关回归无跳过、审批与tenant完整构建实际0。提交本身仍202且已保存的决定不回滚；只拒绝后续新读取，不撤销旧approval.data或approvalExecutions.snapshot，移除选择恢复用新待办，不称ERROR执行可原地重提。首轮通知依赖及分页协议夹具失败与干净RED分别记录，不混报。该项不是审批触发/创建其他读取、旧快照投影撤回、完整审批授权/原子性/生命周期、外部source/worker、跨进程撤权或PG并发隔离验收；createTenantApp仍含既有active适配，正式保存启用和业务试点继续关闭。
 
+普通Omni trigger须与其before/after生命周期分开验收。按真实workflow插件先加载、再显式注册authenticated root runtime的受控安装，真实密码Bearer/basic、无管理snippet角色tenant B、持久空业务表/空G/V及启用的general-action工作流证明：已选根普通trigger在业务find/findOne前400拒绝且无execution，移除选择后同一请求200并以真实用户/角色/tenant B完成空表findOne，仍无execution，见实施§369。观察器仅透传真实查询，没有隐藏业务数据、自动化越权利用或敏感披露复现，生产代码无需修改。先前注册级诊断只说明无直接排序边时的顺序相关性；不能以此或本次普通handler拒绝证明完整Omni前后阶段、其他安装顺序或非空记录授权已验收。所有Omni调用仅携HTTP context，不能据此声称继承业务事务或业务写/触发/新读取原子。首轮主键数字/字符串断言失败非产品RED；三SQLite文件89过/8原PG专用跳过，原八项harness仅作兼容。createTenantApp仍有既有active状态适配，完整生命周期/外部source/worker/跨进程撤权/PG隔离未验收，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -5262,3 +5262,16 @@ Ruling: 核实核心move动作、update策略别名及现有TenantSortableCollec
 - [x] 两TS末Prettier check/oxlint0、diff check0，31源snapshot一致，回归和构建后源码未改：root runtime 8D75E22F515B50BC8787D8FD06B19A6FB9E60DEE2DECC57E6A394F7414696CD8；认证HTTP 51E3C36AF1CF046645F212E37F36C69F916C6787ABA75B56945E5531CCBC6D40。
 
 按requesting-code-review模板作者串行自审，非独立复核：核实际move别名、两种范围写入来源、最终ACL及旧写入先后顺序、登记外键而非任意targetScope字段、默认/自定义排序、未配置与未选择兼容、拒绝后无默认写入、置顶不被误当作换组。不新增业务SQL/事务算法/依赖或选中move执行器；旧move增加既有配置准备/登记关联遍历成本，不称零成本。无本批未修复Critical/Important。本项只验收真实HTTP根move两种范围引用旁路，未声称完整移动授权、HasMany具体移动全形态、后续hook/元数据并发漂移、PG并发原子隔离、外部来源/worker生命周期、完整混合upsert、正式保存启用/业务试点或整分支独立复核完成。损坏PG未启动/重试，未启Redis/建库/新物理附件，无PG/MySQL/MariaDB本轮业务验收。核心重新只读核干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库及旧附件未改，日志/原集群/旧目录保留。新外部Git先使guard实际1，重新只读核精确身份/创建/父链/命令/可执行及实际目录后才独立guard0，不豁免未知Git、不杀进程/操作窗口/删锁；不推送合并部署发版或正式启用。
+
+后继§357默认签名提交47c677dd42b83ab3163bde107b4f441c5eea0053实际退出0，独立verify-commit实际0/G，无Timeout或无签名回退。
+
+## 358. 拒绝旧具体关联动作直接写入已选业务中间表
+
+Ruling: 核实核心add/remove/set/toggle及BelongsToManyRepository实际协议：这些动作经具体来源关联直接新增、删除或替换through行，不重新经过中间表HTTP ACL。原显式root runtime仅按来源和目标判断选择，且旧动作集合未包含这些关联写动作；两端均未选而中间表已选时可跳过新边界。最小实现仅将具体关联add/remove/set/toggle纳入原legacy阶段，在最终动作ACL后、原Repository前，以服务端登记的来源关联字段位置复用assertLegacyWriteBoundary，独立检查实际through表。此字段位置仅供规划拒绝，不是业务values或授权凭据；不借两端关联动作权限授权中间表，不新增混合执行器，不改核心/旧租户守卫/原事务或归属，不自动安装或正式启用。
+
+- [x] 真实持久密码Bearer/basic+角色/tenant B，持久Collection Manager两端B及显式业务中间表。中间表既有记录归C，保存空G/V后直接列表200/[]。同次移除中间表选择，四动作均200并分别新增target2、移除target1、替换为target2或切换移除target1；恢复选择后原请求仍200且改变中间行。legacy-join-boundary-confirmed-red-final.log四失败/84过滤/88总、实际1/11.68秒（29869已退出）；差异为预期400/三表不变，实际200/中间行改变。新增行实际tenantId为null，未伪造为B或认领C。最小green四过/84过滤/88总、实际0/10.63秒（47727已退出）。
+- [x] 最终四控制保留上述对照，并核已选未配置原行为、已有其他无关选择、无动作ACL403、拒绝后来源/目标/中间表完整快照不变及具体边界错误、移除选择后原请求恢复旧行为。来源与目标不因引用改变，原C中间行不被认领。legacy-join-boundary-controls.log四过/84过滤/88总、实际0/20.27秒（18864已退出）。首轮red.log四失败实际1/11.51秒（32788已退出）为夹具未显式登记主键导致SQLite不能追加PRIMARY KEY，不是产品RED；confirmed-red.log三项真实断言失败和toggle数值HTTP载荷错误，实际1/11.81秒（9440已退出）；按已有中间表主键及toggle数组协议修正夹具后才取得干净四项RED，未改产品造红或伪造permission。
+- [x] legacy-join-boundary-regression.log三SQLite文件148过/8个原PG专用跳过/156总、实际0/95.57秒（49583已退出）：认证80过8跳、普通HTTP40、原tenant-resource-guard28，单worker逐文件。148/四控制/四RED/四green/历史轮不累加，非整分支回归。legacy-join-boundary-build-tenant.log完整tenant客户端/服务端/依赖/dts实际0（13801已退出），前runner实际退出后才后继。
+- [x] 两TS末Prettier check/oxlint0（bba6c2实际退出0）、diff check0，31源snapshot一致，回归和构建后源码未改：root runtime D8BA23653D9BA89A15D45F8D8E0000D88BA968EB574C6A7FA3DAAE5308868FE9；认证HTTP 9F282237D0720208DDE3BA4FC9C020198DEAFFA56106A99A2B215F08902E5B23。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实关联动作参数/仓库写对象、来源字段定位而非目标根values、through独立选择及本次配置准备、最终ACL顺序、四种实际持久变化和拒绝后无默认写入、未选/未配置/无关选择兼容。无本批未修复Critical/Important。新增既有配置准备和登记关系遍历成本，不称零成本；按关联拓扑保守拒绝，不逐行查询或执行完整混合中间表写入。完整业务中间表独立授权及事务执行、具体关联导入/标量外键、完整混合upsert、后续hook/元数据并发漂移、外部来源/worker生命周期、跨进程配置和业务SQL并发隔离、正式保存启用/业务试点及整分支独立复核仍未完成，不以本批拒绝冒充这些验收。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务实测。核心重新只读status4b1dfb实际0，干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库及旧附件未改，日志/原集群/旧目录保留。新外部Git曾使guard1先停；只读重新核精确身份/创建/父链/命令/可执行及实际cwd均为无关WutheringWaves-UIResources后更新精确排除、独立guard0，不豁免未知Git、不杀进程/操作窗口/删锁。不推送合并部署发版或正式启用。

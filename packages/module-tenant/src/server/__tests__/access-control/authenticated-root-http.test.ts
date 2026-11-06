@@ -106,12 +106,24 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     for (const id of ['H', 'B', 'C', 'X']) {
       await app.db.getRepository('tenants').create({ values: { id, name: id, enabled: true } });
     }
-    for (const action of ['add', 'remove', 'set']) app.acl.setAvailableAction(action, {});
+    for (const action of ['add', 'remove', 'set', 'toggle']) app.acl.setAvailableAction(action, {});
     await app.db.getRepository('roles').create({
       values: {
         name: 'business-member',
         strategy: {
-          actions: ['view', 'count', 'create', 'update', 'destroy', 'export', 'importXlsx', 'add', 'remove', 'set'],
+          actions: [
+            'view',
+            'count',
+            'create',
+            'update',
+            'destroy',
+            'export',
+            'importXlsx',
+            'add',
+            'remove',
+            'set',
+            'toggle',
+          ],
         },
       },
     });
@@ -543,6 +555,118 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
         await sources.update({ documentId: 2 }, { where: { id: 1 }, hooks: false });
         const current = (await store.read(identity))!;
         await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it.each(['add', 'remove', 'set', 'toggle'] as const)(
+    'rejects a legacy association %s that writes a selected protected join table',
+    async (action) => {
+      const sourceName = `legacy_link_${action}_sources`;
+      const targetName = `legacy_link_${action}_targets`;
+      const joinName = `legacy_link_${action}_memberships`;
+      let joinIdentity: AccessCollectionIdentity | undefined;
+      for (const name of [sourceName, targetName, joinName]) {
+        const record = await app.db.getRepository('collections').create({
+          context: {},
+          values: {
+            name,
+            tenancy: 'tenantScoped',
+            timestamps: false,
+            createdBy: false,
+            updatedBy: false,
+            fields: [
+              { name: 'id', type: 'integer', primaryKey: true, autoIncrement: true, allowNull: false },
+              { name: 'name', type: 'string' },
+            ],
+          },
+        });
+        if (name === joinName)
+          joinIdentity = { dataSourceKey: 'main', collectionKey: record.get('key'), collectionName: name };
+      }
+      await app.db.getRepository('fields').create({
+        context: {},
+        values: {
+          collectionName: sourceName,
+          name: 'targets',
+          type: 'belongsToMany',
+          target: targetName,
+          through: joinName,
+          foreignKey: 'sourceId',
+          otherKey: 'targetId',
+        },
+      });
+      const sources = app.db.getCollection(sourceName).model;
+      const targets = app.db.getCollection(targetName).model;
+      const joins = app.db.getCollection(joinName).model;
+      await sources.bulkCreate([{ id: 1, tenantId: 'B', name: 'Source B' }]);
+      await targets.bulkCreate([
+        { id: 1, tenantId: 'B', name: 'Target one' },
+        { id: 2, tenantId: 'B', name: 'Target two' },
+      ]);
+      const initialJoin = { id: 1, tenantId: 'C', sourceId: 1, targetId: 1, name: 'Protected membership' };
+      const reset = async () => {
+        await joins.destroy({ where: {}, hooks: false });
+        await joins.bulkCreate([initialJoin]);
+      };
+      await reset();
+      const snapshot = async () =>
+        Promise.all(
+          [sources, targets, joins].map(async (model) =>
+            (await model.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+          ),
+        );
+      const before = await snapshot();
+      const request = (role = 'business-member') =>
+        agent('B', role)
+          .resource(`${sourceName}.targets`, 1)
+          [action]({ values: [action === 'remove' || action === 'toggle' ? 1 : 2] });
+      const expectLegacyWrite = async () => {
+        const response = await request();
+        expect(response.status).toBe(200);
+        const rows = await snapshot();
+        expect(rows.slice(0, 2)).toEqual(before.slice(0, 2));
+        expect(
+          rows[2].map(({ sourceId, targetId, tenantId, name }) => ({ sourceId, targetId, tenantId, name })),
+        ).toEqual(
+          action === 'add'
+            ? [
+                { sourceId: 1, targetId: 1, tenantId: 'C', name: 'Protected membership' },
+                { sourceId: 1, targetId: 2, tenantId: null, name: null },
+              ]
+            : action === 'set'
+              ? [{ sourceId: 1, targetId: 2, tenantId: null, name: null }]
+              : [],
+        );
+      };
+      try {
+        selectedKeys.add(joinIdentity!.collectionKey);
+        await expectLegacyWrite();
+        await reset();
+        await store.save(
+          joinIdentity!,
+          { ...configFor(ownerCondition), revision: 0, rules: [] },
+          { userId: user.get('id') },
+        );
+        selectedKeys.add(joinIdentity!.collectionKey);
+        const direct = await agent().resource(joinName).list();
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(joinIdentity!.collectionKey);
+        await expectLegacyWrite();
+        await reset();
+        selectedKeys.add(joinIdentity!.collectionKey);
+        const rejected = await request();
+        expect({ status: rejected.status, rows: await snapshot() }).toEqual({ status: 400, rows: before });
+        expect(rejected.body.errors[0].message).toContain('Legacy writes involving selected access collections');
+        const denied = await request('business-no-export');
+        expect(denied.status).toBe(403);
+        expect(await snapshot()).toEqual(before);
+        selectedKeys.delete(joinIdentity!.collectionKey);
+        await expectLegacyWrite();
+      } finally {
+        selectedKeys.delete(joinIdentity!.collectionKey);
+        await reset();
       }
     },
   );

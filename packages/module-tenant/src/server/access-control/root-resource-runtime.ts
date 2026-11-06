@@ -104,12 +104,14 @@ export class AccessRootResourceRuntime {
       .map((value) => ({ ...value }));
     const legacyUpsert = ['firstOrCreate', 'updateOrCreate'].includes(actionName);
     const legacyWrite = legacyUpsert || ['create', 'update'].includes(actionName);
+    const legacyLink = parts.length === 2 && ['add', 'remove', 'set', 'toggle'].includes(actionName);
     const legacyDestroy = actionName === 'destroy';
     const legacyMove = actionName === 'move';
     const legacyImport = actionName === 'importXlsx';
     const legacyAction =
       chart ||
       legacyWrite ||
+      legacyLink ||
       legacyDestroy ||
       legacyMove ||
       legacyImport ||
@@ -176,6 +178,8 @@ export class AccessRootResourceRuntime {
             }
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
+          if (legacyLink)
+            assertLegacyWriteBoundary(this.db, collection, { values: { [parts[1]]: null } }, protectedCollection);
           if (legacyDestroy) assertLegacyDestroyBoundary(this.db, legacyCollection, protectedCollection);
           if (legacyMove) {
             const params = ctx.action.params;

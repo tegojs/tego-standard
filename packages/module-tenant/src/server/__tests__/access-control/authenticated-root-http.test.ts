@@ -460,6 +460,53 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     }
   });
 
+  it('rejects a legacy import through an association column to a selected target hidden by its current rules', async () => {
+    const original = (await store.read(identity))!;
+    const sources = app.db.getCollection('legacy_sources').model;
+    const documents = app.db.getCollection('protected_documents').model;
+    const before = (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+    const beforeDocuments = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+    const initialIds = new Set(before.map((row) => row.id));
+    const removeImported = async () => {
+      for (const row of await sources.findAll())
+        if (!initialIds.has(row.get('id'))) await row.destroy({ hooks: false });
+    };
+    const upload = () =>
+      agent()
+        .post('/legacy_sources:importXlsx')
+        .attach('file', xlsx.build([{ name: 'Import', data: [['Target'], ['Owned by B']] }]), {
+          filename: 'legacy-reference.xlsx',
+        })
+        .field('columns', JSON.stringify([{ dataIndex: ['document', 'name'], defaultTitle: 'Target' }]));
+    try {
+      await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+      const direct = await agent().resource('protected_documents').list();
+      expect(direct.status).toBe(200);
+      expect(direct.body.data).toEqual([]);
+      selectedKeys.delete(identity.collectionKey);
+      const legacy = await upload();
+      expect(legacy.status).toBe(200);
+      expect(legacy.body.meta).toMatchObject({ successCount: 1, failureCount: 0 });
+      const imported = (await sources.findAll()).filter((row) => !initialIds.has(row.get('id')));
+      expect(imported.map((row) => ({ documentId: row.get('documentId'), tenantId: row.get('tenantId') }))).toEqual([
+        { documentId: 2, tenantId: 'B' },
+      ]);
+      await removeImported();
+      selectedKeys.add(identity.collectionKey);
+      const rejected = await upload();
+      expect({
+        status: rejected.status,
+        rows: (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+      }).toEqual({ status: 400, rows: before });
+      expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+    } finally {
+      selectedKeys.add(identity.collectionKey);
+      await removeImported();
+      const current = (await store.read(identity))!;
+      await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+    }
+  });
+
   it('retains operation ACL and rejects anonymous access', async () => {
     const denied = await agent('B', 'business-denied').resource('protected_documents').list();
     expect(denied.status).toBe(403);

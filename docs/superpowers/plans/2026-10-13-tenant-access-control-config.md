@@ -5164,3 +5164,20 @@ Ruling: 先核真实workflow规划协议，原指令已冻结target及valueField
 按requesting-code-review模板作者串行自审，非独立复核：原最终importXlsx授权独立于create，字段/候选G/归属/事务及后行失败回滚复用原服务；原prepared与WeakMap finally释放、真实上传原始输入和响应协议保持，不添加并行执行器或全局开关。无本批未修复Critical/Important。不予本项裁决：该逐表认证接线的关系导入PG实测、旧未选根导入跨已选目标、完整混合支持、外部来源/worker生命周期、并发授权及业务SQL原子隔离、正式保存启用/业务试点/整分支独立复核；本轮只新增标量导入验收，不把原关系导入能力或旧PG结果当本轮通过。损坏PG集群未启动/重试，未启Redis/建库/新物理附件；测试仍含active状态适配，不称正式账号状态或浏览器试点。未改核心/正式依赖锁文件/主检出/业务库/旧附件，全部日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
 
 本批提交曾被外部Git操作阻断：最初两次提交前守卫实际1，均在暂存前发现仍存活的GitHub Desktop update-index进程。只读捕获git PID12376/创建时间2026-11-06T13:20:49.489797+08:00、父38052（GitHubDesktop内置git）及祖父26876（GitHubDesktop renderer）；后继重新核查时该进程已消失，但新提交46940/54296及其maintenance/repack/pack-objects链仍活，守卫继续实际1，目标仓库未确定。未终止或操作应用、未删除锁/绕过守卫。2026-11-06 13:58后重新枚举并以同PID/创建时间确认活动状态，Git/签名及snapshot runner均0，守卫实际0；HEAD仍da7b0ce、五文件未暂存且暂存区为空。三修改源与snapshot及原验证hash一致，重新Prettier check/oxlint实际0。随后才进入原子默认签名提交流程，不沿用任何旧Timeout/PID，不把签名前等待称为Timeout；提交及独立验签结果以后继实际输出为准。
+
+后继§350默认签名提交e1cba75ef64aabb1bff2428c41064404d79b091f实际退出0（85781），独立verify-commit实际0/G；无Timeout或无签名回退。提交后独立audit实际退出0（20109）：干净树、26源码与snapshot一致、验证/签名进程0、PG停/25466全部记录0、global true。不是推送、合并、部署、发版或正式启用。
+
+## 351. 拒绝旧根导入关联列跨入已选访问控制目标
+
+Ruling: §350后沿真实importXlsx和核心ToOneValueParser核查，旧导入器按columns首段取已登记字段，再按关联列次段查询目标Repository；原runtime的legacyAction不含importXlsx，故没有检查这条旧根路径。现在显式runtime将旧根importXlsx纳入既有准备/最终ACL后边界，从原multipart body.columns私有复制及JSON解析列映射，只按原导入器认识的来源字段派生位置，复用assertLegacyWriteBoundary和assertLegacyReadBoundary，在旧parser目标查询及业务写入前拒绝未经适配的跨表访问。未选目标和无关标量导入仍走旧导入器；不新增混合写入能力、不伪造旧根配置、不改核心/parser/导入插件/依赖/正式安装。
+
+- [x] 原真实密码登录Bearer/basic及角色/租户headers，内存node-xlsx向legacy_sources导入document.name=Owned by B。目标清空新规则且直接列表200/[]；移除目标选择时旧导入200/successCount1，持久documentId2/tenantId B。恢复选择后原代码仍200并新增同样引用。首次legacy-protected-import-red.log两失败/67过滤/69总、实际1/68.46秒（99637已退出），其中标量documentId列在未选对照就模板不匹配400，不算产品RED，删除未成立外键假设。收窄后的confirmed-red.log干净一失败/67过滤/68总、实际1/61.16秒（30270已退出），差异明确含新增documentId2/B行与200状态。
+- [x] 最小接线后legacy-protected-import-green.log两过/66过滤/68总、实际0/65.33秒（26896已退出），包括新关联列拒绝及原未选标量兼容。新用例同次验证未选目标旧导入成功、选中目标400且来源全部行不变、目标全部行不变；finally只移除本轮新增行并恢复本轮配置/选择。不称目标编辑或认领，不把自动生成但未登记的外键列称已独立验收。
+- [x] legacy-protected-import-regression.log四SQLite130过/8个原PG专用明确跳过/138总、实际0/537.64秒（33873已退出）：认证60/普通HTTP40/原标量HTTP导入6/导入插件入口24，单worker逐文件，未并行叠加runner。130/2/RED及历史轮不累加，非整分支回归。legacy-protected-import-build.log tenant完整客户端/服务端/依赖/dts实际0（87942已退出）。
+- [x] 两TS已格式化且oxlint0，diff check0，源码与snapshot一致，回归及构建后代码未改：root runtime F76AFB8FD075B9575E22E9FFC643334C1B48C18CDD0980E334696FF949D58E33；认证HTTP31E5780C944E24C3031EE089D23E89F67661967940D51616C15E0CA30B88D713。只读误猜import-xlsx.ts/parser.ts/vitest.config.ts后已读实际importXlsx.ts、核心value-parsers及snapshot vitest.config.mts，不计产品RED。
+
+按requesting-code-review模板作者串行自审，非独立复核：列映射来自原上传而非action values或角色filter；原登记字段选择与旧导入器保持一致，复用真实关联元数据及已提交配置，不执行或授权混合写，不修改原列映射。认证/归属/引用不认领及原上传响应协议不变。无本批未修复Critical/Important。不予本项裁决：其他关系及具体关联资源导入、标量外键独立验收、外部来源/worker完整生命周期、完整混合支持、后续变量/hook与权限漂移、跨进程配置及业务SQL并发原子隔离、正式保存启用/业务试点/整分支独立复核。本轮只实测旧根BelongsTo名称列的拒绝，不把旧PG关系能力当本轮验收。损坏PG集群未启动或重试，未启Redis/建库/新物理附件；测试仍含active状态适配，非正式账号状态/浏览器试点。未改核心/正式依赖锁文件/主检出/业务库/旧附件，日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
+
+§351提交前曾被外部Git进程归属不明阻断：守卫实际1，在任何git add前发现活跃GitHub Desktop push进程35912，创建2026-11-06 14:14:51、父26876，命令push --progress -- origin 3.7:3.7；重新以同PID/创建时间确认仍活，当时未确定目标仓库，未终止或操作应用/认证窗口，也未绕过守卫。HEAD仍e1cba75，四文件未暂存、索引为空；核心独立status0仍干净d742a1c。两TS末Prettier check/oxlint0且与snapshot/上述hash一致，阻断期间没有本批commit或签名尝试，也没有新Timeout/无签名回退条件。
+
+后继2026-11-06 14:46后只读核到该push的remote-https为另一远端，六进程35912/37740/18372/41500/57476/52000的当前工作目录均为D:/Dev/TomyJan/WutheringWaves-UIResources；与本功能树origin及Git common目录不同。进程目录诊断只读取该链的目录元数据，未改进程、应用或仓库。守卫只排除这六个已核PID、精确创建时间、父链、命令和实际目录均匹配的外部push进程；任何新/未知Git、活动签名、snapshot验证或本仓库锁仍拒绝。首次原始DateTime精确相等误忽略了CIM/Get-Process子毫秒精度差，交叉核PID时发现矛盾，未暂存；修为同PID及创建时间差小于1毫秒后，另一次过宽git名称匹配误中GitHubDesktop.exe而守卫1，收窄真实git可执行名后独立guard实际0，准确报告六外部进程仍活而非全局Git0。两TS与原验证hash保持，随后才进入四文件原子默认签名提交流程；提交及独立验签以后继实际输出为准，不沿用任何旧Timeout，不把别的仓库push当作本会话操作。

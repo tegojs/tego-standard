@@ -103,7 +103,9 @@ export class AccessRootResourceRuntime {
       .filter((value): value is AccessCollectionIdentity => !!value)
       .map((value) => ({ ...value }));
     const legacyWrite = ['create', 'update'].includes(actionName);
-    const legacyAction = chart || legacyWrite || ['list', 'get', 'count', 'export'].includes(actionName);
+    const legacyImport = actionName === 'importXlsx';
+    const legacyAction =
+      chart || legacyWrite || legacyImport || ['list', 'get', 'count', 'export'].includes(actionName);
     if (!selected.length && (!collection || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
@@ -166,6 +168,35 @@ export class AccessRootResourceRuntime {
             }
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
+          if (legacyImport) {
+            const upload = ctx.request as typeof ctx.request & { body?: { columns?: unknown } };
+            let columns = cloneDeep(upload.body?.columns);
+            if (typeof columns === 'string') {
+              try {
+                columns = JSON.parse(columns);
+              } catch {
+                invalid('Legacy import columns must contain valid JSON');
+              }
+            }
+            if (!Array.isArray(columns)) invalid('Legacy import columns must be an array');
+            const values = Object.create(null);
+            const fields: string[] = [];
+            for (const column of columns) {
+              if (
+                !plain(column) ||
+                !Array.isArray(column.dataIndex) ||
+                !column.dataIndex.length ||
+                column.dataIndex.some((part) => typeof part !== 'string')
+              )
+                invalid('Invalid legacy import field path');
+              // The original importer ignores columns without a registered source field.
+              if (!legacyCollection.getField(column.dataIndex[0])) continue;
+              values[column.dataIndex[0]] = null;
+              fields.push(column.dataIndex.join('.'));
+            }
+            assertLegacyWriteBoundary(this.db, legacyCollection, { values }, protectedCollection);
+            assertLegacyReadBoundary(this.db, legacyCollection, { fields }, protectedCollection, ctx);
+          }
         });
         try {
           await next();

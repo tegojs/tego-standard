@@ -5435,3 +5435,15 @@ Ruling: 本项是已有写入契约的独立验收，不是新漏洞、产品RED
 - [x] 新TS末Prettier/oxlint实际0、零错误警告（9a468a），diff check实际0（053f83），原58源及369/370两个新测试共60源逐字节snapshot一致（5a0caf），验证后测试源码未改；SHA256：3EABE9A72545C9187525DD204061D5A339D4452338A825D4A435034805EF23D3。仅测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build；提交后审计以后继实际结果为准。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实HTTP入口、持久身份/规则/collection绑定、正常销毁和全新构造、真实启动发现及持久业务结果；未修复Critical/Important为零。不予本项裁决：独立OS进程/外部source/完整worker恢复、用户角色撤销完整生命周期、跨进程配置撤权与业务SQL原子隔离、并发去重/租约、PG并发、通知/Omni/审批其他入口、完整混合写入、正式账号状态/保存启用/业务试点及整分支独立复核；本项仅证明同进程新应用按已提交当前G执行，createTenantApp仍有既有active适配。损坏PG不启动重试，不联系子智能体、不推送合并部署发版正式启用。新Git使guard6e518d实际1后停止更新，只读capture58476c核精确身份/创建/父链/命令/可执行/实际cwd属无关资源库，独立guard01d9b9实际0后才编辑，当时12个已核无关Git仍活，不称全局Git0。当前三文件待英文原子默认签名提交，结果以后继实际输出为准，不沿用旧签名回退条件。
+
+## 371. 验收认证父流程触发子流程的独立 G 写入
+
+Ruling: 本项仅验收已有配置自动化契约，不是新漏洞、产品RED或生产修复。配置节点的操作权威证明其真实执行操作，不等于人工表ACL；持久user/role/tenant快照用于规则变量，也不等于用户状态或角色撤销验证。不为缺少身份撤销证据盲加守卫，不重复旧子流程发现/取消协议RED。
+
+- [x] 新authenticated-subworkflow-write.test.ts每项使用本地核心ACL factory、独立SQLite内存应用、真实持久密码/basic登录Bearer、无管理snippet且无人工动作授权普通角色tenant B。持久Collection Manager登记tenantScoped初始空业务表，显式组合原AccessMainWorkflowWriteRuntime的createResolver/createTransactionPlanner；G同时要求真实归属、真实user.id及role.name，负控制保存空规则。直接HTTP create403，不用人工表权限替代配置节点权威。
+- [x] 真实workflows:trigger启动异步父流程，经真实trigger-instruction调用启用的collection子流程；不手工替换触发器或指令注册，不伪造execution/身份，不改私有ready。四组合为子sync true/false × G允许/拒绝，逐一核唯一父/子execution、各唯一job、规范authContext和原tenantContext/B、仅映射updateData的无害输入。允许时子/父RESOLVED且只新增{id:1,name:'Child result',tenantId:'B'}；拒绝时子ERROR/Record is unavailable、表仍空，同步父FAILED、异步父ERROR。异步另核原parentId/parentNode及等待任务恢复结果。无隐藏业务行、敏感lookup、通知调用或披露复现。
+- [x] 首acceptance-20261106-1626.log四失败、实际1/15.44秒（33251已退出，b85c56）是误用旧getApp测试专用asyncTrigger，真实插件并未注册此类型；systematic-debugging核原注册后只改fixture为真实collection。confirmed-20261106-1630.log四失败、实际1/13.87秒（77223已退出，c101f6）是把入口data的{updateData,user}误断言为业务输入；核原action协议后将sourcePath收窄为data.updateData并补精确父状态/唯一job断言。两者都不是产品权限RED，未改生产造红。
+- [x] confirmed-final-20261106-1632.log四过/无跳过、实际0/14.13秒（80128已退出，4c4f47）。regression-20261106-1633.log六SQLite文件54过/无跳过、实际0/53.41秒（39709已退出，6be4d9）：新认证子流程4、fresh-app2、认证retry2、main write runtime40、原subworkflow tenant context4、execution provenance2。单worker逐文件，54与单项/历史不累加，非整分支回归；旧子流程测试的直接持久execution只作兼容，不冒称新认证证据。全部authenticated-subworkflow-write-日志保留批准父目录，预期拒绝错误日志不是运行失败。
+- [x] 新TS末Prettier/oxlint实际0、零错误警告（3ef509）；原58源加369/370/371测试共61源逐字节snapshot一致（91b2dd），验证后测试源码未改。新测试SHA256：88AB6B6010FA593AB170ACD8A806B5C97E4AC4D51AEE1213D8ECFF1B626EC0B0。仅测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build；最终diff/暂存和提交后审计以后继实际输出为准。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实插件注册及专用HTTP输入、持久集合/规则/用户角色、父子真实执行边界与身份继承、同步/异步错误协议、队列排空及完整业务行。能抓住的回归为子流程丢失规范身份/租户、操作权威错误复用或已选执行器拒绝后fallthrough；未修复Critical/Important为零。不予本项裁决：用户/角色撤销与正式账号状态、嵌套子流程全形态、跨流程原子事务、独立进程/外部source/完整worker、跨进程配置撤权与SQL隔离、并发租约去重、PG并发、通知/Omni/审批其他入口、完整混合写、正式保存启用/业务试点和整分支独立复核；理由是本项只验收同一应用中的真实认证父子写入，createTenantApp仍有既有active适配。新Git使guard d12538实际1后即停止编辑，只读capture cb72f8核精确身份/创建/父链/命令/可执行/实际cwd属于无关资源库，独立guard a7551b实际0才继续，不称全局Git0。损坏PG不启动重试，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，不沿用旧签名回退条件。

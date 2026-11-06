@@ -884,6 +884,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 持久delay任务在同一OS进程销毁原应用、重新构造全新应用后，也须使用当前已提交规则及原持久身份执行，而不是保留旧runtime授权。真实密码Bearer/basic、无人工动作授权/管理snippet的普通角色tenant B、文件SQLite和持久Collection Manager空业务表证明：直接HTTP create403，workflows:trigger建立STARTED/PENDING任务；提交新revision并令delay到期后，正常app.destroy及skipInstall新建应用，由真实afterStart发现恢复，见实施§370。新app/db/Sequelize/ACL/plugin/runtime/collection均不同，collection key与execution身份/租户保持；保留要求归属及真实user.id的G时仅新增一条B记录，清空G时execution/job ERROR且业务零行。显式测试组合在beforeLoad安装原写入runtime及resolver/planner，不替换真实注册或伪造execution，不正式安装。两项验收及六SQLite文件59项回归无跳过，生产代码无需改动，无产品RED，不用旧retry或原app.stop/start测试替代本证据。该项不是独立进程/外部source/完整worker恢复、身份撤销、并发租约去重、跨进程撤权与SQL原子隔离或PG并发验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。通知候选仍未证实，未调用通知或读取隐藏业务值。
 
+配置父流程触发子流程时，子节点也须以自身真实操作权威、继承的规范身份及当前G执行，不能把父trigger操作或人工表ACL当作子create授权。真实密码Bearer/basic、无人工动作授权/管理snippet角色tenant B、持久Collection Manager初始空业务表和显式写入runtime组合，沿workflows:trigger→异步父流程→真实trigger-instruction→同步/异步collection子流程验收，见实施§371。四组合核父/子唯一execution及唯一job、规范user/role/tenant上下文和无害输入映射；要求归属、真实user.id和role.name的G允许时仅新增一条B记录，空规则时子ERROR且表为空，同步父FAILED、异步父ERROR并保留真实父子链接。直接HTTP create403，不为自动节点补人工动作权限。四项验收及六SQLite文件54项回归无跳过，无生产改动/产品RED；旧asyncTrigger登记和HTTP输入包装误用是分别记录的fixture失败。该项不代表身份/角色撤销、正式账号状态、跨流程原子事务、完整嵌套/worker或独立进程、跨进程撤权/SQL隔离及PG并发验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。没有隐藏业务行、敏感lookup或通知调用。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

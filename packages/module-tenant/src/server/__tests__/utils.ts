@@ -4,10 +4,10 @@ import { AppSupervisor, Plugin, type ACL } from '@tego/server';
 import PluginTenantServer from '..';
 import PluginAuditLogs from '../../../../plugin-audit-logs/src/server';
 
-async function cleanupPreviousApp(): Promise<void> {
+async function cleanupPreviousApp(name = 'main'): Promise<void> {
   try {
     const supervisor = AppSupervisor.getInstance();
-    const existing = await supervisor.getApp('main', { withOutBootStrap: true } as any);
+    const existing = await supervisor.getApp(name, { withOutBootStrap: true } as any);
     if (existing) {
       await existing.destroy({ logging: false }).catch(() => {});
     }
@@ -88,9 +88,11 @@ export async function createTenantApp(
     extraPlugins?: any[];
     aclFactory?: () => ACL;
     database?: NonNullable<Parameters<typeof createMockServer>[0]>['database'];
+    name?: string;
+    skipInstall?: boolean;
   } = {},
 ): Promise<MockServer> {
-  const { extraPlugins = [], aclFactory, database } = options;
+  const { extraPlugins = [], aclFactory, database, name = 'main', skipInstall = false } = options;
   const normalizedExtraPlugins = extraPlugins.map((plugin) => {
     if (plugin !== 'audit-logs') {
       return plugin;
@@ -106,7 +108,7 @@ export async function createTenantApp(
     ];
   });
 
-  await cleanupPreviousApp();
+  await cleanupPreviousApp(name);
 
   // Choose the actual ACL implementation before any plugin registers permissions.
   // The default core middleware is disabled only when this explicit factory is supplied.
@@ -153,25 +155,37 @@ export async function createTenantApp(
   let app: MockServer;
   try {
     app = await createMockServer({
+      name,
+      skipInstall,
       registerActions: true,
       acl: !aclFactory,
       database: database ?? { dialect: 'sqlite' },
       plugins: [
         ...(aclFactory ? [TestAclRuntimePlugin] : []),
-        'acl',
-        'error-handler',
-        'users',
-        'ui-schema-storage',
-        'collection-manager',
-        'auth',
-        'data-source-manager',
-        [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant', workspaceSource: true }],
+        ...[
+          'acl',
+          'error-handler',
+          'users',
+          'ui-schema-storage',
+          'collection-manager',
+          'auth',
+          'data-source-manager',
+        ].map((plugin) => (name === 'main' ? plugin : [plugin, { subView: true }])),
+        [
+          PluginTenantServer,
+          {
+            name: 'tenant',
+            packageName: '@tachybase/module-tenant',
+            workspaceSource: true,
+            ...(name === 'main' ? {} : { subView: true }),
+          },
+        ],
         ...normalizedExtraPlugins,
         TestAuthStatusPlugin,
       ],
     });
   } catch (err) {
-    await cleanupPreviousApp();
+    await cleanupPreviousApp(name);
     throw err;
   }
 

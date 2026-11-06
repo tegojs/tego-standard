@@ -5423,3 +5423,15 @@ Ruling: 本项仅补现有拒绝契约的真实认证验收，不是新漏洞、
 - [x] 新TS Prettier check及oxlint实际0、零警告错误（11412e）；diff check0，原58源及新增测试逐字节snapshot一致（0f6459/24f477），验证后测试源码未改。新测试SHA256：48AE15C574D74BCFF0AAB106870F5D3DEAADF761CDB999698EE1B8B4C4931156。仅测试和两原记录变更，不改生产代码/导出类型/依赖/锁文件，无新增构建敏感代码，按项目聚焦规则不重复整包build。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实插件安装、持久工作流/集合/规则、真实密码及上下文、透传lookup和finally恢复、拒绝时无execution。能抓住的回归是已选根未适配trigger意外fallthrough到普通handler；未为制造RED而改生产分支。无本批未修复Critical/Important。不予本项裁决：Omni before/after生命周期及其他安装组合的完整授权、非空业务记录/关联投影、工作流新读取/业务写事务原子性、审批其他入口、外部source/worker、跨进程撤权与SQL隔离、PG并发、正式账号状态/保存启用/业务试点及整分支独立复核。理由是本项只验收空表普通trigger拒绝；createTenantApp仍含既有active状态适配。损坏PG不启动或重试，不联系子智能体，不推送合并部署发版正式启用。新未知Git使独立guard1即停变更/runner；只读重核精确身份及实际cwd后独立guard0才继续，不豁免未知Git、不杀进程/删锁/操作窗口。当前三文件待英文原子默认签名提交，结果以后继实际输出为准，不沿用旧签名回退条件。
+
+## 370. 验收 fresh-app 恢复任务按持久身份和当前 G 写入
+
+Ruling: 本项是已有写入契约的独立验收，不是新漏洞、产品RED或生产修复。通知候选仍未证实，不新增通知守卫或调用通知出口。改以初始空业务表验证正常销毁应用后，在同一OS进程创建全新应用并恢复持久delay任务；不是原app.stop/start，也不是独立进程或完整worker生命周期验收。
+
+- [x] 新authenticated-workflow-fresh-app-write.test.ts采用本地核心ACL factory、隔离的文件SQLite库、真实持久密码/basic登录Bearer、无管理snippet且无人工动作授权的普通角色、tenant B。持久Collection Manager登记tenantScoped空业务表，G要求真实归属与真实user.id；直接HTTP create为403。真实workflows:trigger建立delay→create配置工作流，先核唯一execution STARTED、唯一PENDING job及业务零行，不伪造execution/身份，不改ready或替换真实指令注册。
+- [x] 原store.save提交新revision，分别保留G或清空G；持久delay改为到期后正常app.destroy，再以同一文件库及skipInstall创建新应用。测试组合在beforeLoad显式安装原AccessMainWorkflowWriteRuntime及createResolver/createTransactionPlanner，先于真实afterStart发现；不自动安装正式runtime。核app/db/Sequelize/ACL/plugin/runtime/collection对象全新、持久collection key不变、新revision生效，原execution的authContext与tenantContext完整保持，原delay job按原id恢复RESOLVED并连接新的create job。
+- [x] 保留G时execution/job RESOLVED且只新增{id:1,name:'Recovered task',tenantId:'B'}；撤销G时execution/job ERROR、Record is unavailable且业务仍零行。acceptance-20261106-1613.log两过/无跳过，实际0/16.53秒（79301已退出，7b3074）。未为制造RED改产品，没有隐藏业务记录、敏感lookup、通知调用或披露复现。
+- [x] regression-20261106-1618.log六SQLite文件59过/无跳过，实际0/64.13秒（49256已退出，0f11ff）：新fresh-app2、认证retry2、main write runtime40、execution provenance2、delay tenant lifecycle8、delay instruction5。单worker逐文件，59与单项/历史不累加，非整分支回归；旧delay故障注入日志属预期控制，不是本批失败。所有日志以authenticated-workflow-fresh-app-write-为前缀留批准父目录。
+- [x] 新TS末Prettier/oxlint实际0、零错误警告（9a468a），diff check实际0（053f83），原58源及369/370两个新测试共60源逐字节snapshot一致（5a0caf），验证后测试源码未改；SHA256：3EABE9A72545C9187525DD204061D5A339D4452338A825D4A435034805EF23D3。仅测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build；提交后审计以后继实际结果为准。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实HTTP入口、持久身份/规则/collection绑定、正常销毁和全新构造、真实启动发现及持久业务结果；未修复Critical/Important为零。不予本项裁决：独立OS进程/外部source/完整worker恢复、用户角色撤销完整生命周期、跨进程配置撤权与业务SQL原子隔离、并发去重/租约、PG并发、通知/Omni/审批其他入口、完整混合写入、正式账号状态/保存启用/业务试点及整分支独立复核；本项仅证明同进程新应用按已提交当前G执行，createTenantApp仍有既有active适配。损坏PG不启动重试，不联系子智能体、不推送合并部署发版正式启用。新Git使guard6e518d实际1后停止更新，只读capture58476c核精确身份/创建/父链/命令/可执行/实际cwd属无关资源库，独立guard01d9b9实际0后才编辑，当时12个已核无关Git仍活，不称全局Git0。当前三文件待英文原子默认签名提交，结果以后继实际输出为准，不沿用旧签名回退条件。

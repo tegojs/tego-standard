@@ -882,6 +882,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 普通Omni trigger须与其before/after生命周期分开验收。按真实workflow插件先加载、再显式注册authenticated root runtime的受控安装，真实密码Bearer/basic、无管理snippet角色tenant B、持久空业务表/空G/V及启用的general-action工作流证明：已选根普通trigger在业务find/findOne前400拒绝且无execution，移除选择后同一请求200并以真实用户/角色/tenant B完成空表findOne，仍无execution，见实施§369。观察器仅透传真实查询，没有隐藏业务数据、自动化越权利用或敏感披露复现，生产代码无需修改。先前注册级诊断只说明无直接排序边时的顺序相关性；不能以此或本次普通handler拒绝证明完整Omni前后阶段、其他安装顺序或非空记录授权已验收。所有Omni调用仅携HTTP context，不能据此声称继承业务事务或业务写/触发/新读取原子。首轮主键数字/字符串断言失败非产品RED；三SQLite文件89过/8原PG专用跳过，原八项harness仅作兼容。createTenantApp仍有既有active状态适配，完整生命周期/外部source/worker/跨进程撤权/PG隔离未验收，正式保存启用和业务试点继续关闭。
 
+持久delay任务在同一OS进程销毁原应用、重新构造全新应用后，也须使用当前已提交规则及原持久身份执行，而不是保留旧runtime授权。真实密码Bearer/basic、无人工动作授权/管理snippet的普通角色tenant B、文件SQLite和持久Collection Manager空业务表证明：直接HTTP create403，workflows:trigger建立STARTED/PENDING任务；提交新revision并令delay到期后，正常app.destroy及skipInstall新建应用，由真实afterStart发现恢复，见实施§370。新app/db/Sequelize/ACL/plugin/runtime/collection均不同，collection key与execution身份/租户保持；保留要求归属及真实user.id的G时仅新增一条B记录，清空G时execution/job ERROR且业务零行。显式测试组合在beforeLoad安装原写入runtime及resolver/planner，不替换真实注册或伪造execution，不正式安装。两项验收及六SQLite文件59项回归无跳过，生产代码无需改动，无产品RED，不用旧retry或原app.stop/start测试替代本证据。该项不是独立进程/外部source/完整worker恢复、身份撤销、并发租约去重、跨进程撤权与SQL原子隔离或PG并发验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。通知候选仍未证实，未调用通知或读取隐藏业务值。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

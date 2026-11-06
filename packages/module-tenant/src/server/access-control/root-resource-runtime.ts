@@ -178,6 +178,25 @@ export class AccessRootResourceRuntime {
             }
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
+          if (actionName === 'create')
+            for (const field of legacyCollection.getFields()) {
+              const name = field.options.targetField;
+              if (field.type !== 'snapshot' || !legacyCollection.hasField(name)) continue;
+              const association = legacyCollection.model.associations[name];
+              const target = association && this.db.modelCollection.get(association.target);
+              if (!target) continue;
+              // Snapshot fields read after insertion, including relationships supplied only by defaults.
+              const appends = (field.options.appends || []).filter((append: string) =>
+                this.db.getFieldByPath(`${target.name}.${append}`),
+              );
+              assertLegacyReadBoundary(
+                this.db,
+                legacyCollection,
+                { appends: [name, ...appends.map((append: string) => `${name}.${append}`)] },
+                protectedCollection,
+                ctx,
+              );
+            }
           if (legacyLink)
             assertLegacyWriteBoundary(this.db, collection, { values: { [parts[1]]: null } }, protectedCollection);
           if (legacyDestroy) assertLegacyDestroyBoundary(this.db, legacyCollection, protectedCollection);

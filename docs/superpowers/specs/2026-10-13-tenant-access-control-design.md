@@ -868,6 +868,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 工作流aggregate也是独立实际业务读入口，不会经过query/select resolver。真实密码Bearer/basic、无管理snippet角色及tenant B，在持久业务H/100、B/200、C/300和空G/V下，query为[]而原count/sum仍成功返回1/200，见实施§363的两项持久结果RED。原指令新增可选启动捕获的aggregateGuard，原租户处理后、聚合Repository SQL前执行；非函数、异步、非法结果或异常均拒绝，不回退。显式主库query runtime新增独立拒绝边界，按实际Repository目标而非配置collection别名拒绝已选根；未选根和关联来源复用既有登记读取规划，检查关系筛选和关联目标/through。请求不具有普通数据节点操作权威，不借list/query授权聚合，不新增选中聚合执行器，不把读取全表后JS汇总代替SQL，不改原事务或真实归属，也不正式安装。最终七文件158项SQLite相关回归无跳过、workflow及tenant完整构建通过；首轮路径错误只跑六文件101项、单补原tenant-filter56项及最终十项新控制均分别记录、不累加。拒绝后业务两表全字段和归属不变，移除选择恢复同一节点，无关选择保持旧标量聚合。此项不是完整聚合独立授权/字段范围/SQL支持、外部source新规则或PG并发隔离验收；createTenantApp仍含既有active状态适配，正式保存启用及业务试点继续关闭。
 
+旧来源create还会通过登记snapshot字段发生隐式读取：原Repository在同一事务INSERT及关联更新后发afterCreateWithAssociations，快照插件内部关联find不会重新经过目标HTTP ACL。真实密码Bearer/basic、tenant B、持久Collection Manager及默认documentId=2证明：请求只含name，目标空G/V且直接list200/[]，原创建仍200并持久隐藏B目标完整快照，见实施§364的确认RED。显式root runtime仅在旧create最终ACL后、原Repository之前，按真实snapshot/targetField、model association及原插件有效appends复用旧读取边界，保守拒绝跨已选且本次配置已准备目标；不借来源create授权目标、不读目标业务数据、不改原事务/归属/快照插件/核心或正式安装。七项新认证控制覆盖默认关联、经appends的隐藏目标、未配置/无关选择、无效append/targetField、普通更新和原create ACL；最终四文件155过/8原PG专用跳过、tenant完整构建通过。首轮raw JSON断言错误不是权限RED，首轮回归漏旧ACL环境导致40项额外跳过，均如实记录并重跑，不混报累加。此项仅为HTTP旧来源create登记快照的拒绝边界，不代表任意hook、选中来源/工作流/其他创建入口的完整快照授权、后续元数据漂移、外部source/worker、跨进程撤权或PG并发隔离；正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -1,10 +1,11 @@
 import path from 'node:path';
 import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { PluginWorkflow } from '@tachybase/module-workflow';
-import { Plugin } from '@tego/server';
+import { Plugin, type PluginOptions } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../common/constants';
 import { init } from './actions';
+import type { ApprovalBusinessWriteGuard } from './business-write-guard';
 import ApprovalInstruction from './instructions/Approval';
 import ApprovalCarbonCopyInstruction from './instructions/ApprovalCarbonCopy';
 import ApprovalTrigger from './triggers/Approval';
@@ -37,7 +38,13 @@ function isWorkflowResultResource(resourceName: unknown) {
   );
 }
 
+export interface ApprovalPluginOptions extends PluginOptions {
+  /** Server bootstrap only; veto unadapted writes before business I/O. */
+  businessWriteGuard?: ApprovalBusinessWriteGuard;
+}
+
 export class PluginWorkflowApproval extends Plugin {
+  declare options: ApprovalPluginOptions;
   workflow;
   afterAdd() {}
   beforeLoad() {

@@ -71,6 +71,18 @@ export class AccessMainWorkflowWriteRuntime {
     assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
   }
 
+  /** Manual form submissions do not have an adapted selected operation or transaction yet. */
+  assertManualFormBoundary(request: AccessWorkflowScalarWriteRequest, selected: readonly AccessCollectionIdentity[]) {
+    if (this.select(request, selected)) invalid('Selected workflow manual forms require a dedicated adapter');
+    if (request.dataSourceName !== 'main' || !selected.length) return;
+    const collection = this.app.db.getCollection(request.collectionName);
+    if (!collection || collection !== request.collection) invalid('Legacy workflow manual form target changed');
+    const protectedCollection = (target: Collection) =>
+      selected.some((identity) => identity.collectionName === target.name);
+    assertLegacyReadBoundary(this.app.db, collection, request.params as object, protectedCollection, request.context);
+    assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
+  }
+
   private select(target: AccessWorkflowWriteTransactionTarget, selected: readonly AccessCollectionIdentity[]) {
     const selections = selected.map((identity) => ({ ...identity }));
     if (

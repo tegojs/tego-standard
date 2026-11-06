@@ -31,6 +31,7 @@ import { PluginDynamicCalculation } from './features/dynamic-calculation/Plugin'
 import { PluginExitBranch } from './features/exit-branch';
 import { PluginInterception } from './features/interception';
 import { PluginLoop } from './features/loop/Plugin';
+import type { WorkflowManualFormGuard } from './features/manual/ManualInstruction';
 import { PluginManual } from './features/manual/Plugin';
 import PluginWorkflowNoticeServer from './features/notice/plugin';
 import { PluginOmniTrigger } from './features/omni-trigger';
@@ -80,6 +81,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   updateResolver?: WorkflowUpdateResolver;
   /** Server bootstrap only; veto unsupported upserts before attachment or business I/O. */
   updateOrCreateGuard?: WorkflowUpdateOrCreateGuard;
+  /** Server bootstrap only; veto unadapted manual form writes before business I/O. */
+  manualFormGuard?: WorkflowManualFormGuard;
   /** Target-only async planning for new node transactions; caller transactions remain unchanged. */
   createTransactionPlanner?: WorkflowWriteTransactionPlanner;
   updateTransactionPlanner?: WorkflowWriteTransactionPlanner;

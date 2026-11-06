@@ -5275,3 +5275,16 @@ Ruling: 核实核心add/remove/set/toggle及BelongsToManyRepository实际协议�
 - [x] 两TS末Prettier check/oxlint0（bba6c2实际退出0）、diff check0，31源snapshot一致，回归和构建后源码未改：root runtime D8BA23653D9BA89A15D45F8D8E0000D88BA968EB574C6A7FA3DAAE5308868FE9；认证HTTP 9F282237D0720208DDE3BA4FC9C020198DEAFFA56106A99A2B215F08902E5B23。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实关联动作参数/仓库写对象、来源字段定位而非目标根values、through独立选择及本次配置准备、最终ACL顺序、四种实际持久变化和拒绝后无默认写入、未选/未配置/无关选择兼容。无本批未修复Critical/Important。新增既有配置准备和登记关系遍历成本，不称零成本；按关联拓扑保守拒绝，不逐行查询或执行完整混合中间表写入。完整业务中间表独立授权及事务执行、具体关联导入/标量外键、完整混合upsert、后续hook/元数据并发漂移、外部来源/worker生命周期、跨进程配置和业务SQL并发隔离、正式保存启用/业务试点及整分支独立复核仍未完成，不以本批拒绝冒充这些验收。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务实测。核心重新只读status4b1dfb实际0，干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库及旧附件未改，日志/原集群/旧目录保留。新外部Git曾使guard1先停；只读重新核精确身份/创建/父链/命令/可执行及实际cwd均为无关WutheringWaves-UIResources后更新精确排除、独立guard0，不豁免未知Git、不杀进程/操作窗口/删锁。不推送合并部署发版或正式启用。
+
+后继§358默认签名明确Timeout并实际退出128；逐一确认原gpg/pinentry消失、HEAD/暂存树未变且独立guard0后，按已有授权单次无签名提交0c9e1a5c55ef6fcf7bbd4a9a33094eb4e4edb8a9实际退出0。独立核正确parent/tree、签名N，不冒称G或verify-commit通过，global signing仍true。
+
+## 359. 验收持久延迟恢复后的实际更新重新读取规则
+
+Ruling: 沿真实DelayInstruction.load/trigger、workflow.resume及Processor新节点执行协议核查，不从生命周期缺口清单推定漏洞。显式主库写入组合在每个节点重新取得操作权威、准备当前配置；已存在实现无需改动。仅新增真实持久节点和业务行对照，不安装正式新模型，不改workflow生产代码、规则存储、事务或归属协议。
+
+- [x] 真实持久Collection Manager表、workflow/update→delay→update及可信执行租户B。首节点只更新满足G的id2，保存STARTED执行及PENDING delay；unload清掉内存timer后，通过原store.save提交保留规则或清空G/V的新版本，再将持久delay时长设0、调用原load重新发现并恢复。没有直接调用末节点、伪造Processor结果或最终permission。
+- [x] 保留G时末节点成功，仅id2名称变为After resume；清空规则时末节点ERROR，服务端日志为ACCESS_RECORD_UNAVAILABLE/403，持久job按原协议保存message/stack。恢复前已提交更新保留，全部业务字段及真实B/H/C归属按完整业务投影对照不变。finally卸载timer、按当前revision重新保存原规则、停用本轮workflow并重新load；未删除审计记录。
+- [x] workflow-delayed-write-rules-first.log两失败/38过滤/40总、实际1/12.76秒，原因是结果多出原createdAt/updatedAt字段；按长度及业务字段断言后controls.log两过/38过滤、实际0/9.32秒。随后新增的持久错误code/status断言与原Processor只保存message/stack协议不符，controls-final.log一过一失败、实际1/9.41秒；按原协议修正后controls-verified.log两过/38过滤/40总、实际0/9.90秒（89876已退出）。两类失败均为测试断言错误，不是产品权限RED，未修改产品造红。
+- [x] workflow-delayed-write-rules-regression.log三SQLite文件114过/无跳过、实际0/121.90秒（40181已退出）：main write runtime40、原tenant-filter56、write-resolver-plugin18，单worker逐文件。114/两控制/历史轮不累加，非整分支回归。workflow-delayed-write-rules-build-tenant.log完整tenant客户端/服务端/依赖/dts实际0（5497已退出），前runner实际退出才后继。仅测试改动，未重复workflow整包构建。末Prettier/oxlint实际0，源与snapshot一致，test SHA256为432D1AA3A17AAA6F48B51FF3BEC6F18FB951EA418F4381A5A6B1314AAEB73EB9，验证后源码未改。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实持久任务重发现而非直接执行、规则保存与恢复顺序、首阶段提交不被后阶段拒绝回滚、当前操作权威、业务数据和实际归属、原错误序列化及timer清理。无本批未修复Critical/Important。本项仅为同一应用/进程内SQLite持久delay重载和新update阶段配置刷新验收，不是实际进程重启、跨应用/跨进程worker、手工重试、跨进程撤权原子性或PG并发隔离验收。完整外部source/worker生命周期、具体关联导入/标量外键、完整混合写入、正式保存启用/业务试点和整分支独立复核仍未完成。损坏PG未启动/重试，未启Redis/建库/新物理附件；核心只读核干净d742a1c569579e05187b8260f14d48af0d8ccbae，正式依赖/锁文件、主检出、业务库及旧附件未改，日志/原集群/旧目录保留。新外部Git使guard1时先停后继；只读重核精确身份/父链/可执行/命令/实际cwd属于无关WutheringWaves-UIResources后独立guard0，不豁免未知Git、不杀进程/操作窗口/删锁。当前三文件待英文原子默认签名提交，签名与提交结果以后继实际输出为准，不复用§358回退条件；不推送合并部署发版或正式启用。

@@ -1,6 +1,7 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 
 import { EXECUTION_STATUS, JOB_STATUS } from '../../../../../module-workflow/src/server/constants';
+import type DelayInstruction from '../../../../../module-workflow/src/server/features/delay/DelayInstruction';
 import UpdateOrCreateInstruction from '../../../../../module-workflow/src/server/instructions/UpdateOrCreateInstruction';
 import type WorkflowPlugin from '../../../../../module-workflow/src/server/Plugin';
 import { accessConfigHistory } from '../../access-control/config-history';
@@ -173,6 +174,69 @@ describe('explicit main-source workflow write runtime', () => {
       tenantId: row.get('tenantId'),
     }));
   }
+
+  it.each([false, true])('reloads committed rules before a persisted delayed update (revoke G: %s)', async (revoke) => {
+    const original = (await runtime.registry.store.read(source))!;
+    const first = await workflow.createNode({
+      type: 'update',
+      config: { collection: source.collectionName, params: { filterByTk: 2, values: { name: 'Before suspension' } } },
+    });
+    const delay = await workflow.createNode({
+      type: 'delay',
+      config: { duration: 60000, endStatus: JOB_STATUS.RESOLVED },
+      upstreamId: first.id,
+    });
+    const last = await workflow.createNode({
+      type: 'update',
+      config: { collection: source.collectionName, params: { filterByTk: 2, values: { name: 'After resume' } } },
+      upstreamId: delay.id,
+    });
+    await first.update({ downstreamId: delay.id });
+    await delay.update({ downstreamId: last.id });
+    const instruction = plugin.instructions.get('delay') as DelayInstruction;
+    try {
+      const { execution } = await run();
+      instruction.unload();
+      expect(execution.status).toBe(EXECUTION_STATUS.STARTED);
+      expect(execution.tenantId).toBe('B');
+      expect(execution.tenantContext.currentTenantId).toBe('B');
+      const pending = await execution.getJobs({ order: [['id', 'ASC']] });
+      expect(pending.map((job) => job.status)).toEqual([JOB_STATUS.RESOLVED, JOB_STATUS.PENDING]);
+      expect(pending[0].result.data).toHaveLength(1);
+      expect(pending[0].result.data[0]).toMatchObject({ id: 2, name: 'Before suspension', amount: 200, tenantId: 'B' });
+      const beforeResume = await rows();
+      await runtime.registry.store.save(source, { ...original, rules: revoke ? [] : original.rules }, { userId: 28 });
+      await delay.update({ config: { duration: 0, endStatus: JOB_STATUS.RESOLVED } });
+      await instruction.load();
+      await vi.waitFor(
+        async () => {
+          await execution.reload();
+          expect(execution.status).toBe(revoke ? EXECUTION_STATUS.ERROR : EXECUTION_STATUS.RESOLVED);
+        },
+        { timeout: 10000, interval: 50 },
+      );
+      const resumed = await execution.getJobs({ order: [['id', 'ASC']] });
+      expect(resumed.map((job) => job.status)).toEqual([
+        JOB_STATUS.RESOLVED,
+        JOB_STATUS.RESOLVED,
+        revoke ? JOB_STATUS.ERROR : JOB_STATUS.RESOLVED,
+      ]);
+      expect(execution.tenantId).toBe('B');
+      expect(await rows()).toEqual(
+        beforeResume.map((row) => (row.id === 2 && !revoke ? { ...row, name: 'After resume' } : row)),
+      );
+      if (!revoke) {
+        expect(resumed[2].result.data).toHaveLength(1);
+        expect(resumed[2].result.data[0]).toMatchObject({ id: 2, name: 'After resume', amount: 200, tenantId: 'B' });
+      } else expect(resumed[2].result.message).toBe('Record is unavailable for this mutation');
+    } finally {
+      instruction.unload();
+      const current = (await runtime.registry.store.read(source))!;
+      await runtime.registry.store.save(source, { ...original, revision: current.revision }, { userId: 28 });
+      await workflow.update({ enabled: false });
+      await instruction.load();
+    }
+  });
 
   it('updates only G rows rather than all rows owned by the active tenant', async () => {
     const { execution, job } = await execute('update', { values: { name: 'Updated' } });

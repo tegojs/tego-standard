@@ -326,6 +326,99 @@ describe('explicit main-source workflow write runtime', () => {
     },
   );
 
+  it.each(['CASCADE', 'SET NULL'] as const)(
+    'rejects a legacy workflow destroy with %s writes into a selected target',
+    async (onDelete) => {
+      const suffix = onDelete === 'CASCADE' ? 'cascade' : 'null';
+      const parentName = `legacyWorkflowDelete_${suffix}`;
+      const childName = `protectedWorkflowDelete_${suffix}`;
+      await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name: parentName,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [
+            { name: 'name', type: 'string' },
+            { name: 'tenantId', type: 'string' },
+          ],
+        },
+      });
+      const child = await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name: childName,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [
+            { name: 'tenantId', type: 'string' },
+            { name: 'parent', type: 'belongsTo', target: parentName, foreignKey: 'parentId', onDelete },
+          ],
+        },
+      });
+      const childIdentity = { dataSourceKey: 'main', collectionKey: child.get('key'), collectionName: childName };
+      await runtime.registry.store.save(
+        childIdentity,
+        { ...configFor(ownerCondition), revision: 0, rules: [] },
+        { userId: 28 },
+      );
+      const parents = app.db.getCollection(parentName).model;
+      const children = app.db.getCollection(childName).model;
+      await parents.bulkCreate([
+        { id: 1, tenantId: 'B', name: 'Unselected baseline' },
+        { id: 2, tenantId: 'B', name: 'Selected child' },
+      ]);
+      await children.bulkCreate([
+        { id: 1, tenantId: 'C', parentId: 1 },
+        { id: 2, tenantId: 'C', parentId: 2 },
+      ]);
+      selected = [childIdentity];
+      const node = await workflow.createNode({
+        type: 'destroy',
+        config: { collection: childName, params: { filterByTk: 2 } },
+      });
+      const direct = await run();
+      expect(direct.execution.status).toBe(EXECUTION_STATUS.ERROR);
+      expect(direct.job.status).toBe(JOB_STATUS.ERROR);
+      expect((await children.findByPk(2))?.get()).toMatchObject({ id: 2, tenantId: 'C', parentId: 2 });
+      selected = [{ ...source }];
+      await node.update({ config: { collection: parentName, params: { filterByTk: 1 } } });
+      const baseline = await run();
+      expect(baseline.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(baseline.job.status).toBe(JOB_STATUS.RESOLVED);
+      expect(baseline.job.result).toBe(1);
+      expect(await parents.findByPk(1)).toBeNull();
+      const changed = await children.findByPk(1);
+      if (onDelete === 'CASCADE') expect(changed).toBeNull();
+      else expect(changed?.get()).toMatchObject({ id: 1, parentId: null, tenantId: 'C' });
+      selected = [childIdentity];
+      await node.update({ config: { collection: parentName, params: { filterByTk: 2 } } });
+      const beforeParents = (await parents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const beforeChildren = (await children.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const rejected = await run();
+      expect({
+        status: rejected.execution.status,
+        parents: (await parents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+        children: (await children.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+      }).toEqual({ status: EXECUTION_STATUS.ERROR, parents: beforeParents, children: beforeChildren });
+      expect(rejected.job.status).toBe(JOB_STATUS.ERROR);
+      expect(rejected.job.result.message).toMatch(/Legacy cascaded writes/);
+      selected = [{ ...source }];
+      const restored = await run();
+      expect(restored.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
+      expect(restored.job.status).toBe(JOB_STATUS.RESOLVED);
+      expect(restored.job.result).toBe(1);
+      expect(await parents.findByPk(2)).toBeNull();
+      const restoredChild = await children.findByPk(2);
+      if (onDelete === 'CASCADE') expect(restoredChild).toBeNull();
+      else expect(restoredChild?.get()).toMatchObject({ id: 2, parentId: null, tenantId: 'C' });
+    },
+  );
+
   it('keeps unselected configured tables on the existing workflow update path', async () => {
     selected = [];
     const { execution } = await execute('update', { filterByTk: 4, values: { name: 'Legacy update' } });

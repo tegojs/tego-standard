@@ -5,7 +5,7 @@ import { AccessAclScopeAdapter } from './acl-scope';
 import { AccessConfigError } from './config-errors';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { assertLegacyReadBoundary } from './legacy-read-boundary';
-import { assertLegacyWriteBoundary } from './legacy-write-boundary';
+import { assertLegacyDestroyBoundary, assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { AccessMainRootResourceRegistry } from './main-root-resource-registry';
 import { AccessQueryService } from './query';
 import type { AccessWorkflowDestroyRequest } from './workflow-destroy-handler';
@@ -130,8 +130,8 @@ export class AccessMainWorkflowWriteRuntime {
           protectedCollection,
           request.context,
         );
-        if (action !== 'destroy')
-          assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
+        if (action === 'destroy') assertLegacyDestroyBoundary(this.app.db, collection, protectedCollection);
+        else assertLegacyWriteBoundary(this.app.db, collection, request.params as object, protectedCollection);
       }
       return undefined;
     }

@@ -5236,3 +5236,16 @@ Ruling: 先核核心destroy动作、Repository事务及referentialIntegrityCheck
 - [x] 四TS末Prettier check/oxlint0、diff check0，源snapshot一致，回归和构建后代码未改：root runtime AE5B715CE6D49F280ACFC94BABA2444D6F6C5CD68DDADD01E0C8690A0852B609；legacy write boundary 969B78B6CF028F551A1D8365C27DC0E4C4494A8AE69A3DA3A22D337D383665A4；认证HTTP0E704FAF6E42ECF38B92E456477B2E6359989798A3B52ABFFEABF9B8A7935F23；新控制17DA18EBE596B67D33F6B8BA27DCF083071ADD023E5DAB613CAD300E0E75F212。
 
 按requesting-code-review模板作者串行自审，非独立复核：检查实际核心引用方向及删除/置空差异、最终ACL顺序、持久选择和准备配置、拒绝后无默认写入、旧行为与无关引用兼容及循环边界。无本批未修复Critical/Important。此边界按登记拓扑保守拒绝，不查询是否恰有引用行；旧根destroy增加既有配置准备和可达关系遍历成本，不称零成本或完整级联执行。未解决后续自定义hook/未登记数据库外键、工作流旧根级联、外部来源/worker生命周期、跨进程配置/业务SQL并发原子隔离、完整混合写入、正式保存启用/业务试点和整分支独立复核。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收。核心保持干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库和旧附件未改，日志/原集群/旧目录保留。过程中新外部Git先使guard实际1；重新只读核精确身份/父链/命令/可执行和实际cwd后才更新精确排除、独立guard0，不豁免未知Git，不杀进程/操作窗口/删锁。不推送合并部署发版或正式启用。
+
+后继§355默认签名提交a209bf0ebfadc6cc9d2a3a1d566d54a3af30d80f实际退出0，独立verify-commit实际0/G，无Timeout或无签名回退。
+
+## 356. 拒绝真实工作流旧根删除级联跨入已选目标
+
+Ruling: 另核真实DestroyInstruction及显式AccessMainWorkflowWriteRuntime安装协议，不把§355的HTTP结论当作工作流已验收。原旧根resolveDestroy仅检查读取路径后返回undefined，指令继续使用原租户过滤和Repository.destroy，核心级联仍可跨入已选目标。最小改动仅在这一同步分支复用assertLegacyDestroyBoundary，按服务端明确选择的表名拒绝跨入，不执行混合级联；不新增执行器、不借父destroy或其他读写操作权威授权子表，不改workflow指令、事务规划、归属或正式安装。与既有工作流旧根读写边界一致，明确选择用于保守拒绝，不作为持久身份/配置或授权证明。
+
+- [x] 使用持久Collection Manager父/子表及真实workflow、Processor和可信执行租户B。子表C记录的已保存G为空，直接选中destroy子表记录为execution/job ERROR且不变；同一节点改为旧父表，目标未选时原CASCADE删除子行、SET NULL清空外键但保留C归属。恢复子表选择后，原代码仍execution RESOLVED并实际改变受保护数据。workflow-legacy-destroy-boundary-red.log两失败/36过滤/38总、实际1/11.63秒（50169已退出），差异明确为状态1而非-2、父行消失及子行删除或外键变null。最小接线green.log两过/36过滤/38总、实际0/11.84秒（87736已退出）。
+- [x] 最终控制保留上述对照，同时在另一无关已选表仍存在时验证旧路径；拒绝后核父/子表全不变和实际边界错误，再移除目标选择，对同一持久节点重新执行成功，原C归属不被认领。没有伪造最终permission、Repository结果或Processor状态。
+- [x] workflow-legacy-destroy-boundary-regression.log五SQLite文件133过/无跳过、实际0/186.23秒（72117已退出）：main write runtime38、原tenant-filter56、destroy-resolver29、destroy-resolver-plugin5、原级联元数据控制5，单worker逐文件。133/两RED/两green/历史轮不累加，非整分支回归。workflow-legacy-destroy-boundary-build-tenant.log完整tenant客户端/服务端/依赖/dts实际0（43802已退出）；前一runner实际退出后才启动构建。本批未改workflow生产源码，不重复其整包构建。
+- [x] 两TS末Prettier check/oxlint0、diff check0，31源snapshot一致且验证后源码未改：main workflow write runtime DB3FC2DDC1D808ED7E4D53732A522618162362753E334F04BB1FA259D670D13A；test 4D0504B6053ED079FAE4A0115E1792CC663E458EC038E59337B84932EA527521。
+
+按requesting-code-review模板作者串行自审，非独立复核：确认同步选择拒绝发生在旧Repository之前，错误沿原事务处理而不回退；选中根原独立destroy权威/执行器及规划不变，未选和无关选择保持旧行为；复用原有向引用图与有界循环检查，不新增业务SQL。无本批未修复Critical/Important。本批只完成工作流旧根登记级联的拒绝边界，不代表完整级联授权执行、间接级联全形态的Processor实测、后续hook/未登记数据库外键、外部来源/worker生命周期、跨进程配置/业务SQL并发原子隔离、完整混合写入、正式保存启用/业务试点或整分支独立复核完成。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收。核心重新只读核干净d742a1c569579e05187b8260f14d48af0d8ccbae，正式依赖/锁文件、主检出、业务库及旧附件未改；日志/原集群/旧目录保留，不推送合并部署发版或正式启用。

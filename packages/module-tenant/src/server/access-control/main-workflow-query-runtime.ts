@@ -11,6 +11,19 @@ import type { AccessWorkflowQueryRequest } from './workflow-query-handler';
 import { AccessWorkflowRootHandler, type AccessWorkflowOperationAuthority } from './workflow-root-handler';
 import { cloneDeep, invalid } from './write-support';
 
+interface WorkflowAggregateReadTarget {
+  readonly dataSourceName: string;
+  readonly collectionName: string;
+  readonly collection: unknown;
+  readonly params: object;
+  readonly context: object;
+  readonly association?: {
+    readonly collectionName: string;
+    readonly collection: unknown;
+    readonly name: string;
+  };
+}
+
 /** Explicit server selection only; never installed by the tenant plugin. */
 export class AccessMainWorkflowQueryRuntime {
   readonly registry: AccessMainRootResourceRegistry;
@@ -20,6 +33,37 @@ export class AccessMainWorkflowQueryRuntime {
     private readonly captureAuthority: (request: unknown) => AccessWorkflowOperationAuthority,
   ) {
     this.registry = new AccessMainRootResourceRegistry(app);
+  }
+
+  /** Refusal-only boundary; a query/list executor does not authorize aggregate SQL. */
+  assertAggregateBoundary(request: WorkflowAggregateReadTarget, selected: readonly AccessCollectionIdentity[]) {
+    const selections = selected.map((identity) => ({ ...identity }));
+    if (
+      selections.length > 1000 ||
+      selections.some((identity) => identity.dataSourceKey !== 'main') ||
+      new Set(selections.map(accessCollectionKey)).size !== selections.length ||
+      new Set(selections.map((identity) => identity.collectionName)).size !== selections.length
+    )
+      invalid('Invalid main workflow aggregate table selection');
+    if (request.dataSourceName !== 'main' || !selections.length) return;
+    const collection = this.app.db.getCollection(request.collectionName);
+    if (!collection || collection !== request.collection) invalid('Workflow aggregate target changed');
+    const protectedCollection = (target: typeof collection) =>
+      selections.some((identity) => identity.collectionName === target.name);
+    if (protectedCollection(collection)) invalid('Selected workflow aggregate reads require a dedicated adapter');
+    if (request.association) {
+      const source = this.app.db.getCollection(request.association.collectionName);
+      if (!source || source !== request.association.collection)
+        invalid('Workflow aggregate association source changed');
+      assertLegacyReadBoundary(
+        this.app.db,
+        source,
+        { appends: [request.association.name] },
+        protectedCollection,
+        request.context,
+      );
+    }
+    assertLegacyReadBoundary(this.app.db, collection, request.params, protectedCollection, request.context);
   }
 
   resolve(

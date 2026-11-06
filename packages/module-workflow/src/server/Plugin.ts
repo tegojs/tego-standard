@@ -25,6 +25,7 @@ import {
 } from './execution-provenance';
 import PluginWorkflowJSParseServer from './features/_deprecated-js-parse/plugin';
 import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plugin';
+import type { WorkflowAggregateReadGuard } from './features/aggregate/AggregateInstruction';
 import { PluginAggregate } from './features/aggregate/Plugin';
 import { PluginDelay } from './features/delay/Plugin';
 import { PluginDynamicCalculation } from './features/dynamic-calculation/Plugin';
@@ -90,6 +91,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   queryResolver?: WorkflowQueryResolver;
   /** Explicit select-list execution, before the instruction extracts its summary. */
   selectResolver?: WorkflowQueryResolver;
+  /** Server bootstrap only; veto unadapted aggregate reads before repository I/O. */
+  aggregateGuard?: WorkflowAggregateReadGuard;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
   destroyResolver?: WorkflowDestroyResolver;
   /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */

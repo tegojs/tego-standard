@@ -5223,3 +5223,16 @@ Ruling: 先核真实select指令独立于query，原实现直接Repository读取
 按requesting-code-review模板作者串行自审，非独立复核：独立select入口不隐式复用queryResolver；选中结果才进入summary，错误不转旧查询，原事务及实际归属不改。构造器/生命周期控制验证启动捕获，真实持久规则测试验证结果，未伪造最终permission；变更仅五TS及两原记录。无本批未修复Critical/Important。不予本项裁决：完整关系/tree与外部来源、worker/延时/重试完整生命周期、后续变量/hook/自定义SQL及权限漂移、完整混合upsert、跨进程配置/业务SQL并发原子隔离、正式保存启用/业务试点/整分支独立复核。损坏PG未启动或重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不替代这些检查。核心、正式依赖/锁文件、主检出、业务库及旧附件未改，全部日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
 
 恢复时重新核HEAD仍§353、五文件未暂存且索引为空；提交前守卫发现新外部Git时实际1。仅只读核精确PID/创建时间/父链/可执行/命令及实际cwd均属于D:/Dev/TomyJan/WutheringWaves-UIResources后更新精确排除，再独立guard0；不把所有外部Git豁免，不沿用旧PID存在或退出假设，未杀进程、操作窗口或删除锁。当前实现与验证完成但尚未提交；七文件原子默认签名提交与独立验签以后继实际输出为准，无新Timeout，不复用历史签名回退条件。
+
+后继§354默认签名提交d81a8041c17cc424b0e2c4ce8717efd9691ed665实际退出0，独立verify-commit实际0/G，无Timeout或无签名回退；上段待提交文字仅为当时状态。
+
+## 355. 拒绝旧根删除级联写入已选访问控制表
+
+Ruling: 先核核心destroy动作、Repository事务及referentialIntegrityCheck实际协议：referenceMap登记的CASCADE会递归调用引用方Repository.destroy，SET NULL会调用引用方Repository.update；这些内部写入不重新经过HTTP动作ACL。显式root runtime原legacyAction没有destroy，旧根可在目标新规则拒绝后继续级联。最小方案仅纳入旧destroy，在最终ACL后、原默认处理前按同一referenceMap检查潜在写入位置：CASCADE继续遍历，SET NULL只检查直接写入表，不把更新当作删除继续递归；按核心协议忽略NO ACTION/RESTRICT和视图，有界去重处理环。触及已选且有配置的表立即拒绝，不执行混合级联、不借父表destroy权限授权子表写入、不改核心/原事务/实际归属或正式安装。
+
+- [x] 沿用真实持久密码Bearer/basic、业务角色和租户B。新增持久父表B记录及反向BelongsTo子表C记录，不要求父表登记反向关联；子表新规则为空且直接列表200/[]。未选目标时原CASCADE删除子行、SET NULL清空其外键且保留C归属；选中后原删除仍200并改变受保护数据。legacy-destroy-boundary-red.log两失败/76过滤/78总、实际1/12.94秒（70431已退出）。最小实现后green.log两过/76过滤/78总、实际0/11.47秒（11101已退出），两表全不变。
+- [x] 最终四个真实HTTP控制覆盖直接/经未选中间表的CASCADE与SET NULL；各自验证选中但未配置、保存配置但未选择时旧行为继续，缺destroy动作权限403且数据不变，选中配置后拒绝且父/中间/子表均不变。controls.log四过/76过滤/80总、实际0/10.65秒（31648已退出）。另以真实SQLite集合/关系登记补五项元数据控制：NO ACTION/RESTRICT不当作写入、SET NULL不递归删除、环终止且仍检查可达写入、无关选择不干扰。
+- [x] legacy-destroy-boundary-regression.log四SQLite文件301过/36个原PG专用项跳过/337总、实际0/60.07秒（11686已退出）：认证HTTP72过/8跳过、普通HTTP40、根写入184过/28跳过、新元数据控制5。单worker逐文件，不与四控制/两RED/历史轮累加，非整分支回归。legacy-destroy-boundary-build-tenant.log完整客户端/服务端/依赖/dts实际0（73641已退出）；前一runner实际退出后才启动构建。
+- [x] 四TS末Prettier check/oxlint0、diff check0，源snapshot一致，回归和构建后代码未改：root runtime AE5B715CE6D49F280ACFC94BABA2444D6F6C5CD68DDADD01E0C8690A0852B609；legacy write boundary 969B78B6CF028F551A1D8365C27DC0E4C4494A8AE69A3DA3A22D337D383665A4；认证HTTP0E704FAF6E42ECF38B92E456477B2E6359989798A3B52ABFFEABF9B8A7935F23；新控制17DA18EBE596B67D33F6B8BA27DCF083071ADD023E5DAB613CAD300E0E75F212。
+
+按requesting-code-review模板作者串行自审，非独立复核：检查实际核心引用方向及删除/置空差异、最终ACL顺序、持久选择和准备配置、拒绝后无默认写入、旧行为与无关引用兼容及循环边界。无本批未修复Critical/Important。此边界按登记拓扑保守拒绝，不查询是否恰有引用行；旧根destroy增加既有配置准备和可达关系遍历成本，不称零成本或完整级联执行。未解决后续自定义hook/未登记数据库外键、工作流旧根级联、外部来源/worker生命周期、跨进程配置/业务SQL并发原子隔离、完整混合写入、正式保存启用/业务试点和整分支独立复核。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收。核心保持干净d742a1c569579e05187b8260f14d48af0d8ccbae；正式依赖/锁文件、主检出、业务库和旧附件未改，日志/原集群/旧目录保留。过程中新外部Git先使guard实际1；重新只读核精确身份/父链/命令/可执行和实际cwd后才更新精确排除、独立guard0，不豁免未知Git，不杀进程/操作窗口/删锁。不推送合并部署发版或正式启用。

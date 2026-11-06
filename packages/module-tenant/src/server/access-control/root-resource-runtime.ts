@@ -12,7 +12,7 @@ import type { AccessCollectionIdentity } from './config-store';
 import type { AccessIdentity } from './context';
 import { captureFinalActionPermission } from './final-action-permission';
 import { assertLegacyChartReadBoundary, assertLegacyReadBoundary } from './legacy-read-boundary';
-import { assertLegacyWriteBoundary } from './legacy-write-boundary';
+import { assertLegacyDestroyBoundary, assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
@@ -104,9 +104,10 @@ export class AccessRootResourceRuntime {
       .map((value) => ({ ...value }));
     const legacyUpsert = ['firstOrCreate', 'updateOrCreate'].includes(actionName);
     const legacyWrite = legacyUpsert || ['create', 'update'].includes(actionName);
+    const legacyDestroy = actionName === 'destroy';
     const legacyImport = actionName === 'importXlsx';
     const legacyAction =
-      chart || legacyWrite || legacyImport || ['list', 'get', 'count', 'export'].includes(actionName);
+      chart || legacyWrite || legacyDestroy || legacyImport || ['list', 'get', 'count', 'export'].includes(actionName);
     if (!selected.length && (!collection || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
     const capturedIdentities = identities.map((value) => ({ ...value }));
@@ -169,6 +170,7 @@ export class AccessRootResourceRuntime {
             }
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
+          if (legacyDestroy) assertLegacyDestroyBoundary(this.db, legacyCollection, protectedCollection);
           if (legacyUpsert) {
             const params = cloneDeep(ctx.action.params);
             const filter = Repository.valuesToFilter(params.values, params.filterKeys);

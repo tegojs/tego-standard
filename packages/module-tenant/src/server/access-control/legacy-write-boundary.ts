@@ -2,6 +2,35 @@ import type { Collection, Database } from '@tego/server';
 
 import { cloneDeep, invalid, plain } from './write-support';
 
+/** Follow the core deletion hook's registered write locations, without executing cascades. */
+export function assertLegacyDestroyBoundary(
+  db: Database,
+  source: Collection,
+  protectedCollection: (collection: Collection) => boolean,
+): void {
+  const pending = [source];
+  const visited = new Set<Collection>();
+  while (pending.length) {
+    const collection = pending.pop()!;
+    if (!collection || collection.db !== db || db.getCollection(collection.name) !== collection)
+      invalid('Legacy deletion collection changed');
+    if (visited.has(collection)) continue;
+    if (visited.size >= 1000) invalid('Legacy deletion exceeds the supported relationship limit');
+    visited.add(collection);
+    if (protectedCollection(collection))
+      invalid('Legacy cascaded writes involving selected access collections require a dedicated adapter');
+    for (const reference of db.referenceMap.getReferences(collection.name) ?? []) {
+      if (!['CASCADE', 'SET NULL'].includes(reference.onDelete)) continue;
+      const target = db.getCollection(reference.sourceCollectionName);
+      if (!target || target.db !== db) invalid('Legacy deletion target is unavailable');
+      if (target.isView()) continue;
+      if (protectedCollection(target))
+        invalid('Legacy cascaded writes involving selected access collections require a dedicated adapter');
+      if (reference.onDelete === 'CASCADE') pending.push(target);
+    }
+  }
+}
+
 /** Reject unadapted references by registered write locations, without executing a mixed write. */
 export function assertLegacyWriteBoundary(
   db: Database,

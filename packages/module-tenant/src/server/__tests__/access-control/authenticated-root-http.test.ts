@@ -585,6 +585,125 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     },
   );
 
+  it.each([
+    ['CASCADE', false],
+    ['SET NULL', false],
+    ['CASCADE', true],
+    ['SET NULL', true],
+  ] as const)(
+    'rejects a legacy destroy with %s writes into a selected collection (indirect: %s)',
+    async (onDelete, indirect) => {
+      const suffix = `${onDelete === 'CASCADE' ? 'cascade' : 'null'}_${indirect ? 'indirect' : 'direct'}`;
+      const parentName = `legacy_delete_${suffix}`;
+      const childName = `protected_delete_${suffix}`;
+      await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name: parentName,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [{ name: 'name', type: 'string' }],
+        },
+      });
+      const middleName = `legacy_middle_${suffix}`;
+      if (indirect)
+        await app.db.getRepository('collections').create({
+          context: {},
+          values: {
+            name: middleName,
+            tenancy: 'tenantScoped',
+            timestamps: false,
+            createdBy: false,
+            updatedBy: false,
+            fields: [
+              { name: 'parent', type: 'belongsTo', target: parentName, foreignKey: 'parentId', onDelete: 'CASCADE' },
+            ],
+          },
+        });
+      const child = await app.db.getRepository('collections').create({
+        context: {},
+        values: {
+          name: childName,
+          tenancy: 'tenantScoped',
+          timestamps: false,
+          createdBy: false,
+          updatedBy: false,
+          fields: [
+            {
+              name: 'parent',
+              type: 'belongsTo',
+              target: indirect ? middleName : parentName,
+              foreignKey: 'parentId',
+              onDelete,
+            },
+          ],
+        },
+      });
+      const childIdentity = { dataSourceKey: 'main', collectionKey: child.get('key'), collectionName: childName };
+      const parents = app.db.getCollection(parentName).model;
+      const middle = indirect ? app.db.getCollection(middleName).model : undefined;
+      const children = app.db.getCollection(childName).model;
+      await parents.bulkCreate([
+        { id: 1, tenantId: 'B', name: 'Legacy baseline' },
+        { id: 2, tenantId: 'B', name: 'Saved unselected baseline' },
+        { id: 3, tenantId: 'B', name: 'Protected cascade' },
+      ]);
+      await middle?.bulkCreate([1, 2, 3].map((id) => ({ id, tenantId: 'C', parentId: id })));
+      await children.bulkCreate([
+        { id: 1, tenantId: 'C', parentId: 1 },
+        { id: 2, tenantId: 'C', parentId: 2 },
+        { id: 3, tenantId: 'C', parentId: 3 },
+      ]);
+      try {
+        selectedKeys.add(childIdentity.collectionKey);
+        const denied = await agent('B', 'business-denied').resource(parentName).destroy({ filterByTk: 1 });
+        expect(denied.status).toBe(403);
+        expect(await parents.count()).toBe(3);
+        expect(await children.count()).toBe(3);
+        const baseline = await agent().resource(parentName).destroy({ filterByTk: 1 });
+        expect(baseline.status).toBe(200);
+        expect(await parents.findByPk(1)).toBeNull();
+        const changed = await children.findByPk(1);
+        if (onDelete === 'CASCADE') expect(changed).toBeNull();
+        else expect(changed?.get()).toMatchObject({ id: 1, parentId: null, tenantId: 'C' });
+        selectedKeys.delete(childIdentity.collectionKey);
+        await store.save(
+          childIdentity,
+          { ...configFor(ownerCondition), revision: 0, rules: [] },
+          { userId: user.get('id') },
+        );
+        const unselected = await agent().resource(parentName).destroy({ filterByTk: 2 });
+        expect(unselected.status).toBe(200);
+        expect(await parents.findByPk(2)).toBeNull();
+        const savedChanged = await children.findByPk(2);
+        if (onDelete === 'CASCADE') expect(savedChanged).toBeNull();
+        else expect(savedChanged?.get()).toMatchObject({ id: 2, parentId: null, tenantId: 'C' });
+        selectedKeys.add(childIdentity.collectionKey);
+        const direct = await agent().resource(childName).list();
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        const beforeParents = (await parents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+        const beforeChildren = (await children.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+        const beforeMiddle = await middle
+          ?.findAll({ order: [['id', 'ASC']] })
+          .then((rows) => rows.map((row) => row.get()));
+        const rejected = await agent().resource(parentName).destroy({ filterByTk: 3 });
+        expect({
+          status: rejected.status,
+          parents: (await parents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+          children: (await children.findAll({ order: [['id', 'ASC']] })).map((row) => row.get()),
+        }).toEqual({ status: 400, parents: beforeParents, children: beforeChildren });
+        expect(await middle?.findAll({ order: [['id', 'ASC']] }).then((rows) => rows.map((row) => row.get()))).toEqual(
+          beforeMiddle,
+        );
+      } finally {
+        selectedKeys.delete(childIdentity.collectionKey);
+      }
+    },
+  );
+
   it.each(['firstOrCreate', 'updateOrCreate'] as const)(
     'keeps unselected scalar %s on its original handler without bypassing action ACL',
     async (action) => {

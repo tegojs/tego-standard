@@ -5194,3 +5194,16 @@ Ruling: 真实UpdateOrCreateInstruction独立于create/update resolver，不能�
 按requesting-code-review模板作者串行自审，非独立复核：启动回调只作拒绝、无效返回不进入默认写入，原附件和事务顺序无守卫时不变；检查原解析参数及原appends、不改输入/最终授权，不把旧租户归属限制当G。无本批未修复Critical/Important。不予本项裁决：完整选中upsert执行/角色操作授权/原子隔离、其他写节点及外部数据源/worker完整生命周期、后续变量/hook/自定义SQL与权限漂移、完整混合支持、跨进程配置、正式保存启用/业务试点/整分支独立复核。损坏PG未启动或重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不能替代并发原子隔离。核心/正式依赖锁文件/主检出/业务库/旧附件未改，日志/原集群/旧目录保留，未推送合并部署发版或正式启用。
 
 本轮起始独立审计实际0：HEAD f4d1791、干净树/26源snapshot一致、原PG停/25466全部0、global true；重新核六个外部push的实际身份/父链/命令/目录后只排除该精确链，并非全局Git0。§351默认签名f4d1791及独立verify G已完成，无Timeout。§352当前实现和上述验证已完成但尚未提交；默认签名提交与独立验签结果以后继实际输出为准，不沿用旧PID/Timeout或绕过活动签名。
+
+后继§352默认签名提交69b8050ec68b013864f841aa7f321e4813daaaef实际退出0（70476），独立verify-commit实际0/G，无Timeout或无签名回退。§353起始重新独立审计实际0：干净树、27源与snapshot一致，无未知Git/活动签名/snapshot验证及本库锁，外部链计数0；PG停/25466全部记录0、global true。前述待提交文字仅记录当时状态，不表示§352当前未提交。
+
+## 353. 拒绝旧根别名写入及派生匹配跨入已选访问控制目标
+
+Ruling: 核心实际注册firstOrCreate/updateOrCreate并由create策略授予别名动作权限；原代理把values/filterKeys交给Repository，以valuesToFilter派生实际匹配条件。内部root runtime原legacyWrite仅含create/update，既未检查别名值里的引用，也未检查这批派生关联查询。最小方案只在显式runtime中纳入两个别名：最终ACL后复用assertLegacyWriteBoundary检查实际登记写入位置，私有复制参数并调用原Repository.valuesToFilter，再复用assertLegacyReadBoundary检查实际匹配计划。拒绝未经适配的已选且有配置目标，不执行混合upsert，不借用list/update/create权威，不改核心Repository、原事务或tenant归属协议；正式自动安装/注册/选表/启用继续关闭。
+
+- [x] 沿用真实持久密码登录Bearer/basic及角色/租户headers，目标新规则清空且直接列表200/[]。移除目标选择时，legacy_sources:updateOrCreate按id1引用document2成功200且持久documentId2/tenantId B；恢复源引用null及目标选择后，原代码仍200并实际改成2。firstOrCreate以原filterKeys=['document.id']和扁平值匹配同一来源，未选目标成功，恢复选择原仍200返回来源。legacy-alias-boundary-red.log两失败/68过滤/70总、实际1/21.94秒（66352已退出）；不是缺hook推断或伪造最终授权。
+- [x] 最小接线green.log两过/68过滤/70总、实际0/16.56秒（56760已退出）。最终新增八项：updateOrCreate外键/关联引用两案、两个别名的派生关联匹配两案、两个未选标量既有记录兼容且无动作权限403、两个已选根未适配别名保持400。controls.log八过/68过滤/76总、实际0/15.71秒（87707已退出）。引用及匹配拒绝均核来源/目标全不变；未选标量firstOrCreate不修改既有值，updateOrCreate正常改值且原B归属不变，未把新增分支或完整upsert称已验收。finally恢复本轮规则/选择/来源引用，仅删除本轮意外新增的测试行。
+- [x] legacy-alias-boundary-regression.log四SQLite文件138过/8个原PG专用明确跳过/146总、实际0/119.30秒（68130已退出）：认证68、普通HTTP40、原标量HTTP导入6、导入插件入口24，单worker逐文件。138/8项控制/RED/历史轮不累加，非整分支回归。legacy-alias-boundary-build-tenant.log tenant完整客户端/服务端/依赖/dts实际0（82747已退出）。
+- [x] 两TS最终Prettier check/oxlint0，源与snapshot一致且回归/构建后代码未改：root runtime 1B17452C959E528E01E4F60047B7CE7FDD48BF4FE43508CFDB183B8D68CEF251；认证HTTP1EA83A82233B03FBA3B55BC269188D74BE2FC13ECD1C55F1C8D181517AFFE0AB。diff check及暂存内容以后继提交前检查为准。
+
+按requesting-code-review模板作者串行自审，非独立复核：派生条件复用原Repository协议，不自制filterKeys语法；只在既有准备阶段捕获的配置下拒绝，未选目标及无关标量保持旧实现，最终ACL在先，不修改调用方参数/业务记录/引用归属。无本批未修复Critical/Important。不予本项裁决：别名新增分支的实际租户归属、完整选中或混合upsert执行/独立操作授权/事务原子隔离、具体关联导入及其他关系、外部来源/worker生命周期、后续变量/hook/自定义SQL或权限漂移、跨进程配置、正式保存启用/业务试点/整分支独立复核。损坏PG未启动/重试，未启Redis/建库/新物理附件，无本轮PG/MySQL/MariaDB业务验收；SQLite不替代并发隔离。核心/正式依赖锁文件/主检出/业务库/旧附件未改，全部日志/原集群/旧目录保留；未推送合并部署发版或正式启用。当前实现和验证已完成但尚未提交，默认签名原子提交和独立验签以后继实际结果为准，不沿用旧Timeout/PID或绕过未知Git活动。

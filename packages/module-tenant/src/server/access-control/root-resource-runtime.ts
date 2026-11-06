@@ -4,7 +4,7 @@ import {
   filterExportColumnsByCollection,
   normalizeExportColumns,
 } from '@tachybase/plugin-action-export';
-import { Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
+import { Repository, Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
@@ -102,7 +102,8 @@ export class AccessRootResourceRuntime {
       .map((value) => this.resolveIdentity(value))
       .filter((value): value is AccessCollectionIdentity => !!value)
       .map((value) => ({ ...value }));
-    const legacyWrite = ['create', 'update'].includes(actionName);
+    const legacyUpsert = ['firstOrCreate', 'updateOrCreate'].includes(actionName);
+    const legacyWrite = legacyUpsert || ['create', 'update'].includes(actionName);
     const legacyImport = actionName === 'importXlsx';
     const legacyAction =
       chart || legacyWrite || legacyImport || ['list', 'get', 'count', 'export'].includes(actionName);
@@ -168,6 +169,11 @@ export class AccessRootResourceRuntime {
             }
           }
           if (legacyWrite) assertLegacyWriteBoundary(this.db, legacyCollection, ctx.action.params, protectedCollection);
+          if (legacyUpsert) {
+            const params = cloneDeep(ctx.action.params);
+            const filter = Repository.valuesToFilter(params.values, params.filterKeys);
+            assertLegacyReadBoundary(this.db, legacyCollection, { filter }, protectedCollection, ctx);
+          }
           if (legacyImport) {
             const upload = ctx.request as typeof ctx.request & { body?: { columns?: unknown } };
             let columns = cloneDeep(upload.body?.columns);

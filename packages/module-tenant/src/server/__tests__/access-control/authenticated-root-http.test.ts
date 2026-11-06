@@ -507,6 +507,120 @@ describe.skipIf(!coreFactoryEntry)('authenticated protected root requests', () =
     }
   });
 
+  it.each(['foreignKey', 'reference'] as const)(
+    'rejects a legacy updateOrCreate %s to a selected target hidden by its current rules',
+    async (shape) => {
+      const original = (await store.read(identity))!;
+      const sources = app.db.getCollection('legacy_sources').model;
+      const documents = app.db.getCollection('protected_documents').model;
+      const snapshot = async () => (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const beforeDocuments = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const request = () =>
+        agent()
+          .resource('legacy_sources')
+          .updateOrCreate({
+            filterKeys: ['id'],
+            values: { id: 1, ...(shape === 'foreignKey' ? { documentId: 2 } : { document: 2 }) },
+          });
+      await sources.update({ documentId: null }, { where: { id: 1 }, hooks: false });
+      const before = await snapshot();
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent().resource('protected_documents').list();
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        expect((await sources.findByPk(1))?.get()).toMatchObject({ documentId: 2, tenantId: 'B' });
+        await sources.update({ documentId: null }, { where: { id: 1 }, hooks: false });
+        selectedKeys.add(identity.collectionKey);
+        const rejected = await request();
+        expect({ status: rejected.status, rows: await snapshot() }).toEqual({ status: 400, rows: before });
+        expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        await sources.update({ documentId: 2 }, { where: { id: 1 }, hooks: false });
+        const current = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it.each(['firstOrCreate', 'updateOrCreate'] as const)(
+    'rejects a legacy %s match through a selected target hidden by its current rules',
+    async (action) => {
+      const original = (await store.read(identity))!;
+      const sources = app.db.getCollection('legacy_sources').model;
+      const documents = app.db.getCollection('protected_documents').model;
+      const before = (await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const beforeDocuments = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const request = () =>
+        agent()
+          .resource('legacy_sources')
+          [action]({ filterKeys: ['document.id'], values: { 'document.id': 2 } });
+      try {
+        await store.save(identity, { ...original, rules: [] }, { userId: user.get('id') });
+        const direct = await agent().resource('protected_documents').list();
+        expect(direct.status).toBe(200);
+        expect(direct.body.data).toEqual([]);
+        selectedKeys.delete(identity.collectionKey);
+        const legacy = await request();
+        expect(legacy.status).toBe(200);
+        const result = Array.isArray(legacy.body.data) ? legacy.body.data[0] : legacy.body.data;
+        expect(result).toMatchObject({ id: 1, documentId: 2, tenantId: 'B' });
+        expect((await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+        selectedKeys.add(identity.collectionKey);
+        const rejected = await request();
+        expect({ status: rejected.status, data: rejected.body.data }).toEqual({ status: 400, data: undefined });
+        expect((await sources.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+        expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(beforeDocuments);
+      } finally {
+        selectedKeys.add(identity.collectionKey);
+        for (const row of await sources.findAll())
+          if (!before.some((old) => old.id === row.get('id'))) await row.destroy({ hooks: false });
+        const current = (await store.read(identity))!;
+        await store.save(identity, { ...original, revision: current.revision }, { userId: user.get('id') });
+      }
+    },
+  );
+
+  it.each(['firstOrCreate', 'updateOrCreate'] as const)(
+    'keeps unselected scalar %s on its original handler without bypassing action ACL',
+    async (action) => {
+      const documents = app.db.getCollection('legacy_documents').model;
+      const before = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const params = { filterKeys: ['id'], values: { id: 2, amount: 250 } };
+      try {
+        const denied = await agent('B', 'business-denied').resource('legacy_documents')[action](params);
+        expect(denied.status).toBe(403);
+        expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+        const response = await agent().resource('legacy_documents')[action](params);
+        expect(response.status).toBe(200);
+        expect((await documents.findByPk(2))?.get()).toMatchObject({
+          tenantId: 'B',
+          amount: action === 'firstOrCreate' ? 200 : 250,
+        });
+        expect(await documents.count()).toBe(before.length);
+      } finally {
+        await documents.update({ amount: 200 }, { where: { id: 2 }, hooks: false });
+      }
+    },
+  );
+
+  it.each(['firstOrCreate', 'updateOrCreate'] as const)(
+    'keeps the unsupported selected root %s closed',
+    async (action) => {
+      const documents = app.db.getCollection('protected_documents').model;
+      const before = (await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get());
+      const response = await agent()
+        .resource('protected_documents')
+        [action]({ filterKeys: ['id'], values: { id: 2, amount: 250 } });
+      expect(response.status).toBe(400);
+      expect((await documents.findAll({ order: [['id', 'ASC']] })).map((row) => row.get())).toEqual(before);
+    },
+  );
+
   it('retains operation ACL and rejects anonymous access', async () => {
     const denied = await agent('B', 'business-denied').resource('protected_documents').list();
     expect(denied.status).toBe(403);

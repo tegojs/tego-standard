@@ -5447,3 +5447,14 @@ Ruling: 本项仅验收已有配置自动化契约，不是新漏洞、产品RED
 - [x] 新TS末Prettier/oxlint实际0、零错误警告（3ef509）；原58源加369/370/371测试共61源逐字节snapshot一致（91b2dd），验证后测试源码未改。新测试SHA256：88AB6B6010FA593AB170ACD8A806B5C97E4AC4D51AEE1213D8ECFF1B626EC0B0。仅测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build；最终diff/暂存和提交后审计以后继实际输出为准。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实插件注册及专用HTTP输入、持久集合/规则/用户角色、父子真实执行边界与身份继承、同步/异步错误协议、队列排空及完整业务行。能抓住的回归为子流程丢失规范身份/租户、操作权威错误复用或已选执行器拒绝后fallthrough；未修复Critical/Important为零。不予本项裁决：用户/角色撤销与正式账号状态、嵌套子流程全形态、跨流程原子事务、独立进程/外部source/完整worker、跨进程配置撤权与SQL隔离、并发租约去重、PG并发、通知/Omni/审批其他入口、完整混合写、正式保存启用/业务试点和整分支独立复核；理由是本项只验收同一应用中的真实认证父子写入，createTenantApp仍有既有active适配。新Git使guard d12538实际1后即停止编辑，只读capture cb72f8核精确身份/创建/父链/命令/可执行/实际cwd属于无关资源库，独立guard a7551b实际0才继续，不称全局Git0。损坏PG不启动重试，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，不沿用旧签名回退条件。
+
+## 372. 验收认证根写入拒绝未适配的物理外键
+
+Ruling: 本项仅补已有拒绝边界的独立真实认证证据，不是新漏洞、产品RED或生产修复。关联名输入与物理外键输入不是同一协议；rootWriteBlockedFields按真实登记BelongsTo及物理references保护外键，validateRootValues在根写入规划中拒绝未适配的键。既有document关联名写入与完整关系事务仍有PG门控，不以SQLite拒绝验收替代它们。
+
+- [x] 新authenticated-scalar-foreign-key-boundary.test.ts每项使用独立SQLite内存app、本地核心ACL factory、真实持久密码/basic登录Bearer、无管理snippet的两个普通角色及tenant B。持久Collection Manager登记tenantScoped来源和初始空目标、真实BelongsTo document/documentId；来源仅一条无害B记录且外键null。两表显式选择，目标空G/V，来源G同时绑定真实归属、user.id和role.name。不创建隐藏目标或读取敏感值，不替换认证/ACL/执行器。
+- [x] create/update两项先以同一真实认证上下文普通name写入成功200，逐字核持久业务行、null外键及B归属；随后提交含documentId:1的普通字段请求400，错误明确来自未适配reference key而非缺少目标或外键SQL失败。无动作授权角色同形请求403。透传观察器核来源Repository对应create/update、来源find/findOne及目标find/findOne五个入口均零调用，拒绝后来源全raw行不变、目标仍空。不把这五个观察入口扩大为所有原生SQL/hook均零调用或完整关联授权。
+- [x] acceptance-20261106-1656.log两过/无跳过，实际0/26.37秒（26132已退出，b2b823）。regression-20261106-1657.log四SQLite文件308过/38原PG专用跳过/346总，实际0/61.89秒（32194已退出，1bfd42）：新认证2、root-creation-handler42过2跳、root-mutation-handler184过28跳、authenticated-root-http80过8跳。单worker逐文件，308与单项/历史不累加，非整分支回归；旧低层身份替身只作兼容，不冒称新认证或PG实测。全部authenticated-scalar-foreign-key-日志留批准父目录，预期拒绝日志不是失败。
+- [x] 首静态检查oxlint零错误警告，Prettier提示格式差异（374170实际1），仅格式化新测试（e8cdc3实际0），不是产品RED。末Prettier/oxlint实际0、零错误警告（8cbb38），62源逐字节snapshot一致（a74d3d），测试验证后未改；SHA256：7FEC218A3BDF8A93881025D1B5FEA65C81CA09A040855F0F4BCDDBA09897FE58。仅新测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实持久关系、密码/角色/tenant、来源G正向控制、未适配键的明确错误、最终ACL先行、观察器透传及完整持久状态。能抓住的回归为物理外键被误当普通字段写入或请求落到旧Repository；未修复Critical/Important为零。不予本项裁决：物理外键完整授权执行、关联名写入全形态、目标可读引用/无变化引用/历史认领、工作流/导入其他标量外键、任意hook/元数据漂移、完整混合写、身份撤销、独立进程/外部source/worker、跨进程配置撤权及SQL原子隔离、PG并发、正式账号状态/保存启用/业务试点与整分支独立复核。理由是本项仅验收真实HTTP已选根的物理外键拒绝，createTenantApp仍含既有active适配。guard79e196/7b71c1/4d8754实际1时停止后继变更/runner，只读新核精确身份/创建/父链/命令/可执行/实际cwd属无关资源库后独立guard0；不豁免未知Git、不杀进程/删锁/操作窗口。损坏PG不启动重试，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，实际结果以后继输出为准，不沿用旧签名回退条件。

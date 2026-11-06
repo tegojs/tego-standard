@@ -886,6 +886,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 配置父流程触发子流程时，子节点也须以自身真实操作权威、继承的规范身份及当前G执行，不能把父trigger操作或人工表ACL当作子create授权。真实密码Bearer/basic、无人工动作授权/管理snippet角色tenant B、持久Collection Manager初始空业务表和显式写入runtime组合，沿workflows:trigger→异步父流程→真实trigger-instruction→同步/异步collection子流程验收，见实施§371。四组合核父/子唯一execution及唯一job、规范user/role/tenant上下文和无害输入映射；要求归属、真实user.id和role.name的G允许时仅新增一条B记录，空规则时子ERROR且表为空，同步父FAILED、异步父ERROR并保留真实父子链接。直接HTTP create403，不为自动节点补人工动作权限。四项验收及六SQLite文件54项回归无跳过，无生产改动/产品RED；旧asyncTrigger登记和HTTP输入包装误用是分别记录的fixture失败。该项不代表身份/角色撤销、正式账号状态、跨流程原子事务、完整嵌套/worker或独立进程、跨进程撤权/SQL隔离及PG并发验收；createTenantApp仍有既有active适配，正式保存启用和业务试点继续关闭。没有隐藏业务行、敏感lookup或通知调用。
 
+真实HTTP根写入的物理外键输入仍须拒绝未适配写入，不能因来源create/update有ACL与G就当普通标量放行。实施§372以两项独立SQLite内存app、真实持久密码Bearer/basic、无管理snippet普通角色tenant B、持久Collection Manager来源/空目标及document/documentId登记验收：来源G绑定实际归属、user.id和role.name，普通name写入200并核B归属；提交含documentId:1的普通字段请求后400且明确未适配reference key错误，无动作授权角色先403。来源对应写入与两表find/findOne五个透传观察入口均未调用，来源完整raw行不变、目标始终空；这不是所有SQL/hook零调用证明。无隐藏业务数据、敏感lookup、生产改动或产品RED。四SQLite文件308过/38原PG专用跳过，单worker逐文件，非整分支或PG实测；格式差异仅由Prettier处理。此项只补已选根物理外键拒绝，不证明完整外键/关联授权执行、无变化引用、工作流/导入全形态或PG并发原子隔离，关联名写入原PG门控不变。createTenantApp仍有既有active适配，正式保存启用/业务试点及完整生命周期目标继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

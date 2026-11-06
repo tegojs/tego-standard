@@ -3,6 +3,7 @@ import { appendArrayColumn, Context, Gateway, Next, parse } from '@tego/server';
 
 import axios from 'axios';
 
+import type { captureCurrentRecordReadGuard } from '../current-record-read-guard';
 import CustomRequestPlugin from '../plugin';
 
 const getHeaders = (headers: Record<string, any>) => {
@@ -45,7 +46,12 @@ const getCurrentUserAppends = (str: string, user) => {
     .filter(Boolean);
 };
 
-export async function send(this: CustomRequestPlugin, ctx: Context, next: Next) {
+export async function send(
+  this: CustomRequestPlugin,
+  currentRecordReadGuard: ReturnType<typeof captureCurrentRecordReadGuard>,
+  ctx: Context,
+  next: Next,
+) {
   const { filterByTk, resourceName, values = {} } = ctx.action.params;
   const {
     currentRecord = {
@@ -91,13 +97,15 @@ export async function send(this: CustomRequestPlugin, ctx: Context, next: Next) 
   let currentRecordValues = {};
   if (collectionName && typeof currentRecord.id !== 'undefined') {
     const recordRepo = ctx.db.getRepository(collectionName);
-    currentRecordValues =
-      (
-        await recordRepo.findOne({
-          filterByTk: currentRecord.id,
-          appends: currentRecord.appends,
-        })
-      )?.toJSON() || {};
+    const params = { filterByTk: currentRecord.id, appends: currentRecord.appends };
+    await currentRecordReadGuard({
+      database: ctx.db,
+      collectionName,
+      collection: recordRepo.collection,
+      params,
+      context: ctx,
+    });
+    currentRecordValues = (await recordRepo.findOne(params))?.toJSON() || {};
   }
 
   let currentUser = ctx.auth.user;

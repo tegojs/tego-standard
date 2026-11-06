@@ -870,6 +870,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 旧来源create还会通过登记snapshot字段发生隐式读取：原Repository在同一事务INSERT及关联更新后发afterCreateWithAssociations，快照插件内部关联find不会重新经过目标HTTP ACL。真实密码Bearer/basic、tenant B、持久Collection Manager及默认documentId=2证明：请求只含name，目标空G/V且直接list200/[]，原创建仍200并持久隐藏B目标完整快照，见实施§364的确认RED。显式root runtime仅在旧create最终ACL后、原Repository之前，按真实snapshot/targetField、model association及原插件有效appends复用旧读取边界，保守拒绝跨已选且本次配置已准备目标；不借来源create授权目标、不读目标业务数据、不改原事务/归属/快照插件/核心或正式安装。七项新认证控制覆盖默认关联、经appends的隐藏目标、未配置/无关选择、无效append/targetField、普通更新和原create ACL；最终四文件155过/8原PG专用跳过、tenant完整构建通过。首轮raw JSON断言错误不是权限RED，首轮回归漏旧ACL环境导致40项额外跳过，均如实记录并重跑，不混报累加。此项仅为HTTP旧来源create登记快照的拒绝边界，不代表任意hook、选中来源/工作流/其他创建入口的完整快照授权、后续元数据漂移、外部source/worker、跨进程撤权或PG并发隔离；正式保存启用和业务试点继续关闭。
 
+自定义请求customRequests:send按持久options.collectionName及请求currentRecord.id/appends直接查业务Repository，再将完整记录放入服务端模板并发请求，不重新经过业务HTTP list。真实密码Bearer/basic、无管理snippet角色、tenant B及持久业务H/B/C证明：目标空G/V、直接list200/[]时，原send仍200并向仅本地127.0.0.1接收器发送完整隐藏B记录，见实施§365的干净RED。custom-request新增可选启动捕获currentRecordReadGuard，在原配置角色/URL校验之后、业务findOne及出站请求之前执行；非函数、Promise/非法返回或异常拒绝，不回退。显式主库边界核实际database/collection绑定，复用既有读取规划拒绝已选根和关联目标/through；只拒绝，不借send授权业务list，不改loggedIn、模板、axios、原事务或归属，不正式安装。十项新控制及五SQLite文件163过/8原PG专用跳过、两个相关包完整构建通过；拒绝时无新增接收请求、两表全字段及真实归属不变，移除选择恢复。此项不是完整custom-request独立授权/选中执行器、currentUser关联或任意模板读取、后续hook/元数据漂移、外部source/worker、跨进程撤权或PG并发隔离验收；createTenantApp仍含既有active适配，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

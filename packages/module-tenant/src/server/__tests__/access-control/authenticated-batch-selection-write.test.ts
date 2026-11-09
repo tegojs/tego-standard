@@ -202,6 +202,25 @@ describe.skipIf(!coreEntry)('authenticated batch selection contracts', () => {
               { id: 4, name: 'Submitted task', stage: 'submitted', tenantId: 'B' },
             ],
       );
+      if (operation === 'update') {
+        // Both normal bulk-update UIs send this false flag even when selecting explicit rows by filter.
+        // 两个普通批量更新界面均携带 false 标志，并通过筛选表达式选择记录。
+        const clientSelected = await agent()
+          .resource(collectionName)
+          .update({
+            filter: { $and: [{ id: { $in: [2, 1] } }] },
+            values: { name: 'Client selected draft' },
+            forceUpdate: false,
+          });
+        expect(clientSelected.status).toBe(200);
+        expect(clientSelected.body.data).toEqual({ keys: [1, 2], affected: 2 });
+        expect(await rows()).toEqual([
+          { id: 1, name: 'Client selected draft', stage: 'draft', tenantId: 'B' },
+          { id: 2, name: 'Client selected draft', stage: 'draft', tenantId: 'B' },
+          { id: 3, name: 'Third draft', stage: 'draft', tenantId: 'B' },
+          { id: 4, name: 'Submitted task', stage: 'submitted', tenantId: 'B' },
+        ]);
+      }
       // A broad filter selects within the role scope; it is not a promise to mutate every visible match.
       // 宽条件只在角色范围内选中目标，并不承诺修改全部可见匹配行。
       const matching = await mutate({

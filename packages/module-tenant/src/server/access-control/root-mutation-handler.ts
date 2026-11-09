@@ -96,7 +96,13 @@ export class AccessRootMutationHandler {
       'filterByTk',
       'values',
       ...(operation === 'create' ? [] : ['filter']),
+      ...(operation === 'update' ? ['forceUpdate'] : []),
     ]);
+    // Bulk-edit clients send false, serialized as 'false' in query strings; neither supplies selection.
+    // 批量编辑客户端的 false 在查询串中为 'false'；两种形式均不提供选中范围。
+    const forceUpdate = data(raw, 'forceUpdate');
+    if (Object.hasOwn(raw, 'forceUpdate') && forceUpdate !== false && forceUpdate !== 'false')
+      invalid('Unsupported root mutation parameters');
     const rawFilter = data(raw, 'filter');
     const requestFilter = rawFilter === undefined ? {} : captureAccessFilter(rawFilter);
     if (!plain(requestFilter)) invalid('Mutation request filters must be plain objects');

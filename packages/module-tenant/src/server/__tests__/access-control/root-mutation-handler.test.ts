@@ -144,6 +144,34 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     await store.save(mainIdentity, { ...config, revision: previous.revision }, { userId: 28 });
   }
 
+  it.each([false, 'false'])('accepts inert forceUpdate metadata %j without changing selection', async (forceUpdate) => {
+    const ctx = await context('update', { values: { name: 'Changed' }, forceUpdate });
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual([
+      { id: 1, tenantId: 'H', name: 'Visible', amount: 10 },
+      { id: 3, tenantId: 'B', name: 'Changed', amount: 30 },
+      { id: 4, tenantId: 'C', name: 'Hidden', amount: 40 },
+      { id: 5, tenantId: null, name: 'Legacy', amount: 50 },
+    ]);
+  });
+
+  it.each([true, 'true', null, undefined])('rejects non-inert forceUpdate metadata %j', async (forceUpdate) => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context('update', { values: { name: 'Forbidden' }, forceUpdate });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(ctx.body).toBe('unchanged');
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
+  it('does not use false forceUpdate metadata as an unbounded selection', async () => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context('update', { filterByTk: undefined, values: { name: 'Forbidden' }, forceUpdate: false });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(ctx.body).toBe('unchanged');
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
   it('does not delete a file row through the ordinary record executor', async () => {
     docs.options.template = 'file';
     const ctx = await context('destroy');

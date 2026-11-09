@@ -1290,3 +1290,9 @@ WHERE (既有角色数据条件)
 新单项以持久 Collection Manager shared 表（真实无 tenantId 列）、持久动作/字段授权、两个普通角色、真实密码 Bearer/auth:check及原显式 registry/adapter/runtime，验收 create/list/get/update/destroy 的完整持久生命周期。用户 tenantUsers=0/defaultTenantId=null、无tenant header，六次真实请求均只读核实际 currentTenantId/currentTenant 缺失。G 主体允许两个角色，但无动作角色 update403且完整行不变；原角色成功改名后只删除本项新增内存行，最终空表。无伪造context/permission、重新登录、隐藏目标/敏感lookup、通知/外部I/O或撤销后凭据复用。
 
 首验收1过，最终五SQLite回归290过/30原PG跳过/320总，均实际exit0；初回归250过/115跳包含原PG专用resource-read-handler整文件85跳，核后更换为实际HTTP40重跑，不混报。445项完整branch源snapshot、format/oxlint/diff均实际0，新测试hash及完整证据见原计划§389，回归后未改源。仅测试/两原记录，未重复包build。作者完整模板串行自审、非独立复核，无未修复Critical/Important；shared关联/外部source、动态身份/正式账号状态、PG与跨进程并发/SQL隔离、规则保存启用/浏览器业务试点及整分支独立复核仍未完成。损坏PG保持停止，不外网/联系子智能体/推送合并部署或正式启用。当前三文件待英文原子默认签名提交，实际结果以后继接续。
+
+### 真实认证软删除业务生命周期（§390）
+
+原普通 paranoid 表删除协议保持：选中根 destroy 在动作ACL与G交集内成功，保留物理行并标记删除时间；该留存行不再出现在普通列表或成为普通编辑目标，其他活动行仍正常编辑。新 authenticated-soft-delete-write.test.ts 单项使用独立SQLite内存app、持久Collection Manager初始空 tenantScoped/paranoid业务表、普通持久动作字段、真实密码Bearer/auth:check/tenant B及原显式registry/adapter/runtime。两条无害业务行均HTTP新增，完整raw核全部字段；destroy第一行200及准确回执，paranoid:false完整两行仍在且仅deletedAt改变，正常list仅第二行。同token对本人刚创建并删除行update403且完整物理数据不变，活动行update200、最终list正确。G绑定真实user/role/归属，不伪造permission/context、不重登录或改ACL/成员，无未知敏感目标、通知/外部I/O或撤销后凭据复用；原active适配不冒称正式账号状态。
+
+首验收1过、实际exit0，无产品RED或生产改动。最终五SQLite回归300过/35原PG门控跳过/335总，session83640/cc7a43实际exit0，Vitest55.64秒；新1、mutation44/7、root-mutation191/28、原HTTP40、model-metadata24。计数不与首项/历史累加，非PG或整分支实测。预期拒绝及原诊断/全部日志保留批准父目录，细节见原计划§390。446项完整branch源与snapshot逐字节一致，format/oxlint/diff实际0；新测试SHA256 C0677F11A619AECF9C6297B078D9F9C985F8D02096D74F3B0936CA48806187DE，回归后未改。仅测试/两原记录、不重复build。作者按完整模板串行自审、非独立复核，无未修复Critical/Important/Minor；restore/force API、关联级联混合、动态身份/正式账号状态、PG与跨进程并发、外部worker、规则保存启用/浏览器业务试点和整分支独立复核仍未完成。损坏PG保持停止，不联系子智能体/外网或推送合并部署正式启用；当前三文件待英文原子默认签名提交，实际结果以后继接续。

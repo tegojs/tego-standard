@@ -168,6 +168,28 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('existing access
       expect(await read(5)).toMatchObject({ tenantId: 'B', name: 'claimed' });
     });
 
+    writeTest('leaves an unchanged historical scalar form unclaimed', async () => {
+      await legacy(true);
+      expect(await update([5], { name: 'D5', amount: 500, tenantId: null })).toEqual({ keys: [], affected: 0 });
+      expect(await read(5)).toEqual({ id: 5, tenantId: null, amount: 500, name: 'D5' });
+    });
+
+    writeTest('still denies a same-value form when legacy editing is disabled', async () => {
+      await legacy(false);
+      await expect(update([5], { name: 'D5', tenantId: null })).rejects.toMatchObject({
+        code: 'LEGACY_DATA_READ_ONLY',
+      });
+      expect(await read(5)).toEqual({ id: 5, tenantId: null, amount: 500, name: 'D5' });
+    });
+
+    writeTest('does not skip ownership-transfer validation for an unchanged business value', async () => {
+      await legacy(true);
+      await expect(update([5], { name: 'D5', tenantId: 'C' })).rejects.toMatchObject({
+        code: 'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN',
+      });
+      expect(await read(5)).toEqual({ id: 5, tenantId: null, amount: 500, name: 'D5' });
+    });
+
     writeTest('does not permit direct deletion even when historical editing is enabled', async () => {
       await legacy(true);
       const writer = vi.fn();
@@ -214,6 +236,15 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('existing access
   it('does not give writable access to records matched only by visibility', async () => {
     await expect(update([1], { name: 'forged' })).rejects.toMatchObject({ code: 'ACCESS_RECORD_UNAVAILABLE' });
     expect(await read(1)).toMatchObject({ tenantId: 'H', name: 'D1' });
+  });
+
+  it('keeps custom setters on the real writer path even for same-value input', async () => {
+    docs.model.rawAttributes.name.set = function (value: string) {
+      this.setDataValue('name', `${value}!`);
+    };
+    (docs.model as typeof docs.model & { refreshAttributes(): void }).refreshAttributes();
+    expect(await update([3], { name: 'D3' })).toEqual({ keys: [3], affected: 1 });
+    expect(await read(3)).toEqual({ id: 3, tenantId: 'B', amount: 300, name: 'D3!' });
   });
 
   it('does not authorize the old record using the proposed new field values', async () => {

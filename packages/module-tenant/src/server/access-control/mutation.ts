@@ -9,6 +9,7 @@ import { AccessMutationError } from './mutation-errors';
 import type { AccessQueryService } from './query';
 import {
   cloneDeep,
+  hasPersistedChanges,
   internalQuery,
   invalid,
   normalizeKeys,
@@ -364,9 +365,25 @@ export class AccessMutationService {
             ),
           };
         }
-        const plan = await this.authorizeExisting(ctx, identity, authenticated, selected, transaction);
+        const authorized = await this.authorizeExisting(ctx, identity, authenticated, selected, transaction);
         metadata();
         assertEntryCurrent?.();
+        // Check every selected root's G before excluding no-ops; ownership is not a business edit.
+        // 先核全部选中来源的 G 再排除无变化行，归属补丁本身不算业务编辑。
+        const scalarValues = Object.fromEntries(
+          Object.entries(selected.values ?? {}).filter(
+            ([field]) => !(config.ownership.enabled && field === 'tenantId'),
+          ),
+        );
+        const plan: ExistingAccessWritePlan =
+          request.operation === 'update'
+            ? Object.freeze({
+                ...authorized,
+                records: Object.freeze(
+                  authorized.records.filter((record) => hasPersistedChanges(record, scalarValues)),
+                ),
+              })
+            : authorized;
         const primary = model.primaryKeyAttribute;
         const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
         const expected = plan.records.map(

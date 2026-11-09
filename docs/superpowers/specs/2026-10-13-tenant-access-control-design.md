@@ -894,6 +894,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 直接资源的字段授权同样与G相交，而不由G扩展。实施§375以两项独立SQLite内存app、真实持久密码/basic登录Bearer、三个无管理snippet且空动作策略的普通角色、tenant B、持久Collection Manager初始空表和显式root runtime验收已有字段投影：真实dataSourcesRolesResources保存create/update及name或name+amount授权，逐项核持久角色/动作/字段集合；三个G分别绑定实际归属与真实user.id/role.name。完整角色先写amount10，窄角色同Bearer提交name及amount30时200但只持久name：新增amount为null、更新原amount10保持；仅amount的窄update400且行不变，无动作角色即使G匹配仍403；完整角色同动作可持久amount40，全部raw行及B归属逐字核对。不手工grantAction、伪造permission或制造RED，没有隐藏数据、敏感lookup或通知/披露复现。首失败只是字段集合顺序夹具断言，按集合语义复制排序后两过；五SQLite文件273过/36原PG专用跳过，原旧登录及低层context只作兼容，非整分支或PG实测。仅测试与两原记录，不证明字段/资源全形态、动态撤销、关联/default字段、正式账号状态、在途/排队工作流、跨进程撤权或SQL隔离；不宣称零SQL/hook，createTenantApp既有active适配未改，损坏PG停止，正式保存启用与业务试点继续关闭。
 
+真实认证根写入的所属事务须覆盖实际Repository完成事件，不能在后置业务hook失败后仍提交写入或运行提交回调。实施§376以两个独立SQLite内存app、真实持久密码/basic登录Bearer、无管理snippet普通角色tenant B、持久Collection Manager初始空表及显式root runtime验收已有契约，G绑定实际归属与真实user.id/role.name。先create200核唯一B行，再分别在afterCreateWithAssociations/afterUpdateWithAssociations中以options.transaction读回已完成SQL的完整预期行，核实际身份并登记仅内存计数的afterCommit后抛业务错误：HTTP500、事务rollback、完整持久行仍为原值、回调计数0。仅关闭本项hook拒绝开关，同一Bearer同请求200，新事务commit、预期行准确持久且回调总计恰1。两项首次验收即过；四SQLite文件308过/38原PG专用跳过，非整分支或PG实测，仅测试与两原记录，没有生产改动或产品RED。500是测试故障注入控制，没有通知/provider/出站I/O、隐藏数据或敏感lookup/披露；本项不证明任意外部副作用可回滚、关联/混合/多记录全形态、在途撤权、跨进程或PG原子隔离。createTenantApp既有active适配未改，损坏PG停止，正式保存启用/业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -5495,3 +5495,15 @@ Ruling: 本项是已有字段白名单行为的独立真实认证验收，不是
 - [x] 新TS末Prettier/oxlint实际0、零错误警告（52c0ce）；main...HEAD差异TS/TSX加新测试共429源逐字节snapshot一致，共同基点89f026c99690da17bd927aa0f7f1507f66d2b040。测试验证后未改，SHA256：B9841C30847CBDFA10F9F014403F222213E613CE6C4D59D18BBC8A7D2F5180C3。仅测试与两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实持久直接授权和密码身份、空策略/无snippet、G与实际角色绑定、窄字段投影及完整字段正向对照、无可写字段400/无动作403和所有raw行。能抓住的破坏是最终字段白名单丢失、G取代字段或动作ACL、窄update清空旧值或归属漂移；未修复Critical/Important为零。不予本项裁决：字段/资源授权全部形态及动态撤销、关联或默认值字段授权、管理UI/附加角色、正式账号状态/黑名单、在途事务/已排队工作流、独立进程/外部source/worker、跨进程配置与SQL原子隔离、PG并发、完整混合写、正式保存启用/业务试点及整分支独立复核；本项仅静态直接字段授权，createTenantApp仍含既有active适配。初始未知Git或其他验证runner使guard1时均停止后继变更/runner；只读诊断有MoeURL测试命令但不冒称实际cwd或退出码，未添加豁免，新独立guard0才继续。未杀进程/删锁/操作窗口。损坏PG保持停止，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，结果以后继实际输出为准。
+
+## 376. 验收真实认证根写入在后置业务 hook 失败时的回滚
+
+Ruling: 本项是已有事务契约的独立真实认证验收，不是生产修复或产品RED；不重复§375字段投影或成员/动作撤销。先核root handler向实际Repository传所属事务、creation/mutation管理事务，以及核心Repository在真实SQL和关联处理后await association-complete事件；核心按CodeGraph先读，功能树无可用索引使用rg、不自行索引。
+
+- [x] 新authenticated-business-hook-rollback.test.ts两项各独立SQLite内存app、本地核心ACL factory、真实持久密码/basic登录Bearer、无管理snippet普通create/update角色tenant B及持久Collection Manager初始空tenantScoped表。显式原root runtime，G绑定实际归属、真实user.id和role.name。先经同一身份create200并逐字核唯一Initial row/B，不伪造最终permission或execution。
+- [x] create/update各在真实afterCreateWithAssociations/afterUpdateWithAssociations后置业务事件中，用options.transaction实际读回已执行SQL的完整预期行，同时记录真实HTTP user/role/tenant B，并登记仅内存计数的afterCommit回调；随后测试hook抛明确业务错误。HTTP500及该错误、单次事件、事务finished=rollback、完整持久raw行仍仅Initial row/B且回调计数0全部实测。不是在SQL前拒绝、零SQL/hook或授权拒绝测试。
+- [x] 只将本项hook的拒绝开关关闭，不重新登录/换Bearer/改ACL或G；原同一请求200，事件再次读回预期行，新事务对象不同且finished=commit，内存afterCommit计数恰为1，完整持久行准确。create最终两条B行，update仅id1变名。未调用通知/provider/出站网络，没有隐藏数据或敏感lookup/披露复现；仅证明本地事务回调，不证明外部副作用可撤回。
+- [x] acceptance-20261109-125725.log两过/无跳过，实际0/15.95秒（session24087实际退出，3380f8；Vitest14.71秒）；第一次即验收已有行为，没有人为造RED。regression-20261109-125805.log四SQLite文件308过/38原PG专用跳过/346总，实际0/71.61秒（session4388实际退出，262d07；Vitest70.55秒）：新认证2、authenticated-root-http80过8跳、root-mutation-handler184过28跳、root-creation-handler42过2跳。单worker逐文件；308与单项/历史不累加，非整分支回归。低层context仅作兼容，不冒称新认证/外部source或PG实测。全部authenticated-business-hook-rollback-日志留批准父目录；测试注入的500为预期控制，不是产品失败。
+- [x] 首格式化/oxlint cf6312实际0，末Prettier/oxlint6a9490实际0、零错误警告；main...HEAD差异TS/TSX含新测试共430源逐字节snapshot一致，共同基点89f026c99690da17bd927aa0f7f1507f66d2b040。测试验证后未改，SHA256：C50603FC454ED46FA8E2716FFC74172F247DA6308DB9FECA605AE8F72691183A。仅测试/两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实密码身份/G、真实Repository完成事件、同事务读回SQL结果、失败持久行回滚、afterCommit失败不运行及正常重试恰一次、同Bearer与完整raw行；能抓住的破坏是root writer丢失所属事务、事件异常被吞而提交、失败事务仍执行提交回调或失败后不可正常写。未修复Critical/Important为零。不予本项裁决：任意hook/外部通知或I/O回滚、关联/混合/多记录事务全形态、在途权限撤销、跨进程配置与SQL隔离、并发租约、独立OS进程/外部source/worker、PG并发、正式账号状态/黑名单、正式保存启用/业务试点及整分支独立复核；理由是本项仅同app SQLite标量根create/update，createTenantApp仍含既有active适配。相关事务planner/config-store只读定位未产生新漏洞证据或实现；一次写好测试参考路径猜错后按技能实际相对路径完整读到，非产品RED。每次变更/runner前独立guard实际0，不复用历史PID假设，不杀进程/删锁/操作窗口。损坏PG保持停止，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，结果以后继实际输出为准。

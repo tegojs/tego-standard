@@ -1268,3 +1268,9 @@ WHERE (既有角色数据条件)
 10. **归属型定时任务**：H、B、C 各自只扫描其实际归属范围内符合 G 的任务数据，D1 的 V 不使 B 再处理一次，生成数据不被误挂到可见者租户。
 
 原型通过后才接入一张本地业务试点表，并完整验证该表的全部入口，再制作规则管理界面和逐表迁移。若查询或事务原型无法满足要求，先调整适配层设计，不以放宽校验或恢复全局关联拦截的方式推进上线。
+
+### §387 当前用户变量角色范围的真实认证验收
+
+原自定义角色scope中的 `{{ ctx.state.currentUser.id }}` 标量变量继续由核心ACL逐请求解析，显式选中的新root runtime消费最终parsedParams；不把原own标志未finalize的严格拒绝改成支持。新authenticated-current-user-scope-write.test.ts单项使用独立SQLite内存app、本地核心ACL factory、两个真实持久密码用户/同普通角色/tenant B，持久初始空assignedTasks表（普通name和assigneeId整数，无审计或业务关联）及原dataSourcesRolesResourcesScopes/list/create/update动作。完整读回动作字段与scope原模板，显式registry/adapter/runtime，G分别绑定实际user.id/role.name及实际归属B；两用户都获G，角色filter才按各自真实身份收窄，不伪造permission/grantAction或用户上下文。两个basic Bearer及auth:check准确，全部业务行HTTP新增；Alice/Bob各create200、完整raw正确，交替Alice/Bob/Alice list只含各自完整任务。Bob更新Alice刚创建的已知无害行403且两行完整不变，后续两用户各自普通改名200/{keys,affected}，assigneeId与B始终准确，最终交替list完整核对。scope/ACL/G/成员/各自token不变、不重新登录，无隐藏/敏感目标、通知、外部I/O或撤销后复用。assigneeId仅普通业务整数，不代替tenantId归属或关联权限。
+
+首acceptance-20261109-174205.log一过无跳过，session98806实际退出0（3ee675），Vitest57.21秒；日志文件名不当实际时间，Vitest17:41:03开始。首验收即通过，无产品RED或生产修改。最终regression-20261109-174310.log六SQLite82过无跳过，session28183实际退出0（073b82），Vitest46.74秒：新1、原批量2、原状态转换2、role-filter52、final-read-permission19、ACL list6；单worker逐文件，计数不与首验收/历史累加，非整分支或PG实测。预期拒绝及原自动id关联推导诊断保留，日志留批准父目录，前runner实际退出后才后继。末format/oxlint/444项完整branch源snapshot核e3b1e5实际0、零错误警告；测试SHA256 A692E5FF2F4EAE30FBE2F90FF99FA2394E3C66D15236C333689CF4F75EABBBB4，回归后未改。仅新测试/两原记录，无生产、公开类型或依赖锁变更，按聚焦规则不重复build。作者按完整review模板串行自审、非独立复核，无未修复Critical/Important；可抓住逐请求变量被缓存成另一用户、最终filter被丢弃或G替代ACL范围的破坏。原own策略、全部custom context/变量、合成filter通配、动态角色来源/撤权缓存、并发与关联/混合写、tenantInherited实际PG、外部source/worker/独立进程、正式账号状态/规则保存启用/业务试点及整分支独立复核未验收。createTenantApp既有active适配未改，不声称跨连接并发隔离。新未知外部Git先阻断，重新核五进程精确身份与实际无关cwd才逐次排除；后续strict现场Git/签名/验证/锁全0，仅代表各次现场。所有只读路径/通配错误保留，不是产品RED。损坏PG保持停止，不联系子智能体/外网、不推送合并部署或正式启用；当前三文件待英文原子默认签名提交，实际结果以后继接续。

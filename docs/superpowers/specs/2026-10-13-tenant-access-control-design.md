@@ -890,6 +890,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 同一app后续HTTP写入必须按当次解析的持久角色成员关系形成规范身份，而不能继续依赖已撤销的缓存角色或把旧Bearer当作角色授权。实施§373以真实持久密码/basic登录、两个普通角色、tenant B、持久Collection Manager空业务表和显式root runtime验收已有行为：G绑定归属及真实user.id/role.name，先create/update成功并确认角色缓存已预热；原rolesUsers Repository移除当前写角色后，保留无权限角色/无角色两场景的同一Bearer create/update分别401并明确ROLE_NOT_FOUND_ERR/USER_HAS_NO_ROLES_ERR，保留角色无动作权限请求403。四个业务Repository写/读透传入口均零调用且完整业务行不变；原Repository恢复成员关系后，不清缓存或重新登录，同一token再create/update200且只有预期B行。两项验收无跳过，四SQLite文件95过/9原跳过（8原PG专用、1原role-user跳过），非整分支或PG实测。仅测试与两原记录，无生产改动/产品RED/隐藏数据或通知调用。不把此项扩大为角色策略/附加角色/账号状态/黑名单撤销、在途事务/已入队工作流、跨进程缓存/撤权或SQL隔离证明；配置节点持久身份与人工HTTP角色解析不同，不据此盲加工作流守卫。createTenantApp仍含既有active适配，损坏PG停止，正式保存启用和业务试点继续关闭。
 
+成员关系不变时，后续HTTP根写入仍须服从当次实际角色动作策略，不能因为G允许或同一Bearer此前成功就沿用旧动作许可。实施§374用两项独立SQLite内存app、真实持久密码/basic登录、无管理snippet普通角色tenant B、持久Collection Manager初始空表和显式root runtime验收已有行为；G绑定实际归属及真实user.id/role.name。先create/update200并核成员缓存预热，再经原roles Repository分别只保留update或create；roles与主数据源dataSourcesRoles的持久策略准确同步、完整成员raw行不变。同一token被撤动作403，四个业务Repository写/读透传入口均零调用且业务完整raw行不变，保留动作200；原Repository恢复两动作后，同一Bearer原被撤动作200，最终仅两条预期B行。不手工变更ACL/缓存、不重新登录或替换身份，没有隐藏数据、敏感lookup或通知/披露复现。五SQLite文件97过/8原PG专用跳过，原role旧登录及data-source mock仅作兼容，非整分支/真实外部source/PG验收。仅测试与两原记录，无生产改动或产品RED，不证明直接资源/字段授权、附加角色、正式账号状态/黑名单、在途/排队工作流、跨进程撤权或SQL原子隔离；配置工作流持久身份与人工HTTP协议保持区分。createTenantApp既有active适配未改，损坏PG停止，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

@@ -26,7 +26,7 @@ describe.skipIf(!coreEntry)('authenticated merged role business writes', () => {
 
   // Losing a source action rejects valid writes; losing finite fields admits an ungranted memo.
   // 丢失来源动作会拒绝正常写入，丢失有限字段则会错误保存未授予的无害备注。
-  it.each(['actions', 'fields'] as const)(
+  it.each(['actions', 'fields', 'filters'] as const)(
     'composes persisted source-role %s for the authenticated owner',
     async (boundary) => {
       const { createACL } = await import(/* @vite-ignore */ pathToFileURL(coreEntry!).href);
@@ -98,6 +98,18 @@ describe.skipIf(!coreEntry)('authenticated merged role business writes', () => {
         const writeActions =
           boundary === 'actions' ? [roleName === authorRole ? 'create' : 'update'] : ['create', 'update'];
         const writeFields = boundary === 'fields' ? [roleName === authorRole ? 'name' : 'amount'] : ['name', 'amount'];
+        const filter = { amount: { $eq: roleName === authorRole ? 10 : 20 } };
+        const scope =
+          boundary === 'filters'
+            ? await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+                values: {
+                  dataSourceKey: 'main',
+                  name: roleName,
+                  resourceName: collectionName,
+                  scope: filter,
+                },
+              })
+            : undefined;
         const resource = await app.db.getRepository('dataSourcesRolesResources').create({
           values: {
             dataSourceKey: 'main',
@@ -106,7 +118,11 @@ describe.skipIf(!coreEntry)('authenticated merged role business writes', () => {
             usingActionsConfig: true,
             actions: [
               { name: 'list', fields: ['id', 'name', 'amount', 'memo', 'tenantId'] },
-              ...writeActions.map((name) => ({ name, fields: writeFields })),
+              ...writeActions.map((name) => ({
+                name,
+                fields: writeFields,
+                ...(name === 'update' && scope ? { scope: { id: scope.get('id') } } : {}),
+              })),
             ],
           },
         });
@@ -116,6 +132,18 @@ describe.skipIf(!coreEntry)('authenticated merged role business writes', () => {
           expect([...action.get('fields')].sort()).toEqual(
             action.get('name') === 'list' ? ['amount', 'id', 'memo', 'name', 'tenantId'] : [...writeFields].sort(),
           );
+        if (scope) {
+          const scopedActions = await resource.getActions({ include: ['scope'] });
+          expect(
+            scopedActions
+              .map((action) => ({ name: action.get('name'), filter: action.get('scope')?.get('scope') }))
+              .sort((left, right) => left.name.localeCompare(right.name)),
+          ).toEqual([
+            { name: 'create', filter: undefined },
+            { name: 'list', filter: undefined },
+            { name: 'update', filter },
+          ]);
+        }
       }
       const password = 'merged-role-test-password';
       const user = await app.db.getRepository('users').create({
@@ -207,6 +235,69 @@ describe.skipIf(!coreEntry)('authenticated merged role business writes', () => {
       expect(created.status).toBe(200);
       expect(created.body.data).toEqual({ keys: [1], affected: 1 });
       expect(await rows()).toEqual([{ id: 1, name: 'Merged task', amount: 10, memo: null, tenantId: 'B' }]);
+      if (boundary === 'filters') {
+        // Losing either source range rejects a valid edit; dropping the union admits the third row.
+        // 丢失任一来源范围会拒绝正常编辑，丢弃合并条件则会错误允许第三行。
+        for (const [id, name, amount] of [
+          [2, 'Editor task', 20],
+          [3, 'Outside task', 30],
+        ] as const) {
+          const added = await agent().resource(collectionName).create({ values: { name, amount } });
+          expect(added.status).toBe(200);
+          expect(added.body.data).toEqual({ keys: [id], affected: 1 });
+        }
+        const initial = [
+          { id: 1, name: 'Merged task', amount: 10, memo: null, tenantId: 'B' },
+          { id: 2, name: 'Editor task', amount: 20, memo: null, tenantId: 'B' },
+          { id: 3, name: 'Outside task', amount: 30, memo: null, tenantId: 'B' },
+        ];
+        expect(await rows()).toEqual(initial);
+        const visible = await agent()
+          .resource(collectionName)
+          .list({
+            fields: ['id', 'name', 'amount', 'memo', 'tenantId'],
+            sort: ['id'],
+          });
+        expect(visible.status).toBe(200);
+        expect(visible.body.data).toEqual(initial);
+        for (const [roleName, id] of [
+          [authorRole, 2],
+          [editorRole, 1],
+          [undefined, 3],
+        ] as const) {
+          const denied = await agent(roleName)
+            .resource(collectionName)
+            .update({
+              filterByTk: id,
+              values: { name: 'Must stay unchanged' },
+            });
+          expect(denied.status).toBe(403);
+          expect(await rows()).toEqual(initial);
+        }
+        for (const [id, name] of [
+          [1, 'Merged author edit'],
+          [2, 'Merged editor edit'],
+        ] as const) {
+          const changed = await agent().resource(collectionName).update({ filterByTk: id, values: { name } });
+          expect(changed.status).toBe(200);
+          expect(changed.body.data).toEqual({ keys: [id], affected: 1 });
+        }
+        const expected = [
+          { id: 1, name: 'Merged author edit', amount: 10, memo: null, tenantId: 'B' },
+          { id: 2, name: 'Merged editor edit', amount: 20, memo: null, tenantId: 'B' },
+          initial[2],
+        ];
+        expect(await rows()).toEqual(expected);
+        const final = await agent()
+          .resource(collectionName)
+          .list({
+            fields: ['id', 'name', 'amount', 'memo', 'tenantId'],
+            sort: ['id'],
+          });
+        expect(final.status).toBe(200);
+        expect(final.body.data).toEqual(expected);
+        return;
+      }
       const edited = await agent()
         .resource(collectionName)
         .update({

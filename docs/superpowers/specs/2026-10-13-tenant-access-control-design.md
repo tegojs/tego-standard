@@ -1296,3 +1296,11 @@ WHERE (既有角色数据条件)
 原普通 paranoid 表删除协议保持：选中根 destroy 在动作ACL与G交集内成功，保留物理行并标记删除时间；该留存行不再出现在普通列表或成为普通编辑目标，其他活动行仍正常编辑。新 authenticated-soft-delete-write.test.ts 单项使用独立SQLite内存app、持久Collection Manager初始空 tenantScoped/paranoid业务表、普通持久动作字段、真实密码Bearer/auth:check/tenant B及原显式registry/adapter/runtime。两条无害业务行均HTTP新增，完整raw核全部字段；destroy第一行200及准确回执，paranoid:false完整两行仍在且仅deletedAt改变，正常list仅第二行。同token对本人刚创建并删除行update403且完整物理数据不变，活动行update200、最终list正确。G绑定真实user/role/归属，不伪造permission/context、不重登录或改ACL/成员，无未知敏感目标、通知/外部I/O或撤销后凭据复用；原active适配不冒称正式账号状态。
 
 首验收1过、实际exit0，无产品RED或生产改动。最终五SQLite回归300过/35原PG门控跳过/335总，session83640/cc7a43实际exit0，Vitest55.64秒；新1、mutation44/7、root-mutation191/28、原HTTP40、model-metadata24。计数不与首项/历史累加，非PG或整分支实测。预期拒绝及原诊断/全部日志保留批准父目录，细节见原计划§390。446项完整branch源与snapshot逐字节一致，format/oxlint/diff实际0；新测试SHA256 C0677F11A619AECF9C6297B078D9F9C985F8D02096D74F3B0936CA48806187DE，回归后未改。仅测试/两原记录、不重复build。作者按完整模板串行自审、非独立复核，无未修复Critical/Important/Minor；restore/force API、关联级联混合、动态身份/正式账号状态、PG与跨进程并发、外部worker、规则保存启用/浏览器业务试点和整分支独立复核仍未完成。损坏PG保持停止，不联系子智能体/外网或推送合并部署正式启用；当前三文件待英文原子默认签名提交，实际结果以后继接续。
+
+### 真实认证合成角色的静态数据范围并集（§391）
+
+两个普通来源角色的持久 update scope 分别为 amount=10 与 amount=20，原合成角色按 OR 合并后在最终动作ACL与G交集内允许两者，不允许范围外行，也不把显式来源角色变成合成权限。仅扩展原 authenticated-merged-role-write.test.ts 增加 filters 案，保留原两案，不改生产、公开类型、依赖锁或正式安装。原持久普通角色/动作/字段及scope关联完整读回，SubAccounts真实生命周期自动selfRole，真实密码basic Bearer/auth:check/tenant B与原显式registry/adapter/runtime；G对实际user和三种role身份均许可，不能替代ACL filter。
+
+三条无害业务行均HTTP新增并完整list可见，amount10/20/30均归属B；显式author跨改20、editor跨改10、默认合成角色改30分别403且每次完整raw三行不变。默认合成角色改10和20两行均200/准确回执，最终完整raw/list仅名称改变，amount/memo/B及第三行不变。同token/ACL/G/成员、不重新登录，无隐藏敏感目标、通知/外部I/O或撤销后凭据复用，原active适配非正式账号状态。能捕获只保留一来源、OR误成AND或丢弃合并filter；不是重做§386 helper缺陷。
+
+首验收1过/2原案按-t过滤，实际exit0，无产品RED或生产修复。最终五SQLite回归86过/无跳过，session83261/c15a96实际exit0、Vitest21.89秒：原认证3/helper2/role-filter52/final-read-permission19/ACL setCurrentRole10；不与首项或历史累加，旧mock/context仅兼容，非PG/整分支验证。完整446项branch源snapshot、format/oxlint/diff实际0，测试hash及完整证据详见原计划§391，回归后未改源；仅测试/两记录、不重复build。作者按完整review模板串行自审、非独立复核，无未修复Critical/Important/Minor。own/通配及动态来源撤权缓存、其他组合、正式账号状态/规则保存启用/浏览器业务试点、关系混合/tenantInherited实际PG、并发及跨进程SQL隔离/外部source与worker、整分支独立复核仍未完成。损坏PG保持停止，不联系子智能体/外网或推送合并部署正式启用；当前三文件待英文原子默认签名提交，实际结果以后继接续。

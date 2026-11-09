@@ -5458,3 +5458,16 @@ Ruling: 本项仅补已有拒绝边界的独立真实认证证据，不是新漏
 - [x] 首静态检查oxlint零错误警告，Prettier提示格式差异（374170实际1），仅格式化新测试（e8cdc3实际0），不是产品RED。末Prettier/oxlint实际0、零错误警告（8cbb38），62源逐字节snapshot一致（a74d3d），测试验证后未改；SHA256：7FEC218A3BDF8A93881025D1B5FEA65C81CA09A040855F0F4BCDDBA09897FE58。仅新测试和两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build。
 
 按requesting-code-review模板作者串行自审，非独立复核：核真实持久关系、密码/角色/tenant、来源G正向控制、未适配键的明确错误、最终ACL先行、观察器透传及完整持久状态。能抓住的回归为物理外键被误当普通字段写入或请求落到旧Repository；未修复Critical/Important为零。不予本项裁决：物理外键完整授权执行、关联名写入全形态、目标可读引用/无变化引用/历史认领、工作流/导入其他标量外键、任意hook/元数据漂移、完整混合写、身份撤销、独立进程/外部source/worker、跨进程配置撤权及SQL原子隔离、PG并发、正式账号状态/保存启用/业务试点与整分支独立复核。理由是本项仅验收真实HTTP已选根的物理外键拒绝，createTenantApp仍含既有active适配。guard79e196/7b71c1/4d8754实际1时停止后继变更/runner，只读新核精确身份/创建/父链/命令/可执行/实际cwd属无关资源库后独立guard0；不豁免未知Git、不杀进程/删锁/操作窗口。损坏PG不启动重试，不联系子智能体、不外网、不推送合并部署发版正式启用。当前三文件待英文原子默认签名提交，实际结果以后继输出为准，不沿用旧签名回退条件。
+
+
+## 373. 验收已预热角色成员缓存的撤销与恢复写入边界
+
+Ruling: 本项仅为已有真实HTTP身份生命周期补独立验收，不是新漏洞、产品RED或生产修复。setCurrentRole按持久成员关系及原缓存解析当前角色，rolesUsers.afterDestroy/afterSave负责原缓存失效；不把请求头、旧Bearer或先前G判定当作永久角色授权。该语义不套到采用持久执行身份的配置工作流，也不为其盲加身份守卫。
+
+- [x] 新authenticated-role-revocation-write.test.ts两项各独立SQLite内存app、本地核心ACL factory、真实持久密码/basic登录Bearer、无管理snippet的普通写角色与无动作授权角色、tenant B。持久Collection Manager登记tenantScoped初始空业务表；显式原root runtime，G同时绑定实际归属、真实user.id和role.name。先同一身份create/update200，核唯一无害B行并实际确认成员缓存已预热，不替换认证/ACL/执行器。
+- [x] 经真实rolesUsers Repository.destroy分别撤销当前写角色并保留无权限角色、或撤销全部角色，核持久成员关系确已改变。不重新登录、不替换原token、不手工删缓存或伪造最终permission；同一Bearer的create/update分别401且明确ROLE_NOT_FOUND_ERR或USER_HAS_NO_ROLES_ERR。保留的无动作角色同一token请求403。业务Repository.create/update/find/findOne四个透传观察入口均零调用，完整raw行保持{id:1,name:'Warmed membership',tenantId:'B'}。不扩大为所有SQL/hook零调用。
+- [x] 通过原rolesUsers Repository.create恢复写角色，不清缓存或刷新token，同一Bearer再create/update均200，逐字核仅两条预期B行。两场景覆盖原afterDestroy/afterSave缓存生命周期及下一次HTTP角色解析；没有隐藏业务数据、敏感lookup、通知调用或披露复现。未修改生产代码或人为制造RED。
+- [x] acceptance-20261109-115601.log两过/无跳过，实际0/20.19秒（30876已退出，f7ad51；Vitest17.87秒）。regression-20261109-115651.log四SQLite文件95过/9原跳过/104总，实际0/49.17秒（46176已退出，c90a1f；Vitest48.10秒）：新认证2、authenticated-root-http80过8原PG专用跳过、原setCurrentRole10、role-user3过1原it.skip。单worker逐文件，95与单项/历史不累加，非整分支回归；旧低层ctx测试只作兼容，不冒称新认证或PG实测。日志以authenticated-role-revocation-write-为前缀留批准父目录，预期401日志不是失败。
+- [x] 新TS末Prettier/oxlint实际0、零错误警告（f290c4），main...HEAD差异TS/TSX及新测试共427源逐字节snapshot一致；共同基点89f026c99690da17bd927aa0f7f1507f66d2b040。测试验证后未改，SHA256：899840404AFA6DC373B9201191A7B4C5AB03B484B12AEFC63845E54675A42144。仅新测试与两原记录，无生产/导出类型/依赖/锁文件变化，按项目聚焦规则不重复包build。提交验签和提交后检查以后继实际输出为准。
+
+按requesting-code-review模板作者串行自审，非独立复核：核真实密码认证/持久角色与归属、缓存确已预热、原Repository成员移除与恢复、无手工cache失效或重新签发token、最终错误代码、透传观察器和完整持久结果。能抓住的破坏是成员撤销后继续采用旧缓存角色、未正确区分无角色/缺所选角色、恢复后继续错误拒绝或新root入口绕过原身份链；未修复Critical/Important为零。不予本项裁决：角色动作策略/部门附加角色撤销、账号禁用/令牌黑名单、管理UI/全部成员变更形态、在途事务及已排队工作流身份撤销、跨进程缓存与配置撤权、独立进程/外部source/worker、并发租约/SQL原子隔离、PG并发、完整关联/混合写、正式保存启用/业务试点及整分支独立复核；理由是本项仅验收同一app下一次真实HTTP请求，createTenantApp仍含既有active状态适配。损坏PG保持停止，不联系子智能体、不外网、不推送合并部署发版正式启用。进程实际目录只读capture aae37f核五个无关资源库Git，独立guard0后才编辑/运行；最新abd7b0已核Git零、签名/验证runner/本库锁零，不沿用旧PID存在性或退出假设。一次编排JS语法错误未执行工具，两条规则引用路径只读缺失后按实际resources目录读取，均不是产品RED。

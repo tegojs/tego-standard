@@ -888,6 +888,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 真实HTTP根写入的物理外键输入仍须拒绝未适配写入，不能因来源create/update有ACL与G就当普通标量放行。实施§372以两项独立SQLite内存app、真实持久密码Bearer/basic、无管理snippet普通角色tenant B、持久Collection Manager来源/空目标及document/documentId登记验收：来源G绑定实际归属、user.id和role.name，普通name写入200并核B归属；提交含documentId:1的普通字段请求后400且明确未适配reference key错误，无动作授权角色先403。来源对应写入与两表find/findOne五个透传观察入口均未调用，来源完整raw行不变、目标始终空；这不是所有SQL/hook零调用证明。无隐藏业务数据、敏感lookup、生产改动或产品RED。四SQLite文件308过/38原PG专用跳过，单worker逐文件，非整分支或PG实测；格式差异仅由Prettier处理。此项只补已选根物理外键拒绝，不证明完整外键/关联授权执行、无变化引用、工作流/导入全形态或PG并发原子隔离，关联名写入原PG门控不变。createTenantApp仍有既有active适配，正式保存启用/业务试点及完整生命周期目标继续关闭。
 
+同一app后续HTTP写入必须按当次解析的持久角色成员关系形成规范身份，而不能继续依赖已撤销的缓存角色或把旧Bearer当作角色授权。实施§373以真实持久密码/basic登录、两个普通角色、tenant B、持久Collection Manager空业务表和显式root runtime验收已有行为：G绑定归属及真实user.id/role.name，先create/update成功并确认角色缓存已预热；原rolesUsers Repository移除当前写角色后，保留无权限角色/无角色两场景的同一Bearer create/update分别401并明确ROLE_NOT_FOUND_ERR/USER_HAS_NO_ROLES_ERR，保留角色无动作权限请求403。四个业务Repository写/读透传入口均零调用且完整业务行不变；原Repository恢复成员关系后，不清缓存或重新登录，同一token再create/update200且只有预期B行。两项验收无跳过，四SQLite文件95过/9原跳过（8原PG专用、1原role-user跳过），非整分支或PG实测。仅测试与两原记录，无生产改动/产品RED/隐藏数据或通知调用。不把此项扩大为角色策略/附加角色/账号状态/黑名单撤销、在途事务/已入队工作流、跨进程缓存/撤权或SQL隔离证明；配置节点持久身份与人工HTTP角色解析不同，不据此盲加工作流守卫。createTenantApp仍含既有active适配，损坏PG停止，正式保存启用和业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

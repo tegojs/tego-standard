@@ -1282,3 +1282,11 @@ WHERE (既有角色数据条件)
 沿用原认证批量夹具而非新增枚举：真实持久密码 Bearer/auth:check、普通持久角色及 draft 范围、tenant B、持久初始空表和全部 HTTP 新增的四行。新增真实客户端形状请求先400（首 RED 实际1/一失败一过），首 boolean-only 修复仍400；核原查询串协议后补精确字符串，单元正向亦先真实失败。最终五 SQLite 文件304通过/28原PG门控跳过/332总，session22758/a9ced7实际0，Vitest57.22秒；新客户端请求200且准确回执{keys:[1,2],affected:2}，完整四行仅选中两行改名，tenant B/第三行/提交状态行不变，原显式整批拒绝与宽条件角色范围控制继续通过。原unit新增7项含两种 false 正向、非惰性与无定位拒绝后完整不变。第一次回归261过/1失败/68跳过明确不是绿色，其中旧HTTP40因缺环境变量跳过；最终已补齐实际运行。所有计数不与历史累加，旧mock/context仅兼容，非浏览器业务试点或PG/整分支验证。
 
 原完整 tenant 客户端/服务端/依赖/dts 构建实际0/22.87秒；前runner实际退出后才后继。末三源format/oxlint/diff检查与444项完整branch源snapshot核21f3d6实际0，三hash和日志详见原计划§388，回归/构建后未改源。原预期拒绝和诊断保留，所有日志留批准父目录。作者按完整review模板串行自审、非独立复核，无未修复Critical/Important。损坏PG保持停止，无外网/子智能体/推送合并部署或正式启用；forceUpdate:true完整执行、关联混合/并发、正式账号状态/规则保存启用/业务试点及整分支独立复核仍未完成。当前五文件待英文原子默认签名提交，实际结果以后继接续。
+
+### 真实认证共享业务根与无租户上下文（§389）
+
+原 shared 契约保持：明确关闭 ownership 管理且规则不依赖 tenant 时，无租户成员/默认租户的已认证普通用户仍可在最终动作 ACL 与 G 交集内正常读写共享业务表；不能向没有该列的表注入 tenantId，也不能把共享等同公开权限。本项仅新增真实验收，不修改生产实现、正式模型/路由/helper/注册/自动安装或规则保存启用。
+
+新单项以持久 Collection Manager shared 表（真实无 tenantId 列）、持久动作/字段授权、两个普通角色、真实密码 Bearer/auth:check及原显式 registry/adapter/runtime，验收 create/list/get/update/destroy 的完整持久生命周期。用户 tenantUsers=0/defaultTenantId=null、无tenant header，六次真实请求均只读核实际 currentTenantId/currentTenant 缺失。G 主体允许两个角色，但无动作角色 update403且完整行不变；原角色成功改名后只删除本项新增内存行，最终空表。无伪造context/permission、重新登录、隐藏目标/敏感lookup、通知/外部I/O或撤销后凭据复用。
+
+首验收1过，最终五SQLite回归290过/30原PG跳过/320总，均实际exit0；初回归250过/115跳包含原PG专用resource-read-handler整文件85跳，核后更换为实际HTTP40重跑，不混报。445项完整branch源snapshot、format/oxlint/diff均实际0，新测试hash及完整证据见原计划§389，回归后未改源。仅测试/两原记录，未重复包build。作者完整模板串行自审、非独立复核，无未修复Critical/Important；shared关联/外部source、动态身份/正式账号状态、PG与跨进程并发/SQL隔离、规则保存启用/浏览器业务试点及整分支独立复核仍未完成。损坏PG保持停止，不外网/联系子智能体/推送合并部署或正式启用。当前三文件待英文原子默认签名提交，实际结果以后继接续。

@@ -892,6 +892,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 成员关系不变时，后续HTTP根写入仍须服从当次实际角色动作策略，不能因为G允许或同一Bearer此前成功就沿用旧动作许可。实施§374用两项独立SQLite内存app、真实持久密码/basic登录、无管理snippet普通角色tenant B、持久Collection Manager初始空表和显式root runtime验收已有行为；G绑定实际归属及真实user.id/role.name。先create/update200并核成员缓存预热，再经原roles Repository分别只保留update或create；roles与主数据源dataSourcesRoles的持久策略准确同步、完整成员raw行不变。同一token被撤动作403，四个业务Repository写/读透传入口均零调用且业务完整raw行不变，保留动作200；原Repository恢复两动作后，同一Bearer原被撤动作200，最终仅两条预期B行。不手工变更ACL/缓存、不重新登录或替换身份，没有隐藏数据、敏感lookup或通知/披露复现。五SQLite文件97过/8原PG专用跳过，原role旧登录及data-source mock仅作兼容，非整分支/真实外部source/PG验收。仅测试与两原记录，无生产改动或产品RED，不证明直接资源/字段授权、附加角色、正式账号状态/黑名单、在途/排队工作流、跨进程撤权或SQL原子隔离；配置工作流持久身份与人工HTTP协议保持区分。createTenantApp既有active适配未改，损坏PG停止，正式保存启用和业务试点继续关闭。
 
+直接资源的字段授权同样与G相交，而不由G扩展。实施§375以两项独立SQLite内存app、真实持久密码/basic登录Bearer、三个无管理snippet且空动作策略的普通角色、tenant B、持久Collection Manager初始空表和显式root runtime验收已有字段投影：真实dataSourcesRolesResources保存create/update及name或name+amount授权，逐项核持久角色/动作/字段集合；三个G分别绑定实际归属与真实user.id/role.name。完整角色先写amount10，窄角色同Bearer提交name及amount30时200但只持久name：新增amount为null、更新原amount10保持；仅amount的窄update400且行不变，无动作角色即使G匹配仍403；完整角色同动作可持久amount40，全部raw行及B归属逐字核对。不手工grantAction、伪造permission或制造RED，没有隐藏数据、敏感lookup或通知/披露复现。首失败只是字段集合顺序夹具断言，按集合语义复制排序后两过；五SQLite文件273过/36原PG专用跳过，原旧登录及低层context只作兼容，非整分支或PG实测。仅测试与两原记录，不证明字段/资源全形态、动态撤销、关联/default字段、正式账号状态、在途/排队工作流、跨进程撤权或SQL隔离；不宣称零SQL/hook，createTenantApp既有active适配未改，损坏PG停止，正式保存启用与业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

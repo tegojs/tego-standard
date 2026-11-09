@@ -900,6 +900,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 普通状态提交沿用修改前记录的G和最终角色条件，成功后允许离开原编辑范围；不能因按旧范围回读失败把已执行提交报成失败，也不能用新输入使已不满足原范围的旧记录重新可改。实施§378以两项独立SQLite内存app、真实持久密码/basic登录Bearer及auth:check、空策略/无管理snippet普通角色tenant B、持久Collection Manager初始空业务表和显式root runtime验收已有行为。直接create/update及name、stage字段通过原dataSourcesRolesResources保存，逐项核持久动作与实际scope关联；分别在G和持久角色scope要求stage=draft，G始终绑定实际归属及真实user.id/role.name。先同一身份新增草稿200，再提交submitted200并返回实际keys/affected，完整raw行持久为submitted/B；同Bearer向该自有记录提交stage=draft仍403且原行不变，随后另一草稿新增及正常编辑200，最终恰两条预期B行。ACL/G/成员/凭据始终不变，不伪造permission、手工grantAction或制造RED，没有隐藏数据、敏感lookup、通知或撤销后凭据复用探测。两项首次验收即过；五SQLite文件277过/36原PG专用跳过，非整分支或PG实测，旧context/登录及外部源mock仅兼容。仅测试与两原记录，无生产改动；本项不新增修改后条件，不证明任意状态机、关联/混合/多记录状态更新、并发状态竞争、在途撤权或跨进程/PG原子隔离。createTenantApp既有active适配未改，损坏PG停止，正式保存启用/业务试点继续关闭。
 
+历史数据可见性与首次编辑认领继续分开，未归属记录即使允许编辑也不能直接删除。实施§379以两项独立SQLite内存app、真实持久密码/basic登录Bearer及auth:check、空策略/无管理snippet普通角色tenant B、持久Collection Manager初始空tenantScoped表及显式root runtime验收已有协议；仅原bulkCreate种一条无害null归属的迁移前夹具。从实际collection.options和元数据生成原draftLegacyAccessConfig，legacyDataTenantIds仅B，分别关闭/开启历史编辑，原主体再交叉真实user.id/role.name；真实持久list/create/update/destroy授权，不伪造permission。两项list200且未认领destroy403、完整行不变。关闭项姓名update带tenantId:null仍403且保持null；开启项update200并实际持久姓名及B归属，随后同身份destroy200；两项同Bearer后续普通create/update均200且准确持久B行。HTTP阶段ACL/G/V/成员/凭据均不变，没有隐藏数据、敏感lookup、通知或撤销后凭据复用探测。首次验收两过；中途为消除已解释的自动id关联授权推导诊断而误删显式list字段，导致默认空字段读取400，恢复原字段后最终四SQLite283过/32原跳过，非产品RED/整分支或PG实测。仅测试与两原记录，无生产改动；不证明同值无变化/关联引用不认领、失败认领回滚、跨租户并发认领、PG隔离、tenantInherited或完整关系/混合写。createTenantApp既有active适配未改，损坏PG停止，正式保存启用/业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

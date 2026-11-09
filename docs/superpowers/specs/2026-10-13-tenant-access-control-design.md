@@ -912,6 +912,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 原生用户审计字段仍由真实请求上下文维护，不能当作客户端普通写字段。实施§384以两项独立SQLite内存app、真实持久密码/basic登录及auth:check的author/editor、空策略/无管理snippet普通角色tenant B、持久Collection Manager原生createdBy/updatedBy和原资源list/create/update字段授权验收正常业务。显式root runtime，G交叉真实user.id/role.name及归属；正常HTTP新增后完整审计均author，但原合法列表因module-acl permission-management无条件重复push已在最终fields中的createdById而400。两项真实RED及只读最终权限观察证实同一来源，最小仅在原追加条件增加尚不存在判断，缺少时保留原追加；不改字段集合/动作或角色权限，不放宽read-grants严格输入，不改审计/tenant生产协议或正式安装。修复后列表完整返回无害自有行；客户端分别提交已知fixture用户ID作为creator/modifier时create/update仍400且完整行不变，正常editor改名200只改变modifier，author原token再改名后modifier回author，creator与B归属始终不变。全程两原token/ACL/G/成员不变，无撤权探测、隐藏数据、敏感lookup、通知或外部I/O。两项green后最终六SQLite117过/无跳过，首误列不存在路径的五文件77过独立保留且不冒称六文件；module-acl及module-tenant完整包构建依次实际0，438差异源snapshot一致，非整分支或PG实测。此前核关联服务均要求PostgreSQL，未放宽门控或启动损坏PG；此证据不证明完整关联/全部审计字段/跨进程或PG隔离，createTenantApp既有active适配未改，正式保存启用/业务试点继续关闭。
 
+普通根JSON完整值的真实认证业务保存另由实施§385验收：持久Collection Manager普通details/json、空策略普通角色、真实密码/basic Bearer及auth:check、tenant B、持久明确list/create/update字段、G交叉实际user.id/role.name/归属，显式内部root runtime。两独立SQLite内存app分别正常HTTP新增嵌套对象和普通JSON数组；false/0/null/空字符串保留，对象update完整替换不残留旧键，显式null和空数组[]清空不当省略，随后仅改name保留清空值，再保存非空新数组及正常list均核完整持久结果/回执/归属B。全程同token/ACL/G/成员，无隐藏目标、撤权探测或外部I/O。两项首验收即通过，无产品RED或生产修改；最终五SQLite308过/35原门控跳过，440差异源snapshot一致，仅测试/两原记录按聚焦规则不重复包build。此证据仅根JSON完整值，不证明JSON子路径权限、任意setter无变化、关联混合、跨进程/PG隔离或全部字段；损坏PG保持停止，createTenantApp既有active适配未改，正式安装/保存启用/业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

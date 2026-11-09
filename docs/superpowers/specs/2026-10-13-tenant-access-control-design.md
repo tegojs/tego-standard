@@ -914,6 +914,8 @@ PostgreSQL长周期日期扫描的epoch取整须保留宽整数范围，避免�
 
 普通根JSON完整值的真实认证业务保存另由实施§385验收：持久Collection Manager普通details/json、空策略普通角色、真实密码/basic Bearer及auth:check、tenant B、持久明确list/create/update字段、G交叉实际user.id/role.name/归属，显式内部root runtime。两独立SQLite内存app分别正常HTTP新增嵌套对象和普通JSON数组；false/0/null/空字符串保留，对象update完整替换不残留旧键，显式null和空数组[]清空不当省略，随后仅改name保留清空值，再保存非空新数组及正常list均核完整持久结果/回执/归属B。全程同token/ACL/G/成员，无隐藏目标、撤权探测或外部I/O。两项首验收即通过，无产品RED或生产修改；最终五SQLite308过/35原门控跳过，440差异源snapshot一致，仅测试/两原记录按聚焦规则不重复包build。此证据仅根JSON完整值，不证明JSON子路径权限、任意setter无变化、关联混合、跨进程/PG隔离或全部字段；损坏PG保持停止，createTenantApp既有active适配未改，正式安装/保存启用/业务试点继续关闭。
 
+原生合成角色的动作参数由来源角色按原协议汇总，不能因合成而丢失字段或数据范围限制。实施§386区别于部门的单角色选择：两个空策略普通来源角色、持久Collection Manager空表、原dataSourcesRolesResources明确动作字段，原SubAccounts插件自动持久users.selfRole并默认选择；真实密码/basic Bearer及auth:check、tenant B，G交叉实际user.id/所选role.name/归属。正常自有业务create虽200却保存了两个来源均未授予写入的无害memo；helper两项也真实返回{}，核心assign的target/source协议和原调用确认同一反向累加根因。最小仅改RoleActionParamsMerge的一行assign(result,item,...)，恢复原fields/whitelist并集、filter或合并、blacklist交集和own逻辑，不改变这些策略、动作/角色绑定、root严格消费、事务/归属或正式安装。修复后两项真实认证证明默认合成角色组合来源动作和有限字段、未授予memo保持null；显式来源仍分别受自身动作/字段约束，回默认正常编辑/list完整一致且始终B，同token/ACL/G/静态成员不变。全部业务行HTTP新增，无隐藏目标、敏感lookup、撤权探测、通知或外部I/O。原插件fire-and-forget启动刷新曾导致SQLite夹具尚未登录即失败；最终测试仅转发观察并等待原启动refresh及commit完成，准备夹具前移除观察，不修生产启动协议。首两轮夹具失败、单项诊断和一次格式化失败后误测旧snapshot的非绿运行独立留档，不冒称产品RED或成功。真实业务/单元RED后四green，最终八SQLite250过/28原PG跳过，原sub-accounts及tenant完整包构建依次实际0，443差异源snapshot一致。此证据不代表全部真实filter/own/通配组合、动态角色/异步生命周期、关联混合、跨进程或PG隔离；createTenantApp既有active适配未改，损坏PG保持停止，正式保存启用/业务试点继续关闭。
+
 ## 11. 管理页面与公共接口
 
 数据表列表显示归属字段管理状态、归属性规则数量、可见性规则数量及配置入口。编辑弹窗只有两个规则分区，使用同一编辑器。指定租户只是条件编辑器中的一个选项，没有额外的“哪些租户可访问”名单控件。

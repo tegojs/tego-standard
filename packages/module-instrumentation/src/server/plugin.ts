@@ -1,15 +1,51 @@
 import { isMainThread } from 'node:worker_threads';
-import { Context, InjectedPlugin, Plugin } from '@tego/server';
+import { Context, InjectedPlugin, Plugin, type Collection, type PluginOptions } from '@tego/server';
 
 import { TrackingController } from './actions/tracking-controller';
 import { handleOtherAction } from './hooks/afterAction';
 import { ServerTrackingFilter } from './ServerTrackingFilter';
 
+/** Refusal only: this does not grant authority to execute a business-table aggregate. */
+export interface InstrumentationCollectionCountRequest {
+  readonly dataSourceName: 'main';
+  readonly collectionName: string;
+  readonly collection: Collection;
+  readonly params: object;
+  readonly context: Context;
+}
+
+export type InstrumentationCollectionCountGuard = (request: InstrumentationCollectionCountRequest) => void;
+
+export interface InstrumentationPluginOptions extends PluginOptions {
+  /** Explicit server bootstrap only; no selected-table aggregate executor is installed here. */
+  collectionCountGuard?: InstrumentationCollectionCountGuard;
+}
+
 @InjectedPlugin({
   Controllers: [TrackingController],
 })
 export class ModuleInstrumentationServer extends Plugin {
+  declare options: InstrumentationPluginOptions;
+  private collectionCountGuard?: InstrumentationCollectionCountGuard;
   serverTrackingFilter: ServerTrackingFilter = null;
+
+  async beforeLoad() {
+    const guard = this.options.collectionCountGuard;
+    if (guard !== undefined && typeof guard !== 'function')
+      throw new TypeError('Instrumentation collection count guard must be a function');
+    this.collectionCountGuard = guard;
+  }
+
+  assertCollectionCount(request: InstrumentationCollectionCountRequest) {
+    if (!this.collectionCountGuard) return;
+    const result: unknown = this.collectionCountGuard(request);
+    if (result !== undefined) {
+      return Promise.resolve(result).then(() => {
+        throw new TypeError('Instrumentation collection count guard must return undefined synchronously');
+      });
+    }
+  }
+
   async addServerTrackingListener() {
     this.app.on('afterStart', async () => {
       const SignInTracking = await this.app.db.getRepository('trackingConfig').findOne({

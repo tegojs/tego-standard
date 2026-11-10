@@ -6,9 +6,12 @@ import { canDelegateBuiltinTenantScope, readBuiltinTenantScopeId } from './built
 import { AccessConfigError } from './config-errors';
 import type { AccessCollectionIdentity, AccessConfigStore } from './config-store';
 import { requiresTenantAccessContext } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
 import { AccessRuleError, type AccessConfig } from './types';
 
 type ActionParams = ReturnType<ACLRole['getActionParams']>;
+
+const ownFilter = Object.freeze({ createdById: '{{ ctx.state.currentUser.id }}' });
 
 export interface AccessRoleScopeSelection {
   role: string;
@@ -91,6 +94,7 @@ interface RequestPhase {
     }
   >;
   builtinScopeId?: unknown;
+  ownScopeChecks?: Map<string, () => void>;
 }
 
 /**
@@ -175,6 +179,7 @@ export class AccessAclScopeAdapter {
     const assertCurrent = () => {
       if (this.requests.get(ctx) !== phase)
         throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Access request phase has ended');
+      for (const check of phase.ownScopeChecks?.values() ?? []) check();
     };
     try {
       assertCurrent();
@@ -247,7 +252,9 @@ export class AccessAclScopeAdapter {
 
   /** The query adapter must compile this same snapshot, never re-read configuration mid-phase. */
   configuration(ctx: object, identity: AccessCollectionIdentity): AccessConfig | null {
-    const entry = this.requests.get(ctx)?.configs?.get(identity.collectionName);
+    const phase = this.requests.get(ctx);
+    for (const check of phase?.ownScopeChecks?.values() ?? []) check();
+    const entry = phase?.configs?.get(identity.collectionName);
     if (
       !entry ||
       identity.dataSourceKey !== this.dataSourceKey ||
@@ -272,6 +279,35 @@ export class AccessAclScopeAdapter {
     const config = phase?.configs?.get(context.resource)?.config;
     if (!config) return params;
     const scope = getRoleActionScope(this.acl.getRole(context.role), context.resource, context.action);
+    const collection = this.db.getCollection(context.resource);
+    const creator = collection?.getField('createdById');
+    // The persisted native own scope already carries its complete creator restriction.
+    // Consume only its redundant marker; core must still parse and enforce the unchanged filter.
+    if (
+      this.dataSourceKey === 'main' &&
+      params.own === true &&
+      scope?.scopeCollection === 'dataSourcesRolesResourcesScopes' &&
+      scope.dataSourceKey === 'main' &&
+      scope.key === 'own' &&
+      (scope.resourceName === undefined || scope.resourceName === null || scope.resourceName === '') &&
+      isDeepStrictEqual(scope.filter, ownFilter) &&
+      isDeepStrictEqual(params.filter, ownFilter) &&
+      creator
+    ) {
+      const checks = (phase.ownScopeChecks ??= new Map());
+      if (!checks.has(context.resource)) {
+        const metadata = accessMetadataGuard(this.db, [{ model: collection.model, config }]);
+        checks.set(context.resource, () => {
+          metadata();
+          if (collection.getField('createdById') !== creator)
+            throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Own scope creator field changed');
+        });
+      }
+      checks.get(context.resource)!();
+      const finalized = { ...params };
+      delete finalized.own;
+      return finalized;
+    }
     // Only the global, unchanged scope created by ensureTenantAclScope is a built-in template.
     if (!canDelegateBuiltinTenantScope(this.dataSourceKey, phase.builtinScopeId, scope, params)) return params;
     const delegated = { ...params };

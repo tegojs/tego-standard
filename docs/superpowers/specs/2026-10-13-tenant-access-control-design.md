@@ -1336,3 +1336,11 @@ WHERE (既有角色数据条件)
 真实持久普通writer/reader及stage=draft范围、密码Bearer/auth:check、B/C成员、Collection Manager空表和原显式registry/adapter/runtime验证：四条无害行均正常HTTP新增并可读；reader全部编辑403且四行不变，writer仅改B两draft并准确回执，submitted及C行不变；第二行真实业务hook失败使整批完整回滚。新unit七控制覆盖true/string true、字段/角色/G、空回执、1001整批拒绝、选择冲突和destroy拒绝；不伪造permission/context，原active适配非正式账号状态。
 
 首HTTP真实RED实际exit1（正常200预期收到400）；最小接线后聚焦8过/219名字过滤，最终七SQLite文件329过/37原PG专用跳过，完整tenant包构建及format/lint/diff/451项分支源码snapshot核对均实际exit0，hash及日志见原计划§396，回归后未改三源。完整模板作者串行自审无未修复问题，非独立复核；只改三源并追加两记录，不改依赖锁或正式安装。任意setter最终无变化、PG关系/tenantInherited/并发与跨进程隔离、正式账号状态/规则保存启用/浏览器试点及整分支独立复核仍未完成。损坏PG保持停止，无外网、子智能体、推送合并部署或正式启用；定时任务保持短描述。
+
+### 原生“仅本人”范围接入（§397）
+
+原持久 main 全局 own scope 自带 createdById 当前用户模板；新权限 bridge 仅对同ACL、resource来源、已准备且已选中配置的请求，核真实持久来源、原生scope身份、未改的完整filter及实际creator字段后，复制params并删除冗余own标志。创建人filter、fields及动作ACL保持，读仍为ACL∩(G∨V)，写仍为ACL∩G；下层对未finalized own的拒绝不变。复用原metadata守卫并绑定creator字段，在配置读取及阶段完成检查漂移，不重新捕获已变化元数据。
+
+两真实密码用户、普通持久own角色/动作字段、B/C成员和Collection Manager业务空表验证：所有行正常HTTP新增，旧基线与选中后均只读本人本租户；对另一用户或本人另一租户的已知无害行修改/删除403且完整数据不变，本人修改/删除200及准确回执。原生插件加载器共享持久来源WeakMap，无手工grant/permission/context伪造；原active适配非正式账号状态。正确native夹具撤回修复实证两RED，creator元数据两边界亦先RED再最小修复；最终12文件423过/43原PG专用跳过、完整tenant构建、format/lint/diff/453项snapshot核对均实际exit0，日志/hash详见原计划§397。
+
+完整模板作者串行自审无未修复问题，非独立复核。只支持原生未改main全局own，手工/合成/strategy/external等仍拒绝；不证明任意在途/跨进程变更、动态撤权、关系混合/tenantInherited PG、正式账号状态/规则启用/浏览器试点或整分支可合并。损坏PG保持停止，无外网、子智能体或推送合并部署正式启用；仅三源和两记录，定时任务短描述不变。

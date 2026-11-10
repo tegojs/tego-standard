@@ -1328,3 +1328,11 @@ WHERE (既有角色数据条件)
 原 API Key 的持久 accessToken 映射及 JWT 绑定角色继续进入同一新权限执行链；认证不能替代角色动作 ACL 或实际租户归属边界。新验收以真实密码登录、原 HTTP 签发两把有效密钥，核持久 createdById/roleName、JWT 主体及请求实际身份；独立 issuer 与无管理 snippet 的普通 writer/reader 分开。writer 在 B/C 新增已知无害行，reader 在 B 正常读而修改拒绝，writer 跨租户修改拒绝，完整行均不变；随后正常修改/删除 B 行，C 行完整保留。G 同时授予两业务角色，故 reader 的拒写来自原动作 ACL。
 
 首验收1过，五文件 SQLite 回归53过无跳，均实际exit0；format/lint/diff与450项完整差异源码snapshot核一致，hash和日志见原计划§395。首通过不制造RED或修改生产；仅新测试/两记录，不重复build。完整模板作者串行自审无未修复问题，非独立复核。未覆盖失效/撤销凭据、动态撤权、其他认证器/外部客户端、正式账号状态、PG并发/关系混合及正式启用；不执行退出/撤销后凭据复用。损坏PG保持停止，无外网/子智能体/推送合并部署，定时任务短描述不变。
+
+### 普通批量编辑“全部”模式（§396）
+
+原普通批量编辑客户端在无有效请求filter时发送forceUpdate:true。选中根现将true或精确'true'解释为显式全部选择：仅update，不能混用显式主键、REST定位或有效请求filter；false/'false'仍不提供选择，create/destroy不接受。复用原有界匹配写，在最终update动作ACL、字段、角色范围与G交集内按键排序逐行执行，原事务/1000条上限及写后验保持，不透传forceUpdate或执行无范围全表SQL。无请求筛选字段时不借list权限授权写，原key/filter模式不变；本项不是§388惰性false兼容的重复。
+
+真实持久普通writer/reader及stage=draft范围、密码Bearer/auth:check、B/C成员、Collection Manager空表和原显式registry/adapter/runtime验证：四条无害行均正常HTTP新增并可读；reader全部编辑403且四行不变，writer仅改B两draft并准确回执，submitted及C行不变；第二行真实业务hook失败使整批完整回滚。新unit七控制覆盖true/string true、字段/角色/G、空回执、1001整批拒绝、选择冲突和destroy拒绝；不伪造permission/context，原active适配非正式账号状态。
+
+首HTTP真实RED实际exit1（正常200预期收到400）；最小接线后聚焦8过/219名字过滤，最终七SQLite文件329过/37原PG专用跳过，完整tenant包构建及format/lint/diff/451项分支源码snapshot核对均实际exit0，hash及日志见原计划§396，回归后未改三源。完整模板作者串行自审无未修复问题，非独立复核；只改三源并追加两记录，不改依赖锁或正式安装。任意setter最终无变化、PG关系/tenantInherited/并发与跨进程隔离、正式账号状态/规则保存启用/浏览器试点及整分支独立复核仍未完成。损坏PG保持停止，无外网、子智能体、推送合并部署或正式启用；定时任务保持短描述。

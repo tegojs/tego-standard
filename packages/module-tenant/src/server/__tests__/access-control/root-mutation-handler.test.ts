@@ -156,19 +156,96 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     ]);
   });
 
-  it.each([true, 'true', null, undefined])('rejects non-inert forceUpdate metadata %j', async (forceUpdate) => {
-    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
-    const ctx = await context('update', { values: { name: 'Forbidden' }, forceUpdate });
-    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
-    expect(ctx.body).toBe('unchanged');
-    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
-  });
+  it.each([true, 'true', null, undefined])(
+    'rejects conflicting or invalid forceUpdate metadata %j',
+    async (forceUpdate) => {
+      const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+      const ctx = await context('update', { values: { name: 'Forbidden' }, forceUpdate });
+      await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+      expect(ctx.body).toBe('unchanged');
+      expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+    },
+  );
 
   it('does not use false forceUpdate metadata as an unbounded selection', async () => {
     const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
     const ctx = await context('update', { filterByTk: undefined, values: { name: 'Forbidden' }, forceUpdate: false });
     await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
     expect(ctx.body).toBe('unchanged');
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
+  it.each([true, 'true'])('scopes all-mode %j by update fields, role conditions and G', async (forceUpdate) => {
+    await docs.model.create({ id: 6, tenantId: 'B', name: 'Role excluded', amount: 10 });
+    const ctx = await context(
+      'update',
+      { filterByTk: undefined, values: { name: 'All changed', amount: 999 }, forceUpdate },
+      { fields: ['name'], filter: { amount: { $gte: 20 } } },
+    );
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual([
+      { id: 1, tenantId: 'H', name: 'Visible', amount: 10 },
+      { id: 3, tenantId: 'B', name: 'All changed', amount: 30 },
+      { id: 4, tenantId: 'C', name: 'Hidden', amount: 40 },
+      { id: 5, tenantId: null, name: 'Legacy', amount: 50 },
+      { id: 6, tenantId: 'B', name: 'Role excluded', amount: 10 },
+    ]);
+  });
+
+  it('returns an empty all-mode receipt when the update role has no matches', async () => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context(
+      'update',
+      { filterByTk: undefined, values: { name: 'All changed' }, forceUpdate: true },
+      { filter: { name: 'Missing' } },
+    );
+    await handler.handle(ctx, auth());
+    expect(ctx.body).toEqual({ keys: [], affected: 0 });
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
+  it('rejects an all-mode selection over 1000 rows without truncating or writing', async () => {
+    await docs.model.bulkCreate(
+      Array.from({ length: 1000 }, (_, index) => ({
+        id: index + 10,
+        tenantId: 'B',
+        name: 'Owned',
+        amount: 10,
+      })),
+    );
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context(
+      'update',
+      { filterByTk: undefined, values: { name: 'All changed' }, forceUpdate: true },
+      { filter: { name: 'Owned' } },
+    );
+    await expect(handler.handle(ctx, auth())).rejects.toThrow(/1000/);
+    expect(ctx.body).toBe('unchanged');
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
+  it.each([{ filter: { name: 'Owned' } }, { resourceIndex: 3 }])(
+    'rejects an all-mode request with a competing selector %j',
+    async (selector) => {
+      const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+      const ctx = await context('update', {
+        filterByTk: undefined,
+        values: { name: 'Forbidden' },
+        forceUpdate: true,
+        ...selector,
+      });
+      await expect(handler.handle(ctx, auth(), () => context('list'))).rejects.toMatchObject({
+        code: 'INVALID_ACCESS_MUTATION',
+      });
+      expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+    },
+  );
+
+  it('does not enable all-mode deletion through an update transport flag', async () => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context('destroy', { filterByTk: undefined, forceUpdate: true });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
     expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
   });
 

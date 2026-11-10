@@ -98,15 +98,18 @@ export class AccessRootMutationHandler {
       ...(operation === 'create' ? [] : ['filter']),
       ...(operation === 'update' ? ['forceUpdate'] : []),
     ]);
-    // Bulk-edit clients send false, serialized as 'false' in query strings; neither supplies selection.
-    // 批量编辑客户端的 false 在查询串中为 'false'；两种形式均不提供选中范围。
+    // All mode explicitly selects the bounded ACL/G scope; false still supplies no selection.
+    // 全部模式显式选择有界的 ACL/G 范围，false 本身仍不提供选中条件。
     const forceUpdate = data(raw, 'forceUpdate');
-    if (Object.hasOwn(raw, 'forceUpdate') && forceUpdate !== false && forceUpdate !== 'false')
+    const all = operation === 'update' && (forceUpdate === true || forceUpdate === 'true');
+    if (Object.hasOwn(raw, 'forceUpdate') && forceUpdate !== false && forceUpdate !== 'false' && !all)
       invalid('Unsupported root mutation parameters');
     const rawFilter = data(raw, 'filter');
     const requestFilter = rawFilter === undefined ? {} : captureAccessFilter(rawFilter);
     if (!plain(requestFilter)) invalid('Mutation request filters must be plain objects');
     const filtered = Reflect.ownKeys(requestFilter).length > 0;
+    if (all && (filtered || data(raw, 'filterByTk') !== undefined || data(raw, 'resourceIndex') !== undefined))
+      invalid('All-mode updates cannot combine record selectors');
     if (filtered && !authorizeRead) invalid('Filtered mutations require an independent read decision');
     // cloneDeep deliberately normalizes array prototypes; validate raw selections first.
     const rawLocator = data(raw, 'filterByTk');
@@ -142,7 +145,7 @@ export class AccessRootMutationHandler {
     ] as const)
       if (Object.hasOwn(params, key) && params[key] !== expected) invalid('Mutation transport metadata does not match');
     const locator = params.filterByTk;
-    const matching = operation !== 'create' && locator === undefined && filtered;
+    const matching = operation !== 'create' && locator === undefined && (filtered || all);
     const locators = Array.isArray(locator) ? locator : [locator];
     if (operation === 'create') {
       if (locator !== undefined || params.resourceIndex !== undefined)

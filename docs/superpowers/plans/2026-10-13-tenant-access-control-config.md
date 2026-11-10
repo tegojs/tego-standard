@@ -5704,3 +5704,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 首Prettier write/oxlint1c889e实际0，末0fa65d实际0：Prettier check/oxlint零错误警告、diff检查0、446项完整main...工作区TS/TSX与snapshot逐字节一致，基点89f026c99690da17bd927aa0f7f1507f66d2b040；原测试SHA256 95F734AE6468FEC5D684496607EA361C3EBFB216187405C7FB08511F0F10C9C6，回归后未改。仅原测试和两记录，无生产/公开类型/依赖锁变化，按聚焦规则不重复包build；read_lints不可用用聚焦CLI。初及续接strict均各次实际0、当场Git/签名/runner/本库锁0，不沿用PID/排除身份。
 
 作者按完整requesting-code-review/code-reviewer模板串行自审，非独立复核。Base05469ad671d1f4f842e964e1d5c510d4046372c2至本批工作区。优点：复用既有真实生命周期/普通持久角色/实际密码认证，scope关联完整读回；G许可真实user/三角色/B而ACL独立；HTTP新增完整可读无害行，交叉来源和合成范围外三拒绝分别核完整不变，两合成范围内更新准确回执及完整raw/list。需求及实现吻合；没有生产/公开类型/依赖锁或正式安装变化，无额外抽象和权限mock；原启动转发观察恢复于夹具准备前，afterEach销毁独立app。新验收首通过，不造红、不复现§386 helper同根因。Critical/Important/Minor均无。建议保留既有OR协议，不添生产guard。可提交这一验收，不代表可整分支合并上线。不予本项判断：own/通配与动态来源撤权缓存、其他字段/scope组合、正式账号状态/规则保存启用/业务浏览器试点、关系混合/tenantInherited PG/并发与跨进程SQL隔离/外部source及worker/整分支独立复核；原因本项仅验收同app SQLite真实合成静态update范围OR，其他授权边界和损坏PG停止继续。 项目入口/相关规则、using-superpowers/Codex映射、完成前验证和完整review模板已重读，沿前段已读brainstorming/writing-plans/TDD/writing-good-tests/executing-plans及既定授权，不新建规格/工作区或联系子智能体。无外网、损坏PG保持停止，不杀进程/删锁/操作认证窗口，不推送合并部署或正式启用。当前三文件待英文原子默认签名提交，实际结果以后继输出接续。
+
+## 392. 真实认证默认租户的无请求头业务生命周期
+
+- [x] 先核 setCurrentTenant 的真实协议及旧中间件覆盖：无 X-Tenant-Id 时使用可访问的持久默认租户，不等同缺少上下文。原未运行候选据此纠正，未制造产品 RED。
+- [x] 新 authenticated-default-tenant-write.test.ts：独立 SQLite 内存 app、本地核心 ACL factory、普通持久空策略角色及五动作/字段完整关联读回；真实密码 basic Bearer/auth:check。用户持久成员 A/B、默认 B，原 registry/adapter/runtime 显式组合，G 绑定真实 user/role 与 ownerCondition。
+- [x] 无请求头 create 归属 B；同 token 显式 A create 归属 A；随后无头 list/get 只见 B。无头修改本人刚新增的已知 A 行403且完整两行不变；修改/删除 B 均200及准确回执，最终默认列表空且 A 行完整保留。没有伪造 permission/context、改成员/ACL/G、重登录、隐藏敏感目标或外部 I/O；原 active 适配非正式账号状态。
+- [x] 初 default-tenant-acceptance-20261110.log 在持久字段断言失败（destroy 实际 []、误期望 null），b01051 实际 exit1，尚未到业务请求，非产品 RED。修正夹具后 default-tenant-acceptance-final-20261110.log 一过无跳，f438ed 实际 exit0，Vitest10.76秒。
+- [x] default-tenant-regression-20261110.log 四 SQLite 文件68过无跳，7f4c55 实际 exit0、60.70秒：新1、set-current-tenant11、原HTTP40、context16。两核心 ACL env 齐，单worker串行；计数不累加首项，旧测试仅兼容，非整分支或 PG 并发验证。预期403及原自动id诊断保留，日志在批准父目录。
+- [x] d4e1f1 实际 exit0：基点89f026c99690da17bd927aa0f7f1507f66d2b040的447项完整差异TS/TSX与snapshot一致、diff检查0；6c87cc实际exit0，Prettier/oxlint零错误警告。测试SHA256 C1DA2A45A0A7EDD81DC99142FE51734F9345CA19050A9E3F4AE18FDB8F2D61FC，回归后未改。仅测试/两记录，无生产/依赖/公开类型修改，按聚焦规则不重复build。
+
+作者依完整 requesting-code-review 模板串行自审，Base a58eaefe222a831c0b30af29aaab5944ccf786c3 至本批工作区，非独立复核。需求/真实持久身份与动作/最终归属/拒写完整不变/清理均吻合；能抓住忽略默认租户、跨请求沿用显式租户及丢失实际归属边界三类破坏。Critical/Important/Minor均无；建议保留原生产协议。仅可提交本项验收，不表示整分支可合并上线。不予本项判断：默认失效/无成员完整矩阵、正式账号状态、关系混合/tenantInherited实际PG、动态撤权及跨进程并发、规则保存启用/浏览器试点与整分支独立复核，因均超出这一SQLite默认租户生命周期。损坏PG核无服务/25466记录0，未启动；核心仍干净d742a1c569579e05187b8260f14d48af0d8ccbae。沿原串行授权，无外网/子智能体/推送合并部署正式启用；各次strict现场实际0，不沿用旧PID。当前三文件待原子默认签名提交，实际结果由后继验证接续。定时任务保持短描述，不追加交接历史。

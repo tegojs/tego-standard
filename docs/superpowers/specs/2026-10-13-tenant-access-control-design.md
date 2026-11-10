@@ -1304,3 +1304,9 @@ WHERE (既有角色数据条件)
 三条无害业务行均HTTP新增并完整list可见，amount10/20/30均归属B；显式author跨改20、editor跨改10、默认合成角色改30分别403且每次完整raw三行不变。默认合成角色改10和20两行均200/准确回执，最终完整raw/list仅名称改变，amount/memo/B及第三行不变。同token/ACL/G/成员、不重新登录，无隐藏敏感目标、通知/外部I/O或撤销后凭据复用，原active适配非正式账号状态。能捕获只保留一来源、OR误成AND或丢弃合并filter；不是重做§386 helper缺陷。
 
 首验收1过/2原案按-t过滤，实际exit0，无产品RED或生产修复。最终五SQLite回归86过/无跳过，session83261/c15a96实际exit0、Vitest21.89秒：原认证3/helper2/role-filter52/final-read-permission19/ACL setCurrentRole10；不与首项或历史累加，旧mock/context仅兼容，非PG/整分支验证。完整446项branch源snapshot、format/oxlint/diff实际0，测试hash及完整证据详见原计划§391，回归后未改源；仅测试/两记录、不重复build。作者按完整review模板串行自审、非独立复核，无未修复Critical/Important/Minor。own/通配及动态来源撤权缓存、其他组合、正式账号状态/规则保存启用/浏览器业务试点、关系混合/tenantInherited实际PG、并发及跨进程SQL隔离/外部source与worker、整分支独立复核仍未完成。损坏PG保持停止，不联系子智能体/外网或推送合并部署正式启用；当前三文件待英文原子默认签名提交，实际结果以后继接续。
+
+### 真实认证默认租户的无头业务生命周期（§392）
+
+无租户请求头时，服务端从真实成员关系解析可访问的持久默认租户，随后仍按动作ACL与G交集执行选中根业务。新验收以真实密码用户（成员A/B、默认B）、普通持久角色/五动作字段及原显式registry/adapter/runtime验证：无头创建B行，显式A创建对照行后，无头查询仍只见B；对本人刚创建的A行无头修改403且完整数据不变，B行正常更新/删除，最终默认列表空而A行完整保留。同token/成员/ACL/G不变，无伪造context或permission；既有active适配不代表正式账号状态。
+
+首运行只因夹具将destroy.fields的[]误写为null而失败，非产品RED；修正后验收1过，相关四SQLite文件68过无跳，均实际exit0。447项完整差异源码snapshot一致，格式/lint/diff通过，证据及hash见原计划§392。仅新增测试和追加两记录，不改生产或重复build。作者完整模板串行自审，无未修复问题，非独立复核；默认失效/无成员矩阵、正式账号状态、PG并发/关系混合及整分支独立复核仍未完成。损坏PG保持停止，不推送合并部署或正式启用。

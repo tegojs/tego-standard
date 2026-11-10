@@ -14,6 +14,7 @@ import {
   parseResourceSumParams,
 } from './resource-read-params';
 import { resolveResourceReadRoute } from './resource-read-routing';
+import { captureRootTextSearch } from './root-text-search';
 import { cloneDeep, invalid, plain } from './write-support';
 
 export interface AccessRootReadContext {
@@ -55,6 +56,7 @@ function captureParams(
   actionName: 'list' | 'get' | 'count' | 'sum' | 'export',
   association?: { source: string; relation: string; index: string | number },
   single = false,
+  searchContext?: { collection: Collection; permission: { allowed: boolean; params: unknown } },
 ) {
   if (!plain(permission)) invalid('Root read permission context is unavailable');
   const raw = data(permission, 'rawParams');
@@ -89,6 +91,15 @@ function captureParams(
   delete params.resourceIndex;
   // Core sets this own undefined property even for lists and counts.
   if (params.filterByTk === undefined) delete params.filterByTk;
+  if (Object.hasOwn(params, 'search') && actionName === 'list' && !association && searchContext) {
+    params.filter = captureRootTextSearch(
+      searchContext.collection,
+      searchContext.permission,
+      params.search,
+      params.filter,
+    );
+    delete params.search;
+  }
   if (actionName === 'list') {
     if (association && (params.paginate === false || params.paginate === 'false'))
       invalid('Complete association resource lists require a dedicated adapter');
@@ -121,7 +132,10 @@ function captureReadContext(
   single = false,
 ) {
   const authorization = captureReadAuthorization(ctx, authenticated, action);
-  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single);
+  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single, {
+    collection: ctx.db.getCollection(action.resourceName),
+    permission: authorization.permission,
+  });
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
   return { action, ...authorization, params, dateContext };
 }

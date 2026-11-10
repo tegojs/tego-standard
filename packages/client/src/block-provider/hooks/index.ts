@@ -374,8 +374,15 @@ export const useCreateActionProps = () => {
 
         if (pageMode) {
           await resetFormCorrectly(form);
-          // FIXME primary key
-          jumpDetails(data?.data?.data?.id);
+          const result = data?.data?.data;
+          const key =
+            result?.id ??
+            (result?.affected === 1 && Array.isArray(result.keys) && result.keys.length === 1
+              ? result.keys[0]
+              : undefined);
+          if ((typeof key === 'string' && key.length > 0) || (typeof key === 'number' && Number.isFinite(key))) {
+            jumpDetails(String(key));
+          }
           return;
         }
 

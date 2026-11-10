@@ -22,7 +22,7 @@ import {
   captureRootReadContext,
   type AccessRootReadContext,
 } from './root-read-context';
-import { cloneDeep, invalid } from './write-support';
+import { cloneDeep, invalid, plain } from './write-support';
 
 export type { AccessRootReadContext } from './root-read-context';
 
@@ -476,8 +476,18 @@ export class AccessRootReadHandler {
       dateContext,
     );
     assertCurrent?.();
+    this.respond(ctx, action.actionName, params, body);
+  }
+
+  private respond(ctx: AccessRootReadContext, actionName: string, params: Record<PropertyKey, unknown>, body: unknown) {
+    if (actionName === 'list' && (params.paginate === false || params.paginate === 'false')) {
+      if (!plain(body) || !Array.isArray(body.rows)) invalid('Complete resource list is missing its rows');
+      ctx.body = body.rows;
+      ctx.paginate = false;
+      return;
+    }
     ctx.body = body;
-    if (action.actionName === 'list') ctx.paginate = true;
+    if (actionName === 'list') ctx.paginate = true;
   }
 
   private reader(

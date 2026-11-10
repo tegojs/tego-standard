@@ -89,8 +89,11 @@ function captureParams(
   delete params.resourceIndex;
   // Core sets this own undefined property even for lists and counts.
   if (params.filterByTk === undefined) delete params.filterByTk;
-  if (actionName === 'list') parseResourceListParams(params);
-  else if (actionName === 'export') parseResourceExportParams(params);
+  if (actionName === 'list') {
+    if (association && (params.paginate === false || params.paginate === 'false'))
+      invalid('Complete association resource lists require a dedicated adapter');
+    parseResourceListParams(params);
+  } else if (actionName === 'export') parseResourceExportParams(params);
   else if (actionName === 'get') parseResourceAssociationGetParams(params, single);
   else if (actionName === 'sum') parseResourceSumParams(params);
   else parseResourceCountParams(params);

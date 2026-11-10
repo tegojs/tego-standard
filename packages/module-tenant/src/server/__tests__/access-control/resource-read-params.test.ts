@@ -144,9 +144,27 @@ describe('resource read params', () => {
     expect(parseResourceListParams({ paginate, tree: false })).toEqual({ limit: 20, offset: 0 });
     expect(parseResourceListParams({ tree: 'false' })).toEqual({ limit: 20, offset: 0 });
   });
-  it.each([{ paginate: false }, { paginate: 'false' }, { paginate: 1 }, { tree: true }, { tree: 'true' }])(
-    'rejects unsupported list execution modes %j',
-    (request) => expect(() => parseResourceListParams(request)).toThrow(),
+  it.each([false, 'false'])('captures a complete bounded flat list (%s)', (paginate) => {
+    expect(parseResourceListParams({ paginate, fields: ['name'], tree: false })).toEqual({
+      fields: ['name'],
+      limit: 1000,
+      offset: 0,
+      complete: true,
+    });
+  });
+  it.each([
+    { paginate: false, page: 1 },
+    { paginate: 'false', pageSize: 20 },
+    { paginate: false, page: undefined },
+    { paginate: null },
+    { paginate: 'False' },
+    { paginate: 1 },
+    { tree: true },
+    { tree: 'true' },
+    { paginate: false, tree: true },
+    { complete: true },
+  ])('rejects unsupported list execution modes %j', (request) =>
+    expect(() => parseResourceListParams(request)).toThrow(),
   );
   it('translates a detail key without losing a large integer string', () => {
     expect(parseResourceGetParams({ filterByTk: '9007199254740993', fields: ['name'] })).toEqual({

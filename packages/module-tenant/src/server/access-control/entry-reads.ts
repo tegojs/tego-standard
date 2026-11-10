@@ -427,8 +427,10 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const request = this.withDates(source, parseResourceListParams(params), dates);
-    return this.listSelected(ctx, source, authenticated, { ...request, transaction });
+    const { complete = false, ...request } = this.withDates(source, parseResourceListParams(params), dates);
+    return (
+      await this.selected(ctx, source, authenticated, { ...request, transaction }, 'list', false, undefined, complete)
+    ).rows;
   }
 
   /** Internal workflow query bridge. Callers supply the real execution identity and finalized list grants. */
@@ -513,12 +515,22 @@ export class AccessEntryReadService {
     transaction?: Transaction,
     dates?: AccessReadDateContext,
   ) {
-    const request = this.withDates(source, parseResourceListParams(params), dates);
+    const { complete = false, ...request } = this.withDates(source, parseResourceListParams(params), dates);
     const page = request.offset / request.limit + 1;
     const pageSize = request.limit;
-    const result = await this.selected(ctx, source, authenticated, { ...request, transaction }, 'list', true);
-    if (result.count === undefined) invalid('Selected page is missing its root count');
-    return { rows: result.rows, count: result.count, page, pageSize, totalPage: Math.ceil(result.count / pageSize) };
+    const result = await this.selected(
+      ctx,
+      source,
+      authenticated,
+      { ...request, transaction },
+      'list',
+      !complete,
+      undefined,
+      complete,
+    );
+    const count = complete ? result.rows.length : result.count;
+    if (count === undefined) invalid('Selected page is missing its root count');
+    return { rows: result.rows, count, page, pageSize, totalPage: Math.ceil(count / pageSize) };
   }
 
   /** Complete, bounded rows under the finalized export decision; never a silently truncated page. */
@@ -584,7 +596,11 @@ export class AccessEntryReadService {
       source,
       authenticated,
       descriptor,
-      () => parseResourceListParams(params),
+      () => {
+        const request = parseResourceListParams(params);
+        if (request.complete) invalid('Complete association resource lists require a dedicated adapter');
+        return request;
+      },
       transaction,
       dates,
     );

@@ -538,6 +538,63 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
     const page = (params = {}, transaction?: Parameters<typeof entry.listFromParams>[4]) =>
       entry.listPageFromParams(ctx, mainIdentity, auth, { fields: ['name'], ...params }, transaction);
 
+    it('keeps complete option requests from enabling concrete association resource lists', async () => {
+      await expect(
+        entry.listAssociationPageFromParams(
+          ctx,
+          mainIdentity,
+          auth,
+          { association: 'children', sourceKey: 1 },
+          { paginate: false, fields: ['id'] },
+        ),
+      ).rejects.toThrow('Complete association resource lists require a dedicated adapter');
+    });
+
+    it('returns complete option rows under the original list decision without pagination', async () => {
+      expect(await entry.listFromParams(ctx, mainIdentity, auth, { paginate: false, fields: ['name'] })).toEqual([
+        { name: 'Owned' },
+        { name: 'Visible' },
+        { name: 'Legacy' },
+        { name: 'Empty' },
+      ]);
+      expect(await page({ paginate: 'false' })).toEqual({
+        rows: [{ name: 'Owned' }, { name: 'Visible' }, { name: 'Legacy' }, { name: 'Empty' }],
+        count: 4,
+        page: 1,
+        pageSize: 1000,
+        totalPage: 1,
+      });
+    });
+    it('preserves independent target visibility during complete option expansion', async () => {
+      expect((await page({ paginate: false, appends: ['project.name'] })).rows).toEqual([
+        { name: 'Owned', project: { name: 'Zebra' } },
+        { name: 'Visible', project: null },
+        { name: 'Legacy', project: { name: 'Alpha' } },
+        { name: 'Empty', project: null },
+      ]);
+    });
+    it('accepts exactly 1000 authorized option rows and refuses 1001 instead of truncating', async () => {
+      await docs.model.bulkCreate(
+        Array.from({ length: 996 }, (_, index) => ({
+          id: index + 6,
+          tenantId: 'B',
+          name: `Option ${index + 6}`,
+          amount: 1,
+        })),
+      );
+      const params = { paginate: false, fields: ['id'], sort: 'id' };
+      const rows = await entry.listFromParams(ctx, mainIdentity, auth, params);
+      expect(rows).toHaveLength(1000);
+      expect(rows[0]).toEqual({ id: 1 });
+      expect(rows.at(-1)).toEqual({ id: 1001 });
+      expect(rows).not.toContainEqual({ id: 3 });
+      await docs.model.create({ id: 1002, tenantId: 'B', name: 'Overflow option', amount: 1 });
+      await expect(entry.listFromParams(ctx, mainIdentity, auth, params)).rejects.toThrow(/complete-row limit/);
+      await expect(page({ ...params, fields: ['id'], appends: ['project.name'] })).rejects.toThrow(
+        /complete-row limit/,
+      );
+    });
+
     it('returns the core pagination shape with a count of all readable roots', async () => {
       expect(await page({ page: '2', pageSize: '2', sort: '-amount' })).toEqual({
         rows: [{ name: 'Visible' }, { name: 'Owned' }],
@@ -992,7 +1049,8 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('expanded entry 
     it('rejects unsupported modes and client-supplied internal options before SQL', async () => {
       const query = vi.spyOn(db.sequelize, 'query');
       for (const params of [
-        { paginate: false },
+        { paginate: false, page: 1 },
+        { complete: true },
         { tree: true },
         { pageSize: 1001 },
         { where: {} },

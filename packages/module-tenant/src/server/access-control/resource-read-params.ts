@@ -8,6 +8,7 @@ const selectionKeys = ['fields', 'appends', 'except'];
 export interface AccessResourceListRequest extends AccessSelectedListRequest {
   limit: number;
   offset: number;
+  complete?: true;
 }
 
 function names(input: unknown, sort = false): string[] {
@@ -91,10 +92,15 @@ function positiveInteger(value: unknown, fallback: number): number {
 /** Converts parsed action params only; callers separately provide trusted transaction and authorization. */
 export function parseResourceListParams(input: unknown): AccessResourceListRequest {
   const params = capture(input, 'list');
-  if (params.paginate !== undefined && params.paginate !== true && params.paginate !== 'true')
-    invalid('Only paginated resource lists are supported');
   if (params.tree !== undefined && params.tree !== false && params.tree !== 'false')
     invalid('Tree resource lists require a dedicated adapter');
+  if (params.paginate === false || params.paginate === 'false') {
+    if (Object.hasOwn(params, 'page') || Object.hasOwn(params, 'pageSize'))
+      invalid('Complete resource lists cannot include pagination controls');
+    return { ...selection(params), limit: 1000, offset: 0, complete: true };
+  }
+  if (params.paginate !== undefined && params.paginate !== true && params.paginate !== 'true')
+    invalid('Unsupported resource list pagination mode');
   const page = positiveInteger(params.page, 1);
   const limit = positiveInteger(params.pageSize, 20);
   const offset = (page - 1) * limit;

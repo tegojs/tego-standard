@@ -1350,3 +1350,11 @@ WHERE (既有角色数据条件)
 普通新增先按真实create字段ACL投影客户端输入，再由原Repository产生持久默认值，并对完整持久结果检查原create范围与G；服务端默认值不是客户端获得字段写权限，也不能用G取代动作或范围。新增真实密码验收以两普通持久角色分别要求stage=draft/approved、create仅name和同一实际用户/tenant B验证：仅传name的正常创建保存draft并完整可读；approved范围创建403且原行不变；原角色再次创建、普通改名和最终raw/list均正确，归属B保持。scope/字段完整关联读回，无permission/context伪造，原active适配非正式账号状态。
 
 首验收1过，五SQLite文件回归162过/10原PG专用跳过，format/lint/diff/454项完整分支源码snapshot核对均实际exit0，hash和日志见原计划§398。已有生产行为首过，未造RED或改生产；仅新测试和两记录，按聚焦规则不重复build。完整模板作者串行自审无未修复问题，非独立复核；只证明普通标量字面默认值，动态/关联默认、任意setter最终无变化、PG并发、正式启用及整分支独立复核仍待完成。损坏PG保持停止，无外网、子智能体或推送合并部署，定时任务短描述不变。
+
+### 普通业务根的有界非分页列表（§399）
+
+原AutoComplete与RemoteSelect.ReadPretty的paginate:false请求现可进入普通flat业务根列表。仅false或精确'false'，不得混入page/pageSize或客户端内部complete；tree及其他输入门控保持。服务端分离内部complete标志，复用原最终list动作ACL、字段、角色filter、G∨V、日期/事务和阶段元数据检查，原complete reader用1001条sentinel保证1000条完整返回、1001条整体拒绝不截断，不额外count SQL；HTTP交付data数组且无分页meta。具体关联及/_/完整模式仍明确拒绝，原分页路径保持。
+
+新真实密码认证验收使用持久普通角色/动作字段/draft scope、B/C成员及Collection Manager空表，23条无害行全部正常HTTP新增；原分页20条/count21，完整返回21条且无未授权字段、范围外行或另一租户，已知键筛选/空结果/无list角色403及最终完整物理数据均正确。原registry/adapter/runtime显式组合，不伪造permission/context，原active适配非正式账号状态。真实HTTP先400 RED，再最小拥有层接线；低层1000/1001、独立展开目标权限及关联模式拒绝均有控制。
+
+最终七SQLite文件484过/8原PG专用跳、完整tenant构建、format/lint/diff及455项分支源码snapshot核对均实际exit0，日志/hash见原计划§399；首次无结果退出和旧认证初始化超时/清理错误如实留档，未修改超时或依赖，旧认证独立80过/8跳后整组重跑通过。PG-only关联HTTP改动已撤回，不冒称关联或PG验收。完整模板作者串行自审无未修复问题，非独立复核；大于1000的专用适配、关联完整模式、PG并发、正式安装启用/浏览器试点及整分支独立复核仍待完成。仅七源与两记录，损坏PG保持停止，无外网/子智能体/推送合并部署；定时任务短描述不变。

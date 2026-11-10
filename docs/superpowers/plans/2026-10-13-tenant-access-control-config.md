@@ -5715,3 +5715,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] d4e1f1 实际 exit0：基点89f026c99690da17bd927aa0f7f1507f66d2b040的447项完整差异TS/TSX与snapshot一致、diff检查0；6c87cc实际exit0，Prettier/oxlint零错误警告。测试SHA256 C1DA2A45A0A7EDD81DC99142FE51734F9345CA19050A9E3F4AE18FDB8F2D61FC，回归后未改。仅测试/两记录，无生产/依赖/公开类型修改，按聚焦规则不重复build。
 
 作者依完整 requesting-code-review 模板串行自审，Base a58eaefe222a831c0b30af29aaab5944ccf786c3 至本批工作区，非独立复核。需求/真实持久身份与动作/最终归属/拒写完整不变/清理均吻合；能抓住忽略默认租户、跨请求沿用显式租户及丢失实际归属边界三类破坏。Critical/Important/Minor均无；建议保留原生产协议。仅可提交本项验收，不表示整分支可合并上线。不予本项判断：默认失效/无成员完整矩阵、正式账号状态、关系混合/tenantInherited实际PG、动态撤权及跨进程并发、规则保存启用/浏览器试点与整分支独立复核，因均超出这一SQLite默认租户生命周期。损坏PG核无服务/25466记录0，未启动；核心仍干净d742a1c569579e05187b8260f14d48af0d8ccbae。沿原串行授权，无外网/子智能体/推送合并部署正式启用；各次strict现场实际0，不沿用旧PID。当前三文件待原子默认签名提交，实际结果由后继验证接续。定时任务保持短描述，不追加交接历史。
+
+## 393. 真实认证业务编号生成与拒绝回滚
+
+- [x] 先核原 SequenceField 的 beforeCreate 生成及计数器 save 复用原 transaction、选中根 writer 传 plan.transaction，以及创建后的 G 持久后验。树表关联需要 PG，未建夹具；本项只验收普通生成字段，不重复软删除或合成角色范围。
+- [x] 新 authenticated-sequence-field-write.test.ts：独立 SQLite 内存 app、本地核心 ACL factory，显式加载原 SequenceFieldPlugin 源码及持久 sequences 集合。持久 Collection Manager 初始空 tenantScoped 表 numberedTasks，普通 name 和不可手输 code（TASK-、key42/start1/digits3），无业务关联或审计。普通持久空策略角色，list/create/update 与完整字段关联读回；create/update 只授 name。真实密码 basic Bearer/auth:check、实际 user.id/role.name/tenant B，原 registry/adapter/runtime 显式组合；G 要求真实主体、归属与 name 非 Blocked task。
+- [x] 全部业务行由同 token 正常 HTTP 创建：第一行 TASK-001；被 G 拒绝的新增403后完整业务行与完整 raw 计数器均不变；第二次正常新增 id2/TASK-002/current2。普通改名200且准确回执，编号和计数器不变，最终完整 raw/list 一致。未伪造 permission/context、注入失败 hook、改 ACL/G/成员或重新登录，无隐藏敏感目标、外部 I/O 或撤销后凭据探测。原 active 状态适配不代表正式账号状态。
+- [x] 初 sequence-business-acceptance-20261110.log 因夹具缺 packageName 未加载 sequences 而失败，3facfd实际exit1；补原插件加载选项后 corrected 日志因字段集合顺序误期望失败，31796a实际exit1/9.10秒。两次均在登录前，非产品 RED。参照原 JSON 验收排序后核完整集合；final 日志 a58c5a实际exit0，一过无跳、12.83秒。未改生产或人为造红。
+- [x] sequence-business-regression-20261110.log：四 SQLite 文件108过/3原跳过/111总，session8997由be1a09确认实际exit0，Vitest28.24秒/12:53:58开始；新1、原sequence25/1（no key原skip）、root-creation42/2（PG专用）、原HTTP40。两核心ACL env齐、单worker逐文件，计数不累加首验收；原低层测试只作兼容，非整分支或PG并发证据。预期拒绝/故障注入及自动id诊断保留，全部日志在批准父目录。
+- [x] 14214d实际exit0：Prettier/oxlint零错误警告、diff检查0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的448项完整差异TS/TSX与snapshot逐字节一致。测试SHA256 B8293D1649A2E240E3A36D9C2EF972D57A14F46FF78C91C8CF017B91F1D9F7D9，回归后未改。仅测试/两原记录，无生产、公开类型或依赖锁变化，按聚焦规则不重复build；read_lints不可用用CLI。
+
+作者依完整 requesting-code-review/code-reviewer 模板串行自审，Base8ddb133888e35213a0cb799dd27a0302b89c8ac8至本批工作区，非独立复核。需求、真实插件生命周期/认证/动作字段、生成后验/计数器事务、完整数据结果与app清理均吻合；字面编号期望独立于被测实现。可捕获生成值被丢弃、拒绝后消耗编号、普通编辑重编号三类破坏。Critical/Important/Minor均无；建议保留原生产协议，可提交本项验收，不表示整分支可合并上线。不予本项裁决：逐租户编号及并发唯一性（只做单app串行SQLite）；手输、批量、导入和周期重置（不同写协议）；关联混合/tenantInherited实际PG、正式账号状态/规则启用/浏览器试点及整分支独立复核（不在本项范围）。沿既定授权及已读技能，无外网/子智能体；非0进程守卫先停，后续仅新strict0才执行，不豁免未知Git或沿用PID。核心重新核干净d742a1c569579e05187b8260f14d48af0d8ccbae，PG无服务/25466记录0；不杀进程、删锁、操作窗口、启动损坏PG或推送合并部署正式启用。当前三文件待英文原子默认签名提交，实际结果由后继验证接续。定时任务短描述保持不变。

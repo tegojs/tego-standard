@@ -1406,3 +1406,11 @@ flat根list现可接收原FuzzySearchInput的search.keywords，仅按最终list 
 完整模板作者串行自审无未修复问题，非独立复核。可读加密展示、加密操作符和规则条件、密钥管理、任意setter最终无变化、PG/跨进程隔离及正式启用/整分支独立复核仍未验收，不得推称完整加密字段支持。损坏PG保持停止，无外网/子智能体/推送合并部署；定时任务短描述不变。
 
 本项默认GPG提交实际Timeout/exit128，HEAD与原暂存内容未变，当前完整严格守卫0后按既定授权仅本次无签名提交，不改global；过程与后继验证见计划§405，不将本项称为签名G。
+
+### 工作流资源前置触发的业务重读边界（§406）
+
+客户端可通过workflows:trigger发送beforeWorkflows；Omni按持久general-action配置的appends重读业务记录，不经过该业务表的普通HTTP根动作。真实密码认证、普通持久角色/list字段及tenant B、两张持久空表证明：选中空规则后普通list为空，原前置重读仍执行一次业务查询并返回200。该RED只观察空表真实查询，无隐藏数据、节点执行或外部I/O，不能据此声称完整披露或工作流生命周期已验收。
+
+WorkflowPluginOptions新增显式omniWorkflowReadGuard，Omni构造时固定回调，在workflows资源配置appends的findOne前同步否决；冻结请求携真实目标、原完整options及HTTP context，不授予操作权威。Promise/非法返回/抛错均在业务查询前失败；未安装或未选中保留旧行为，只在内部夹具复用原main collection读边界，不自动注册或启用。两认证项覆盖拒绝、兼容、恢复、启动校验与错误不回退；六文件106过/8原PG跳、workflow和tenant完整包构建、format/lint及469差异源snapshot核对均实际exit0，过程和hash见计划§406。
+
+完整模板作者串行自审无未修复问题，非独立复核。普通Omni前后阶段/模型与accessor读取、触发权限、业务写与触发及重读的事务原子性、完整关联混合、PG/跨进程隔离、正式账号/启用和整分支独立复核仍未完成；本项仅补workflows资源的一处重读拒绝接线，不宣称完整Omni支持。损坏PG保持停止，无核心/依赖锁变更，无子智能体/外网/推送合并部署，定时任务短描述不变。

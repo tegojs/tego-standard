@@ -36,6 +36,7 @@ import type { WorkflowManualFormGuard } from './features/manual/ManualInstructio
 import { PluginManual } from './features/manual/Plugin';
 import PluginWorkflowNoticeServer from './features/notice/plugin';
 import { PluginOmniTrigger } from './features/omni-trigger';
+import type { WorkflowOmniReadGuard } from './features/omni-trigger/CustomActionTrigger';
 import { PluginParallel } from './features/parallel/Plugin';
 import { PluginRequest } from './features/request/Plugin';
 import { PluginResponse } from './features/response';
@@ -95,6 +96,8 @@ export interface WorkflowPluginOptions extends PluginOptions {
   aggregateGuard?: WorkflowAggregateReadGuard;
   /** Server bootstrap only; veto collection-event repository reads before business I/O. */
   collectionReadGuard?: WorkflowCollectionReadGuard;
+  /** Server bootstrap only; veto workflows-resource Omni business reloads before repository I/O. */
+  omniWorkflowReadGuard?: WorkflowOmniReadGuard;
   /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
   destroyResolver?: WorkflowDestroyResolver;
   /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */

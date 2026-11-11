@@ -5848,3 +5848,15 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 9a9ce5实际exit0：四源Prettier、oxlint零错误警告、diff检查及基点89f026c99690da17bd927aa0f7f1507f66d2b040的466项完整分支差异TS/TSX与13个埋点服务端源逐字节snapshot核对通过；read_lints不可用用CLI。plugin/controller/boundary/test的SHA256分别AA36988E919F6FA83AA1EB09F31ECA7BECA4C95CEBAFEA8610F29FBDB9046303、FED350F2AC4650A0406F01BA114331DF26060DC5D9C2A1BFAE8D1F7633A2D574、40F5C9BBD551B5A7768E7CFC0329F2F1B206DE63E77B55B1FED49F6C32B36BE2、2352C2B5306D6640B59B2AAEE5E4B9E9769EB3B1841F4D97822C94B5AEC380F6；最终回归/构建后源码未改。
 
 作者按完整requesting-code-review/code-reviewer模板串行自审，Base9eb8de3c0aa8738a4d9de0c30517409fb2cc95d6至本批工作区，非独立复核；Critical/Important/Minor均无，可提交本项。裁决：本项仅为配置业务表计数的拒绝边界，完整授权聚合、埋点自身用户/事件/历史读取、实际关联混合、PG并发/跨进程及正式启用另行适配，不能宣称整个埋点插件已接入。3383c8核核心仍干净d742a1c569579e05187b8260f14d48af0d8ccbae、PG无服务/25466记录0、default/global signing true；全程串行，无子智能体/外网/杀进程/删锁/认证窗口操作或推送合并部署。仅四源与两原记录，定时任务短描述不变；当前六文件待英文原子默认签名提交，结果以后继实际验证接续。
+
+## 405. 只写加密业务字段的真实认证验收
+
+- [x] 新authenticated-encryption-field-write.test.ts加载原EncryptionFieldPlugin，独立SQLite内存app、本地核心ACL；持久Collection Manager空tenantScoped表、两个普通空策略无snippet角色及完整动作字段关联读回。正常持久密码用户/B、C成员，真实basic Bearer/auth:check；原registry/adapter/runtime显式组合，G绑定真实user.id/role.name及归属，不伪造permission/context。note仅授予create/update，两个角色的list均不授予该字段。
+- [x] 两条无害业务行正常HTTP新增200/准确keys与affected，完整raw核两行密文及实际B/C归属，原native getter仅作已知夹具持久化可逆性验收。正常list完整输出不含note；无update角色和跨租户编辑均403、完整两行不变；正常改名200且原密文逐字不变；修改note200、仅本行密文变化且native getter核新字面量，另一行及归属不变。同token/ACL/G/成员不变，无未知敏感目标、撤销凭据探测、通知或外部I/O；原active适配非正式账号状态。
+- [x] 首encryption-field-acceptance-20261111.log实际exit1（dd5827）：作者误期待HTTP求值加密getter，违反原规格统一根读取直接getDataValue的约定，不是产品RED。限定只写字段路径后，acceptance-verified日志1过无跳、cda268实际exit0/12.60秒。未改生产或制造RED；可读加密展示及加密筛选仍待独立适配，不能由本项推称支持。
+- [x] encryption-field-regression-20261111.log五SQLite文件361过/38原PG门控跳/399总，session40257由33a8e3确认实际exit0，122.51秒/11:30:56开始：新1、root-mutation198/28、root-creation42/2、原认证HTTP80/8、原HTTP40。两核心ACL env齐、单worker逐文件，前runner实际退出才后继；不累加单项/历史，非PG或整分支实测，预期拒绝/故障注入日志保留批准snapshot父目录。
+- [x] 54e4c9实际exit0：新测试Prettier/oxlint零错误警告、diff检查，467项完整分支差异TS/TSX及7个原加密服务端源与snapshot逐字节一致；测试SHA256 5E49E44728D034505540A7FF9D0A1868CE366D38F7556FFAEAE6B4230F076CF1，回归后未改。read_lints不可用用CLI；仅测试及两原记录，按聚焦规则不重复build。核心仍干净d742a1c569579e05187b8260f14d48af0d8ccbae，PG无服务/25466全部记录0。
+
+作者按完整requesting-code-review/code-reviewer模板串行自审，Base65436d9b3510d20c5ffdbb00942208f049c67013至本批工作区，非独立复核；Critical/Important/Minor均无。裁决：仅证明原生只写加密字段与新权限业务写链兼容；完整加密展示/条件/密钥管理、任意setter最终无变化、PG/跨进程隔离及正式启用/整分支独立复核仍未验收，误称支持会隐藏实际业务缺口。无生产/核心/依赖锁或正式安装修改，无外网/子智能体/推送合并部署，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果以后继验证接续。
+
+默认GPG提交session5741由62d646确认实际exit128/Timeout；本次输出定位pinentry76512，不冒称捕获完整签名父链。171bad只读核HEAD及已审暂存内容未变。a3bf06发现另一活动Git/签名链即停后继；4ab5de新strict实际0、现场Git/签名/runner/锁全0且原pinentry不在，未杀进程/删锁/操作窗口。按既定Timeout授权，仅本次改用git -c commit.gpgsign=false；不改global，预期签名N，实际提交及审计结果由后继验证接续。

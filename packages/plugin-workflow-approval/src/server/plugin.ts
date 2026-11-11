@@ -56,7 +56,7 @@ export class PluginWorkflowApproval extends Plugin {
         return;
       }
       this.workflow = plugin;
-      plugin.triggers.register('approval', new ApprovalTrigger(plugin));
+      plugin.triggers.register('approval', new ApprovalTrigger(plugin, this.options.businessWriteGuard));
       plugin.instructions.register('approval', new ApprovalInstruction(plugin, this.options.snapshotReadGuard));
       plugin.instructions.register(COLLECTION_NAME_APPROVAL_CARBON_COPY, new ApprovalCarbonCopyInstruction(plugin));
     });

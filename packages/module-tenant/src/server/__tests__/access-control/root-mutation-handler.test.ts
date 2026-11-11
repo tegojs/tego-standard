@@ -144,6 +144,50 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('finalized root 
     await store.save(mainIdentity, { ...config, revision: previous.revision }, { userId: 28 });
   }
 
+  it.each(['local-check!', ''])(
+    'accepts a workflow selector %j without changing the write',
+    async (triggerWorkflows) => {
+      const ctx = await context('update', {
+        values: { name: 'Checked' },
+        triggerWorkflows,
+        beforeWorkflows: '',
+      });
+      await handler.handle(ctx, auth());
+      expect(ctx.body).toEqual({ keys: [3], affected: 1 });
+      expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual([
+        { id: 1, tenantId: 'H', name: 'Visible', amount: 10 },
+        { id: 3, tenantId: 'B', name: 'Checked', amount: 30 },
+        { id: 4, tenantId: 'C', name: 'Hidden', amount: 40 },
+        { id: 5, tenantId: null, name: 'Legacy', amount: 50 },
+      ]);
+    },
+  );
+
+  it.each([
+    { triggerWorkflows: null },
+    { triggerWorkflows: ['local-check!'] },
+    { triggerWorkflows: {} },
+    { beforeWorkflows: 'unadapted-before!' },
+    { beforeWorkflows: null },
+  ])('rejects unsupported workflow transport %j before writing', async (transport) => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context('update', { values: { name: 'Forbidden' }, ...transport });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(ctx.body).toBe('unchanged');
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
+  it('does not use a workflow selector as an unbounded record selection', async () => {
+    const before = await docs.model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const ctx = await context('update', {
+      filterByTk: undefined,
+      values: { name: 'Forbidden' },
+      triggerWorkflows: 'local-check!',
+    });
+    await expect(handler.handle(ctx, auth())).rejects.toMatchObject({ code: 'INVALID_ACCESS_MUTATION' });
+    expect(await docs.model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(before);
+  });
+
   it.each([false, 'false'])('accepts inert forceUpdate metadata %j without changing selection', async (forceUpdate) => {
     const ctx = await context('update', { values: { name: 'Changed' }, forceUpdate });
     await handler.handle(ctx, auth());

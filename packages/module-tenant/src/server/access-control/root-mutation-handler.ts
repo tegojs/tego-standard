@@ -95,9 +95,20 @@ export class AccessRootMutationHandler {
       'resourceIndex',
       'filterByTk',
       'values',
+      'triggerWorkflows',
+      'beforeWorkflows',
       ...(operation === 'create' ? [] : ['filter']),
       ...(operation === 'update' ? ['forceUpdate'] : []),
     ]);
+    // Native local interception consumes this selector; it is never business write authority.
+    // 原生本地拦截器消费此选择串，它不授予业务写入权限。
+    const triggerWorkflows = data(raw, 'triggerWorkflows');
+    const beforeWorkflows = data(raw, 'beforeWorkflows');
+    if (
+      (triggerWorkflows !== undefined && typeof triggerWorkflows !== 'string') ||
+      (beforeWorkflows !== undefined && beforeWorkflows !== '')
+    )
+      invalid('Unsupported root mutation workflow parameters');
     // All mode explicitly selects the bounded ACL/G scope; false still supplies no selection.
     // 全部模式显式选择有界的 ACL/G 范围，false 本身仍不提供选中条件。
     const forceUpdate = data(raw, 'forceUpdate');

@@ -14,7 +14,13 @@ const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY;
 describe.skipIf(!coreEntry)('authenticated business request interception', () => {
   // A rejected pre-save workflow must not leave a business row behind or be skipped by selected writes.
   // 保存前校验拒绝时不得留下业务行，也不得被选中写入跳过。
-  it.each([false, true])('runs the global validation before create SQL (selected: %s)', async (selected) => {
+  const modes = [
+    { selected: false, global: true },
+    { selected: true, global: true },
+    { selected: false, global: false },
+    { selected: true, global: false },
+  ];
+  it.each(modes)('validates saves (selected: $selected, global: $global)', async ({ selected, global }) => {
     let app: MockServer;
     let unregister: (() => void) | undefined;
     const role = 'interception-creator';
@@ -123,7 +129,7 @@ describe.skipIf(!coreEntry)('authenticated business request interception', () =>
           type: 'request-interception',
           enabled: true,
           sync: true,
-          config: { collection: collectionName, global: true, actions: ['create'] },
+          config: { collection: collectionName, global, actions: ['create'] },
         },
       });
       const condition = await workflow.createNode({
@@ -145,6 +151,9 @@ describe.skipIf(!coreEntry)('authenticated business request interception', () =>
       });
       await message.setDownstream(end);
       expect(plugin.enabledCache.get(workflow.id)?.key).toBe(workflow.key);
+      // The ordinary submit button emits key! and an empty before-workflow selector for local bindings.
+      // 普通提交按钮的本地绑定发送 key!，同时保留空的前置工作流选择串。
+      const binding = global ? {} : { triggerWorkflows: `${workflow.key}!`, beforeWorkflows: '' };
       const signedIn = await app
         .agent()
         .post('/auth:signIn')
@@ -167,19 +176,23 @@ describe.skipIf(!coreEntry)('authenticated business request interception', () =>
       expect(await rows()).toEqual([]);
       const forbidden = await agent(deniedRole)
         .resource(collectionName)
-        .create({ values: { name: 'Rejected' } });
+        .create({ values: { name: 'Rejected' }, ...binding });
       expect(forbidden.status).toBe(403);
       expect(await rows()).toEqual([]);
       expect(await workflow.countExecutions()).toBe(0);
       const accepted = await agent()
         .resource(collectionName)
-        .create({ values: { name: 'Accepted' } });
-      expect(accepted.status).toBe(200);
+        .create({ values: { name: 'Accepted' }, ...binding });
       const initial = [{ id: 1, name: 'Accepted', tenantId: 'B' }];
+      expect({ status: accepted.status, rows: await rows(), executions: await workflow.countExecutions() }).toEqual({
+        status: 200,
+        rows: initial,
+        executions: 1,
+      });
       expect(await rows()).toEqual(initial);
       const rejected = await agent()
         .resource(collectionName)
-        .create({ values: { name: 'Rejected' } });
+        .create({ values: { name: 'Rejected' }, ...binding });
       expect({
         status: rejected.status,
         rows: await rows(),

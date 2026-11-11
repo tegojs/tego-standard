@@ -1530,3 +1530,11 @@ ResourceEventTrigger 与 WebhookController 现在可显式捕获可选同步 cha
 真实认证验收同时核选中拒绝、两次实际查询边界、异常控制、脚本catch不回退、取消选择后的正常修改/副本与最终raw/list及执行身份。原租户写前检查仍可能查询来源，不把helper读取0称为全部业务SQL0。最终八SQLite文件31过无跳、两个相关包完整构建、三源format/lint/diff与492差异源snapshot核对均实际exit0，具体日志/hash与两类作者断言错误见计划§420；作者完整模板串行自审，非独立复核。
 
 此项不代表完整选中getChanged执行/字段投影、关联/外部来源、任意脚本或SQL沙箱、afterResource/队列/超时/未await脚本生命周期、跨节点或跨进程原子性。原active适配与显式内部组合不代表正式部署；PG并发、业务浏览器试点及整分支独立复核仍未完成。损坏PG停止，无核心/schema/依赖锁/正式启用变更，无子智能体/外网或推送合并部署，定时任务短描述不变。
+
+### 本地拦截工作流选择串的保存兼容（§421）
+
+普通表单本地绑定按原协议发送 triggerWorkflows=workflowKey! 与空 beforeWorkflows。真实认证证明原本地校验已通过并有execution，选中根却因raw参数白名单返回400、合法业务行未保存；旧本地及两全局场景为对照。最小修复仅接纳字符串triggerWorkflows与空/缺省beforeWorkflows，非空前置选择串继续拒绝；它们不进入业务Repository、不提供动作ACL/G或记录选择权威，原工作流及事务协议保持。
+
+真实密码用户、持久普通双角色/字段ACL和B成员、同token四场景核对：无动作角色403且业务/execution0，Accepted200且完整B行，Rejected400/原消息且业务不增；最终raw/list、持久execution身份/状态及拒绝三job正确。八个低层控制另核字符串、非法形状与无界记录选择。真实RED后才改生产，最终七SQLite文件337过/38原PG跳、tenant完整构建、三源format/lint/diff和492差异源snapshot均实际exit0，具体日志/hash见计划§421；作者完整模板串行自审，非独立复核。
+
+本项只独立认证create，local update/destroy、非空beforeWorkflows/general-action完整适配、关联/外部来源及跨流程原子性未验收。PG并发、正式安装/业务浏览器试点与整分支独立复核仍待完成；原active适配不代表正式账号状态。无核心/公开类型/schema/依赖锁/正式启用变更，损坏PG停止，无子智能体/外网或推送合并部署，定时任务短描述不变。

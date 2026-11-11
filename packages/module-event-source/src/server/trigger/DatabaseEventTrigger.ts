@@ -1,8 +1,20 @@
 import { JOB_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
+import type { Application, ICollection } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
 import { evalSimulate } from '../utils/eval-simulate';
 import { EventSourceTrigger } from './Trigger';
+
+export interface DatabaseEventReadRequest {
+  readonly dataSourceName: string;
+  readonly collectionName: string;
+  readonly collection: ICollection;
+  readonly params: object;
+  readonly context: object;
+}
+
+/** Explicit source-model refusal only; this does not authorize or sandbox event scripts. */
+export type DatabaseEventReadGuard = (request: DatabaseEventReadRequest) => void;
 
 function getWorkflowDbOptions(app, model, options) {
   const requestContext = options?.context;
@@ -33,6 +45,17 @@ function getWorkflowDbOptions(app, model, options) {
 export class DatabaseEventTrigger extends EventSourceTrigger {
   eventMap: Map<number, (...args: any[]) => void> = new Map();
 
+  constructor(
+    app: Application,
+    realTimeRefresh = false,
+    private readonly readGuard?: DatabaseEventReadGuard,
+  ) {
+    super(app, realTimeRefresh);
+    if (readGuard !== undefined && typeof readGuard !== 'function') {
+      throw new TypeError('Database event read guard must be a function');
+    }
+  }
+
   load(model: EventSourceModel) {
     if (!model.options) {
       return;
@@ -51,6 +74,23 @@ export class DatabaseEventTrigger extends EventSourceTrigger {
   getDbEvent(model: EventSourceModel) {
     const { code, workflowKey } = model;
     return async (model, options) => {
+      if (this.readGuard) {
+        const collection = this.app.db.modelCollection.get(model?.constructor);
+        if (!collection) throw new TypeError('Database event source collection is unavailable');
+        const result: unknown = this.readGuard(
+          Object.freeze({
+            dataSourceName: 'main',
+            collectionName: collection.name,
+            collection,
+            params: Object.freeze({}),
+            context: options?.context,
+          }),
+        );
+        if (result !== undefined) {
+          await result;
+          throw new TypeError('Database event read guard must return undefined synchronously');
+        }
+      }
       const webhookCtx = {
         body: '',
         model,

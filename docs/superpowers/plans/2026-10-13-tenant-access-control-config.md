@@ -5906,3 +5906,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] missing-tenant-build-tenant日志session25023由0fb28a确认完整客户端/服务端/依赖/声明构建实际exit0。8d0972最终验证实际exit0：两源Prettier/oxlint零错误警告、diff检查0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的475项完整差异TS/TSX与snapshot逐字节一致。runtime/test SHA256依次41FA779BEDCAAEC8C01C670A983BC9253FA57E1422CF2CE2117869A2F338FAA1、C9B58DD82D0C504DB690163C4FDD3440016ABF03B05B66C80C84D260D0843D2D；回归/构建后源码未改，read_lints不可用用CLI。两次新未知瞬时Git均strict1即停，未豁免父进程；新strict全0后才后继，无杀进程/删锁/窗口操作。
 
 作者按完整requesting-code-review/code-reviewer模板串行自审，Baseb072bbe49e657f9c5c18adfded548e90bbc6245a至本批工作区，非独立复核；Critical/Important/Minor均无。裁决：仅新增缺租户的真实list/create与正常成员控制；get/update/destroy完整矩阵、tenantInherited/PG关联及并发、正式账号/安装启用/业务试点和整分支独立复核仍未验收，不以本项宣称完成。核心新核干净d742a1c569579e05187b8260f14d48af0d8ccbae，损坏PG保持无服务；完整端口和签名配置由提交后审计再核。仅两源及两原记录，无核心/依赖锁/正式安装变更，无子智能体/外网/推送合并部署；定时任务短描述不变。四文件待英文原子默认签名提交，实际结果以后继验证接续。
+
+
+## 410. 持久账号状态服务与真实业务读写验收
+
+- [x] 先核生产 auth.afterLoad 的 UserStatusService 安装、users/userStatuses 持久字段及核心 BaseAuth 的登录/令牌状态检查；既有 createTenantApp 的固定 active 替身不算本项。新 authenticated-user-status-business-write.test.ts 通过本地测试插件在替身之前显式组合原生产 UserStatusService 与 auth 原缓存，并断言实际实例；不改 helper 或生产安装。两项各用独立 SQLite 内存 app、本地核心 ACL、持久空 tenantScoped 普通表、无管理 snippet 的空策略角色、完整动作字段关联读回、真实 B 成员/default B，以及初始 active/pending 密码账号和持久 allowLogin 定义。
+- [x] active 真实 basic 登录、Bearer/auth:check 后，同 token 完成 create/list/get/update/destroy/最终空 list，准确 keys/affected 和完整 name/B 归属均正确；pending 在首次密码登录即 401/USER_STATUS_NOT_ALLOW_LOGIN、无 data/token，不尝试登录后的业务请求。真实状态缓存由空变为对应持久状态，账号状态不变。不伪造 permission/context、不手工 grantAction，无重新登录、注销/黑名单/撤销后凭据复用、未知目标或外部 I/O。
+- [x] 首 user-status-business-acceptance-20261111.log session32002 由 fd93b9 确认实际 exit1：作者误将 SQLite raw allowLogin 的 1/0 断言为 boolean，两项均停在 fixture 读回，非产品 RED。按实际 SQLite 形状修正后，user-status-business-acceptance-final-20261111.log session79558 由 b6bee1 确认实际 exit0，两过无跳/16.84秒/13:06:20开始；已有行为通过，无产品修改或造 RED。
+- [x] user-status-business-regression-20261111.log session29321 由 784342 确认实际 exit0，六文件284过/36原PG跳/320总，120.35秒/13:07:34开始：新2、default1、shared1、missing2、认证HTTP80/8、root-mutation198/28。两核心 ACL env 齐、单 worker 逐文件、前 runner 实际退出才后继，不累加首项或历史，非整分支/PG实测。预期拒绝、故障注入与自动 id 诊断保留批准 snapshot 父目录。
+- [x] 528cd5 实际 exit0：新测试 Prettier/oxlint 零错误警告、diff检查0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的476项完整差异 TS/TSX 与 snapshot 逐字节一致；测试 SHA256 733FE9484297AB559960E004471A1354B3B1B837072DE5E9DD19B823EBECFB22，回归后未改。仅测试及两原记录，无生产/公开类型/依赖锁变更，按聚焦规则不重复 build；read_lints 不可用改用 CLI。未知瞬时 Git 出现时 strict 实际1即停，新独立 strict 全0才后继，无父进程豁免、杀进程、删锁或窗口操作。
+
+按完整 requesting-code-review/code-reviewer 模板作者串行自审，Base491cfe92051a412a811e40c0118a41d92cd9f8d2至本批工作区，非独立复核，未发现 Critical/Important/Minor。裁决：本项仅验收显式组合真实状态服务的初始 active 正常业务生命周期与初始 pending 登录拒绝；正式安装初始化、其他状态/到期恢复/动态撤权缓存、浏览器试点、PG并发/跨进程隔离及整分支独立复核仍未完成。损坏PG保持停止，不正式安装/启用，不联系子智能体或外网，不推送合并部署；定时任务短描述不变。三文件待英文原子默认签名提交，实际提交及现场审计由后继验证接续。

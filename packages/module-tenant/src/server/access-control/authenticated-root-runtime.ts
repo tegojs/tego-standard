@@ -41,7 +41,7 @@ export function registerAuthenticatedAccessRootRuntime(
   );
   resourcer.use((ctx: Context, next) => requests.get(ctx)?.dispatch(ctx, next) ?? next(), {
     tag: 'tenantAccessRootDispatch',
-    after: ['acl', 'importXlsx'],
+    after: ['acl', 'importXlsx', 'event-source-resource'],
     before: ['tenantResourceGuard', 'dataSource'],
   });
 }

@@ -1554,3 +1554,11 @@ ResourceEventTrigger 与 WebhookController 现在可显式捕获可选同步 cha
 amount实际变化后，晚于同步工作流的来源业务hook已在同一transaction读到完整来源140、输出140和RESOLVED执行，再抛受控错误；HTTP500后来源恢复120，输出与执行全回滚，提交回调0。同Bearer只关闭故障重试200，完整两表、唯一execution/单job及真实user/editor/B核对，回调准确1，同值保存keys=[]/affected=0且不重复。保持既有编辑前G范围语义，不要求更新后仍留在原范围。
 
 已有行为首即通过，无生产修改或产品RED；最终七SQLite文件80过无跳，format/lint/diff及494差异源snapshot一致均实际exit0，具体日志/hash见计划§423。作者完整模板串行自审，非独立复核。仅证明同步标量update→create的调用方事务，不代表异步/关联/外部来源、目标job错误或外部I/O回滚、在途撤权、PG/跨进程并发及独立worker。原active适配不代表正式账号状态，正式安装/浏览器试点与整分支独立复核仍待完成。无核心/公开类型/schema/依赖锁或正式启用变更，损坏PG停止，无子智能体/外网/推送合并部署，定时任务短描述不变。
+
+### 删除来源事件的业务内容与同步事务（§424）
+
+原生CollectionTrigger的mode=4监听afterDestroy；即便来源行已在事务内物理消失，事件仍应携带该已知业务行的name/amount及真实用户/角色/租户，供原同步自动create使用。来源人工删除先过ACL/G，下游保留原节点独立操作权威及G，不借用人工输出create权限。真实密码账号、持久普通双角色/完整字段ACL及B归属验证：人工输出create和无动作角色来源destroy均403且不产生执行。
+
+晚于工作流的真实来源hook在同一transaction观察第一来源已删、第二行不变、完整输出和RESOLVED执行，再抛受控业务错误；HTTP500后两来源恢复、输出/执行全回滚、afterCommit0。同Bearer只关闭故障重试200后，第一来源物理消失、第二行保留，唯一输出/执行/单job与完整事件data及真实user/editor/B一致，afterCommit1。再次按已删除的已知主键删除按既有协议403，不重发事件或输出；不能为了预期零影响回执而放宽缺失主键拒绝。
+
+无产品RED或生产修改；首测试的缺失键200误预期及PowerShell5原生命令stderr处理错误均已区分并修正验证方式，最终七SQLite文件79过无跳，format/lint/diff及495差异源snapshot核对实际exit0，具体日志/hash见计划§424。作者完整模板串行自审，非独立复核。afterDestroy data不是数据库原生OLD或附件清理/提交证据；仅证明同步标量destroy→create，不代表异步/软删事件/关联级联/外部来源、目标job错误或外部I/O回滚、在途撤权、独立worker、PG/跨进程并发。原active适配不代表正式账号状态；正式安装/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/正式启用或推送合并部署，定时任务短描述不变。

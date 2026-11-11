@@ -5982,3 +5982,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 暂存前strict fea1cf实际exit1报活动验证进程78388；作者编排未检查返回值仍执行git add，7ed404实际exit0暂存精确三路径，这是流程错误，不能声称该次暂存前守卫通过。随后停止后继，只读958429核该PID已不在、HEAD未变及三路径完整staged diff，未杀进程/删锁/操作窗口；新独立strict309b5c实际exit0后才继续记录和提交准备。后续门控改为检查actual exit_code，非0立即停止当前工具编排。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base b0159e378344bde2c5531943dd990d2f9511dee3至本批工作区，非独立复核，无未修复Critical/Important/Minor。裁决：仅验收原内联入口中真实query→update数据流及G/V边界，不把查询可见性或人工HTTP动作权限当作自动更新授权；不证明两个节点共用原子读取快照。关联/外部来源、队列重试取消/独立worker、PG/跨进程并发、正式状态/浏览器试点及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/正式启用或推送合并部署，定时任务短描述不变。三文件待英文原子默认签名提交，实际提交及现场审计由后继验证接续。
+
+## 417. 普通新增后的 Omni 工作流关联重读边界
+
+- [x] 核原 OmniTrigger 普通 create/update 后置分支：appends 的 findOne 未调用已捕获的 omniWorkflowReadGuard，区别于§406的 workflows:trigger 及§414的事件源 beforeResource。新增 authenticated-omni-after-read-boundary.test.ts，两个独立 SQLite 内存 app对照有/无守卫；本地核心ACL、真实密码basic/Bearer/auth:check、普通空策略无snippet角色、实际B成员/default B，持久两张初始空tenantScoped业务表及完整动作字段关联读回。来源保持旧路径，仅空关联目标按阶段选中并保存空G/V；正常目标list200/[]。不新增目标行、不提交关联值，不读取隐藏未知数据。
+- [x] 同token正常HTTP新增来源，未选目标基线200、实际重读1及唯一RESOLVED执行完整来源/detail:null均成立。omni-after-read-confirmed-red-20261111.log，session24804/0c3947实际exit1，一失败一通过，17.39秒/15:51:38开始：目标选中后有守卫原仍200、重读1、执行数2，预期400/0/1。首日志session61564/2b36d3两失败仅因观察器误按include计数；Repository关联加载拆分查询，改为只读beforeFind计数后才获得产品RED，无造红。
+- [x] 最小修复仅在普通后置appends重读前调用原已捕获守卫，冻结同形请求，传真实model.collection、原tenant筛选参数/context；异步或非法返回、抛错均失败且不回退。不新增API或操作权威、不改ACL/G/原事务/正式安装。green日志session87966/d1edfa实际exit0，两过无跳，20.25秒；选中目标400且重读0/执行不增，三故障控制500且同样无重读/发布，取消选择恢复200。无守卫仍保持旧行为。
+- [x] 后置拒绝发生时来源新增已经提交，完整raw逐行确认保留该行及三故障请求各自新增行；不声称来源回滚或跨事件原子性。最终来源raw/list、全部已发布execution的数据、真实用户/角色、authContext/tenantContext/B及RESOLVED状态核对，目标始终物理空表。成员/ACL/G/token不变、不重新登录；无通知/外部I/O/撤销后凭据复用，原active测试适配不代表正式账号状态。
+- [x] omni-after-read-regression-20261111.log，session8651/3bbdeb实际exit0，七文件65过无跳，117.83秒/15:54:12开始：新2、§406原Omni2、资源事件2、query→update1、collection读取11、main-query26、authority21。两核心ACL env齐，单worker逐文件；不累加green/历史，不代表整分支或PG实测。工作流完整客户端/服务端/依赖/声明构建session43907/49bca8及tenant构建session60091/71b86b均实际exit0；日志留批准父目录。
+- [x] 最终47c20e实际exit0：两源Prettier/oxlint零错误警告、diff检查0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的486项完整差异TS/TSX与snapshot逐字节一致。测试SHA256 A559A824BD742918940B01F2F3C4B6C4511A61F3B95DA3954F27A4C2F9664D5B；trigger DC5A720B3D29DDB48101CDA5B9D65C8966B2F9224406DEB34B3634C14C5D6E5E，回归后未改。read_lints不可用用CLI。临时runner/Git使strict实际1时均停止后继，身份只读核后新strict0才继续；不沿用排除身份，不杀进程/删锁/操作窗口。补断言patch首次未匹配及一次工具参数缺失均未写生产/启动runner，不算产品RED。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base30ea8a94fb86d782c8559060e216a1013e8ae1ca至本批两源，非独立复核，无未修复Critical/Important/Minor。优点：拥有层接点最小、真实认证持久执行对照及失败关闭；裁决：保留原after-action独立提交语义，不能把HTTP错误当作来源未创建。trigger路径关联accessor、update独立认证、选中根完整Omni执行/关联混合、外部来源/队列worker、PG及跨进程并发、正式状态/浏览器试点及整分支独立复核仍待完成。仅两源及两原记录，无核心/公开类型/schema/依赖锁或正式启用变更；损坏PG保持停止，无子智能体/外网/推送合并部署，定时任务短描述不变。四文件待英文原子默认签名提交，实际提交及现场审计由后继验证接续。

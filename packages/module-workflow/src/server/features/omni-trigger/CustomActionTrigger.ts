@@ -297,6 +297,21 @@ export class OmniTrigger extends Trigger {
                 filterByTk: payload.get(model.primaryKeyAttribute),
                 appends,
               });
+              if (this.workflowReadGuard) {
+                const result: unknown = this.workflowReadGuard(
+                  Object.freeze({
+                    dataSourceName,
+                    collectionName,
+                    collection: model.collection,
+                    params: findOptions,
+                    context: ctx,
+                  }),
+                );
+                if (result !== undefined) {
+                  await result;
+                  throw new TypeError('Workflow omni business read guard must return undefined synchronously');
+                }
+              }
               payload = await model.collection.repository.findOne({
                 ...findOptions,
                 context: ctx,

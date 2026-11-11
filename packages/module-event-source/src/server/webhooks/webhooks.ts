@@ -1,11 +1,24 @@
 import { PluginWorkflow, Processor } from '@tachybase/module-workflow';
-import { ActionParams, Application, Context, IField } from '@tego/server';
+import { ActionParams, Application, Context, ICollection, IField } from '@tego/server';
 
 import dayjs from 'dayjs';
 import lodash from 'lodash';
 
 import { EVENT_SOURCE_COLLECTION } from '../constants';
 import { evalSimulate } from '../utils/eval-simulate';
+
+export interface ResourceChangedReadRequest {
+  readonly dataSourceName: string;
+  readonly collectionName: string;
+  readonly collection: ICollection;
+  readonly params: object;
+  readonly context: object;
+}
+
+/** Explicit refusal-only hook for getChanged reads, not general script authorization. */
+export type ResourceChangedReadGuard = (request: ResourceChangedReadRequest) => void;
+
+type ChangedReadCheck = (request: ResourceChangedReadRequest) => Promise<void>;
 
 function isSameBasic(val1: any, val2: any): boolean {
   if (val1 instanceof Date || val2 instanceof Date) {
@@ -82,7 +95,10 @@ function getDiffKeyExceptAfter(before: any, after: any, path = ''): string[] {
 }
 
 /** 获得真正变动的数据库字段 */
-export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; data?: any; error: Error }> {
+export function getChanged(
+  ctx: Context,
+  readCheck?: ChangedReadCheck,
+): () => Promise<{ changed?: string[]; data?: any; error: Error }> {
   return async function () {
     try {
       const params = lodash.cloneDeep(ctx.action.params) as ActionParams;
@@ -110,14 +126,25 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
           continue;
         }
       }
-      let dataBefore = (
-        await collectionRepo.findOne({
-          filter: {
-            id: params.filterByTk,
-          },
-          appends: [...appendSet],
-        })
-      ).toJSON();
+      const read = async () => {
+        const query = { filter: { id: params.filterByTk }, appends: [...appendSet] };
+        if (readCheck) {
+          await readCheck(
+            Object.freeze({
+              dataSourceName: 'main',
+              collectionName: c.name,
+              collection: c,
+              params: Object.freeze({
+                filter: Object.freeze(lodash.cloneDeep(query.filter)),
+                appends: Object.freeze([...query.appends]),
+              }),
+              context: ctx,
+            }),
+          );
+        }
+        return collectionRepo.findOne(query);
+      };
+      let dataBefore = (await read()).toJSON();
 
       const lostKeys = getLostKey(dataBefore, params.values);
       for (const lostKey of lostKeys) {
@@ -130,14 +157,7 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
         }
       }
 
-      dataBefore = (
-        await collectionRepo.findOne({
-          filter: {
-            id: params.filterByTk,
-          },
-          appends: [...appendSet],
-        })
-      ).toJSON();
+      dataBefore = (await read()).toJSON();
 
       const changed = getDiffKeyExceptAfter(dataBefore, params.values);
       return {
@@ -155,6 +175,12 @@ export function getChanged(ctx: Context): () => Promise<{ changed?: string[]; da
 }
 
 export class WebhookController {
+  constructor(private readonly changedReadGuard?: ResourceChangedReadGuard) {
+    if (changedReadGuard !== undefined && typeof changedReadGuard !== 'function') {
+      throw new TypeError('Resource changed read guard must be a function');
+    }
+  }
+
   async getLink(ctx: Context) {
     const {
       params: { name },
@@ -229,6 +255,23 @@ export class WebhookController {
   }
 
   async action(ctx: Context, action: { code: string }) {
+    let readRefused = false;
+    let readError: unknown;
+    const readCheck: ChangedReadCheck | undefined =
+      this.changedReadGuard &&
+      (async (request) => {
+        try {
+          const result: unknown = this.changedReadGuard(request);
+          if (result !== undefined) {
+            await result;
+            throw new TypeError('Resource changed read guard must return undefined synchronously');
+          }
+        } catch (error) {
+          readRefused = true;
+          readError = error;
+          throw error;
+        }
+      });
     // 兼容旧逻辑：
     // - body: 保持为空字符串，确保现有脚本行为不变
     // - originalBody: 保存 action 执行后的响应数据，供脚本访问（资源操作后事件可用）
@@ -238,8 +281,9 @@ export class WebhookController {
       action: ctx.action,
       body: '',
       originalBody: ctx.body, // action 执行后的响应数据，可用于资源操作后事件获取 action 结果
-      getChanged: getChanged(ctx),
+      getChanged: getChanged(ctx, readCheck),
     };
+    let body: unknown;
     try {
       // TODO: 这里不应该简单 try catch，如果用户想要 throw 的时候应该让它能 throw 出去，给到客户端
       await evalSimulate(action.code, {
@@ -250,11 +294,15 @@ export class WebhookController {
           dayjs,
         },
       });
-      return webhookCtx.body;
+      body = webhookCtx.body;
     } catch (err) {
       ctx.tego.logger.error(err);
-      return null;
+      body = null;
     }
+    // A script may catch helper errors, but it cannot authorize a refused raw read.
+    // 脚本可以捕获普通辅助函数错误，但不能吞掉原始读取的授权拒绝。
+    if (readRefused) throw readError;
+    return body;
   }
 
   async triggerWorkflow(ctx, action, body): Promise<Processor | void> {

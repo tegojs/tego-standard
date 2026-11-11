@@ -1519,3 +1519,14 @@ DatabaseEventTrigger在工作流前直接向脚本提供完整来源模型，不
 持久内联来源驱动单个destroy节点：仅命中V-only C候选时结果0且不变；宽筛选删除两条G内B行时，第二行afterDestroy真实业务故障发生在两行已从事务内消失之后，随后整批完整回滚。去掉故障后同token重跑准确结果2，只删除这两行，低额V-only B与C完整保留，最终list正确。三execution及job的0/业务错误/2、认证/租户上下文、独立destroy权威及状态完整核对；没有引用、关联写入、通知或外部I/O。
 
 已有行为首即通过，无生产修改或产品RED。最终七SQLite文件173过无跳、格式/lint/diff与489差异源snapshot核对均实际exit0，日志/hash见计划§419；仅测试与两记录，按聚焦规则不重复build，作者完整模板串行自审，非独立复核。保留原CustomActionTrigger loggedIn来源协议，不将此项当作新增来源动作权限设计；关联级联/软删混合、外部来源、跨节点/跨进程原子性、PG并发与队列取消未验收。原active适配及显式内部组合不代表正式部署或启用，损坏PG停止，无核心/公开类型/schema/依赖锁变更，无子智能体/外网或推送合并部署，定时任务短描述不变。
+
+
+### 资源事件 getChanged 的旧值读取边界（§420）
+
+beforeResource 脚本的 getChanged 会直接读取业务旧行，不能借最终 update 的拒绝或下游 create 的 G 掩盖来源读取。真实密码账号、持久普通角色/字段ACL、B归属及本人正常创建并读过的已知无害行证明：来源选中空G/V后直接list为空，修改最终403，但原前置工作流已把旧值复制进目标并保存execution。此独立真实RED后才修改生产代码，不涉及未知敏感目标或外部I/O。
+
+ResourceEventTrigger 与 WebhookController 现在可显式捕获可选同步 changedReadGuard；getChanged 两次 Repository 查询前分别提供真实源表、原 context、独立冻结 filter/appends 快照，复用原主库集合读取边界拒绝未适配选中读取。拒绝保留在脚本catch之外，脚本改用fallback也不能继续触发工作流；Promise/非法返回、非函数和原错误均拒绝。不调用helper的脚本及未接守卫的旧行为保持，默认插件安装不变，不新增脚本读取操作权威。
+
+真实认证验收同时核选中拒绝、两次实际查询边界、异常控制、脚本catch不回退、取消选择后的正常修改/副本与最终raw/list及执行身份。原租户写前检查仍可能查询来源，不把helper读取0称为全部业务SQL0。最终八SQLite文件31过无跳、两个相关包完整构建、三源format/lint/diff与492差异源snapshot核对均实际exit0，具体日志/hash与两类作者断言错误见计划§420；作者完整模板串行自审，非独立复核。
+
+此项不代表完整选中getChanged执行/字段投影、关联/外部来源、任意脚本或SQL沙箱、afterResource/队列/超时/未await脚本生命周期、跨节点或跨进程原子性。原active适配与显式内部组合不代表正式部署；PG并发、业务浏览器试点及整分支独立复核仍未完成。损坏PG停止，无核心/schema/依赖锁/正式启用变更，无子智能体/外网或推送合并部署，定时任务短描述不变。

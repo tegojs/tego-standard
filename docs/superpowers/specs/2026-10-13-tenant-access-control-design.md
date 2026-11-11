@@ -1570,3 +1570,13 @@ amount实际变化后，晚于同步工作流的来源业务hook已在同一tran
 拥有层只将有transaction的异步分支改为原transaction.afterCommit发布，并在回调时复核捕获listener仍有效；无transaction原路径、同步原事务、事件data/认证租户身份、节点独立操作权威及ACL/G保持。修后失败来源不新增输出/执行，同Bearer恢复正常新增后两表/两执行各单job、完整事件数据与真实user/editor/B正确；普通人工输出create和无动作来源create仍403。两原生事务控制证明提交前停用/停用后重启均不会复用旧listener，新listener下一次正常新增仍有效。
 
 最终七SQLite文件81过无跳、workflow与tenant完整包构建、三源format/lint/diff及496差异源snapshot核对均实际exit0，具体RED/green/日志/hash见计划§425。作者完整模板串行自审，非独立复核。仅验收同app普通标量create的顶层来源提交边界，不代表持久outbox/崩溃原子发布、嵌套savepoint/任意afterCommit故障、异步update/destroy/关联级联/外部来源、在途撤权/独立worker或PG/跨进程隔离。原active适配非正式账号状态；正式安装/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/正式启用或推送合并部署，定时任务短描述不变。
+
+### 原生记录模板与独立复制权限（§426）
+
+普通复制按钮先通过fetchTemplateData请求get(isTemplate=true, fields)，再独立create。模板展示选项不构成新查询或写入权威；来源读取仍须原ACL∩(G∨V)，副本新增仍须自己的动作/字段权限与G，归属来自真实当前租户。持久密码账号与普通三角色的同一HTTP请求证明：未选中旧入口可正常读取模板，选中新入口原先400，这是独立真实RED。
+
+root读取拥有层仅捕获root get的true/'true'及非空、已严格验证的fields，从查询参数移除模板标志；读取授权完成后复用原生traverseJSON清除主键和非模板字段。普通get保留id；只读角色能读模板但create仍403，无动作角色模板读取403；有权用户复制生成新主键，来源完整不变、副本保持B归属。无fields/空fields/非法标志/list模板继续拒绝，不放宽低层查询parser、关联资源或正式注册。
+
+同一回归先抓住“只接受标志但未去主键”的不完整修复；六文件首回归又暴露参数封装遗漏中性related-list调用导致五项批量写误拒绝，已改为读取.params并保留原断言。最终六SQLite文件245过/8原PG跳；另两个指定导出HTTP控制通过，其余127按名称过滤；tenant完整包构建、三源format/lint/diff及497差异源码snapshot核对均实际exit0，具体日志/hash见计划§426。首fixture缺持久主键元数据的失败与真实RED分开记录。
+
+作者完整模板串行自审，非独立复核；仅证明普通标量root复制API，不代表浏览器、关联/附件复制、外部来源、PG/跨进程隔离或正式账号状态。正式安装/规则保存启用、业务试点及整分支独立复核仍待完成。无核心/公开类型/schema/依赖锁或正式启用变更，损坏PG停止，无子智能体/外网/推送合并部署，定时任务短描述不变。

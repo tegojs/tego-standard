@@ -1,5 +1,5 @@
 import { renderExportXlsxRows, type ExportXlsxRenderContext } from '@tachybase/plugin-action-export';
-import type { Collection, Database, Transaction } from '@tego/server';
+import { traverseJSON, type Collection, type Database, type Transaction } from '@tego/server';
 
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { captureAssociationReadPreparation, prepareAssociationReadContexts } from './association-read-contexts';
@@ -476,7 +476,14 @@ export class AccessRootReadHandler {
       dateContext,
     );
     assertCurrent?.();
-    this.respond(ctx, action.actionName, params, body);
+    const output = captured.templateFields
+      ? traverseJSON(JSON.parse(JSON.stringify(body)), {
+          collection: this.db.getCollection(action.resourceName),
+          include: captured.templateFields,
+        })
+      : body;
+    assertCurrent?.();
+    this.respond(ctx, action.actionName, params, output);
   }
 
   private respond(ctx: AccessRootReadContext, actionName: string, params: Record<PropertyKey, unknown>, body: unknown) {

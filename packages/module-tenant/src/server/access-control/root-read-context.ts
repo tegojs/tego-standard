@@ -91,6 +91,14 @@ function captureParams(
   delete params.resourceIndex;
   // Core sets this own undefined property even for lists and counts.
   if (params.filterByTk === undefined) delete params.filterByTk;
+  const template = Object.hasOwn(params, 'isTemplate');
+  if (template) {
+    if (actionName !== 'get' || association || (params.isTemplate !== true && params.isTemplate !== 'true'))
+      invalid('Unsupported root record template request');
+    // Capture native presentation separately; the option grants no query capability.
+    // 单独捕获原生展示选项，此选项不授予查询能力。
+    delete params.isTemplate;
+  }
   if (Object.hasOwn(params, 'search') && actionName === 'list' && !association && searchContext) {
     params.filter = captureRootTextSearch(
       searchContext.collection,
@@ -108,8 +116,13 @@ function captureParams(
   else if (actionName === 'get') parseResourceAssociationGetParams(params, single);
   else if (actionName === 'sum') parseResourceSumParams(params);
   else parseResourceCountParams(params);
+  if (template && (!Array.isArray(params.fields) || !params.fields.length))
+    invalid('Record templates require explicit fields');
   if (params.filter !== undefined) params.filter = captureAccessFilter(params.filter);
-  return cloneDeep(params);
+  return {
+    params: cloneDeep(params),
+    ...(template ? { templateFields: [...(params.fields as string[])] } : {}),
+  };
 }
 
 /** Snapshot the already-authorized root operation before metadata or asynchronous callbacks. */
@@ -132,12 +145,19 @@ function captureReadContext(
   single = false,
 ) {
   const authorization = captureReadAuthorization(ctx, authenticated, action);
-  const params = captureParams(ctx.permission, action.resourceName, action.actionName, association, single, {
-    collection: ctx.db.getCollection(action.resourceName),
-    permission: authorization.permission,
-  });
+  const { params, templateFields } = captureParams(
+    ctx.permission,
+    action.resourceName,
+    action.actionName,
+    association,
+    single,
+    {
+      collection: ctx.db.getCollection(action.resourceName),
+      permission: authorization.permission,
+    },
+  );
   const dateContext = dates === undefined ? undefined : captureReadDateContext(dates);
-  return { action, ...authorization, params, dateContext };
+  return { action, ...authorization, params, dateContext, ...(templateFields ? { templateFields } : {}) };
 }
 
 function captureReadAuthorization(
@@ -177,7 +197,7 @@ export function captureExportReadContext(
   if (action.actionName !== 'export') invalid('File exports require an export action');
   const authorization = captureReadAuthorization(ctx, authenticated, action);
   const file = captureExportXlsxRequest(data(ctx.permission as object, 'rawParams'));
-  const params = captureParams(
+  const { params } = captureParams(
     { rawParams: file.params },
     action.resourceName,
     'export',
@@ -346,7 +366,7 @@ export function captureRelatedReadPermission(
   });
   if (!granted.allowed) return granted;
   // A decision made for a filtered lookup cannot authorize arbitrary related rows.
-  if (Reflect.ownKeys(captureParams(related.permission, action.resourceName, 'list')).length)
+  if (Reflect.ownKeys(captureParams(related.permission, action.resourceName, 'list').params).length)
     invalid('Related read decisions require an unfiltered target list context');
   return granted;
 }

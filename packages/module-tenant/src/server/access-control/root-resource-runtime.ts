@@ -6,10 +6,11 @@ import {
 } from '@tachybase/plugin-action-export';
 import { Repository, Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
 
+import { translateTenantError } from '../locale';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
-import type { AccessIdentity } from './context';
+import { requiresTenantAccessContext, type AccessIdentity } from './context';
 import { captureFinalActionPermission } from './final-action-permission';
 import { assertLegacyChartReadBoundary, assertLegacyReadBoundary } from './legacy-read-boundary';
 import { assertLegacyDestroyBoundary, assertLegacyWriteBoundary } from './legacy-write-boundary';
@@ -26,6 +27,7 @@ interface RootRequest {
   actionName: string;
   sourceId: unknown;
   actor: Readonly<AccessIdentity>;
+  requiresTenant: boolean;
   identities: readonly AccessCollectionIdentity[];
   related: AccessRootReadContext[];
   assertCurrent(): void;
@@ -278,6 +280,10 @@ export class AccessRootResourceRuntime {
         actionName,
         sourceId,
         actor: capturedActor,
+        requiresTenant: configured.some((identity) => {
+          const config = this.prepared.configuration(ctx, identity);
+          return config.ownership.enabled || requiresTenantAccessContext(config);
+        }),
         identities: capturedIdentities,
         related: [],
         assertCurrent: () => {
@@ -317,6 +323,10 @@ export class AccessRootResourceRuntime {
     const request = this.requests.get(ctx);
     if (!request) return void (await next());
     request.assertCurrent();
+    // Selected dispatch runs before the legacy tenant guard; retain its actionable missing-tenant denial.
+    // 选中执行链位于旧租户守卫之前，仍须保留明确的缺租户拒绝提示。
+    if (request.requiresTenant && (request.actor.tenantId == null || request.actor.tenantId === ''))
+      ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
     const authorize = async (collection: Collection, actionName: string): Promise<AccessRootReadContext> => {
       request.assertCurrent();
       const decision = this.relatedDecision(ctx, collection, actionName);

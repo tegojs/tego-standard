@@ -1414,3 +1414,11 @@ flat根list现可接收原FuzzySearchInput的search.keywords，仅按最终list 
 WorkflowPluginOptions新增显式omniWorkflowReadGuard，Omni构造时固定回调，在workflows资源配置appends的findOne前同步否决；冻结请求携真实目标、原完整options及HTTP context，不授予操作权威。Promise/非法返回/抛错均在业务查询前失败；未安装或未选中保留旧行为，只在内部夹具复用原main collection读边界，不自动注册或启用。两认证项覆盖拒绝、兼容、恢复、启动校验与错误不回退；六文件106过/8原PG跳、workflow和tenant完整包构建、format/lint及469差异源snapshot核对均实际exit0，过程和hash见计划§406。
 
 完整模板作者串行自审无未修复问题，非独立复核。普通Omni前后阶段/模型与accessor读取、触发权限、业务写与触发及重读的事务原子性、完整关联混合、PG/跨进程隔离、正式账号/启用和整分支独立复核仍未完成；本项仅补workflows资源的一处重读拒绝接线，不宣称完整Omni支持。损坏PG保持停止，无核心/依赖锁变更，无子智能体/外网/推送合并部署，定时任务短描述不变。
+
+### 本地化数据库文本扫描边界（§407）
+
+本地化同步的db来源直接扫描所有translation字段，不经过普通业务根权限执行链；本地化管理snippet不能授予业务读取权。真实密码认证、普通持久角色/list字段与tenant B、持久空业务表证明：选中空规则后直接列表为空，原同步仍执行一次真实业务查询并返回200。RED仅观察空表查询，不读取隐藏业务数据或执行外部I/O。
+
+原插件现在可显式配置databaseTextReadGuard，在beforeLoad捕获并校验，在HTTP扫描每张表find前否决；冻结请求携真实collection、完整fields和HTTP context。异步/非法结果或抛错均在查询前失败，不退回原扫描。内部夹具复用既有legacy读边界，只拒绝未适配选中表，不授权文本查询；未接入守卫和离线迁移仍保留旧行为，不自动安装或正式启用。两认证项覆盖动作ACL、拒绝/兼容/恢复、回调固定及故障传播，catalog与空业务表不变。四文件92过/8原PG跳、两个完整包构建、format/lint/diff及472差异源/13本地化源snapshot核对均实际exit0，过程与hash见计划§407。
+
+完整模板作者串行自审无未修复问题，非独立复核。afterSave自动文本提取、既有catalog/appLang读取发布、离线迁移、完整授权文本同步、关联混合、PG/跨进程隔离、正式账号/安装启用及整分支独立复核仍未完成；仅补HTTP扫描拒绝接线，不能称整个插件已适配。损坏PG保持停止，无核心/依赖锁变更，无子智能体/外网/推送合并部署，定时任务短描述不变。

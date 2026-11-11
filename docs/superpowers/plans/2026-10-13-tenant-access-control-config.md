@@ -5872,3 +5872,15 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 两次snapshot清单数量误估实际1；首误估后作者编排仍启动green，复制和lint已完成但清单未核全，未据此宣称完整验证。修正后重新核全且最终独立验证0；第二次正确停止后继。曾给旧mock补options，最后用可选options读取保持原构造兼容并撤回该fixture改动，旧文件恢复原内容/行尾且不提交。只读Windows路径通配失败非产品RED。每个实际runner退出后才启动后继；原未知Git已不在，所有新strict均重新核现场、不沿用PID或外部排除。
 
 作者按完整requesting-code-review/code-reviewer模板串行自审，Base b5a53a025058d8fcc83db67d2b325205c8919997至本批工作区，非独立复核；Critical/Important/Minor均无，可提交本项。裁决：仅为workflows资源按配置重读的显式拒绝边界，完整Omni生命周期/触发权限/事务原子性、关联混合、PG/跨进程隔离、正式账号/安装启用/业务试点及整分支独立复核仍未完成，误称支持会遗漏其他读取和执行路径。核心新核干净d742a1c569579e05187b8260f14d48af0d8ccbae，PG无服务/25466记录0、default/global signing true。无核心/依赖锁或正式安装修改，无子智能体/外网/杀进程/删锁/认证窗口操作或推送合并部署；定时任务短描述不变。三源及两原记录待英文原子默认签名提交，实际结果以后继验证接续。
+
+## 407. 本地化数据库文本扫描的业务读取边界
+
+- [x] 先核真实客户端同步操作及localization:sync的db来源：原getTextsFromDB按translation字段直接Repository.find，不经过普通业务根执行链。本地化管理snippet仅允许同步动作，不能代替业务表读取授权。新authenticated-localization-scan-boundary.test.ts使用独立SQLite内存app、本地核心ACL、原插件源码、持久空tenantScoped业务表和真实密码basic Bearer/auth:check；普通operator/reader角色、持久list字段及tenant B均核对，显式组合原registry/adapter/runtime，不伪造permission/context。
+- [x] 业务表始终为空，仅beforeFind观察实际查询。未选中operator同步200/查询1，reader无同步snippet时403/查询0；选择空新规则后直接list200/[]，原同步仍200/查询1，期望400/查询0失败。localization-scan-red-20261111.log的session16804由80ccb6确认实际exit1，1失败/13.74秒/12:04:33开始；无隐藏或敏感数据读取、外部I/O或撤销后凭据复用。
+- [x] 拥有层新增显式databaseTextReadGuard，beforeLoad校验并捕获；HTTP db扫描在每张表find前传冻结请求、原collection/完整fields与真实context，正常同步undefined不新增守卫await，异步/非法结果及抛错均在目标查询前失败。不改原同步动作ACL、查询及catalog写入；仅内部夹具复用assertLegacyReadBoundary，不新增tenant边界类、不自动安装。旧迁移getTextsFromDB(db)及未安装守卫保持原行为。
+- [x] minimal-green一过，session92241由e4e20f确认实际exit0；controls两过，session2112由918105确认实际exit0。两认证项覆盖显式接入/无守卫兼容、选中拒绝前查询0、真实user/role/B与字段参数、冻结请求、加载后options不能替换回调、非函数安装拒绝、异步/非法/抛错不回退、清选择恢复与原Repository故障传播。拒绝及故障后catalog完整不变，业务表始终空；原active适配非正式账号状态。
+- [x] localization-scan-regression-20261111.log四SQLite文件92过/8原PG门控跳/100总，session14576由22a0ce确认实际exit0，64.48秒/12:08:55开始：新2、原本地化actions5/resources5、原认证HTTP80/8。两核心ACL env齐、单worker逐文件，不累加单项/历史，非整分支或PG实测；预期拒绝/故障注入日志保留批准snapshot父目录。plugin与tenant完整客户端/服务端/依赖/声明构建分别session55245由f64400、session83998由6633c7确认实际exit0，前runner实际退出后才后继。
+- [x] d861fc验证session80021由d6a75b确认实际exit0：三源Prettier/oxlint零错误警告、diff检查、472项完整分支差异TS/TSX及13个本地化服务端源与snapshot逐字节一致；基点89f026c99690da17bd927aa0f7f1507f66d2b040。plugin/scanner/test SHA256依次2CB31C0EAD198D26111213741C2BCA9E3FBE09E0BA8A4A9467393082DD88935E、79800361083C13808EF2902712B3361193DD039E48C9B2B7D31DC36191BC510A、33EC442517FEA21A6BA410EC9C68BA18EB5E268AD3727DFBCCFC4EB20831BA4C，最终回归/构建后源码未改。read_lints不可用用CLI；核心干净d742a1c569579e05187b8260f14d48af0d8ccbae，PG无服务/25466全部记录0、default/global signing true。
+- [x] 中途原strict两次见未知瞬时Git即阻断后继，未排除其父进程或操作进程；现场全部清零的新strict实际0后才继续。未杀进程/删锁/操作认证窗口，不以PID消失冒充实际退出。
+
+作者按完整requesting-code-review/code-reviewer模板串行自审，Base32803ee723930afe7b768c9b97bd8bd4c2b72c69至本批工作区，非独立复核；Critical/Important/Minor均无。裁决：仅为HTTP db文本扫描的显式拒绝边界，完整授权文本执行、afterSave自动提取、既有catalog/appLang读取发布、离线迁移、关联混合、PG/跨进程隔离、正式账号/安装启用和整分支独立复核仍未验收，不能称整个本地化插件已适配。仅三源与两原记录，无核心/依赖锁/正式安装变更，无子智能体/外网/推送合并部署；定时任务短描述不变。五文件待英文原子默认签名提交，实际结果以后继验证接续。

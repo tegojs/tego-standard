@@ -1,5 +1,5 @@
 import { ModuleUiSchema } from '@tachybase/module-ui-schema';
-import { InstallOptions, Model, Plugin } from '@tego/server';
+import { InstallOptions, Model, Plugin, type Collection, type Context, type PluginOptions } from '@tego/server';
 
 import deepmerge from 'deepmerge';
 
@@ -9,7 +9,24 @@ import { NAMESPACE_COLLECTIONS, NAMESPACE_MENUS } from './constans';
 import Resources from './resources';
 import { getTextsFromDBRecord } from './utils';
 
+/** Refusal only; localization synchronization does not grant business read authority. */
+export interface LocalizationDatabaseTextReadRequest {
+  readonly collectionName: string;
+  readonly collection: Collection;
+  readonly params: object;
+  readonly context: Context;
+}
+
+export type LocalizationDatabaseTextReadGuard = (request: LocalizationDatabaseTextReadRequest) => void;
+
+export interface LocalizationManagementPluginOptions extends PluginOptions {
+  /** Explicit server bootstrap only; this does not install a selected-table text reader. */
+  databaseTextReadGuard?: LocalizationDatabaseTextReadGuard;
+}
+
 export class LocalizationManagementPlugin extends Plugin {
+  declare options: LocalizationManagementPluginOptions;
+  private databaseTextReadGuard?: LocalizationDatabaseTextReadGuard;
   resources: Resources;
 
   registerUISchemahook(plugin?: ModuleUiSchema) {
@@ -44,7 +61,22 @@ export class LocalizationManagementPlugin extends Plugin {
 
   afterAdd() {}
 
-  beforeLoad() {}
+  beforeLoad() {
+    const guard = this.options.databaseTextReadGuard;
+    if (guard !== undefined && typeof guard !== 'function')
+      throw new TypeError('Localization database text read guard must be a function');
+    this.databaseTextReadGuard = guard;
+  }
+
+  assertDatabaseTextRead(request: LocalizationDatabaseTextReadRequest) {
+    if (!this.databaseTextReadGuard) return;
+    const result: unknown = this.databaseTextReadGuard(request);
+    if (result !== undefined) {
+      return Promise.resolve(result).then(() => {
+        throw new TypeError('Localization database text read guard must return undefined synchronously');
+      });
+    }
+  }
 
   async load() {
     this.app.resourcer.define({

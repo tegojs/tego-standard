@@ -1511,3 +1511,11 @@ DatabaseEventTrigger在工作流前直接向脚本提供完整来源模型，不
 两个独立app以真实密码用户、持久普通角色/动作字段ACL和B归属验证旧路径与选中根：无动作权限403且业务/执行均无副作用；合法角色Accepted正常新增，Rejected准确400/原消息且物理表与最终list仅保留Accepted。两持久execution的身份/租户与RESOLVED/REJECTED状态、拒绝分支三job结果完整核对。首两轮漏接End属于夹具错误；节点连通后真实RED为REJECTED却HTTP200并新增，最小接线后两过。最终八SQLite文件111过/8原PG专用跳、workflow与tenant完整构建、三源format/lint/diff及488差异源snapshot均实际exit0，详细日志/hash见计划§418；作者完整模板串行自审，非独立复核。
 
 本项仅独立认证验收主数据源全局create，不代表update/destroy、local绑定、关联/外部来源或其他工作流组合已完成；工作流自身输出与后续业务SQL不因此获得跨流程原子回滚保证。PG/跨进程并发、队列worker、正式账号状态/浏览器试点及整分支独立复核仍待完成。原active适配与显式内部组合保持，无核心/公开类型/schema/依赖锁或正式启用变更，损坏PG停止，无子智能体/外网或推送合并部署，定时任务短描述不变。
+
+### 真实认证工作流批量删除（§419）
+
+自动删除节点沿原持久执行身份和独立destroy操作权威执行，不能以V可见性或其他节点的权限替代G。真实密码用户绑定普通creator/operator两角色；静态G分别允许creator正常新增、operator仅删除当前B归属且amount>=100的行，operator的V可以读本项全部已知记录，人工HTTP删除仍因缺动作ACL而403。四行均从正常HTTP新增并完整读回，成员、ACL、G与原token全程不变。
+
+持久内联来源驱动单个destroy节点：仅命中V-only C候选时结果0且不变；宽筛选删除两条G内B行时，第二行afterDestroy真实业务故障发生在两行已从事务内消失之后，随后整批完整回滚。去掉故障后同token重跑准确结果2，只删除这两行，低额V-only B与C完整保留，最终list正确。三execution及job的0/业务错误/2、认证/租户上下文、独立destroy权威及状态完整核对；没有引用、关联写入、通知或外部I/O。
+
+已有行为首即通过，无生产修改或产品RED。最终七SQLite文件173过无跳、格式/lint/diff与489差异源snapshot核对均实际exit0，日志/hash见计划§419；仅测试与两记录，按聚焦规则不重复build，作者完整模板串行自审，非独立复核。保留原CustomActionTrigger loggedIn来源协议，不将此项当作新增来源动作权限设计；关联级联/软删混合、外部来源、跨节点/跨进程原子性、PG并发与队列取消未验收。原active适配及显式内部组合不代表正式部署或启用，损坏PG停止，无核心/公开类型/schema/依赖锁变更，无子智能体/外网或推送合并部署，定时任务短描述不变。

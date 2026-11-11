@@ -311,9 +311,23 @@ export function snapshotProtectedValues(
 /** Check ORM-normalized values without running custom setters on the authorized record. */
 export function hasPersistedChanges(record: Model, values: Record<string, unknown>): boolean {
   const model = record.constructor as ModelStatic<Model>;
-  if (Object.keys(values).some((field) => model.rawAttributes[field].set || model.options.setterMethods?.[field]))
-    return true;
+  const normalized = new Map<string, unknown>();
+  for (const [field, value] of Object.entries(values)) {
+    const attribute = model.rawAttributes[field];
+    if (model.options.setterMethods?.[field]) return true;
+    if (!attribute.set) continue;
+    const hint = (
+      attribute as typeof attribute & {
+        accessControlValueNormalization?: { setter: unknown; normalize: (value: unknown) => unknown };
+      }
+    ).accessControlValueNormalization;
+    // Unknown/replaced setters retain the existing real-save path; no speculative invocation.
+    // 未知或已替换的 setter 仍走实际保存，不在判等时执行。
+    if (!hint || hint.setter !== attribute.set || typeof hint.normalize !== 'function') return true;
+    normalized.set(field, hint.normalize(cloneDeep(value)));
+  }
   const candidate = model.build(cloneDeep(record.dataValues), { isNewRecord: false, raw: true });
-  candidate.set(cloneDeep(values));
+  candidate.set(cloneDeep(Object.fromEntries(Object.entries(values).filter(([field]) => !normalized.has(field)))));
+  for (const [field, value] of normalized) candidate.setDataValue(field, value);
   return candidate.changed() !== false;
 }

@@ -5884,3 +5884,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 中途原strict两次见未知瞬时Git即阻断后继，未排除其父进程或操作进程；现场全部清零的新strict实际0后才继续。未杀进程/删锁/操作认证窗口，不以PID消失冒充实际退出。
 
 作者按完整requesting-code-review/code-reviewer模板串行自审，Base32803ee723930afe7b768c9b97bd8bd4c2b72c69至本批工作区，非独立复核；Critical/Important/Minor均无。裁决：仅为HTTP db文本扫描的显式拒绝边界，完整授权文本执行、afterSave自动提取、既有catalog/appLang读取发布、离线迁移、关联混合、PG/跨进程隔离、正式账号/安装启用和整分支独立复核仍未验收，不能称整个本地化插件已适配。仅三源与两原记录，无核心/依赖锁/正式安装变更，无子智能体/外网/推送合并部署；定时任务短描述不变。五文件待英文原子默认签名提交，实际结果以后继验证接续。
+
+## 408. 原生地图坐标无变化保存不认领历史数据
+
+- [x] 先核原MapPlugin/Point setter与真实地图清空null协议。新authenticated-map-noop-write.test.ts使用独立SQLite内存app、本地核心ACL及原地图插件；持久Collection Manager的tenantScoped表、普通空策略无snippet角色、完整持久list/create/update字段关联读回、正常密码basic Bearer/auth:check及tenant B均核实。原registry/adapter/runtime显式组合，G绑定真实user.id/role.name；两条可见无害历史夹具加一条正常HTTP新增的B行，完整raw/list核对，不伪造permission/context。
+- [x] 原hasPersistedChanges将任何自定义setter都当成真实变化。单条null保存及混合批量清空中，原空坐标行location仍null却tenantId变B；map-noop-red-20261111.log的session81253由d47588确认实际exit1，两失败/15.60秒/12:29:21开始。新增、认证和完整列表先通过，RED精确为无变化行错误认领，非普通标量no-op重复验收。
+- [x] Point拥有层复用纯normalize与原setter，仅SQLite且未覆盖dataType提供冻结的accessControlValueNormalization，并绑定原setter精确身份。write-support仅对该匹配纯函数复制输入并比较存储值，不提前执行setter；未知/替换setter及setterMethods保留原真实保存路径。metadata-snapshot分别捕获setter/marker/归一化函数及setterMethods身份，元数据漂移仍拒绝并回滚；不改原mutation、Repository、核心、依赖锁或正式安装。
+- [x] 首green实际exit1：作者误将可信函数放进禁止函数的输入cloneDeep，导致正常新增400；已改为单独捕获回调身份，保留输入克隆安全约束，非新产品RED。controls日志session28099由c262e7确认实际exit0，两过无跳/15.20秒；核空坐标及相同坐标无变化、真正修改后才归属、批量仅修改行认领、beforeUpdate移除marker后400且完整三行回滚、替换setter同值保存成功且仅执行一次并真实改名。同token/ACL/G/成员，无未知敏感目标、撤销凭据探测、通知或外部I/O；原active适配不称正式账号状态。
+- [x] map-noop-regression-20261111.log七SQLite文件333过/43原PG门控跳/376总，session29752由1e8423确认实际exit0，125.52秒/12:34:27开始：新2、原scalar-noop2、encryption1、mutation44/7、root-mutation198/28、原认证HTTP80/8、原地图fields6。另metadata日志261431单文件16过无跳/3.54秒/实际exit0；各次不与controls/RED/历史累加，非PG或整分支实测。两核心ACL env齐，单worker逐文件，前runner实际退出才后继；预期拒绝和故障注入日志保留批准snapshot父目录。
+- [x] 地图与tenant完整客户端/服务端/依赖/声明构建分别session52329由20ea7e、session92788由e8c0c8确认实际exit0。最终验证session59031由d651f9确认实际exit0：四源Prettier/oxlint零错误警告、diff检查0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的474项完整差异TS/TSX及13个地图服务端源与snapshot逐字节一致。Point/write-support/metadata/test SHA256依次5684C00381A595E2CA69DD51767EC00659ADF611CD6D28EED2E310EBEFE19013、40D12ABBB9411A6BB45FC155FEC69979E1FEB91DCB3198A068AF860E44DCF513、5086DCDEEB08488AB872F1F4227C0DA649ACE2A4F21792A3CE093137B9EACBF3、DDFB1CBBCF220519A5E15D1CD5125D95334EA9EE4D004A2E23C9D59126278521；回归/构建后源码未改，read_lints不可用用CLI。
+
+作者按完整requesting-code-review/code-reviewer模板串行自审，Base4fd774f0fbc611a6ec84dcd14811ab6872f5bb0a至本批工作区，非独立复核；Critical/Important/Minor均无。裁决：仅完成SQLite原生Point纯存储值比较；任意setter、其他地图字段、PG/MySQL Point无变化、关联混合、跨进程/PG并发及正式账号/启用/整分支独立复核仍未验收，不得推称完整setter支持。核心新核干净d742a1c569579e05187b8260f14d48af0d8ccbae，PG无服务/25466本地端口记录0，default/global signing true；后继审计再核全部双向端口。无子智能体/外网/杀进程/删锁/认证窗口操作或推送合并部署；定时任务短描述不变。仅四源与两原记录，六文件待英文原子默认签名提交，实际结果以后继验证接续。

@@ -8,7 +8,7 @@ function modelSnapshot(model: ModelStatic<Model>) {
   const runtime = model as unknown as { _scope: unknown; _timestampAttributes: { deletedAt?: string } };
   const deletedAt = runtime._timestampAttributes.deletedAt;
   const table = model.getTableName();
-  return cloneDeep({
+  const data = cloneDeep({
     alias: model.name,
     table:
       typeof table === 'string'
@@ -26,6 +26,17 @@ function modelSnapshot(model: ModelStatic<Model>) {
     deletedAt,
     deletedDefault: deletedAt ? model.rawAttributes[deletedAt]?.defaultValue : undefined,
   });
+  // Capture trusted callback identities separately; mutation input cloning deliberately rejects functions.
+  // 可信回调单独捕获身份，输入深拷贝仍然拒绝函数。
+  const setters = Object.entries(model.rawAttributes).map(([name, attribute]) => {
+    const hint = (
+      attribute as typeof attribute & {
+        accessControlValueNormalization?: { setter?: unknown; normalize?: unknown };
+      }
+    ).accessControlValueNormalization;
+    return [name, attribute.set, hint, hint?.setter, hint?.normalize];
+  });
+  return { data, setters, setterMethods: { ...model.options.setterMethods } };
 }
 
 /** Snapshot only registered metadata used by these rules, not every collection in the application. */

@@ -94,4 +94,51 @@ describe('collection workflow listener lifecycle', () => {
     expect(executions.map((execution) => execution.tenantId)).toEqual(['B']);
     expect(executions[0].context.data.revision).toBe(2);
   });
+
+  it.each([false, true])('rejects a removed asynchronous listener at commit with re-enable: %s', async (reEnable) => {
+    const sources = app.db.getRepository('listenerLifecycleSources');
+    const results = app.db.getRepository('listenerLifecycleResults');
+    const workflow = await app.db.getRepository('workflows').create({
+      values: {
+        enabled: false,
+        sync: false,
+        type: 'collection',
+        config: { collection: 'listenerLifecycleSources', mode: 1 },
+      },
+    });
+    await workflow.createNode({
+      type: 'create',
+      config: { collection: 'listenerLifecycleResults', params: { values: { label: 'Committed for B' } } },
+    });
+    await workflow.update({ enabled: true });
+    const transaction = await app.db.sequelize.transaction();
+    try {
+      await sources.create({ values: { title: 'removed listener', tenantId: 'B' }, transaction });
+      expect(await workflow.countExecutions({ transaction })).toBe(0);
+      expect(await results.count({ transaction })).toBe(0);
+      await workflow.update({ enabled: false }, { transaction });
+      if (reEnable) await workflow.update({ enabled: true }, { transaction });
+      await transaction.commit();
+    } finally {
+      if (!transaction.finished) await transaction.rollback();
+    }
+    await waitForWorkflowIdle(app);
+    expect(await sources.count()).toBe(1);
+    expect(await workflow.countExecutions()).toBe(0);
+    expect(await results.count()).toBe(0);
+
+    if (!reEnable) await workflow.update({ enabled: true });
+    await sources.create({ values: { title: 'current listener', tenantId: 'B' } });
+    await waitForFastAssertion(async () => {
+      const rows = await results.find();
+      expect(rows.map((row) => ({ label: row.label, tenantId: row.tenantId }))).toEqual([
+        { label: 'Committed for B', tenantId: 'B' },
+      ]);
+    });
+    await waitForWorkflowIdle(app);
+    const executions = await workflow.getExecutions();
+    expect(executions).toHaveLength(1);
+    expect(executions[0].tenantId).toBe('B');
+    expect(executions[0].context.data.title).toBe('current listener');
+  });
 });

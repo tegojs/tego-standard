@@ -190,6 +190,14 @@ async function handler(
       ...triggerOptions,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
+  } else if (transaction) {
+    // Publish only committed changes; asynchronous executions own a separate transaction.
+    // 异步执行拥有独立事务，只发布来源事务已提交的变化。
+    transaction.afterCommit(() => {
+      if (isCurrent()) {
+        this.workflow.trigger(workflow, triggerContext, triggerOptions);
+      }
+    });
   } else {
     this.workflow.trigger(workflow, triggerContext, triggerOptions);
   }

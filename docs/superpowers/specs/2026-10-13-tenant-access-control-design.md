@@ -1562,3 +1562,11 @@ amount实际变化后，晚于同步工作流的来源业务hook已在同一tran
 晚于工作流的真实来源hook在同一transaction观察第一来源已删、第二行不变、完整输出和RESOLVED执行，再抛受控业务错误；HTTP500后两来源恢复、输出/执行全回滚、afterCommit0。同Bearer只关闭故障重试200后，第一来源物理消失、第二行保留，唯一输出/执行/单job与完整事件data及真实user/editor/B一致，afterCommit1。再次按已删除的已知主键删除按既有协议403，不重发事件或输出；不能为了预期零影响回执而放宽缺失主键拒绝。
 
 无产品RED或生产修改；首测试的缺失键200误预期及PowerShell5原生命令stderr处理错误均已区分并修正验证方式，最终七SQLite文件79过无跳，format/lint/diff及495差异源snapshot核对实际exit0，具体日志/hash见计划§424。作者完整模板串行自审，非独立复核。afterDestroy data不是数据库原生OLD或附件清理/提交证据；仅证明同步标量destroy→create，不代表异步/软删事件/关联级联/外部来源、目标job错误或外部I/O回滚、在途撤权、独立worker、PG/跨进程并发。原active适配不代表正式账号状态；正式安装/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/正式启用或推送合并部署，定时任务短描述不变。
+
+### 来源事务提交后的异步事件发布（§425）
+
+原生CollectionTrigger的异步来源事件与同步事件具有不同事务协议：同步事件继续沿调用方transaction执行；异步执行拥有独立事务，但不能把后来回滚的来源变化发布成业务任务。真实密码账号、持久普通角色/完整字段ACL、B归属与两张选中标量表复现：合法新增对照通过，随后来源实际SQL完成再由业务hook拒绝，HTTP500且来源回滚，原队列却仍持久化Rejected input输出。这是独立真实RED，不是新增权限豁免或SQLite内存连接冲突。
+
+拥有层只将有transaction的异步分支改为原transaction.afterCommit发布，并在回调时复核捕获listener仍有效；无transaction原路径、同步原事务、事件data/认证租户身份、节点独立操作权威及ACL/G保持。修后失败来源不新增输出/执行，同Bearer恢复正常新增后两表/两执行各单job、完整事件数据与真实user/editor/B正确；普通人工输出create和无动作来源create仍403。两原生事务控制证明提交前停用/停用后重启均不会复用旧listener，新listener下一次正常新增仍有效。
+
+最终七SQLite文件81过无跳、workflow与tenant完整包构建、三源format/lint/diff及496差异源snapshot核对均实际exit0，具体RED/green/日志/hash见计划§425。作者完整模板串行自审，非独立复核。仅验收同app普通标量create的顶层来源提交边界，不代表持久outbox/崩溃原子发布、嵌套savepoint/任意afterCommit故障、异步update/destroy/关联级联/外部来源、在途撤权/独立worker或PG/跨进程隔离。原active适配非正式账号状态；正式安装/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/正式启用或推送合并部署，定时任务短描述不变。

@@ -6274,3 +6274,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 原strict e00dae/a3b116/db1b10实际0；9f8c76/c4e30b/e9d722遇未知Git实际1即停后继，cwd采样199e6a遇已消失进程实际1未予排除，4fb620新独立原strict实际0才回归。41e26d见外部push六进程后停最终检查；2803fc只读逐一核精确身份/创建/父链/命令/可执行与实际cwd均属WutheringWaves-UIResources，新独立scoped59f15c实际0且当场外部已0才继续。不沿用旧排除，不把外部push当本会话操作，不杀进程/删锁/操作窗口。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base39d0cc177b933adbfae47590a64f988ed158609e至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：入队时合法/执行时停用的明确时序、原timer与持久数据、停用B拒写和正常C成功控制、完整业务/队列/执行后验。范围裁决：仅同app串行执行前租户停用，不证明停用与已开始SQL/外部I/O原子取消、账号/角色/成员撤权、跨进程当前权限、独立worker或PG并发；原loggedIn入口策略保持。正式账号/安装/规则保存启用/业务浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/验签和现场审计接续。
+
+## 443. 原生代码事件源入口的真实认证业务写入
+
+- [x] 接续§442签名提交70b859dfe8f34cd7193496b10dc164de656a76ae。核原PluginWebhook注册webhooks:trigger及loggedIn策略、getLink按name读取持久code事件源、evalSimulate将ctx.body传给同步工作流，最后job结果直接无包装返回；与动态资源事件/队列/workflows:test为不同真实入口。保留原策略，不复制路由或手工grantAction。
+- [x] 新增authenticated-code-event-source-write.test.ts：独立SQLite内存app、本地核心ACL factory、完整原ModuleEventSourceServer及WorkflowPlugin；加载后停止原空队列timer。真实密码普通空策略无snippet角色，B/C成员/default B、请求选择C；持久tenantScoped初始空name/amount表无时间/审计/关联，list字段ACL完整读回。显式原registry/adapter/write runtime，G绑定真实user.id、role.name、归属及amount≥100，不伪造permission/context或正式安装。
+- [x] 真实basic/Bearer/auth:check，人工业务create403且表空；持久code脚本将values传给create节点。80请求HTTP200但execution/job ERROR、完整业务表仍空；140请求HTTP200返回完整无包装C行，raw/list/job准确一致。核两execution data/认证/C、全部jobs/result及两次live create权威、队列表空/default B不变；同token/成员/ACL/G不变。原active测试适配不代表正式账号状态。
+- [x] code-event-source-write-acceptance-20261112.log：session41840/3d86f7实际exit0，首即1过无跳，18.24秒/17:14:16开始。regression日志session19454/e31bb9实际exit0，七SQLite文件74过无跳，61.98秒/17:14:59开始：新1、原inline1、队列2、webhook-list3、eval-simulate6、main-write40、live authority21。两核心ACL env齐、单worker逐文件，前runner实际退出才后继；不累加首项/历史，旧mock/context仅兼容。无产品RED、造红或生产修改，日志及snapshot/.tenant443-temp保留。
+- [x] d086c8实际0核Prettier、oxlint零错误警告、diff0；基点89f026c99690da17bd927aa0f7f1507f66d2b040的517项完整差异TS/TSX与批准snapshot逐字节一致。新测试SHA256 AD93B3BE18431FB5D2A8D240CB7236C557FCED9DA4B0BF2CABB7D4D05EBC128F，回归后未改。read_lints不可用用CLI；仅新测试/两原记录，无生产/核心/公开类型/schema/依赖锁变化，按聚焦规则不重复build。
+- [x] 原strict4e0c65/21758c/16faf9/e782b3见外部Git即实际1，未启动后继；02a6d3只读核五进程精确身份/创建/父链/命令/可执行及cwd均属WutheringWaves-UIResources。新scoped f23374/8e2de7/090cfe各实际0，当场重核匹配才排除外部5，未知Git/签名/runner/本库锁仍阻挡；不称全局Git0，不杀进程/删锁/操作窗口。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base70b859dfe8f34cd7193496b10dc164de656a76ae至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原生注册及持久脚本、真实认证/ACL、人工动作与节点权威分离、拒绝/成功及完整数据后验。范围裁决：保留原loggedIn策略，仅验收选中工作流写入，不代表任意脚本安全或事件管理权限重设计；仅同app串行同步标量写，不证明异步/关联混合/跨节点整体事务、撤权取消、独立worker或PG并发，若误作这些保证会漏掉独立安全边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/验签和现场审计接续。

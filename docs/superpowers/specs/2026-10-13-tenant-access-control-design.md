@@ -1702,3 +1702,9 @@ workflows:test会实际执行节点并持久化业务数据；须先通过原工
 队列保存的tenantId只证明任务来源；选中业务写入必须在执行时按原租户事实源确认仍启用。B/C均启用时真实密码用户各入队一任务，worker尚未启动；服务端持久停用B后再处理，B任务应DEAD且execution/job ERROR、业务基线不变，C任务仍SUCCESS并准确归C。不能因B失败停掉整个批次，也不能回退默认B、使用入队时启用状态或把队列SUCCESS当作业务落库证据。停用后不向B发新HTTP请求，不变更账号/成员/ACL/G/token。
 
 原CustomActionTrigger、持久队列与timer、显式选中runtime及完整raw/list/queue/execution/jobs/live权威验收首项1过，最终六SQLite文件71过无跳；format/lint/diff及516差异源snapshot通过，日志/hash见计划§442。已有行为通过，无产品RED或生产修改；按完整模板作者串行自审，非独立复核。仅证明同app串行执行前停用，不保证与已开始SQL/外部I/O原子取消、账号/角色/成员撤权、跨进程权限、独立worker或PG并发；正式安装/保存启用/浏览器试点和整分支独立复核仍待完成。原入口策略保持，损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。
+
+### 原生代码事件源的真实业务写入（§443）
+
+webhooks:trigger经原PluginWebhook注册和loggedIn策略，按name执行持久code脚本，再把ctx.body交给同步工作流。入口允许不等于普通业务create允许；节点必须以真实认证用户/角色及请求选择租户执行独立操作权威和当前G。普通用户default B、请求C且只有业务list权限，人工create403；脚本传入amount80时原接口HTTP200但execution/job ERROR且业务表空，140时准确新增唯一C行并直接返回完整无包装结果。不能只看HTTP200，也不能回退默认B。
+
+独立SQLite内存app加载原完整插件并停止空队列timer，真实basic/Bearer、持久ACL/G和显式runtime核完整raw/list/execution/jobs/live权威。首项1过，最终七文件74过无跳；format/lint/diff及517差异源snapshot一致，日志/hash见计划§443。已有行为通过，无产品RED或生产修改；按完整模板作者串行自审，非独立复核。保留原入口策略，不代表任意脚本安全/事件管理权限重设计、异步/关联混合/跨节点整体事务、撤权取消、独立worker或PG并发；误作这些保证会漏掉独立安全边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。

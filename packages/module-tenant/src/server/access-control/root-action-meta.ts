@@ -6,6 +6,7 @@ import type { AccessIdentity } from './context';
 import { captureFinalActionPermission } from './final-action-permission';
 import type { AccessQueryService } from './query';
 import { captureReadPreparationMetadata } from './read-preparation-metadata';
+import { resolveResourceReadRoute } from './resource-read-routing';
 import { AccessRoleFilterCompiler } from './role-filter';
 import type { AccessRootReadContext } from './root-read-context';
 import { internalQuery, invalid, plain } from './write-support';
@@ -21,16 +22,22 @@ export async function appendRootActionMeta(
   authorize: (collection: Collection, action: string) => Promise<AccessRootReadContext>,
   assertRequestCurrent: () => void,
 ) {
-  const { resourceName, actionName } = ctx.action;
-  if (!ctx.get('X-With-ACL-Meta') || !['list', 'get'].includes(actionName) || resourceName.includes('.')) return;
+  const { resourceName, actionName, sourceId } = ctx.action;
+  if (!ctx.get('X-With-ACL-Meta') || !['list', 'get'].includes(actionName)) return;
+  if (resourceName.includes('.') && sourceId === '_') return;
   // The native wrapper has no metadata slot for complete (array) lists or missing details.
   const body = ctx.body;
   if (!body || Array.isArray(body)) return;
   const rows = actionName === 'list' ? body.rows : [body];
   if (!Array.isArray(rows) || !rows.length) return;
-  const collection = db.getCollection(resourceName);
-  const identity = collection && resolveIdentity(collection);
-  if (!identity || typeof actor.roleName !== 'string') invalid('Action metadata identity is unavailable');
+  const route = resolveResourceReadRoute(db, resolveIdentity, { resourceName, actionName, sourceId });
+  const source = db.getCollection(route.identity.collectionName);
+  const paths = route.kind === 'association' ? [[route.association.association]] : [];
+  // The reader has already authorized the source. Hints describe the returned target, never source writes.
+  const collection = paths.length ? db.modelCollection.get(source.model.associations[paths[0][0]].target) : source;
+  if (!collection || typeof actor.roleName !== 'string') invalid('Action metadata identity is unavailable');
+  const target = resolveResourceReadRoute(db, resolveIdentity, { resourceName: collection.name, actionName });
+  const identity = target.identity;
   const model = collection.model;
   const primary = model.primaryKeyAttribute;
   const keys = rows.map((row) => row?.[primary]);
@@ -40,7 +47,9 @@ export async function appendRootActionMeta(
   if (!config) invalid('Action metadata requires a prepared configuration');
   const checks = [
     assertRequestCurrent,
-    captureReadPreparationMetadata(db, prepared, resolveIdentity, ctx, collection, []),
+    route.assertCurrent,
+    target.assertCurrent,
+    captureReadPreparationMetadata(db, prepared, resolveIdentity, ctx, source, paths),
   ];
   const current = () => {
     for (const check of checks) check();
@@ -58,7 +67,7 @@ export async function appendRootActionMeta(
     const decision = await authorize(collection, action);
     current();
     const permission = captureFinalActionPermission(decision.permission, {
-      resourceName,
+      resourceName: collection.name,
       actionName: action,
       roleName: actor.roleName,
     });

@@ -1690,3 +1690,9 @@ customAction及afterResource队列必须保留服务端认证用户、角色和�
 独立SQLite内存app、持久ACL、真实basic/Bearer和原inline动态入口验证完整来源/回执、三execution及所有jobs与节点身份。首失败仅SQLite raw JSON文本的测试预期，按原存储协议解码后单项1过，最终六文件65过无跳；无产品RED或生产修改，format/lint/diff及514差异源snapshot通过，日志/hash见计划§440；按完整模板作者串行自审，非独立复核。
 
 仅验收同app串行标量summary数组分页，不保证关联/tree/任意输入、并发分页快照、跨节点整体事务、撤权/取消、独立worker/外部来源或PG并发。正式账号/安装/规则保存启用/业务浏览器试点和整分支独立复核仍待完成；原loggedIn入口保持，损坏PG停止，无生产/核心/公开类型/schema/依赖锁或正式启用变更，无子智能体/外网/推送合并部署，定时任务描述不变。
+
+### 工作流草稿测试的真实业务写入（§441）
+
+workflows:test会实际执行节点并持久化业务数据；须先通过原工作流管理入口权限，再由节点独立操作权威执行G边界。pm.workflow.workflows的workflows:*不授予普通业务create；本项不使用SQL节点或SQL snippet。真实密码普通成员入口403且无execution/业务行；tester只有业务list权限，直接create仍403，但可测试禁用同步草稿。amount80按G拒绝、execution/job ERROR且无落库，140准确新增唯一B行；HTTP200的执行回执状态须与持久execution一致，不能只凭200判断节点成功。业务data内C标记不改变服务端认证/B，草稿保持禁用。
+
+独立SQLite内存app、持久ACL/G、原显式runtime和真实basic/Bearer核完整raw/list、execution/jobs及live节点权威。首项1过，最终六文件111过无跳，format/lint/diff及515差异源snapshot一致，日志/hash见计划§441；已有行为通过，无产品RED或生产修改，按完整模板作者串行自审，非独立复核。仅证明同app串行同步标量测试，不保证异步轮询竞态、关联混合、跨节点整体事务、撤权/取消、独立worker或PG并发；正式账号/安装/规则保存启用/业务试点和整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。

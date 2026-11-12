@@ -6252,3 +6252,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 原strict b8d956/b1131d/1b2920/353635各实际0；回归后0388a3见新Git五进程实际1即停后继。43db4a只读重新核五进程精确身份/创建/父链/命令/可执行及实际cwd均属WutheringWaves-UIResources；3ba7a1新独立scoped实际0，仅排除当场仍匹配的外部5，不称全局Git0、不沿用旧PID；未杀进程/删锁/操作窗口。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base38e7a6a568733cbdb080b03edf940b413f13b06d至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：已知交错来源、真实认证/持久ACL、两非空页与终止空页的完整业务和执行后验、人工写权限与节点权威区分。范围裁决：仅同app串行普通标量summary数组的分页到JSON回执，不代表关联summary/tree/任意页输入、分页期间快照稳定或跨节点整体事务；撤权/取消、独立worker/外部来源/PG并发、正式账号/安装/规则保存启用/业务浏览器试点和整分支独立复核仍待完成。原loggedIn入口策略保持；损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务描述不变。三文件待英文原子默认签名提交，实际提交/验签与现场审计由后继验证接续。
+
+## 441. 真实认证工作流草稿测试的业务写入
+
+- [x] 接续§440签名提交1b74faada2780c6ad4c21ef8dabed9e432c360c0。核原workflows:test的values.data、同步执行回执及ACL注册：pm.workflow.workflows提供workflows:*，pm.workflow.sql仅提供SQL节点动作，旧SQL测试注释不作为入口权限依据。原tenant-executions-boundary为手工ctx/echo，原认证重试验收亦非本入口。
+- [x] 新增authenticated-workflow-test-write.test.ts，独立SQLite内存app、本地核心ACL factory、原WorkflowPlugin和持久禁用同步草稿。两持久空策略密码角色仅tester有原工作流管理snippet，无SQL snippet；真实basic/Bearer/auth:check及B成员。持久tenantScoped初始空name/amount表无时间/审计/关联，tester仅list字段ACL完整读回；原registry/adapter/runtime显式组合，G交叉真实tester user.id、role.name、归属及amount≥100，不伪造permission/context或正式安装。
+- [x] 普通成员调用test为403、零execution/节点权威/业务行；tester直接业务create仍403。原test入口先输入80，HTTP200返回持久ERROR execution、create job ERROR且完整业务表空；再输入140，返回RESOLVED并准确新增唯一B行，完整raw/list/job结果一致。两次业务data内C标记不改变执行B，execution认证/B/context、回执id/status及两次独立live create权威完整核对；草稿保持enabled:false，同token/成员/ACL/G不变。原active测试适配不代表正式账号状态。
+- [x] workflow-test-write-acceptance-20261112.log的session10634/caf047实际exit0，首即1过无跳，15.63秒/16:48:11开始；已有行为通过，无产品RED、造红或生产修改。workflow-test-write-regression-20261112.log的session22624/9c2630实际exit0，六SQLite文件111过无跳，64.87秒/16:48:59开始：新1、认证retry2、tenant-executions-boundary19、main-write40、live authority21、SQL边界28。两核心ACL env齐、单worker逐文件，前runner实际退出才后继；不累加首项/历史，旧mock/context仅兼容，不代表PG或整分支。日志和snapshot/.tenant441-temp保留。
+- [x] 18c708实际0核新TS Prettier/oxlint零错误警告、diff0及基点89f026c99690da17bd927aa0f7f1507f66d2b040的515项完整差异TS/TSX与批准snapshot逐字节一致；SHA256 BAEC18CEC5A015094A86B8E01555D2B7998B1E972C510E4159A5B7EA141B2FA5，回归后未改。read_lints不可用用CLI；仅新测试/两原记录，无生产/核心/公开类型/schema/依赖锁变化，按聚焦规则不重复build。
+- [x] 原strict30be5f/969690实际0；ca9eb4见短暂未知Git实际1即停后继，309b49新独立原strict实际0才回归，1a86db实际0才最终检查。不沿用旧外部进程排除，不杀进程/删锁/操作窗口。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base1b74faada2780c6ad4c21ef8dabed9e432c360c0至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原入口权限与业务动作/节点权威分离、真实密码/持久ACL、拒绝与合法写入及执行回执完整后验。范围裁决：仅同app串行同步标量草稿测试，不代表异步轮询竞态、关联混合、跨节点整体事务、撤权/取消或跨进程权限；原入口策略不改。PG并发、独立worker、正式账号/安装/规则保存启用/业务浏览器试点和整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际提交/验签与现场审计由后继验证接续。

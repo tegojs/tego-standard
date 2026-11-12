@@ -1708,3 +1708,9 @@ workflows:test会实际执行节点并持久化业务数据；须先通过原工
 webhooks:trigger经原PluginWebhook注册和loggedIn策略，按name执行持久code脚本，再把ctx.body交给同步工作流。入口允许不等于普通业务create允许；节点必须以真实认证用户/角色及请求选择租户执行独立操作权威和当前G。普通用户default B、请求C且只有业务list权限，人工create403；脚本传入amount80时原接口HTTP200但execution/job ERROR且业务表空，140时准确新增唯一C行并直接返回完整无包装结果。不能只看HTTP200，也不能回退默认B。
 
 独立SQLite内存app加载原完整插件并停止空队列timer，真实basic/Bearer、持久ACL/G和显式runtime核完整raw/list/execution/jobs/live权威。首项1过，最终七文件74过无跳；format/lint/diff及517差异源snapshot一致，日志/hash见计划§443。已有行为通过，无产品RED或生产修改；按完整模板作者串行自审，非独立复核。保留原入口策略，不代表任意脚本安全/事件管理权限重设计、异步/关联混合/跨节点整体事务、撤权取消、独立worker或PG并发；误作这些保证会漏掉独立安全边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。
+
+### 人工确认后的持久执行身份（§444）
+
+users_jobs:submit先按原分配人协议确认人工决定；custom表单只保存值，后续自动业务节点仍使用持久execution的发起人/角色/租户及独立操作权威，不能替换为恰好提交任务的HTTP用户或当前租户。B发起、另一分配人在C确认时，非分配人提交403且pending/execution/jobs/业务均不变；合法确认202后80被G拒绝，已确认决定保留但下游job/execution ERROR且无业务行，新的140执行则准确新增唯一B行。两用户均无人工业务create权限，不能借list或任务分配绕过业务授权。
+
+真实密码双用户、持久普通角色/字段ACL/G、原WorkflowPlugin/manual与显式选中runtime核完整raw/list及两次执行/job父链/结果/live权威。首失败是非await触发尚在创建时过早断言状态，按原协议等待持久待办后单项1过，最终六SQLite文件104过无跳，format/lint/diff及518差异源snapshot通过，日志/hash见计划§444；无产品RED或生产修改，按完整模板作者串行自审，非独立复核。原人工create/update表单拒绝保持，不改变shared待办可见性或loggedIn入口，不证明重复提交去重、撤权取消、跨节点整体事务、独立worker或PG并发；误作这些保证会遗漏独立权限/原子性边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。

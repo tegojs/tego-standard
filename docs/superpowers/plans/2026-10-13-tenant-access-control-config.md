@@ -6285,3 +6285,15 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 原strict4e0c65/21758c/16faf9/e782b3见外部Git即实际1，未启动后继；02a6d3只读核五进程精确身份/创建/父链/命令/可执行及cwd均属WutheringWaves-UIResources。新scoped f23374/8e2de7/090cfe各实际0，当场重核匹配才排除外部5，未知Git/签名/runner/本库锁仍阻挡；不称全局Git0，不杀进程/删锁/操作窗口。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base70b859dfe8f34cd7193496b10dc164de656a76ae至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原生注册及持久脚本、真实认证/ACL、人工动作与节点权威分离、拒绝/成功及完整数据后验。范围裁决：保留原loggedIn策略，仅验收选中工作流写入，不代表任意脚本安全或事件管理权限重设计；仅同app串行同步标量写，不证明异步/关联混合/跨节点整体事务、撤权取消、独立worker或PG并发，若误作这些保证会漏掉独立安全边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/验签和现场审计接续。
+
+## 444. 人工确认后恢复原执行身份的真实业务写入
+
+- [x] 接续§443签名提交147a5ee75de527b2f4a7a51912679ee83e0a15a8。核原users_jobs:submit分配人检查、custom表单无业务handler、Plugin.resume主库重取execution及Processor持久认证/租户恢复；原§361只覆盖人工create/update表单拒绝，未覆盖custom确认后下游自动新增。应用事件无原可信用户来源，不能凭空赋予业务身份，故不选作本项。
+- [x] 新增authenticated-manual-resume-write.test.ts：独立SQLite内存app、本地核心ACL factory、原WorkflowPlugin/manual feature，真实密码普通双用户/双角色均空策略无snippet、B/C成员/default B。持久tenantScoped初始空name/amount表无时间/审计/关联，双角色仅list字段ACL完整读回；原registry/adapter/runtime显式组合，G绑定发起人真实user.id/role.name/实际归属及amount≥100，保留manualFormGuard，不新增人工业务表单执行器或正式安装。
+- [x] 双用户真实basic/Bearer/auth:check，人工业务create均403且表空。B发起原workflows:trigger，持久custom人工节点分配另一用户；先核STARTED、唯一PENDING任务/无create权威及空业务表。非分配人的发起人提交自己刚触发的已知无害任务403，完整pending/execution/jobs及业务行不变；分配人在C下提交202，确认结果持久为RESOLVED，经原resume后自动create仍以发起人/原角色/B执行。
+- [x] 第一次确认80使下游create ERROR、execution ERROR且业务表空，已确认的人工决定保留；第二个新执行确认140则准确新增唯一B行。核两execution认证/租户、每次完整两job状态/父链/结果及两次live create权威，最终发起人B list准确、分配人C list空；成员/角色/ACL/G/token不变，无重新登录、通知或外部I/O。原active测试适配不代表正式账号状态。
+- [x] manual-resume-write-acceptance-20261112.log的session91271/a7b6eb实际exit1：测试先等idle时原非await触发尚在创建，取到QUEUEING null而非STARTED。systematic-debugging对照原trigger/createExecution及旧人工验收，仅改为等待真实STARTED/持久待办再idle，非产品RED。acceptance-final日志session16885/e9d387实际exit0，1过无跳，11.07秒/17:25:06开始；已有行为通过，无生产修改或造红。
+- [x] manual-resume-write-regression-20261112.log的session17971/205ef4实际exit0，六SQLite文件104过无跳，52.04秒/17:25:51开始：新1、原人工边界8、main-write40、live authority21、认证retry2、workflow identity32。两核心ACL env齐、单worker逐文件，前runner实际退出才后继；不累加首项/历史，旧mock/context仅兼容。预期拒绝/故障日志及snapshot/.tenant444-temp保留，不代表PG或整分支。
+- [x] 26a5f5实际0核最终TS Prettier/oxlint零错误警告、diff0及基点89f026c99690da17bd927aa0f7f1507f66d2b040的518项完整差异TS/TSX与批准snapshot逐字节一致；SHA256 D5ABA2D9C604EB951EA9D9C753E23B8DCF75B3B96408713DCAD09CCC5076EC34，回归后未改。read_lints不可用用CLI；仅新测试/两原记录，无生产/核心/公开类型/schema/依赖锁变化，按聚焦规则不重复build。原strict2b1a53/8ebc10/6ebc33/a58108/24c6dd/21607d各实际0，不沿用外部PID排除，不杀进程/删锁/操作窗口。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base147a5ee75de527b2f4a7a51912679ee83e0a15a8至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：双真实身份/不同当前租户、原分配人检查和恢复流程、确认决定与下游业务成功分离、完整拒绝不变及G控制。范围裁决：custom只供下游独立授权节点取值，原人工create/update表单仍保守拒绝；保留shared待办及原loggedIn策略，不重设计任务可见性或借分配人授权业务写入。仅同app串行，不证明重复提交去重、撤权取消、跨节点整体事务、独立worker或PG并发；误作这些保证会遗漏独立权限/原子性边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/验签和现场审计接续。

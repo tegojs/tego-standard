@@ -1586,3 +1586,11 @@ root读取拥有层仅捕获root get的true/'true'及非空、已严格验证的
 原生select的普通字段summary只投影已授权读取结果，不能扩大来源范围；后续create使用自己的节点操作权威和G。真实密码用户、持久普通角色/字段ACL、B/C成员与两张持久tenantScoped标量表证明：本人正常HTTP新增的C来源在B执行中不可读，failOnEmpty使执行及唯一select job失败，后续新增不执行；同Bearer选择B来源则得到精确字符串，再生成完整B业务回执，来源不变。人工输出create仍403，原CustomActionTrigger的loggedIn内联入口与节点独立权威保持。
 
 首验收即通过，无产品RED或生产修改。最终七SQLite文件104过无跳，format/lint/diff及498差异源码snapshot核对实际exit0，日志/hash见计划§427。作者完整模板串行自审，非独立复核。仅证明同app普通single/标量summary→create及空读取停止，不代表multiple/关联summary、外部来源、在途撤权、独立worker、PG或跨进程隔离；原active适配非正式账号状态。正式安装/规则保存启用、业务浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署，定时任务短描述不变。
+
+### 新增最小回执与 API 日志主键（§428）
+
+普通新增日志必须关联实际业务主键；新权限执行器的单行响应为keys/affected回执，不能继续假定它是原生Model。真实密码账号、持久普通角色/动作字段ACL、B业务表与原生API Logs插件的同app对照确认：旧入口日志正确，选中入口业务成功而日志recordId为null。拥有层afterCreate只对非Model、affected=1且单键回执读取非空字符串或有限数字键，并优先于同名业务字段；其他响应沿用原模型主键协议，不改中间件顺序、ACL/G、业务响应或注册。
+
+数字id、字符串taskKey及主键名affected三种真实认证用例核完整业务和日志；同token无动作/G排除拒绝不产生新增，恢复请求正常。初真实RED及主键重名RED均已修复；最终五SQLite文件125过/8原PG跳、API Logs完整包构建、两源format/lint与500差异源码snapshot核对通过，具体日志/hash及一次门控失败后误启动首回归的代理顺序错误如实见计划§428。作者完整模板串行自审，非独立复核。
+
+保留原异步fire-and-forget日志写入，不承诺业务/日志原子提交、崩溃持久性或失败恢复；update/destroy日志预读、日志读权限、关联/外部来源、PG并发、独立worker及正式账号/安装/业务浏览器试点仍待完成。损坏PG停止，无核心/公开类型/schema/依赖锁或正式启用变更，无子智能体/外网/推送合并部署；定时任务短描述不变。

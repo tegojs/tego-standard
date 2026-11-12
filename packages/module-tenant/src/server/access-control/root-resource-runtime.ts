@@ -19,11 +19,14 @@ import type { AccessAclScopeAdapter } from './acl-scope';
 import { AccessChartQueryHandler } from './chart-query-handler';
 import type { AccessCollectionIdentity } from './config-store';
 import { requiresTenantAccessContext, type AccessIdentity } from './context';
+import { dateFilterOperators } from './date-filter';
+import { captureAccessFilter } from './filter-input';
 import { captureFinalActionPermission } from './final-action-permission';
 import { assertLegacyChartReadBoundary, assertLegacyReadBoundary } from './legacy-read-boundary';
 import { assertLegacyDestroyBoundary, assertLegacyWriteBoundary } from './legacy-write-boundary';
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
+import type { AccessReadDateContext } from './read-date-filter';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
 import { appendRootActionMeta } from './root-action-meta';
 import { AccessRootImportHandler } from './root-import-handler';
@@ -36,6 +39,7 @@ interface RootRequest {
   actionName: string;
   sourceId: unknown;
   actor: Readonly<AccessIdentity>;
+  dates: Readonly<AccessReadDateContext>;
   requiresTenant: boolean;
   identities: readonly AccessCollectionIdentity[];
   related: AccessRootReadContext[];
@@ -81,6 +85,21 @@ export class AccessRootResourceRuntime {
       logger: ctx.logger,
       throw: ctx.throw.bind(ctx),
     };
+  }
+
+  private readDates(ctx: Context, dates: Readonly<AccessReadDateContext>) {
+    const raw = plain(ctx.permission) ? Object.getOwnPropertyDescriptor(ctx.permission, 'rawParams')?.value : undefined;
+    const filter = plain(raw) ? Object.getOwnPropertyDescriptor(raw, 'filter')?.value : undefined;
+    const hasDate = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(hasDate);
+      if (!plain(value)) return false;
+      return Object.entries(value).some(
+        ([key, child]) => (dateFilterOperators as readonly string[]).includes(key.split('.').at(-1)!) || hasDate(child),
+      );
+    };
+    // A timezone is relevant only to calendar predicates; scalar-only requests retain their existing behavior.
+    // 仅日历条件需要时区，普通标量请求保持原有行为。
+    return hasDate(captureAccessFilter(filter === undefined ? {} : filter)) ? dates : undefined;
   }
 
   /** Wrap the existing ACL middleware, after server authentication and tenant selection. */
@@ -130,6 +149,7 @@ export class AccessRootResourceRuntime {
       ['list', 'get', 'count', 'export'].includes(actionName);
     if (!selected.length && (!collection || !legacyAction)) return void (await next());
     const capturedActor = Object.freeze({ tenantId: actor.tenantId, userId: actor.userId, roleName: actor.roleName });
+    const capturedDates = Object.freeze({ now: new Date().toISOString(), timezone: ctx.get('x-timezone') || '+00:00' });
     const capturedIdentities = identities.map((value) => ({ ...value }));
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
       const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
@@ -290,6 +310,7 @@ export class AccessRootResourceRuntime {
         actionName,
         sourceId,
         actor: capturedActor,
+        dates: capturedDates,
         requiresTenant: configured.some((identity) => {
           const config = this.prepared.configuration(ctx, identity);
           return config.ownership.enabled || requiresTenantAccessContext(config);
@@ -377,7 +398,13 @@ export class AccessRootResourceRuntime {
     if (request.resourceName === 'charts' && request.actionName === 'query')
       await this.charts.handle(context, request.actor, { source: authorizeRead, related: authorizeRead });
     else if (['list', 'get', 'count'].includes(request.actionName))
-      await this.reader.handleResourceWithRelatedContexts(context, request.actor, authorizeRead);
+      await this.reader.handleResourceWithRelatedContexts(
+        context,
+        request.actor,
+        authorizeRead,
+        undefined,
+        this.readDates(ctx, request.dates),
+      );
     else if (request.actionName === 'export')
       await this.reader.handleExportWithRelatedContexts(
         context as AccessRootReadContext & Context,

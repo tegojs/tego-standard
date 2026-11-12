@@ -459,6 +459,15 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         ).toEqual([['project']]);
       });
 
+      it('plans calendar-filtered complete lists without dropping related paths', () => {
+        expect(
+          plan({ paginate: false, filter: { 'project.occurredAt': { $dateOn: '2026-11-12' } } }, 'list', {
+            now: '2026-11-12T00:00:00.000Z',
+            timezone: '+08:00',
+          }),
+        ).toEqual([['project']]);
+      });
+
       it.each([
         { appends: ['missing'] },
         { fields: ['project.missing'] },
@@ -468,7 +477,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('unified root re
         { sort: ['project.name', 'project.name'] },
         { pageSize: 1001 },
         { tree: true },
-        { paginate: false },
+        { paginate: false, page: 1 },
         { values: {} },
       ])('preserves strict parser rejection for unsupported params %j', (params) => {
         expect(() => plan(params)).toThrow();

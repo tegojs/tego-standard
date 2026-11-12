@@ -6216,3 +6216,15 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 本轮原strict bbef16/57eee8遇未知短暂Git实际1即停runner；只读身份采样6fa40b因进程已退出实际1，未沿用旧外部豁免。新独立strict374eff、ff63a9、d91b3b实际0，当场Git/签名/runner/两库锁0；不把消失或日志尾当退出，不杀进程/删锁/操作认证窗口。 暂存前375f74再遇外部Git实际1即停；d54353只读核五进程精确身份/父链/命令/可执行及实际cwd属WutheringWaves-UIResources。首scoped e2008f因ConvertFrom-Json把期望时间转换为DateTime而实际1，9d6962/b62707核身份未变；改用原字面量字符串后039c4d实际0，仅排除当场仍匹配的外部5，不称全局Git0。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base06a52275218e3e255e8840ae8eca891d8d9e1af4至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原生流程/真实密码/持久ACL、未选中基线与选中完整无写对照、拒权不执行流程、未绑定和条件不匹配的正常更新及完整execution/jobs。范围裁决：原全局/拒绝矩阵由已有测试回归；本项仅本地同步标量update的成功短路，不代表多流程顺序、流程副作用/关联/历史认领、配置并发/撤权或PG事务。正式账号/安装/规则保存启用/业务浏览器试点、PG并发及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际提交/验签和现场审计由后继验证接续。
+
+## 438. 原生切换租户后的真实认证业务读写
+
+- [x] 接续§437签名提交e41924f1fbd5cf33aa2f606a1c81701f8060d67c及干净功能树。核原客户端resource('tenants').switch、switchTenant持久事务和setCurrentTenant重新读默认值协议；原switch动作测试为mock，§392只固定默认租户/单次请求头，均未覆盖原生切换后的密码认证新权限业务请求。
+- [x] 新增authenticated-tenant-switch-write.test.ts，独立SQLite内存app、本地核心ACL factory；普通editor/reader两空策略无snippet持久角色，真实密码用户持有B/C成员/default B，另建已知空D租户但不加入。持久tenantScoped初始空name表无时间/审计/业务关联，editor的list/create/update及reader的list字段ACL完整关联读回。原registry/adapter/runtime显式组合，G交叉真实user.id、两role.name和实际归属，不手工grantAction或伪造permission/context。
+- [x] 同一真实basic/Bearer/auth:check，全程不带租户头。先正常新增B行，原tenants:switch切C返回200且defaultTenantId持久为C，下一次普通新增准确归属C/list仅C；C下修改本人已知B行403，reader更新C行403，完整两行不变。切已知无成员D为403，持久默认仍C且完整业务行不变，下一次list和正常C更新准确。原接口切回B后list/update只作用B；四次更新provider仅只读核实际user/role/B或C、空租户头及原token相等。成员/ACL/G/token不变，不重新登录/清缓存/撤权后复用，无隐藏未知敏感业务目标或外部I/O，原active测试适配不代表正式账号状态。
+- [x] tenant-switch-business-acceptance-20261112.log的session20001/839ad1实际exit0，首项一过无跳，13.83秒/15:48:10开始。首即已有行为通过，无产品RED/造红或生产修改；首跑前已核原resource请求协议，不把错误HTTP包装当产品问题。
+- [x] tenant-switch-business-regression-20261112.log的session58751/da45c5实际exit0，五SQLite文件60过无跳，85.82秒/15:49:13开始：新1、原默认租户业务1、switch动作7、set-current-tenant11、普通资源HTTP40。两核心ACL env齐、单worker逐文件，前runner实际退出才后继，不累加首项/历史，不代表PG或整分支；旧mock/context仅兼容证据，预期拒绝/故障注入/自动id日志与snapshot/.tenant438-temp保留。
+- [x] 最终8f1e1b实际exit0核新测试Prettier/oxlint零错误警告，23ea11实际exit0核diff0及基点89f026c99690da17bd927aa0f7f1507f66d2b040的510项完整差异TS/TSX与批准snapshot逐字节一致，SHA256 A6156D606EE7F22C9A09FE8F05008B7168CF441E3DBDA6621809F2D2759394E2，回归后未改。read_lints不可用用CLI，仅新测试/两记录，无生产/核心/公开类型/schema/依赖锁变更，按聚焦规则不重复build。
+- [x] 优先原strict26e42b遇外部Git实际1即停后继；807419重新只读核五进程精确身份/创建/父链/命令/可执行及实际cwd属WutheringWaves-UIResources，307dde新独立scoped实际0仅排除当场仍匹配的外部5。ea5063核外部已无；144a52原strict实际0才回归。回归后bb8394遇新未知短暂Git实际1停后继，df2eff新原strict实际0才最终lint；不沿用旧PID/排除身份，不杀进程/删锁/操作窗口。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Basee41924f1fbd5cf33aa2f606a1c81701f8060d67c至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原生切换API、真实密码/持久默认值、跨请求无租户头的准确落库和列表、成员与业务动作/G各自拒绝、失败后原偏好保持。范围裁决：只验收同app串行普通成员的B→C→B标量业务读写，不代表停用/缺失租户、后代/平台代入、并发切换/跨进程缓存/撤权或浏览器切换流程；原loggedIn切换入口策略保持。正式账号/安装/规则保存启用/业务试点、PG并发及整分支独立复核仍待完成。损坏PG保持停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际提交/验签及现场审计由后继验证接续。

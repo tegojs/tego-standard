@@ -1714,3 +1714,9 @@ webhooks:trigger经原PluginWebhook注册和loggedIn策略，按name执行持久
 users_jobs:submit先按原分配人协议确认人工决定；custom表单只保存值，后续自动业务节点仍使用持久execution的发起人/角色/租户及独立操作权威，不能替换为恰好提交任务的HTTP用户或当前租户。B发起、另一分配人在C确认时，非分配人提交403且pending/execution/jobs/业务均不变；合法确认202后80被G拒绝，已确认决定保留但下游job/execution ERROR且无业务行，新的140执行则准确新增唯一B行。两用户均无人工业务create权限，不能借list或任务分配绕过业务授权。
 
 真实密码双用户、持久普通角色/字段ACL/G、原WorkflowPlugin/manual与显式选中runtime核完整raw/list及两次执行/job父链/结果/live权威。首失败是非await触发尚在创建时过早断言状态，按原协议等待持久待办后单项1过，最终六SQLite文件104过无跳，format/lint/diff及518差异源snapshot通过，日志/hash见计划§444；无产品RED或生产修改，按完整模板作者串行自审，非独立复核。原人工create/update表单拒绝保持，不改变shared待办可见性或loggedIn入口，不证明重复提交去重、撤权取消、跨节点整体事务、独立worker或PG并发；误作这些保证会遗漏独立权限/原子性边界。正式账号/安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。
+
+### 队列业务失败后的真实自动重试（§445）
+
+原队列同步工作流的业务afterCreate失败时，业务事务须完整回滚，队列保持FAILED与下一次运行时间；后续到期重试仍使用入队时真实用户/角色及请求租户，不能回退用户默认租户，也不能吞掉失败标成SUCCESS。真实密码用户default B、请求C入队唯一任务：首次SQL后故障仅保留既有B基线，attempt1/execution与job ERROR；关闭本项故障并恢复原timer后，同一任务自动attempt2/SUCCESS且仅新增一条C行，lastError清空，原失败执行保留。
+
+独立SQLite内存app、持久普通ACL/G与原显式runtime核完整raw/list、队列payload/contextLite、两次execution/jobs及live节点权威；不改队列状态/时间、不重入队或直接调用私有处理器。首项1过，最终七文件71过无跳，format/lint/diff及519差异源码snapshot一致，日志/hash见计划§445；已有行为通过，无产品RED或生产修改，按完整模板作者串行自审，非独立复核。只证明同app串行单节点暂时业务故障重试，不保证崩溃或未知COMMIT、并发认领/跨实例去重、撤权取消、跨节点整体事务、关联/外部写者或PG并发；原loggedIn入口和active测试适配保持。正式安装/保存启用/浏览器试点和整分支独立复核仍待完成；损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。

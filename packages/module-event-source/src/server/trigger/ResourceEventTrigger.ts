@@ -131,6 +131,7 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           contextLite: {
             userId: ctx?.state?.currentUser?.id,
             roleName: ctx?.state?.currentRole,
+            tenantId: ctx?.state?.currentTenantId,
           },
           maxAttempts: this.getMaxAttempts(model),
           retryBackoffMs: this.getRetryBackoffMs(model),

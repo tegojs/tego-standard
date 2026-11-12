@@ -305,7 +305,7 @@ export class WebhookController {
     return body;
   }
 
-  async triggerWorkflow(ctx, action, body): Promise<Processor | void> {
+  async triggerWorkflow(ctx, action, body, repositoryContext?: Pick<Context, 'state'>): Promise<Processor | void> {
     const { currentUser, currentRole } = ctx?.state || {};
     const userCollection = ctx.db.getCollection('users');
     const { model: UserModel } = userCollection;
@@ -322,7 +322,13 @@ export class WebhookController {
     const wf = await wfRepo.findOne({ filter: { key: action.workflowKey, enabled: true } });
     // 与历史行为一致：未配置时默认透传 httpContext；仅显式 useHttpContext=false 时关闭
     const useHttpContext = action?.options?.useHttpContext !== false;
-    const triggerOptions = useHttpContext ? { httpContext: ctx } : {};
+    // Queued delivery retains canonical state through the workflow's non-HTTP context.
+    // 队列交付通过工作流原有非HTTP上下文保留可信身份，不重建HTTP请求。
+    const triggerOptions = useHttpContext
+      ? { httpContext: ctx }
+      : repositoryContext
+        ? { context: repositoryContext }
+        : {};
     return await pluginWorkflow.triggerFromEventSource(wf, { data: body, ...userInfo }, triggerOptions);
   }
 }

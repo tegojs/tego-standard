@@ -16,6 +16,7 @@ type QueueJobInput = {
   contextLite?: {
     userId?: number;
     roleName?: string;
+    tenantId?: string | number;
   };
   maxAttempts?: number;
   retryBackoffMs?: number;
@@ -121,6 +122,7 @@ export class EventSourceQueueWorker {
           },
         },
         job.payload,
+        { state: pseudoCtx.state },
       );
       const lastSavedJob = processor ? processor.lastSavedJob : null;
       if (lastSavedJob?.get('status') < 0) {
@@ -153,7 +155,7 @@ export class EventSourceQueueWorker {
     }
   }
 
-  private async createPseudoContext(contextLite?: { userId?: number; roleName?: string }) {
+  private async createPseudoContext(contextLite?: QueueJobInput['contextLite']) {
     let currentUser = null;
     if (contextLite?.userId) {
       const userRepo = this.app.db.getRepository('users');
@@ -168,6 +170,8 @@ export class EventSourceQueueWorker {
       state: {
         currentUser,
         currentRole: contextLite?.roleName || null,
+        currentTenantId: contextLite?.tenantId,
+        currentTenant: contextLite?.tenantId == null ? undefined : { id: contextLite.tenantId },
       },
     };
   }

@@ -1674,3 +1674,11 @@ root读取拥有层仅捕获root get的true/'true'及非空、已严格验证的
 本项补原mock动作及固定默认租户测试未覆盖的真实跨请求业务验收，首项1过，最终五SQLite文件60过无跳；无产品RED/生产修改，format/lint/diff及510差异源snapshot通过，日志/hash见计划§438；按完整模板作者串行自审，非独立复核。
 
 仅证明同app普通成员的串行持久切换和标量业务，不保证停用/缺失租户、后代/平台代入、并发切换/跨进程缓存/撤权或正式界面；原loggedIn入口策略保持。正式账号/安装/规则保存启用/业务试点、PG并发与整分支独立复核仍待完成。损坏PG停止，无生产/核心/公开类型/schema/依赖锁或正式启用变更，无子智能体/外网/推送合并部署，定时任务短描述不变。
+
+### 事件源持久队列的原始身份与租户（§439）
+
+customAction及afterResource队列必须保留服务端认证用户、角色和触发请求实际租户。默认租户B的用户以C请求入队后，后台工作流execution和新增业务行均须归C；不能丢失身份，也不能回退B。两生产者在原contextLite中保存已解析tenantId，原worker恢复匹配currentTenantId/currentTenant.id，通过显式非HTTP工作流context传递；不保存整个请求、permission或缓存授权，不从业务payload取身份，不猜旧任务缺失租户。
+
+两条真实密码/Bearer入口在修复前均出现合法任务dead、execution auth/tenant空和无C行的真实RED；最小修改四个event-source文件后，原timer处理持久队列，amount80按G拒绝回滚，140准确落C，B基线和afterResource输入行不变。持久ACL、队列metadata、execution/jobs与live operation authority完整核对，同token/成员/默认值/G不变。最终七SQLite文件99过无跳，event-source客户端/服务端/依赖/dts完整build实际0，format/lint/diff及513完整差异源snapshot一致，日志/hash详见计划§439；按完整模板作者串行自审，非独立复核。
+
+仅保证同进程串行队列身份与租户传递；原动态入口loggedIn策略保持，旧缺租户任务不迁移。独立OS worker、崩溃恢复、并发抢占/去重、入队后撤权/停用/账号状态、跨进程当前权限、PG原子隔离及正式安装/规则保存启用/业务试点和整分支独立复核仍待完成。损坏PG停止，无核心/schema/依赖锁修改，无子智能体/外网/推送合并部署或正式启用，定时任务描述不变。

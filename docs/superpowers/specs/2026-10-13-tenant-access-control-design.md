@@ -1720,3 +1720,9 @@ users_jobs:submit先按原分配人协议确认人工决定；custom表单只保
 原队列同步工作流的业务afterCreate失败时，业务事务须完整回滚，队列保持FAILED与下一次运行时间；后续到期重试仍使用入队时真实用户/角色及请求租户，不能回退用户默认租户，也不能吞掉失败标成SUCCESS。真实密码用户default B、请求C入队唯一任务：首次SQL后故障仅保留既有B基线，attempt1/execution与job ERROR；关闭本项故障并恢复原timer后，同一任务自动attempt2/SUCCESS且仅新增一条C行，lastError清空，原失败执行保留。
 
 独立SQLite内存app、持久普通ACL/G与原显式runtime核完整raw/list、队列payload/contextLite、两次execution/jobs及live节点权威；不改队列状态/时间、不重入队或直接调用私有处理器。首项1过，最终七文件71过无跳，format/lint/diff及519差异源码snapshot一致，日志/hash见计划§445；已有行为通过，无产品RED或生产修改，按完整模板作者串行自审，非独立复核。只证明同app串行单节点暂时业务故障重试，不保证崩溃或未知COMMIT、并发认领/跨实例去重、撤权取消、跨节点整体事务、关联/外部写者或PG并发；原loggedIn入口和active测试适配保持。正式安装/保存启用/浏览器试点和整分支独立复核仍待完成；损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。
+
+### 选中根资源的操作权限提示（§446）
+
+带X-With-ACL-Meta的直接根分页list/get须在原prepared阶段内返回allowedActions；选中terminal执行链不会经过旧dataSource之后的元数据中间件，不能通过再次next执行旧业务来补提示。view使用自身最终ACL∩(G∨V)，update/destroy分别使用自身最终ACL∩G，仅包含实际返回记录的主键；提示不是字段/业务值/事务的最终写授权。明确缺动作grant的403产生空提示，其他错误不能吞掉。未认领历史行不能提示可删，附件删除或替代目标键不冒称普通可写；完整数组列表/空结果/缺记录/未输出主键沿原包装，具体关联和树后代完整提示仍待独立适配。
+
+真实密码用户、持久普通view/create/update/destroy及独立scope、真实B业务两行验收：提交后退出G但经V可读的行仅view，draft行三提示正确；分页只含当页，reader写提示空，独立写scope与G无交集时两写提示空且真实更新403/完整行不变，原editor仍可正常修改draft。首真实RED为allowedActions缺失，最小补接复用原最终ACL、native role/scope及metadata/身份守卫，不改实际写权。最终六SQLite文件142过8原跳、租户模块完整构建成功、521差异源码与批准snapshot一致，日志/hash和fixture/类型修正见计划§446。按完整模板作者串行自审，非独立复核；不代表PG/MySQL/MariaDB、并发权限租约或跨进程原子隔离。正式安装/规则保存启用/浏览器试点及整分支独立复核仍未完成；损坏PG停止，无外网/子智能体/推送合并部署，定时任务短描述保持。

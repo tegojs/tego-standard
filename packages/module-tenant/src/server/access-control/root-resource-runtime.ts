@@ -4,7 +4,15 @@ import {
   filterExportColumnsByCollection,
   normalizeExportColumns,
 } from '@tachybase/plugin-action-export';
-import { Repository, Resourcer, type Collection, type Context, type Database, type Next } from '@tego/server';
+import {
+  NoPermissionError,
+  Repository,
+  Resourcer,
+  type Collection,
+  type Context,
+  type Database,
+  type Next,
+} from '@tego/server';
 
 import { translateTenantError } from '../locale';
 import type { AccessAclScopeAdapter } from './acl-scope';
@@ -17,6 +25,7 @@ import { assertLegacyDestroyBoundary, assertLegacyWriteBoundary } from './legacy
 import { preserveAccessResourceAction } from './preserved-resource-action';
 import { AccessQueryService } from './query';
 import { AccessResourceMutationHandler } from './resource-mutation-handler';
+import { appendRootActionMeta } from './root-action-meta';
 import { AccessRootImportHandler } from './root-import-handler';
 import type { AccessRootReadContext } from './root-read-context';
 import { AccessRootReadHandler } from './root-read-handler';
@@ -41,6 +50,7 @@ export class AccessRootResourceRuntime {
   private readonly writer: AccessResourceMutationHandler;
   private readonly charts: AccessChartQueryHandler;
   private readonly importer: AccessRootImportHandler;
+  private readonly queries: AccessQueryService;
 
   constructor(
     private readonly db: Database,
@@ -49,7 +59,7 @@ export class AccessRootResourceRuntime {
     resolveCollectionKey: (collection: Collection) => string,
     private readonly finalizeRelated: (ctx: Context, next: Next) => Promise<unknown>,
   ) {
-    const queries = new AccessQueryService(db, prepared, resolveCollectionKey);
+    const queries = (this.queries = new AccessQueryService(db, prepared, resolveCollectionKey));
     this.reader = new AccessRootReadHandler(db, prepared, queries, resolveIdentity);
     this.writer = new AccessResourceMutationHandler(db, prepared, queries, resolveIdentity);
     this.charts = new AccessChartQueryHandler(db, this.reader, resolveIdentity);
@@ -327,12 +337,38 @@ export class AccessRootResourceRuntime {
     // 选中执行链位于旧租户守卫之前，仍须保留明确的缺租户拒绝提示。
     if (request.requiresTenant && (request.actor.tenantId == null || request.actor.tenantId === ''))
       ctx.throw(403, translateTenantError(ctx, 'tenantContextRequired'));
-    const authorize = async (collection: Collection, actionName: string): Promise<AccessRootReadContext> => {
+    const authorize = async (
+      collection: Collection,
+      actionName: string,
+      metadata = false,
+    ): Promise<AccessRootReadContext> => {
       request.assertCurrent();
       const decision = this.relatedDecision(ctx, collection, actionName);
       request.related.push(decision);
       await this.prepared.prepare(decision, request.identities);
-      await this.finalizeRelated(decision as unknown as Context, async () => {});
+      let denied: NoPermissionError | undefined;
+      if (metadata)
+        decision.throw = (status, ...args) => {
+          const error = new NoPermissionError(...args);
+          if (status === 403) denied = error;
+          throw error;
+        };
+      try {
+        await this.finalizeRelated(decision as unknown as Context, async () => {});
+      } catch (error) {
+        // Only an explicit absent action grant becomes an empty hint, never a failed allowed decision.
+        if (
+          !metadata ||
+          denied === undefined ||
+          error !== denied ||
+          !plain(decision.permission) ||
+          (decision.permission.can !== null &&
+            decision.permission.can !== false &&
+            decision.permission.can !== undefined) ||
+          decision.permission.skip === true
+        )
+          throw error;
+      }
       request.assertCurrent();
       return decision;
     };
@@ -364,5 +400,15 @@ export class AccessRootResourceRuntime {
       });
     else invalid('Selected root action requires a dedicated runtime adapter');
     request.assertCurrent();
+    await appendRootActionMeta(
+      this.db,
+      this.prepared,
+      this.queries,
+      this.resolveIdentity,
+      ctx,
+      request.actor,
+      (collection, action) => authorize(collection, action, true),
+      request.assertCurrent,
+    );
   }
 }

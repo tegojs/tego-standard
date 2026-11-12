@@ -1682,3 +1682,11 @@ customAction及afterResource队列必须保留服务端认证用户、角色和�
 两条真实密码/Bearer入口在修复前均出现合法任务dead、execution auth/tenant空和无C行的真实RED；最小修改四个event-source文件后，原timer处理持久队列，amount80按G拒绝回滚，140准确落C，B基线和afterResource输入行不变。持久ACL、队列metadata、execution/jobs与live operation authority完整核对，同token/成员/默认值/G不变。最终七SQLite文件99过无跳，event-source客户端/服务端/依赖/dts完整build实际0，format/lint/diff及513完整差异源snapshot一致，日志/hash详见计划§439；按完整模板作者串行自审，非独立复核。
 
 仅保证同进程串行队列身份与租户传递；原动态入口loggedIn策略保持，旧缺租户任务不迁移。独立OS worker、崩溃恢复、并发抢占/去重、入队后撤权/停用/账号状态、跨进程当前权限、PG原子隔离及正式安装/规则保存启用/业务试点和整分支独立复核仍待完成。损坏PG停止，无核心/schema/依赖锁修改，无子智能体/外网/推送合并部署或正式启用，定时任务描述不变。
+
+### 多值选择分页到业务回执（§440）
+
+原生SelectInstruction的multiple分页必须先遵守当前租户与G读取范围，再按排序/页大小选择；summary标量数组交给下游新增时应完整保留。真实密码用户在B上下文读取C/B交错的已知来源，pageSize2应依次得到两个B名称、剩余一个B名称和空数组，前两页生成准确B回执，空页failOnEmpty须停止且不生成create job。人工无回执create权限仍拒绝，自动节点使用自身操作权威，不能借list权威写入。
+
+独立SQLite内存app、持久ACL、真实basic/Bearer和原inline动态入口验证完整来源/回执、三execution及所有jobs与节点身份。首失败仅SQLite raw JSON文本的测试预期，按原存储协议解码后单项1过，最终六文件65过无跳；无产品RED或生产修改，format/lint/diff及514差异源snapshot通过，日志/hash见计划§440；按完整模板作者串行自审，非独立复核。
+
+仅验收同app串行标量summary数组分页，不保证关联/tree/任意输入、并发分页快照、跨节点整体事务、撤权/取消、独立worker/外部来源或PG并发。正式账号/安装/规则保存启用/业务浏览器试点和整分支独立复核仍待完成；原loggedIn入口保持，损坏PG停止，无生产/核心/公开类型/schema/依赖锁或正式启用变更，无子智能体/外网/推送合并部署，定时任务描述不变。

@@ -1696,3 +1696,9 @@ customAction及afterResource队列必须保留服务端认证用户、角色和�
 workflows:test会实际执行节点并持久化业务数据；须先通过原工作流管理入口权限，再由节点独立操作权威执行G边界。pm.workflow.workflows的workflows:*不授予普通业务create；本项不使用SQL节点或SQL snippet。真实密码普通成员入口403且无execution/业务行；tester只有业务list权限，直接create仍403，但可测试禁用同步草稿。amount80按G拒绝、execution/job ERROR且无落库，140准确新增唯一B行；HTTP200的执行回执状态须与持久execution一致，不能只凭200判断节点成功。业务data内C标记不改变服务端认证/B，草稿保持禁用。
 
 独立SQLite内存app、持久ACL/G、原显式runtime和真实basic/Bearer核完整raw/list、execution/jobs及live节点权威。首项1过，最终六文件111过无跳，format/lint/diff及515差异源snapshot一致，日志/hash见计划§441；已有行为通过，无产品RED或生产修改，按完整模板作者串行自审，非独立复核。仅证明同app串行同步标量测试，不保证异步轮询竞态、关联混合、跨节点整体事务、撤权/取消、独立worker或PG并发；正式账号/安装/规则保存启用/业务试点和整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。
+
+### 队列执行前重新核租户启用状态（§442）
+
+队列保存的tenantId只证明任务来源；选中业务写入必须在执行时按原租户事实源确认仍启用。B/C均启用时真实密码用户各入队一任务，worker尚未启动；服务端持久停用B后再处理，B任务应DEAD且execution/job ERROR、业务基线不变，C任务仍SUCCESS并准确归C。不能因B失败停掉整个批次，也不能回退默认B、使用入队时启用状态或把队列SUCCESS当作业务落库证据。停用后不向B发新HTTP请求，不变更账号/成员/ACL/G/token。
+
+原CustomActionTrigger、持久队列与timer、显式选中runtime及完整raw/list/queue/execution/jobs/live权威验收首项1过，最终六SQLite文件71过无跳；format/lint/diff及516差异源snapshot通过，日志/hash见计划§442。已有行为通过，无产品RED或生产修改；按完整模板作者串行自审，非独立复核。仅证明同app串行执行前停用，不保证与已开始SQL/外部I/O原子取消、账号/角色/成员撤权、跨进程权限、独立worker或PG并发；正式安装/保存启用/浏览器试点和整分支独立复核仍待完成。原入口策略保持，损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。

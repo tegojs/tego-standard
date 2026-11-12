@@ -6263,3 +6263,14 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 原strict30be5f/969690实际0；ca9eb4见短暂未知Git实际1即停后继，309b49新独立原strict实际0才回归，1a86db实际0才最终检查。不沿用旧外部进程排除，不杀进程/删锁/操作窗口。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base1b74faada2780c6ad4c21ef8dabed9e432c360c0至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：原入口权限与业务动作/节点权威分离、真实密码/持久ACL、拒绝与合法写入及执行回执完整后验。范围裁决：仅同app串行同步标量草稿测试，不代表异步轮询竞态、关联混合、跨节点整体事务、撤权/取消或跨进程权限；原入口策略不改。PG并发、独立worker、正式账号/安装/规则保存启用/业务浏览器试点和整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际提交/验签与现场审计由后继验证接续。
+
+## 442. 已入队业务任务在执行前重新核租户启用状态
+
+- [x] 接续§441签名提交39d0cc177b933adbfae47590a64f988ed158609e。先核部门自定义搜索、复制/批量动作服务端及动态计算：前者选中根拒绝会重复已有机制且包含关联协议，后者无独立业务处理器或直接业务I/O，故不新造同根因fixture。改验收原CustomActionTrigger→持久队列→真实timer→选中create的独立时间边界：§439证明来源身份传递，未覆盖入队后租户停用；核原resolveActiveAccessTenant按执行事务读取enabled事实。
+- [x] 新增authenticated-queued-tenant-stop.test.ts，独立SQLite内存app、本地核心ACL factory、原WorkflowPlugin/持久队列。普通空策略无snippet角色、真实密码basic/Bearer/auth:check、B/C成员/default B；持久tenantScoped初始空name表无时间/审计/关联，list/create字段ACL完整读回，G绑定真实user.id/role.name及归属。显式原registry/adapter/runtime和节点权威，不手工grantAction、伪造permission/context或正式安装。
+- [x] B正常HTTP新增基线后，B/C均启用时同token各入队一任务；核两PENDING、零execution及完整基线，再由本项服务端Repository持久停用B，核B false/C true，才启动原worker。B任务DEAD/attempt1/明确missing or disabled错误、execution与create job ERROR，未增B行；C任务SUCCESS/attempt1/lastError null，execution/job RESOLVED且准确新增唯一C行。核完整raw、队列payload/contextLite/source/workflow、两execution认证/tenant与全部jobs/result和live create权威；worker失败后继续C，C正常list准确，B仍停用、B/C成员不变。停用后没有对B发HTTP请求，token/角色/ACL/G不变，不复用被撤销凭据，原active测试适配不代表正式账号状态。
+- [x] queued-tenant-stop-acceptance-20261112.log的session15065/7784c6实际exit0，首即1过无跳，19.72秒/16:59:05开始；已有行为通过，无产品RED/造红/生产修改。queued-tenant-stop-regression-20261112.log的session70471/e1d634实际exit0，六SQLite文件71过无跳，111.66秒/17:00:56开始：新1、原队列2、原inline1、main-write40、context16、set-current-tenant11。两核心ACL env齐、单worker逐文件，前runner实际退出才后继，日志尾仅进度、不作exit证据；计数不累加首项/历史，旧mock/context仅兼容，不代表PG/整分支。日志和snapshot/.tenant442-temp保留。
+- [x] b26ef3实际0核最终TS Prettier/oxlint零错误警告、diff0、基点89f026c99690da17bd927aa0f7f1507f66d2b040的516项完整差异TS/TSX与批准snapshot逐字节一致；SHA256 01CB8B38C8DA69CAAC78D9B3F824650E4DD49AF47D8AD6834456897754B5CB50，回归后未改。read_lints不可用用CLI；仅新测试/两原记录，无生产/核心/公开类型/schema/依赖锁变化，按聚焦规则不重复build。
+- [x] 原strict e00dae/a3b116/db1b10实际0；9f8c76/c4e30b/e9d722遇未知Git实际1即停后继，cwd采样199e6a遇已消失进程实际1未予排除，4fb620新独立原strict实际0才回归。41e26d见外部push六进程后停最终检查；2803fc只读逐一核精确身份/创建/父链/命令/可执行与实际cwd均属WutheringWaves-UIResources，新独立scoped59f15c实际0且当场外部已0才继续。不沿用旧排除，不把外部push当本会话操作，不杀进程/删锁/操作窗口。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base39d0cc177b933adbfae47590a64f988ed158609e至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：入队时合法/执行时停用的明确时序、原timer与持久数据、停用B拒写和正常C成功控制、完整业务/队列/执行后验。范围裁决：仅同app串行执行前租户停用，不证明停用与已开始SQL/外部I/O原子取消、账号/角色/成员撤权、跨进程当前权限、独立worker或PG并发；原loggedIn入口策略保持。正式账号/安装/规则保存启用/业务浏览器试点及整分支独立复核仍待完成。损坏PG停止，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/验签和现场审计接续。

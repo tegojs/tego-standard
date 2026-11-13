@@ -3,7 +3,7 @@ import { Context, Next } from '@tego/server';
 import { NAMESPACE } from '../../constants';
 
 export async function update(ctx: Context, next: Next) {
-  const { values } = ctx.action.params;
+  const { values, filter } = ctx.action.params;
   const targetUserId = Number(ctx.request.url.split('filterByTk=')[1]);
   const guestUser = await ctx.db.getRepository('users').findOne({
     filter: {
@@ -30,6 +30,8 @@ export async function update(ctx: Context, next: Next) {
   const UserRepo = ctx.db.getRepository('users');
   const result = await UserRepo.update({
     filterByTk: targetUserId,
+    // Preserve the original single-user requirement when applying the final ACL filter.
+    filter: targetUserId ? filter : undefined,
     values,
   });
   ctx.body = result;

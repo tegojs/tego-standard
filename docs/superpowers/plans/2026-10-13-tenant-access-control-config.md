@@ -6402,3 +6402,13 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] 7bb777首格式化/oxlint及bd074c末Prettier/oxlint实际0、零错误警告；末diff0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的529项差异TS/TSX与批准snapshot逐字节一致。最终测试SHA256 FC128E2128741B18CD955BC38651AFA68E7A20F5784E7BE0F77A575E53841463，回归后未改。read_lints不可用用CLI；仅测试/两原记录，按聚焦规则不重复build，snapshot/.tenant454-temp及全部旧产物保留。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Basea8b19bc987ef8f6bfc70fb97a14f0b61f7836761至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：list与export动作范围/字段形成明确对照、真实Excel单sheet/列序/行序/类型断言及完整物理后验。范围裁决：仅普通根标量XLSX报告，不证明日期/枚举/关联格式、全部文件格式、大批量worker生命周期、PG并发或跨进程快照原子性。损坏PG保持停止，SQLite不替代PG证据；正式安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。无生产/核心/公开类型/schema/依赖锁变化，无子智能体/外网/推送合并部署，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/独立验签与现场审计接续。
+
+## 455. 真实认证业务导入的后行唯一约束与整表单回滚
+
+- [x] 接续§454默认签名提交502ec0f3050cff0157f69edf1b4495161c2bae96。检查原root-import-handler逐行repository.create及共享plan.transaction，旧认证导入只有后行钩子注入失败；本项选取持久业务订单号的真实SQL唯一约束，区别于旧导入和历史认领验收。已有行为通过，无产品RED或生产修改；预期业务拒绝不冒称产品RED。
+- [x] 新authenticated-import-constraint-rollback.test.ts使用独立SQLite内存app、原ImportPlugin、本地核心ACL factory、普通持久空策略无snippet角色、真实密码basic/Bearer/auth:check及B成员。持久tenantScoped订单表含unique:true的code，create/importXlsx/list字段动作完整读回；显式原registry/adapter/runtime，G为真实归属，subject绑定真实user.id/role.name，无手工grantAction或伪造permission/context。
+- [x] 选中运行时后普通HTTP创建B基线订单RESERVED/7。实际XLSX先导入NEW-1/10，再导入冲突RESERVED/20；只读afterCreateWithAssociations观察原调用方事务中第一行已物理存在、真实用户/角色/B，并登记afterCommit计数，不抛错或注入失败。后行真实唯一约束400/code must be unique，无成功计数；第一行完整回滚、基线及普通list不变、afterCommit为0。同token/角色/G/B仅修正后行NEW-2重试，200/successCount2/failureCount0，两事件共用事务、afterCommit为2，最终完整物理行及list精确为基线id1和新行id2/3且均归B。
+- [x] import-constraint-acceptance-20261113.log：session2782/6d8e01实际exit0，1过无跳，11.28秒/16:07:11开始。import-constraint-regression-20261113.log：session8282/0a11ed实际exit0，四SQLite文件111过8原PG条件跳/119总，58.19秒/16:07:58开始：新1、原认证HTTP80/8、root-import-handler24、access-import-http6。两核心ACL env齐、PG URL缺省、单worker逐文件，前runner实际退出才后继；不累加首项或历史，不代表PG实测。预期SQL约束错误及全部日志保留批准父目录。
+- [x] e839b5首格式化/oxlint和58262f末Prettier/oxlint实际0、零错误警告，末diff0；基点89f026c99690da17bd927aa0f7f1507f66d2b040的530项差异TS/TSX与批准snapshot逐字节一致。测试SHA256 E87E6794FABDC7DAD26D7BE5DC0370C5D21714F1DD18BD574EA95B470D3FA842，回归后未改。0adff3及58262f独立guard核Git/签名/runner/两库锁均0。read_lints不可用用CLI；仅新测试/两原记录，按聚焦规则不重复build，snapshot/.tenant455-temp及旧产物保留。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base502ec0f3050cff0157f69edf1b4495161c2bae96至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：真实认证持久ACL和SQL冲突、原事务内前行物理观察、完整回滚与同凭据修正重试。范围裁决：仅普通根标量XLSX导入及已有B订单号冲突，不证明全部导入模式、关联/历史认领、跨租户唯一策略、PG并发或跨实例隔离；这些是独立契约。损坏PG保持停止，SQLite不替代PG证据；正式安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。无生产/核心/公开类型/schema/依赖锁变化，无子智能体/外网/推送合并部署或正式启用，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/独立验签与现场审计接续。

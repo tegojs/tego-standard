@@ -6382,3 +6382,13 @@ Ruling: 沿用原两记录、工作区及串行授权，仅扩展原 authenticat
 - [x] a4db0b首格式化/oxlint及8d4ba5末Prettier/oxlint实际0、零错误警告；末diff0，基点89f026c99690da17bd927aa0f7f1507f66d2b040的527项差异TS/TSX与批准snapshot逐字节一致。最终测试SHA256 94B0C72E2EA76A10F1B13F0CF47A53995BB1E0BF128D5982E47C9844D65B3AFF，回归后未改。read_lints不可用用CLI；仅测试/两原记录，按聚焦规则不重复build，snapshot/.tenant452-temp及全部旧附件保持。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Baseb4412b6898378a2b9184badfc4b09b553043b7b3至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：真实认证与持久目标ACL/G/V、双匹配去重、分页count及完整物理后验。范围裁决：只证明一级HasMany正向明细谓词的普通根list/get；多层/否定条件/全部关系、多对多、跨租户链接、独立关联count和关联写原子性仍待独立验收，不借本项放开。损坏PG保持停止，SQLite不替代PG并发证据；正式安装/规则保存启用/浏览器试点及整分支独立复核仍待完成。无生产/核心/公开类型/schema/依赖锁变化，无子智能体/外网/推送合并部署，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/独立验签与现场审计接续。
+
+## 453. 真实认证业务分组图表的完整汇总后截取
+
+- [x] 接续§452默认签名提交523ebfc8dc1bbd9b50e32f8822a3c9b5a3d82ab2；1e6b8f实际0核三路径/签名G/两工作区干净/527源码snapshot一致，PG停止及25466全部记录0。先核原DataVisualizationPlugin的charts:query、chart-params多度量/分组/别名排序及显示数量契约；原access-chart-http使用夹具身份，已有认证图表只验总和，不替代本项分组前N组业务验收。
+- [x] 新authenticated-grouped-business-chart.test.ts使用独立SQLite内存app、本地核心ACL factory、原图表插件、普通持久空策略无snippet双角色、真实密码basic/Bearer/auth:check与B/C成员。持久tenantScoped销售表先于ACL，list完整字段及排除ACL excluded的持久scope关联读回；正常HTTP新增本人已知无害六行并完整raw核对。之后显式原registry/adapter/runtime，G为真实归属且draft、独立V为真实归属且published，subject绑定真实user.id/role.name，无手工grantAction或伪造permission/context。
+- [x] 普通list仅B销售1/2/3；Hardware的40+60=100/count2，Software为70/count1。图表sum/count按total降序、limit1返回Hardware100/2，limit2返回两个完整分组；不能先截原始记录而丢40或60。请求Software筛选仅70/1；ACL排除的9000、archived的8000和C的12000均不参与。相同uid/cache参数下limit与filter仍正确。未授memo维度400；有category字段list权但无amount字段的角色普通列表200，amount度量图表400，拒绝均无data；六行及memo完整物理值不变。
+- [x] grouped-business-chart-acceptance-20261113.log的session74702/79edbc实际exit0，1过无跳/9.80秒/15:38:03开始；已有行为通过，无产品RED、造红或生产修改。grouped-business-chart-regression-20261113.log的session23413/de0a1e实际exit0，三SQLite文件169过8原PG条件跳/177总，57.12秒/15:39:49开始：新1、原认证HTTP80/8、原图表HTTP88。两核心ACL env齐、PG URL缺省、单worker逐文件，前runner实际退出才后继，计数不累加首项或历史；预期字段拒绝/自动字段诊断及全部日志保留批准父目录。
+- [x] 7827d7首格式化/oxlint及0afc48末Prettier/oxlint实际0、零错误警告，末diff0；基点89f026c99690da17bd927aa0f7f1507f66d2b040的528项差异TS/TSX与批准snapshot逐字节一致。最终测试SHA256 E873FE7FD011B000903AC3D05BF1BDEFCC045EBA03A585B0E56688C46E03818D，回归后未改。read_lints不可用用CLI；仅测试/两原记录，按聚焦规则不重复build，snapshot/.tenant453-temp及全部旧产物保留。
+
+按完整requesting-code-review/code-reviewer模板作者串行自审，Base523ebfc8dc1bbd9b50e32f8822a3c9b5a3d82ab2至本项三文件，非独立复核，无未修复Critical/Important/Minor。优点：真实认证多度量图表、独立字段/数据范围和G/V、手工可核的反先截行数据及完整物理后验。范围裁决：仅普通主库标量category分组、sum/count与显示前N组；日期/关联分组、全部聚合、跨来源生命周期、PG并发及浏览器业务试点不冒称完成。损坏PG保持停止，SQLite不替代PG隔离；正式安装/规则保存启用及整分支独立复核仍待完成。无生产/核心/公开类型/schema/依赖锁变化，无子智能体/外网/推送合并部署，定时任务短描述不变。三文件待英文原子默认签名提交，实际结果由后继提交/独立验签与现场审计接续。

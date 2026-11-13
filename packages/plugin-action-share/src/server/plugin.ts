@@ -39,8 +39,12 @@ export class PluginShareServer extends Plugin {
   }
 
   async load() {
+    const check = BaseAuth.prototype.check;
     BaseAuth.prototype.check = async function () {
       let token = this.ctx.getBearerToken();
+      if (token) {
+        return check.call(this);
+      }
       if (!token) {
         // 注入访客用户 token, TODO: 也许有更好的方法来拦截 BaseAuth 的逻辑
         // TODO: 访客模式启用判断, 访客 token 有效期设置， 带指定参数才可访客登录，前端导航栏头像适配访客

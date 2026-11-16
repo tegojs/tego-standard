@@ -1878,3 +1878,7 @@ users:updateProfile对已登录用户开放，只能作为个人资料入口，�
 ### §466 验收状态
 
 普通用户直接 `tenantUsers:update` / `tenantUsers:destroy` 的验收扩展仍在工作树中；批准 snapshot 的运行环境未提供 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，因此该文件 6 项均被条件跳过，不能记作通过或提交。待用允许的 ACL fixture 重新运行；不启动或修复 PostgreSQL，SQLite 不作为 PostgreSQL 并发证据。
+
+### 个人资料不得绕过账号状态管理（§468）
+
+`users:updateProfile` 是自助资料入口，不应授予普通登录用户管理员用户维护表单中的账号状态字段。真实 Basic 认证验收发现用户模块与分享插件覆写均接受 `status: 'pending'`，并把持久用户状态从 `active` 改为 `pending`；同一请求仍可正常更新昵称。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `status`。修复后两条真实路径的昵称更新保留、状态持久值维持 `active`；用户模块 3 项及分享插件 2 项聚焦测试通过。未改变状态服务、历史审计和管理员 `users:update` 状态流程，也未据此声称 PostgreSQL 并发已验证。

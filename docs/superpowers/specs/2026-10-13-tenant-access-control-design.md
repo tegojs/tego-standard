@@ -1974,3 +1974,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 真实Basic登录角色持久配置 `users:list` 字段白名单 `id`、`username` 和匹配用户scope时，部门聚合搜索原先只执行ACL记录filter，直接Repository结果仍包含phone、email等16个字段（RED）。处理器现将解析后的ACL `fields` 投影传给用户查询；认证验收确认字段范围生效，仓储自动附加的 `createdAt`/`updatedAt` 仍保留，未授权及部门管理snippet对照不变。
 
 9个部门/ACL聚焦文件32项、部门插件构建、改动TS的Prettier和oxlint通过，详情见计划§483。本项只验证静态字段白名单，不证明动态模板、分页/排序许可、租户隔离或PG并发；SQLite仅用于认证/ACL功能验收。作者串行自审，§466核心组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。
+
+### 部门候选列表必须应用 users:list ACL（§484）
+
+真实Basic认证的 `users:listExcludeDept` 候选列表之前只用自定义action过滤并直接查询用户，未执行普通 `users:list` 持久授权参数。真实角色配置下，候选结果包含users:list scope外用户及字段白名单外的联系方式；只授权候选action而未授权users:list时也能读到用户行（RED）。现要求users:list许可，缺失时返回空列表；有许可时将filter与候选查询组合并应用字段投影，保留部门成员排除和默认管理snippet行为。
+
+9个部门/ACL聚焦文件34项、部门插件构建、改动TS的Prettier与oxlint通过，工作树与批准snapshot源码SHA256一致，详情见计划§484。本项仅覆盖静态用户scope/fields和缺失users:list的fail-closed语义，不证明动态scope、租户隔离或PG并发；SQLite仅用于认证/ACL功能验收。作者串行自审、§466组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。

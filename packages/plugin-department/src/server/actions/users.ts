@@ -2,6 +2,14 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, type Context, type Next } from '@tego/s
 
 export const listExcludeDept = async (ctx: Context, next: Next) => {
   const { departmentId, page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE } = ctx.action.params;
+  const permission = ctx.can({ resource: 'users', action: 'list' });
+  if (!permission) {
+    ctx.body = { count: 0, rows: [], page: Number(page), pageSize: Number(pageSize), totalPage: 0 };
+    await next();
+    return;
+  }
+  const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
+  const { filter: listFilter = {}, fields } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
   const repo = ctx.db.getRepository('users');
   const members = await repo.find({
     fields: ['id'],
@@ -24,7 +32,10 @@ export const listExcludeDept = async (ctx: Context, next: Next) => {
     context: ctx,
     offset: (page - 1) * pageSize,
     limit: pageSize,
-    filter,
+    filter: {
+      $and: [listFilter, filter || {}],
+    },
+    fields,
   });
   ctx.body = {
     count,

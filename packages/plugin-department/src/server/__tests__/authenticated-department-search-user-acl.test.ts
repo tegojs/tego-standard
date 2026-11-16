@@ -10,9 +10,10 @@ describe('authenticated department search user ACL', () => {
   });
 
   it.each([
-    { access: 'without users:list', snippets: [], allowed: false },
-    { access: 'with the department management snippet', snippets: ['pm.department'], allowed: true },
-  ])('$access', async ({ snippets, allowed }) => {
+    { access: 'without users:list', snippets: [], allowed: false, scoped: false },
+    { access: 'with the department management snippet', snippets: ['pm.department'], allowed: true, scoped: false },
+    { access: 'with users:list restricted by persisted data scope', snippets: [], allowed: true, scoped: true },
+  ])('$access', async ({ snippets, allowed, scoped }) => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -61,6 +62,40 @@ describe('authenticated department search user ACL', () => {
         roles: ['member'],
       },
     });
+    if (scoped) {
+      const excludedUser = await users.create({
+        values: {
+          username: 'excluded-search-result',
+          nickname: 'Excluded Search Result',
+          phone: '555-0102',
+          email: 'excluded-search-result@example.test',
+          roles: ['member'],
+        },
+      });
+      const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+        values: {
+          dataSourceKey: 'main',
+          name: 'Only private search result',
+          resourceName: 'users',
+          scope: { id: { $eq: privateUser.id } },
+        },
+      });
+      const usersResource = await app.db.getRepository('dataSourcesRolesResources').create({
+        values: {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'users',
+          usingActionsConfig: true,
+          actions: [{ name: 'list', fields: ['id', 'username'], scope: { id: scope.id } }],
+        },
+      });
+      const usersListAction = await app.db
+        .getRepository('dataSourcesRolesResources.actions', usersResource.id)
+        .findOne({});
+      expect(usersListAction.get('name')).toBe('list');
+      expect(usersListAction.get('scopeId')).toBe(scope.id);
+      expect(await users.findOne({ filterByTk: excludedUser.id })).toBeTruthy();
+    }
     const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
       account: operator.username,
       password,
@@ -87,19 +122,25 @@ describe('authenticated department search user ACL', () => {
       .set('X-Authenticator', 'basic')
       .set('X-Role', role)
       .resource('departments')
-      .aggregateSearch({ values: { keyword: 'private-search-result', type: 'user', limit: 10 } });
+      .aggregateSearch({
+        values: { keyword: scoped ? 'search-result' : 'private-search-result', type: 'user', limit: 10 },
+      });
 
     expect(response.status).toBe(200);
     expect(observed).toEqual([{ userId: operator.id, role }]);
     if (allowed) {
-      expect(response.body.data.users).toEqual([
-        expect.objectContaining({
-          id: privateUser.id,
-          username: 'private-search-result',
-          phone: '555-0101',
-          email: 'private-search-result@example.test',
-        }),
-      ]);
+      if (scoped) {
+        expect(response.body.data.users.map(({ id }) => id)).toEqual([privateUser.id]);
+      } else {
+        expect(response.body.data.users).toEqual([
+          expect.objectContaining({
+            id: privateUser.id,
+            username: 'private-search-result',
+            phone: '555-0101',
+            email: 'private-search-result@example.test',
+          }),
+        ]);
+      }
     } else {
       expect(response.body.data.users).toEqual([]);
     }

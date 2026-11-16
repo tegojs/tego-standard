@@ -16,20 +16,30 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
   const { keyword, type, last = 0, limit = 10 } = ctx.action.params.values || {};
   let users = [];
   let departments = [];
-  if ((!type || type === 'user') && ctx.can({ resource: 'users', action: 'list' })) {
-    const repo = ctx.db.getRepository('users');
-    users = await repo.find({
-      filter: {
-        id: { $gt: last },
-        $or: [
-          { username: { $includes: keyword } },
-          { nickname: { $includes: keyword } },
-          { phone: { $includes: keyword } },
-          { email: { $includes: keyword } },
-        ],
-      },
-      limit,
-    });
+  if (!type || type === 'user') {
+    const permission = ctx.can({ resource: 'users', action: 'list' });
+    if (permission) {
+      const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
+      const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+      const repo = ctx.db.getRepository('users');
+      users = await repo.find({
+        filter: {
+          $and: [
+            filter,
+            {
+              id: { $gt: last },
+              $or: [
+                { username: { $includes: keyword } },
+                { nickname: { $includes: keyword } },
+                { phone: { $includes: keyword } },
+                { email: { $includes: keyword } },
+              ],
+            },
+          ],
+        },
+        limit,
+      });
+    }
   }
   if (!type || type === 'department') {
     const repo = ctx.db.getRepository('departments');

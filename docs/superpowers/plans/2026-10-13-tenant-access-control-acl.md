@@ -100,3 +100,8 @@
   - 最小修复仅在执行聚合搜索的用户查询前通过 `ctx.can({resource:'users',action:'list'})` 要求当前角色同时具备标准用户列表权限。没有该权限仍可执行已授权部门搜索，但用户列表为空；授予现有 `pm.department` snippet 后，搜索结果仍正常返回目标用户和已有用户列表字段。部门查询过滤、关键字和分页、动作本身ACL、依赖与schema均不变。
   - 批准snapshot重跑9文件聚焦回归（新增用户权限对照、部门搜索scope、负责人操作/字段/scope、主部门、部门角色及ACL setCurrentRole）：退出0，39项全部通过、无skip；`pnpm exec tegod build @tachybase/plugin-department`完整构建退出0，新TS Prettier/oxlint通过。工作树/snapshot源码SHA256一致：actions=`B9FCFF258D9180DED050D782CCE03E089E9EFB1C97688F8DBEDF9A5FAE72A891`，测试=`5236BE522C7D76CDD3F60E52D52E7569F6A0D66ACC5B7F9B246E3074B9D370EE`。
   - 作者按完整模板串行自审，非独立复核。本项只证明用户结果受标准users:list操作许可门控，不证明users:list自定义字段白名单/数据scope进一步约束这些结果、跨实例缓存、租户隔离或PG并发。部门插件snippet授予users:list的正常路径被保留。§466核心ACL组合验收、正式安装/规则启用/浏览器试点及整分支独立复核仍待完成；原工作树改动保留，损坏PG不启动，不联系子智能体或外网，不推送/合并/部署/正式启用。
+
+- §481（聚合搜索用户分支必须执行 users:list 数据范围）：沿§480明确未覆盖的边界，设置Basic真实登录的普通角色；持久 `users:list` action scope 仅允许用户ID 3，聚合搜索词同时命中ID 3和范围外ID 4。首次有效RED响应为 `[3,4]` 而非 `[3]`；无 `users:list` 与部门管理snippet既有对照保持原预期，完整用户行及用户-角色关联前后不变。
+  - 最小修复从当前认证角色获取 `ctx.can({resource:'users',action:'list'})` 的参数，经 `ctx.tego.acl.filterParams` 和 `parseJsonTemplate` 处理，再把其filter与原增量ID及关键字条件以 `$and` 合并到用户Repository查询。空ACL params默认 `{}`，因此snippet授予但未配置额外params时仍保持可用。部门分支、搜索字段、分页及响应结构未改。
+  - 修复后该认证验收3项通过；9文件部门/ACL聚焦回归40项通过；部门插件构建通过。改动TS的Prettier检查通过，oxlint 0 warnings/0 errors。首轮无效夹具因排除用户未匹配搜索词而被识别并修正，不作为RED；真实RED输出为ID `[3,4]`。批准snapshot与工作树源码SHA256一致：actions=`3E083B335EAB56EB8A76445E6290B32ACF8E671F020E6C8C486C7410A0E55F4F`，验收=`3631D4D3F5256A42D837DD382E2B55FDD1697D618DF89F4D6E8A6A5ED2DB31A3`。
+  - 作者串行自审、非独立复核。本项只验证静态ID过滤scope，不证明动态模板、users:list字段白名单、排序/分页策略、租户隔离、PG并发或跨实例缓存。用SQLite内存库执行的是认证/ACL行为验收，不作为PG并发证据。§466核心ACL组合验收、正式安装/规则启用/浏览器试点及整分支独立复核仍待完成；损坏PG不启动，不联系子智能体或外网，不推送/合并/部署/正式启用。

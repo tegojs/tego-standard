@@ -16,7 +16,7 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
   const { keyword, type, last = 0, limit = 10 } = ctx.action.params.values || {};
   let users = [];
   let departments = [];
-  if (!type || type === 'user') {
+  if ((!type || type === 'user') && ctx.can({ resource: 'users', action: 'list' })) {
     const repo = ctx.db.getRepository('users');
     users = await repo.find({
       filter: {

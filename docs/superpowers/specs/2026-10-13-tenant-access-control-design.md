@@ -1890,3 +1890,7 @@ users:updateProfile对已登录用户开放，只能作为个人资料入口，�
 ### 个人资料不得设置密码重置令牌（§470）
 
 真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可把已知 `resetToken` 持久化；随后无凭据调用 `auth:resetPassword` 返回 200，使新密码生效且旧密码失效（RED）。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `resetToken`。修复后资料更新保留，令牌不落库、重置返回 404，旧密码仍有效且新密码无效；两文件共 9 项真实认证聚焦测试通过。没有改动令牌生成/发送流程，也不代表 PostgreSQL 并发已验证。
+
+### 普通租户成员不能直接更改或移除成员关系（§471）
+
+普通B成员的真实 Basic 会话不能直接调用 `tenantUsers:update` 把本人关系从B改为C，也不能调用 `tenantUsers:destroy` 删除本人B关系；两个请求均须由标准ACL拒绝，且持久成员关系不变。使用本地真实 app、持久普通角色与成员数据的独立 HTTP 验收在批准 snapshot 中1项通过。它不依赖或验证新核心 ACL 扩展点，因此原依赖 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY` 的组合测试仍是未验证状态；也不代表 PostgreSQL 并发证据。

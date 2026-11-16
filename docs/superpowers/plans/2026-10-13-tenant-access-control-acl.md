@@ -49,8 +49,9 @@
 
 ## 2026-11-16 接续验收记录
 
-- §466（普通用户直接修改租户成员关系）：工作树中的测试扩展覆盖 `tenantUsers:update`、`tenantUsers:destroy`，但批准 snapshot 未配置 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，对应命令 6 项全部 skip；该结果不算通过。未改生产代码，测试仍待在允许的核心 ACL fixture 下重验，暂不提交。
+- §466（普通用户直接修改租户成员关系）：依赖 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY` 的组合测试仍因批准 snapshot 未配置该入口而 6 项全部 skip，不算通过。§471 另以默认 ACL 和真实 Basic 登录独立验收直接 `tenantUsers:update/destroy`，但不替代核心 ACL 扩展点组合场景；未改生产代码。
 - §467（个人资料不能赋予特权 specialRole）：真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可将持久 `specialRole` 从空值写成 `root`（RED）。两个处理器把该字段加入既有 blacklist 后，用户模块 2 项及分享插件 1 项聚焦测试通过；Prettier 与 oxlint 通过。未测试账号状态字段，也未改变它们的行为。
 - §468（个人资料不能绕过账号状态管理）：真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可把持久 `status` 从 `active` 写成 `pending`（RED）。两个处理器把 `status` 加入既有 blacklist 后，保留昵称更新且状态仍为 `active`；用户模块 3 项、分享插件 2 项聚焦测试通过。状态元数据和管理员状态管理流程未改。
 - §469（个人资料不得绕过专用密码修改验证）：真实 Basic 登录后，两个 `users:updateProfile` 入口均可直接替换密码，旧密码随后 401、新密码 200（RED）；专用 `auth:changePassword` 则校验旧密码。两个处理器把 `password` 加入既有 blacklist 后，资料昵称仍可更新，旧密码 200、新密码 401；用户模块 4 项、分享插件 3 项聚焦测试通过。
 - §470（个人资料不得设置密码重置令牌）：真实 Basic 登录后，用户模块及分享插件的 `users:updateProfile` 均能把攻击者已知 `resetToken` 写入持久用户；之后无凭据 `auth:resetPassword` 返回 200，允许新密码登录、旧密码失效（RED）。两个处理器把 `resetToken` 加入既有 blacklist 后，资料更新仍可成功，但该值不落库；无凭据重置返回 404，旧密码仍为 200、新密码为 401。两文件聚焦回归 9 项通过，Prettier 与 oxlint 通过。仅验证本地真实认证/持久数据路径，不主张 PG 并发证据；未改变重置令牌生成/发送流程或正式启用状态。
+- §471（普通成员不能直接维护租户成员关系）：真实 Basic 登录的普通B成员角色未获 `tenantUsers` 操作授权，直接更新B成员记录改为C或删除该记录均应返回403且不带业务数据，持久成员关系保持不变。批准 snapshot 中不依赖核心 ACL factory 的标准 ACL 验收1项通过；未改生产代码。此项不证明新核心扩展点组合或PostgreSQL并发。

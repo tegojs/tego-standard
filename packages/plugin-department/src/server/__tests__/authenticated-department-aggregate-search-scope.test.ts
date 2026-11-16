@@ -43,7 +43,7 @@ describe('authenticated department aggregate search data scope', () => {
         roleName: role,
         name: 'departments',
         usingActionsConfig: true,
-        actions: [{ name: 'aggregateSearch', fields: ['id', 'title'], scope: { id: scope.id } }],
+        actions: [{ name: 'aggregateSearch', fields: ['id', 'title', 'parent'], scope: { id: scope.id } }],
       },
     });
     const actionConfig = await app.db.getRepository('dataSourcesRolesResources.actions', resource.id).findOne({});
@@ -60,7 +60,8 @@ describe('authenticated department aggregate search data scope', () => {
     const departments = app.db.getRepository('departments');
     await departments.createMany({
       records: [
-        { id: 101, title: 'Scope match allowed department', isLeaf: true },
+        { id: 100, title: 'Scope excluded parent department', isLeaf: false },
+        { id: 101, title: 'Scope match allowed department', parentId: 100, isLeaf: true },
         { id: 102, title: 'Scope match excluded department', isLeaf: true },
       ],
     });
@@ -70,7 +71,7 @@ describe('authenticated department aggregate search data scope', () => {
     });
     expect(signIn.status).toBe(200);
     expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
-    const observed: Array<{ userId: number; role: string; filter: unknown }> = [];
+    const observed: Array<{ userId: number; role: string; filter: unknown; fields: unknown }> = [];
     app.resourcer.use(
       async (ctx, next) => {
         if (ctx.action.resourceName === 'departments' && ctx.action.actionName === 'aggregateSearch') {
@@ -78,6 +79,7 @@ describe('authenticated department aggregate search data scope', () => {
             userId: ctx.state.currentUser.id,
             role: ctx.state.currentRole,
             filter: ctx.action.params.filter,
+            fields: ctx.action.params.fields,
           });
         }
         await next();
@@ -98,15 +100,39 @@ describe('authenticated department aggregate search data scope', () => {
       .aggregateSearch({ values: { keyword: 'Scope match', type: 'department', limit: 10 } });
 
     expect(response.status).toBe(200);
-    expect(observed).toEqual([{ userId: operator.id, role, filter: scopeFilter }]);
+    expect(observed).toEqual([{ userId: operator.id, role, filter: scopeFilter, fields: ['id', 'parent', 'title'] }]);
     expect(response.body.data.users).toEqual([]);
     expect(response.body.data.departments.map(({ id, title }) => ({ id, title }))).toEqual([
       { id: 101, title: 'Scope match allowed department' },
     ]);
+    expect(response.body.data.departments[0]).not.toHaveProperty('parent');
     expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
     expect(await departments.find({ raw: true, sort: ['id'] })).toEqual(departmentsBefore);
     expect(await app.db.getRepository('rolesUsers').find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(
       rolesBefore,
     );
+
+    const managerRole = 'department-search-unscoped-manager';
+    const managerPassword = 'department-search-unscoped-manager-password';
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: managerRole, strategy: { actions: [] }, snippets: ['pm.department'] } });
+    const manager = await users.create({
+      values: { username: managerRole, password: managerPassword, roles: [managerRole] },
+    });
+    const managerSignIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: manager.username,
+      password: managerPassword,
+    });
+    expect(managerSignIn.status).toBe(200);
+    const unscopedResponse = await app
+      .agent()
+      .set('Authorization', `Bearer ${managerSignIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', managerRole)
+      .resource('departments')
+      .aggregateSearch({ values: { keyword: 'Scope match', type: 'department', limit: 10 } });
+    expect(unscopedResponse.status).toBe(200);
+    expect(unscopedResponse.body.data.departments[0].parent.title).toBe('Scope excluded parent department');
   });
 });

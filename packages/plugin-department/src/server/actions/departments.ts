@@ -44,17 +44,18 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
   }
   if (!type || type === 'department') {
     const repo = ctx.db.getRepository('departments');
+    const departmentFilter = ctx.action.params.filter || {};
     departments = await repo.find({
       filter: {
         $and: [
-          ctx.action.params.filter || {},
+          departmentFilter,
           {
             id: { $gt: last },
             title: { $includes: keyword },
           },
         ],
       },
-      appends: ['parent(recursively=true)'],
+      appends: Object.keys(departmentFilter).length ? [] : ['parent(recursively=true)'],
       limit,
     });
   }

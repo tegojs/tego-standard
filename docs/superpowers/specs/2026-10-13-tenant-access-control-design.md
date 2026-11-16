@@ -1980,3 +1980,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 真实Basic认证的 `users:listExcludeDept` 候选列表之前只用自定义action过滤并直接查询用户，未执行普通 `users:list` 持久授权参数。真实角色配置下，候选结果包含users:list scope外用户及字段白名单外的联系方式；只授权候选action而未授权users:list时也能读到用户行（RED）。现要求users:list许可，缺失时返回空列表；有许可时将filter与候选查询组合并应用字段投影，保留部门成员排除和默认管理snippet行为。
 
 9个部门/ACL聚焦文件34项、部门插件构建、改动TS的Prettier与oxlint通过，工作树与批准snapshot源码SHA256一致，详情见计划§484。本项仅覆盖静态用户scope/fields和缺失users:list的fail-closed语义，不证明动态scope、租户隔离或PG并发；SQLite仅用于认证/ACL功能验收。作者串行自审、§466组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。
+
+### 部门聚合搜索不能通过父级展开泄露scope外记录（§485）
+
+真实Basic角色持久配置 `departments:aggregateSearch` scope仅允许部门101，字段允许 `parent`；101的父级100不在scope内。搜索结果虽只含101，原无条件递归append仍返回父记录100及标题（RED）。现有filter非空时不展开父链；无scope的部门管理角色仍保持父级标签展示。
+
+真实认证scope/管理角色对照、部门插件构建及格式/lint结果见计划§485。本项只验证静态filter下阻断parent递归越界，不证明动态复杂filter的逐节点可见性、租户隔离或PG并发；SQLite仅用于功能验收。作者串行自审，§466组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。

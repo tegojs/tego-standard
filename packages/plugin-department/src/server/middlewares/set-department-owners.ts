@@ -35,7 +35,11 @@ export const setDepartmentOwners = async (ctx: Context, next: Next) => {
     ctx.action.params.values = _.omit(values, ['owners']);
     await next();
     const { whitelist } = ctx.action.params;
-    if (!whitelist || whitelist.includes('owners')) {
+    const updatedDepartments = ctx.body;
+    const updatedTarget =
+      Array.isArray(updatedDepartments) &&
+      updatedDepartments.some((department) => String(department.id) === String(filterByTk));
+    if (updatedTarget && (!whitelist || whitelist.includes('owners'))) {
       await setOwners(ctx, filterByTk, owners);
     }
   } else {

@@ -1986,3 +1986,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 真实Basic角色持久配置 `departments:aggregateSearch` scope仅允许部门101，字段允许 `parent`；101的父级100不在scope内。搜索结果虽只含101，原无条件递归append仍返回父记录100及标题（RED）。现有filter非空时不展开父链；无scope的部门管理角色仍保持父级标签展示。
 
 真实认证scope/管理角色对照、部门插件构建及格式/lint结果见计划§485。本项只验证静态filter下阻断parent递归越界，不证明动态复杂filter的逐节点可见性、租户隔离或PG并发；SQLite仅用于功能验收。作者串行自审，§466组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。
+
+### 主部门写操作必须执行持久 users action scope（§486）
+
+`users:setMainDepartment` 虽正确要求操作action许可，但其自定义事务直接按请求 `userId` 更新 `departmentsUsers`，不会自动把该action的ACL scope应用到中间表。真实Basic登录、持久角色及 `users.id = operator.id` action scope下，操作员将scope外另一用户的主部门由101改到102；首次RED为HTTP 200且两条持久成员关系实际翻转。
+
+处理器现将当前action permission的filter经ACL过滤及模板解析后，与请求目标用户主键一并查验；目标不在scope时不执行关联写入。真实验收确认scope外目标成员关系完整不变、返回既有无结果写语义200；既有未授权角色403和部门管理snippet允许路径保持通过。9个部门/ACL聚焦文件38项及部门插件构建通过，详细核验和SHA256见计划§486。本项仅验证静态users ID scope，不证明动态scope模板、部门关联授权、租户隔离或PG并发；SQLite只用于认证/ACL功能验收。作者串行自审，§466组合验收、正式试点和整分支复核仍待完成，未推送/部署/正式启用。

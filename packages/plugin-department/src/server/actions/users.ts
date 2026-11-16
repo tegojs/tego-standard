@@ -97,6 +97,15 @@ export const setDepartments = async (ctx: Context, next: Next) => {
 };
 export const setMainDepartment = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
+  const permission = ctx.can({ resource: 'users', action: 'setMainDepartment' });
+  const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission?.params || {});
+  const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+  const user = await ctx.db.getRepository('users').findOne({ filterByTk: userId, filter });
+  if (!user) {
+    await next();
+    return;
+  }
+
   const throughRepo = ctx.db.getRepository('departmentsUsers');
   await ctx.db.sequelize.transaction(async (t) => {
     await throughRepo.update({

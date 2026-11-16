@@ -105,3 +105,8 @@
   - 最小修复从当前认证角色获取 `ctx.can({resource:'users',action:'list'})` 的参数，经 `ctx.tego.acl.filterParams` 和 `parseJsonTemplate` 处理，再把其filter与原增量ID及关键字条件以 `$and` 合并到用户Repository查询。空ACL params默认 `{}`，因此snippet授予但未配置额外params时仍保持可用。部门分支、搜索字段、分页及响应结构未改。
   - 修复后该认证验收3项通过；9文件部门/ACL聚焦回归40项通过；部门插件构建通过。改动TS的Prettier检查通过，oxlint 0 warnings/0 errors。首轮无效夹具因排除用户未匹配搜索词而被识别并修正，不作为RED；真实RED输出为ID `[3,4]`。批准snapshot与工作树源码SHA256一致：actions=`3E083B335EAB56EB8A76445E6290B32ACF8E671F020E6C8C486C7410A0E55F4F`，验收=`3631D4D3F5256A42D837DD382E2B55FDD1697D618DF89F4D6E8A6A5ED2DB31A3`。
   - 作者串行自审、非独立复核。本项只验证静态ID过滤scope，不证明动态模板、users:list字段白名单、排序/分页策略、租户隔离、PG并发或跨实例缓存。用SQLite内存库执行的是认证/ACL行为验收，不作为PG并发证据。§466核心ACL组合验收、正式安装/规则启用/浏览器试点及整分支独立复核仍待完成；损坏PG不启动，不联系子智能体或外网，不推送/合并/部署/正式启用。
+
+- §482（部门添加成员候选列表必须要求部门管理许可）：沿真实客户端 `AddMembers` → `users:listExcludeDept` 检查自定义用户读取入口。角色与部门成员关系均由数据库持久化，真实Basic登录普通角色不含 `pm.department` snippet。首次RED：请求仍为200，返回候选用户完整记录，包括手机号和邮箱；该插件虽在 `pm.department` snippet 中登记该 action，却另用 `app.acl.allow(...,'loggedIn')` 给所有已登录角色全局授权。测试还确认部门成员过滤结果符合候选列表语义、请求没有改动用户/角色/部门成员数据。
+  - 最小修复仅移除 `users:listExcludeDept` 的全局 `loggedIn` ACL放行；保留 action 注册、处理器与 `pm.department` snippet。普通角色现在403且无业务data；持久授予部门管理snippet后仍返回预期候选用户和联系方式。
+  - 修复后新增真实认证验收2项通过；11文件部门/ACL/相邻用户列表聚焦回归44项通过；`pnpm exec tegod build @tachybase/plugin-department`构建通过；新TS Prettier通过、oxlint 0 warnings/0 errors。批准snapshot与工作树SHA256一致：plugin=`7CBDB39A458F13B9781CF6D34C6C35169B976FEB7F8680ABB70CD6521B4F20ED`，验收=`433953055AF789346FC4CD05965CB483B5476213F4C21AAC59626215FCB07DFF`。
+  - 作者串行自审、非独立复核。本项只证明已登录但未持久获部门管理snippet的角色不能读取该候选用户列表；未单独测试未登录请求，也不证明users:list字段白名单或数据scope会自动应用到此自定义action、租户隔离或PG并发。SQLite只用于真实认证/ACL功能验收，不作为PG并发证据。§466核心ACL组合、浏览器试点与整分支独立复核仍待完成；损坏PG不启动，不联系子智能体或外网，不推送/合并/部署/正式启用。

@@ -1962,3 +1962,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 真实Basic会话及持久 `users:list` scope 只允许ID 3时，搜索同时命中ID 3与ID 4，原处理器仍返回 `[3,4]`（RED）。修复按当前角色解析 `users:list` ACL filter，并与聚合搜索现有用户关键字/增量ID条件合并查询；不具备 `users:list` 仍返回空，有部门管理snippet时未配置params的正常路径保持可用。
 
 认证验收3项、9文件40项部门/ACL聚焦回归、部门插件构建及格式/lint检查通过，详细RED和边界见计划§481。本项仅证明静态用户ID scope生效，不证明动态scope模板、users:list字段白名单、租户隔离或PG并发；SQLite仅承载真实认证/ACL功能测试。作者串行自审，§466组合验收和正式试点仍待完成，未推送/部署/正式启用。
+
+### 部门添加成员候选列表要求部门管理许可（§482）
+
+部门管理界面的 `AddMembers` 通过 `users:listExcludeDept` 读取候选用户。真实Basic登录、持久空策略角色没有 `pm.department` 时，原action仍返回200及候选用户联系方式（RED）；全局 `loggedIn` 放行绕过了插件既有部门管理snippet授权。修复移除该全局放行，普通角色403，而持久授予 `pm.department` 后原候选列表仍可用。
+
+真实认证验收2项、11文件44项部门/ACL/用户列表聚焦回归、部门插件构建及格式/lint检查通过，数据后验和SHA256见计划§482。本项只覆盖该自定义action的操作许可，不证明 `users:list` 的字段/scope约束、租户隔离或PG并发；SQLite只用于功能验收。作者串行自审，§466组合验收、正式试点和整分支复核仍待完成，未推送/部署/正式启用。

@@ -1886,3 +1886,7 @@ users:updateProfile对已登录用户开放，只能作为个人资料入口，�
 ### 个人资料不得绕过专用密码修改验证（§469）
 
 `users:updateProfile` 只用于自助资料维护，不能绕过专用 `auth:changePassword` 流程直接替换当前用户密码。真实 Basic 登录验收在用户模块和分享插件的 profile 覆写中均复现 RED：资料更新接受新密码，之后旧密码登录为 401、新密码登录为 200。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `password`；修复后昵称仍可更新，旧密码登录为 200、新密码登录为 401。用户模块 4 项、分享插件 3 项聚焦验收通过。该项没有更改专用改密流程，也不代表 PostgreSQL 并发或正式部署已验证。
+
+### 个人资料不得设置密码重置令牌（§470）
+
+真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可把已知 `resetToken` 持久化；随后无凭据调用 `auth:resetPassword` 返回 200，使新密码生效且旧密码失效（RED）。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `resetToken`。修复后资料更新保留，令牌不落库、重置返回 404，旧密码仍有效且新密码无效；两文件共 9 项真实认证聚焦测试通过。没有改动令牌生成/发送流程，也不代表 PostgreSQL 并发已验证。

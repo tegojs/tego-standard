@@ -120,4 +120,55 @@ describe('shared user profile actions', () => {
       replacementPassword: 401,
     });
   });
+
+  it('does not allow a profile update to set a password reset token', async () => {
+    const account = 'profile-reset-token-user';
+    const password = 'profile-reset-token-old';
+    const replacement = 'profile-reset-token-new';
+    const resetToken = 'attacker-known-reset-token';
+    const user = await app.db.getRepository('users').create({
+      values: {
+        username: account,
+        email: 'profile-reset-token-user@example.com',
+        nickname: 'Ordinary user',
+        password,
+      },
+    });
+
+    const login = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({ account, password });
+    expect(login.status).toBe(200);
+    const saved = await app
+      .agent()
+      .set('Authorization', `Bearer ${login.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .resource('users')
+      .updateProfile({ values: { nickname: 'Profile edited', resetToken } });
+    expect(saved.status).toBe(200);
+    const persisted = await app.db.getCollection('users').model.findByPk(user.id, { raw: true });
+
+    const reset = await app
+      .agent()
+      .post('/auth:resetPassword')
+      .set('X-Authenticator', 'basic')
+      .send({ email: user.email, password: replacement, resetToken });
+    const oldPasswordLogin = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account, password });
+    const replacementPasswordLogin = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account, password: replacement });
+
+    expect({ persistedResetToken: persisted.resetToken, resetStatus: reset.status }).toEqual({
+      persistedResetToken: null,
+      resetStatus: 404,
+    });
+    expect({ oldPassword: oldPasswordLogin.status, replacementPassword: replacementPasswordLogin.status }).toEqual({
+      oldPassword: 200,
+      replacementPassword: 401,
+    });
+  });
 });

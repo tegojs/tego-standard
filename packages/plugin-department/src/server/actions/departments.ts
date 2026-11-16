@@ -45,21 +45,31 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
   ctx.body = { users, departments };
   await next();
 };
+const canManageDepartment = async (ctx: Context, departmentId) => {
+  const { filter } = ctx.action.params;
+  const department = await ctx.db.getRepository('departments').findOne({
+    filterByTk: departmentId,
+    filter,
+  });
+  return Boolean(department);
+};
 export const setOwner = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
   if (userId === undefined || departmentId === undefined) {
     ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
   }
-  const throughRepo = ctx.db.getRepository('departmentsUsers');
-  await throughRepo.update({
-    filter: {
-      userId,
-      departmentId,
-    },
-    values: {
-      isOwner: true,
-    },
-  });
+  if (await canManageDepartment(ctx, departmentId)) {
+    const throughRepo = ctx.db.getRepository('departmentsUsers');
+    await throughRepo.update({
+      filter: {
+        userId,
+        departmentId,
+      },
+      values: {
+        isOwner: true,
+      },
+    });
+  }
   await next();
 };
 export const removeOwner = async (ctx: Context, next: Next) => {
@@ -67,15 +77,17 @@ export const removeOwner = async (ctx: Context, next: Next) => {
   if (userId === undefined || departmentId === undefined) {
     ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
   }
-  const throughRepo = ctx.db.getRepository('departmentsUsers');
-  await throughRepo.update({
-    filter: {
-      userId,
-      departmentId,
-    },
-    values: {
-      isOwner: false,
-    },
-  });
+  if (await canManageDepartment(ctx, departmentId)) {
+    const throughRepo = ctx.db.getRepository('departmentsUsers');
+    await throughRepo.update({
+      filter: {
+        userId,
+        departmentId,
+      },
+      values: {
+        isOwner: false,
+      },
+    });
+  }
   await next();
 };

@@ -104,4 +104,44 @@ describe('actions', () => {
     const persisted = await db.getCollection('users').model.findByPk(user.id, { raw: true });
     expect(persisted).toMatchObject({ nickname: 'Profile edited', status: 'active' });
   });
+
+  it('does not allow a profile update to replace the password without the password-change flow', async () => {
+    const account = 'profile-password-user';
+    const password = 'profile-password-old';
+    const replacement = 'profile-password-new';
+    const user = await db.getRepository('users').create({
+      values: {
+        username: account,
+        email: 'profile-password-user@example.com',
+        nickname: 'Ordinary user',
+        password,
+      },
+    });
+
+    const login = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({ account, password });
+    expect(login.status).toBe(200);
+    const saved = await app
+      .agent()
+      .set('Authorization', `Bearer ${login.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .resource('users')
+      .updateProfile({ values: { nickname: 'Profile edited', password: replacement } });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.data[0]).toMatchObject({ id: user.id, nickname: 'Profile edited' });
+    const replacementPasswordLogin = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account, password: replacement });
+    const oldPasswordLogin = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account, password });
+    expect({ oldPassword: oldPasswordLogin.status, replacementPassword: replacementPasswordLogin.status }).toEqual({
+      oldPassword: 200,
+      replacementPassword: 401,
+    });
+  });
 });

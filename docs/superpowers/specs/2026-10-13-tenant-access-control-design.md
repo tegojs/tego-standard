@@ -1882,3 +1882,7 @@ users:updateProfile对已登录用户开放，只能作为个人资料入口，�
 ### 个人资料不得绕过账号状态管理（§468）
 
 `users:updateProfile` 是自助资料入口，不应授予普通登录用户管理员用户维护表单中的账号状态字段。真实 Basic 认证验收发现用户模块与分享插件覆写均接受 `status: 'pending'`，并把持久用户状态从 `active` 改为 `pending`；同一请求仍可正常更新昵称。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `status`。修复后两条真实路径的昵称更新保留、状态持久值维持 `active`；用户模块 3 项及分享插件 2 项聚焦测试通过。未改变状态服务、历史审计和管理员 `users:update` 状态流程，也未据此声称 PostgreSQL 并发已验证。
+
+### 个人资料不得绕过专用密码修改验证（§469）
+
+`users:updateProfile` 只用于自助资料维护，不能绕过专用 `auth:changePassword` 流程直接替换当前用户密码。真实 Basic 登录验收在用户模块和分享插件的 profile 覆写中均复现 RED：资料更新接受新密码，之后旧密码登录为 401、新密码登录为 200。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中加入 `password`；修复后昵称仍可更新，旧密码登录为 200、新密码登录为 401。用户模块 4 项、分享插件 3 项聚焦验收通过。该项没有更改专用改密流程，也不代表 PostgreSQL 并发或正式部署已验证。

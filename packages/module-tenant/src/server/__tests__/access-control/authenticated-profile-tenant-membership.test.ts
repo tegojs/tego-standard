@@ -20,7 +20,10 @@ describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () =
     { name: 'share plugin override', share: true, nestedHierarchy: false },
     { name: 'ordinary user module through default tenant children', share: false, nestedHierarchy: true },
     { name: 'share plugin override through default tenant children', share: true, nestedHierarchy: true },
-  ])('$name cannot open another tenant through a profile update', async ({ share, nestedHierarchy }) => {
+    { name: 'ordinary user module with an inaccessible persisted default', share: false, invalidDefault: true },
+    { name: 'share plugin override with an inaccessible persisted default', share: true, invalidDefault: true },
+  ])('$name remains tenant-scoped after a profile update', async (scenario) => {
+    const { share, nestedHierarchy, invalidDefault = false } = scenario;
     let app: MockServer;
     let unregister: (() => void) | undefined;
     const originalCheck = BaseAuth.prototype.check;
@@ -98,13 +101,14 @@ describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () =
       const otherLogin = await signIn('profile-tenant-c');
       expect(otherLogin.status).toBe(200);
       expect(otherLogin.body.data.user).toMatchObject({ id: other.id, hasPassword: true });
-      const agent = (token: string, tenant = 'B') =>
-        app
+      const agent = (token: string, tenant: string | null = 'B') => {
+        const request = app
           .agent()
           .set('Authorization', 'Bearer ' + token)
           .set('X-Authenticator', 'basic')
-          .set('X-Role', role)
-          .set('X-Tenant-Id', tenant);
+          .set('X-Role', role);
+        return tenant === null ? request : request.set('X-Tenant-Id', tenant);
+      };
       const current = (tenant = 'B') => agent(login.body.data.token, tenant);
       const checked = await current().get('/auth:check');
       expect(checked.status).toBe(200);
@@ -202,7 +206,9 @@ describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () =
         .updateProfile({
           values: nestedHierarchy
             ? { nickname: 'B edited', defaultTenant: { id: 'B', children: [{ id: 'C', parentId: 'B' }] } }
-            : { nickname: 'B edited', tenants: ['B', 'C'] },
+            : invalidDefault
+              ? { nickname: 'B edited', defaultTenantId: 'C' }
+              : { nickname: 'B edited', tenants: ['B', 'C'] },
         });
       expect(saved.status).toBe(200);
       expect(saved.body.data).toHaveLength(1);
@@ -213,6 +219,11 @@ describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () =
         tenants: initialTenants,
       });
       expect(foreign.body).not.toHaveProperty('data');
+      if (invalidDefault) {
+        const headerlessFallback = await agent(login.body.data.token, null).resource(name).list();
+        expect(headerlessFallback.status).toBe(200);
+        expect(headerlessFallback.body.data).toEqual([originalRows[0]]);
+      }
       expect(await memberships()).toEqual(initialMemberships);
       const retained = await current().resource(name).list();
       expect(retained.status).toBe(200);
@@ -222,8 +233,13 @@ describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () =
       const freshForeign = await agent(relogin.body.data.token, 'C').resource(name).list();
       expect(freshForeign.status).toBe(403);
       expect(freshForeign.body).not.toHaveProperty('data');
+      if (invalidDefault) {
+        const freshHeaderlessFallback = await agent(relogin.body.data.token, null).resource(name).list();
+        expect(freshHeaderlessFallback.status).toBe(200);
+        expect(freshHeaderlessFallback.body.data).toEqual([originalRows[0]]);
+      }
       const expectedIdentities = initialIdentities.map((row) =>
-        row.id === actor.id ? { ...row, nickname: 'B edited' } : row,
+        row.id === actor.id ? { ...row, nickname: 'B edited', defaultTenantId: invalidDefault ? 'C' : 'B' } : row,
       );
       expect(await identities()).toEqual(expectedIdentities);
       expect(await memberships()).toEqual(initialMemberships);

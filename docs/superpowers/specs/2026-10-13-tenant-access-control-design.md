@@ -1992,3 +1992,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 `users:setMainDepartment` 虽正确要求操作action许可，但其自定义事务直接按请求 `userId` 更新 `departmentsUsers`，不会自动把该action的ACL scope应用到中间表。真实Basic登录、持久角色及 `users.id = operator.id` action scope下，操作员将scope外另一用户的主部门由101改到102；首次RED为HTTP 200且两条持久成员关系实际翻转。
 
 处理器现将当前action permission的filter经ACL过滤及模板解析后，与请求目标用户主键一并查验；目标不在scope时不执行关联写入。真实验收确认scope外目标成员关系完整不变、返回既有无结果写语义200；既有未授权角色403和部门管理snippet允许路径保持通过。9个部门/ACL聚焦文件38项及部门插件构建通过，详细核验和SHA256见计划§486。本项仅验证静态users ID scope，不证明动态scope模板、部门关联授权、租户隔离或PG并发；SQLite只用于认证/ACL功能验收。作者串行自审，§466组合验收、正式试点和整分支复核仍待完成，未推送/部署/正式启用。
+
+### 用户-部门关联写入必须执行持久关联 action scope（§487）
+
+用户资料中的部门编辑器通过 `users.departments:add/remove` 改关联。真实Basic角色获 `pm.department`，关联动作持久scope仅允许操作员用户ID；请求把部门加到scope外目标用户时，原实现仍向 `departmentsUsers` 插入了真实关联行（RED）。原因是通用ACL关联链清理了关联动作filter，插件没有另行校验来源用户。
+
+插件现于ACL/core前解析关联动作scope，并按关联来源用户ID查验；scope外add/remove被403拒绝且关系未变化，同一认证角色在scope内两种操作仍成功。12个部门/ACL聚焦文件47项及部门插件构建通过，完整验证与哈希见计划§487。本项只证明静态源用户ID scope，不证明动态scope、其他关联字段、租户隔离或PG并发；SQLite仅用于认证/ACL功能测试。作者串行自审，§466组合验收、正式试点及整分支复核仍待完成，未推送/部署/正式启用。

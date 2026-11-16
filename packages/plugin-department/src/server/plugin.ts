@@ -10,6 +10,7 @@ import {
 } from './actions';
 import { departmentsField, mainDepartmentField } from './collections/users';
 import {
+  checkUserDepartmentAssociationScope,
   destroyDepartmentCheck,
   loadDepartmentsInfo,
   resetUserDepartmentsCache,
@@ -81,6 +82,11 @@ export class PluginDepartmentServer extends Plugin {
     this.app.resourcer.use(destroyDepartmentCheck, { tag: 'destroyDepartmentCheck' });
     this.app.resourcer.use(updateDepartmentIsLeaf, { tag: 'updateDepartmentIsLeaf' });
     this.app.resourcer.use(resetUserDepartmentsCache, { tag: 'resetUserDepartmentsCache' });
+    this.app.resourcer.use(checkUserDepartmentAssociationScope, {
+      tag: 'checkUserDepartmentAssociationScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
     this.app.resourcer.use(setMainDepartment, { tag: 'setMainDepartment' });
     this.app.resourcer.use(listUsersIncludeChildDepartment, { tag: 'listUsersIncludeChildDepartment' });
     this.app.db.on('departmentsUsers.afterSave', async (model) => {

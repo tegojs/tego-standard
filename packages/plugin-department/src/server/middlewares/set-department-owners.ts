@@ -1,4 +1,5 @@
 import type { Context, Next } from '@tego/server';
+
 import _ from 'lodash';
 
 const setOwners = async (ctx: Context, filterByTk, owners) => {
@@ -33,7 +34,10 @@ export const setDepartmentOwners = async (ctx: Context, next: Next) => {
   if (resourceName === 'departments' && actionName === 'update' && owners) {
     ctx.action.params.values = _.omit(values, ['owners']);
     await next();
-    await setOwners(ctx, filterByTk, owners);
+    const { whitelist } = ctx.action.params;
+    if (!whitelist || whitelist.includes('owners')) {
+      await setOwners(ctx, filterByTk, owners);
+    }
   } else {
     return next();
   }

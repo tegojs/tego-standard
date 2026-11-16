@@ -10,11 +10,17 @@ describe('authenticated department owner actions', () => {
   });
 
   it.each([
-    { action: 'setOwner', allowed: false, initialOwner: false },
-    { action: 'setOwner', allowed: true, initialOwner: false },
-    { action: 'removeOwner', allowed: false, initialOwner: true },
-    { action: 'removeOwner', allowed: true, initialOwner: true },
-  ])('$action with department management permission: $allowed', async ({ action, allowed, initialOwner }) => {
+    { action: 'setOwner', allowed: false, initialOwner: false, missing: 'none' },
+    { action: 'setOwner', allowed: true, initialOwner: false, missing: 'none' },
+    { action: 'removeOwner', allowed: false, initialOwner: true, missing: 'none' },
+    { action: 'removeOwner', allowed: true, initialOwner: true, missing: 'none' },
+    { action: 'setOwner', allowed: true, initialOwner: false, missing: 'user' },
+    { action: 'setOwner', allowed: true, initialOwner: false, missing: 'department' },
+    { action: 'setOwner', allowed: true, initialOwner: false, missing: 'both' },
+    { action: 'removeOwner', allowed: true, initialOwner: true, missing: 'user' },
+    { action: 'removeOwner', allowed: true, initialOwner: true, missing: 'department' },
+    { action: 'removeOwner', allowed: true, initialOwner: true, missing: 'both' },
+  ])('$action permission: $allowed, missing target: $missing', async ({ action, allowed, initialOwner, missing }) => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -95,10 +101,18 @@ describe('authenticated department owner actions', () => {
       .set('X-Authenticator', 'basic')
       .set('X-Role', role)
       .resource('departments');
-    const response = await resource[action]({ values: { userId: target.id, departmentId: 101 } });
+    const values = {
+      ...(missing === 'user' || missing === 'both' ? {} : { userId: target.id }),
+      ...(missing === 'department' || missing === 'both' ? {} : { departmentId: 101 }),
+    };
+    const response = await resource[action]({ values });
 
     expect(identities).toEqual([{ userId: operator.id, role }]);
-    if (allowed) {
+    if (missing !== 'none') {
+      expect(await readMemberships(), `HTTP ${response.status}`).toEqual(before);
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty('data');
+    } else if (allowed) {
       expect(response.status).toBe(200);
       expect(await readMemberships()).toEqual(
         before.map((row) =>

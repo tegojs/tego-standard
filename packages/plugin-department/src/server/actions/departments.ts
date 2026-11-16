@@ -47,6 +47,9 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
 };
 export const setOwner = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
+  if (userId === undefined || departmentId === undefined) {
+    ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
+  }
   const throughRepo = ctx.db.getRepository('departmentsUsers');
   await throughRepo.update({
     filter: {
@@ -61,6 +64,9 @@ export const setOwner = async (ctx: Context, next: Next) => {
 };
 export const removeOwner = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
+  if (userId === undefined || departmentId === undefined) {
+    ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
+  }
   const throughRepo = ctx.db.getRepository('departmentsUsers');
   await throughRepo.update({
     filter: {

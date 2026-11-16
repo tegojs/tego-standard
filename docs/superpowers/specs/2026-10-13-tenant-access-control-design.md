@@ -1868,3 +1868,13 @@ users:updateProfile对已登录用户开放，只能作为个人资料入口，�
 即使资料更新持久写入`defaultTenantId:'C'`，B成员也不能因此切到C：同会话及重新登录后的无租户头请求都按B成员范围回落到B，显式C仍拒绝。原用户入口与对外分享覆写均通过真实密码认证和tenantScoped业务数据验收，结果及限制见计划§465。
 
 本路径确认的是服务端请求上下文授权仍由成员关系约束，而非宣称默认租户字段会被profile写入拒绝；C选择偏好确实持久化。未复现业务越权，因此没有生产修改。未验证后来管理员正式授予C之后的偏好呈现，也不代表PostgreSQL并发隔离或正式部署试点。
+
+### 个人资料不得授予特权 specialRole（§467）
+
+普通用户通过真实 Basic 密码认证后调用 `users:updateProfile`，不能通过提交 `specialRole: 'root'` 给自己提升特权。用户模块原处理器及分享插件覆写都必须保持同一限制，并保留正常资料更新行为。
+
+真实持久用户的 HTTP 验收发现 RED：两个入口都返回成功并将数据库中的 `specialRole` 从空值写为 `root`。最小修复是在两个 profile Repository.update 调用的既有 blacklist 中增加 `specialRole`。修复后用户模块原测试及新增验收、分享插件真实处理器验收共 3 项通过，落库 `specialRole` 保持空值；Prettier 与 oxlint 通过。未修改用户状态字段；没有推送、合并、部署或正式启用。
+
+### §466 验收状态
+
+普通用户直接 `tenantUsers:update` / `tenantUsers:destroy` 的验收扩展仍在工作树中；批准 snapshot 的运行环境未提供 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，因此该文件 6 项均被条件跳过，不能记作通过或提交。待用允许的 ACL fixture 重新运行；不启动或修复 PostgreSQL，SQLite 不作为 PostgreSQL 并发证据。

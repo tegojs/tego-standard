@@ -46,3 +46,8 @@
 ## 4. 本轮边界
 
 本轮只提供可测试的内部接入能力，插件入口不自动注册适配器。逐表迁移、真实资源和关联读写、汇总及工作流入口尚未全部接入，不能据此启用新模型。核心源码扩展点需后续随正式核心版本发布，standard 当前依赖不变。配置与身份快照不能从请求参数构造。
+
+## 2026-11-16 接续验收记录
+
+- §466（普通用户直接修改租户成员关系）：工作树中的测试扩展覆盖 `tenantUsers:update`、`tenantUsers:destroy`，但批准 snapshot 未配置 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，对应命令 6 项全部 skip；该结果不算通过。未改生产代码，测试仍待在允许的核心 ACL fixture 下重验，暂不提交。
+- §467（个人资料不能赋予特权 specialRole）：真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可将持久 `specialRole` 从空值写成 `root`（RED）。两个处理器把该字段加入既有 blacklist 后，用户模块 2 项及分享插件 1 项聚焦测试通过；Prettier 与 oxlint 通过。未测试账号状态字段，也未改变它们的行为。

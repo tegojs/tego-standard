@@ -48,7 +48,7 @@ export async function updateProfile(ctx: Context, next: Next) {
   const UserRepo = ctx.db.getRepository('users');
   const result = await UserRepo.update({
     filterByTk: currentUser.id,
-    blacklist: ['roles', 'tenants'],
+    blacklist: ['roles', 'tenants', 'specialRole'],
     values,
   });
   ctx.body = result;

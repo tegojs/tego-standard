@@ -6513,3 +6513,15 @@ Ruling: 本项按两个已复现入口阻止个人资料改写roles，保留其�
 Ruling: 个人资料编辑不能替本人建立额外租户成员关系，同时保留正常的昵称等资料编辑；租户分配仍使用独立管理权限入口 — 同一认证用户经两个原处理器都曾自加C并读取C业务记录，故在资料写入层剥离tenants是最小安全边界 — 若租户产品确实要允许自助入租户，需另设显式审批流程，当前操作不实现该产品变化。
 
 按完整requesting-code-review/code-reviewer模板作者串行自审，Base52fb14b6dc284d1396d0f48c1f83094ef6adc658至本项五文件，非独立复核。优点：对原用户模块和真实分享覆写分别RED→GREEN；用认证用户、ACL、tenantScoped业务读及完整成员/业务行后验观察实际越权；最小复用Repository blacklist而不加全局钩子。计划/质量/架构/测试/兼容性核查：普通nickname成功、C选择拒绝及登录后拒绝，租户成员管理仍受独立ACL，未变更tenant middleware或专用管理写入；无schema迁移。范围裁决：仅覆盖个人资料中的tenants成员关联；不声称defaultTenantId、租户审批、自助邀请、关联其他租户字段、并发关系变化、跨实例缓存或PG并发已验收。无未修复Critical/Important/Minor；正式安装/规则启用/浏览器业务试点及整分支独立复核仍待完成。无外网请求/子智能体/推送合并部署或正式启用，定时任务短描述不变。验证和串行自审完成；本项五文件纳入同一默认签名原子提交，提交对象与签名结果由Git记录和独立验签确认。
+
+## 464. 个人资料的默认租户嵌套关联不能改写租户树
+
+- [x] 接续§463签名提交475bd6d3e13f6d0f6f84b51f243ad7676cfe38e。只读检查`defaultTenantId`选择路径后，注意到个人资料Repository仍接受另一个关联键`defaultTenant`；按真实数据模型，其嵌套对象可继续包含`children`子租户关系。额外验证的具体变异是`defaultTenant:{id:'B',children:[{id:'C',parentId:'B'}]}`将既有C挂到B之下，可能使B成员因继承树读到C业务行；但不得仅凭Repository源码或200状态宣称漏洞。
+- [x] 在默认租户写入及原setCurrentTenant测试之外，给已签名§463认证测试增加两条真实HTTP路径：普通users模块与加载的分享覆写分别提交上述嵌套关系；另保留两条直接`tenants:['B','C']`路径。所有路径在应用profile写入前已建立B/C持久租户及tenantScoped业务行，B/C角色分别经真实basic密码认证，使用原ACL factory、Bearer、默认选择B、真实root业务读取和完整后验。测试检查越权profile外的普通tenantUsers新增仍403、直接C parentId树修改仍403，并比较所有租户原始行、角色/租户成员、用户身份投影和业务行；未伪造认证、ACL、Repository结果或写入。
+- [x] 该单一具体测试契约从Profile传`defaultTenant.children`真实父子对象仍须不改租户树且不开放C行，生产实现遗漏防护会令最终物理租户树或C读取断言失败。普通入口与分享覆写各1条，最初经简单数组表达时4条均通过；再将嵌套输入收窄为目标C对象及`parentId:'B'`完整写形状重跑，profile-default-tenant-hierarchy-final-20261116.log实际exit0，新文件4过无跳、14.31秒。没有观察到真实RED，故未改生产，不把请求200误报为漏洞；对tenant tree不变与C仍403两个独立后验保留自动验收。
+- [x] 补充聚焦回归profile-default-tenant-hierarchy-regression-20261116.log实际exit0，4文件17过无跳、49.87秒：本文件4、authenticated-default-tenant-write、authenticated-tenant-switch-write、原set-current-tenant单测；该较宽回归在最终将nested children从ID数组改为完整对象前运行，完整对象形状随后由单文件final日志重新验收。只证明个人资料的普通`defaultTenant.children`对象不能经此具体动作改变树或读C；SQLite是认证/ACL契约验收，不证明PG并发、完整tenant tree全部关联形状或所有个人资料策略。无生产改动，无子智能体/外网/PG操作/推送合并部署或正式启用。
+- [x] 最终个人资料测试Prettier/oxlint均0，profile-default-tenant-hierarchy-final-20261116.log实际exit0，4过无跳/14.31秒；与批准snapshot逐字节一致，SHA256 0087A830349543886AB4A92E33FEACC5DD45070D606E2BD457054EC29ADF2633。snapshot/.tenant464-temp及新增验证日志保留。两份权威记录和单一认证测试为本项完整提交范围，不混入§463的既有已签名实现。
+
+Ruling: 仅为真实profile嵌套租户层级请求增加独立认证验收；当前两个真实处理器均保持租户树/业务数据完整，未证明该形状导致安全边界失败，因此不作生产修改 — 用户资料处理器应该没有租户树管理权限，但已存在的服务端关联清洗在此样例中安全无副作用 — 不将这项测试扩大为全面关系更新白名单，也不以SQLite代替PG并发证据。
+
+作者串行审查当前测试与两份记录，无未修复Critical/Important/Minor；非独立审查。此项仅测试与记录，按真实用户资料处理器和嵌套tenant association验收，不提交生产源码改动。测试、两份权威记录精确暂存、diff复核、聚焦验证、签名提交与独立验签完成后才可报告结项；正式安装/规则启用/浏览器试点及整分支独立审查仍待完成。

@@ -12,13 +12,15 @@ import { configFor, ownerCondition } from './fixtures';
 
 const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY;
 
-describe.skipIf(!coreEntry)('authenticated profile tenant membership boundary', () => {
-  // Catch a profile update adding unauthorized tenant membership and opening that tenant's business rows.
-  // 昵称编辑不能自建租户成员关系；原用户入口和分享覆写均须保留原业务读取边界。
+describe.skipIf(!coreEntry)('authenticated profile tenant access boundary', () => {
+  // Profile updates must not grant membership or rewrite hierarchy to open another tenant's business rows.
+  // 资料编辑不能自建成员关系或改租户树；原用户入口和分享覆写均须保留原业务读取边界。
   it.each([
-    { name: 'ordinary user module', share: false },
-    { name: 'share plugin override', share: true },
-  ])('$name cannot join another tenant through a profile update', async ({ share }) => {
+    { name: 'ordinary user module', share: false, nestedHierarchy: false },
+    { name: 'share plugin override', share: true, nestedHierarchy: false },
+    { name: 'ordinary user module through default tenant children', share: false, nestedHierarchy: true },
+    { name: 'share plugin override through default tenant children', share: true, nestedHierarchy: true },
+  ])('$name cannot open another tenant through a profile update', async ({ share, nestedHierarchy }) => {
     let app: MockServer;
     let unregister: (() => void) | undefined;
     const originalCheck = BaseAuth.prototype.check;
@@ -160,6 +162,14 @@ describe.skipIf(!coreEntry)('authenticated profile tenant membership boundary', 
         .create({ values: { userId: actor.id, tenantId: 'C' } });
       expect(deniedManagement.status).toBe(403);
       expect(deniedManagement.body).not.toHaveProperty('data');
+      const deniedHierarchy = await current()
+        .resource('tenants')
+        .update({ filterByTk: 'C', values: { parentId: 'B' } });
+      expect(deniedHierarchy.status).toBe(403);
+      expect(deniedHierarchy.body).not.toHaveProperty('data');
+      const tenantRows = () => app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
+      const initialTenants = await tenantRows();
+      expect(initialTenants.find((row) => row.id === 'C')).toMatchObject({ parentId: null });
       const identities = () =>
         app.db.getCollection('users').model.findAll({
           raw: true,
@@ -189,12 +199,19 @@ describe.skipIf(!coreEntry)('authenticated profile tenant membership boundary', 
       ]);
       const saved = await current()
         .resource('users')
-        .updateProfile({ values: { nickname: 'B edited', tenants: ['B', 'C'] } });
+        .updateProfile({
+          values: nestedHierarchy
+            ? { nickname: 'B edited', defaultTenant: { id: 'B', children: [{ id: 'C', parentId: 'B' }] } }
+            : { nickname: 'B edited', tenants: ['B', 'C'] },
+        });
       expect(saved.status).toBe(200);
       expect(saved.body.data).toHaveLength(1);
       expect(saved.body.data[0]).toMatchObject({ id: actor.id, nickname: 'B edited' });
       const foreign = await current('C').resource(name).list();
-      expect(foreign.status).toBe(403);
+      expect({ foreignStatus: foreign.status, tenants: await tenantRows() }).toEqual({
+        foreignStatus: 403,
+        tenants: initialTenants,
+      });
       expect(foreign.body).not.toHaveProperty('data');
       expect(await memberships()).toEqual(initialMemberships);
       const retained = await current().resource(name).list();
@@ -210,6 +227,7 @@ describe.skipIf(!coreEntry)('authenticated profile tenant membership boundary', 
       );
       expect(await identities()).toEqual(expectedIdentities);
       expect(await memberships()).toEqual(initialMemberships);
+      expect(await tenantRows()).toEqual(initialTenants);
       expect(await rows()).toEqual(originalRows);
     } finally {
       unregister?.();

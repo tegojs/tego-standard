@@ -130,7 +130,14 @@ describe('authenticated department search user ACL', () => {
     expect(observed).toEqual([{ userId: operator.id, role }]);
     if (allowed) {
       if (scoped) {
-        expect(response.body.data.users.map(({ id }) => id)).toEqual([privateUser.id]);
+        expect(response.body.data.users).toEqual([
+          {
+            id: privateUser.id,
+            username: 'private-search-result',
+            createdAt: expect.any(String),
+            updatedAt: expect.any(String),
+          },
+        ]);
       } else {
         expect(response.body.data.users).toEqual([
           expect.objectContaining({

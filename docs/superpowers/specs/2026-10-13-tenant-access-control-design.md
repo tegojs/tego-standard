@@ -1968,3 +1968,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 部门管理界面的 `AddMembers` 通过 `users:listExcludeDept` 读取候选用户。真实Basic登录、持久空策略角色没有 `pm.department` 时，原action仍返回200及候选用户联系方式（RED）；全局 `loggedIn` 放行绕过了插件既有部门管理snippet授权。修复移除该全局放行，普通角色403，而持久授予 `pm.department` 后原候选列表仍可用。
 
 真实认证验收2项、11文件44项部门/ACL/用户列表聚焦回归、部门插件构建及格式/lint检查通过，数据后验和SHA256见计划§482。本项只覆盖该自定义action的操作许可，不证明 `users:list` 的字段/scope约束、租户隔离或PG并发；SQLite只用于功能验收。作者串行自审，§466组合验收、正式试点和整分支复核仍待完成，未推送/部署/正式启用。
+
+### 部门聚合搜索用户结果必须遵守 users:list 字段白名单（§483）
+
+真实Basic登录角色持久配置 `users:list` 字段白名单 `id`、`username` 和匹配用户scope时，部门聚合搜索原先只执行ACL记录filter，直接Repository结果仍包含phone、email等16个字段（RED）。处理器现将解析后的ACL `fields` 投影传给用户查询；认证验收确认字段范围生效，仓储自动附加的 `createdAt`/`updatedAt` 仍保留，未授权及部门管理snippet对照不变。
+
+9个部门/ACL聚焦文件32项、部门插件构建、改动TS的Prettier和oxlint通过，详情见计划§483。本项只验证静态字段白名单，不证明动态模板、分页/排序许可、租户隔离或PG并发；SQLite仅用于认证/ACL功能验收。作者串行自审，§466核心组合验收、正式试点和整分支独立复核仍待完成，未推送/部署/正式启用。

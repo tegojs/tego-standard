@@ -20,7 +20,7 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
     const permission = ctx.can({ resource: 'users', action: 'list' });
     if (permission) {
       const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
-      const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+      const { filter = {}, fields } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
       const repo = ctx.db.getRepository('users');
       users = await repo.find({
         filter: {
@@ -37,6 +37,7 @@ export const aggregateSearch = async (ctx: Context, next: Next) => {
             },
           ],
         },
+        fields,
         limit,
       });
     }

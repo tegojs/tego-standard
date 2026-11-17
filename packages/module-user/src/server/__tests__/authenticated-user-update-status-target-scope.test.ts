@@ -2,12 +2,13 @@ import { createMockServer, type MockServer } from '@tachybase/test';
 
 describe('authenticated user update status target scope', () => {
   let app: MockServer;
+  const referenceFields = ['status', 'previousStatus', 'statusInfo', 'previousStatusInfo'];
 
   afterEach(async () => {
     await app?.destroy();
   });
 
-  it.each(['status', 'previousStatus'])('does not assign %s outside the operator status-list scope', async (field) => {
+  it.each(referenceFields)('does not assign %s outside the operator status-list scope', async (field) => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -16,7 +17,9 @@ describe('authenticated user update status target scope', () => {
     const operatorRole = 'user-update-status-scope-operator';
     const password = 'user-update-status-scope-password';
     const roles = app.db.getRepository('roles');
-    await roles.create({ values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.users.statuses'] } });
+    await roles.create({
+      values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.users.statuses'] },
+    });
     const statusesRepository = app.db.getRepository('userStatuses');
     await statusesRepository.create({
       values: { key: 'active', title: 'Active', allowLogin: true, isSystemDefined: true },
@@ -35,6 +38,7 @@ describe('authenticated user update status target scope', () => {
       values: {
         username: 'user-update-status-scope-target',
         nickname: 'Original',
+        previousStatus: 'active',
         roles: [operatorRole],
       },
     });
@@ -68,7 +72,14 @@ describe('authenticated user update status target scope', () => {
         actions: [
           {
             name: 'update',
-            fields: ['nickname', 'status', 'previousStatus', 'statusExpireAt', 'statusReason'],
+            fields: [
+              'nickname',
+              'status',
+              'previousStatus',
+              'statusExpireAt',
+              'statusReason',
+              ...(field.endsWith('Info') ? [field] : []),
+            ],
             scope: { id: userScope.id },
           },
         ],
@@ -80,8 +91,10 @@ describe('authenticated user update status target scope', () => {
     expect(updateAction.get('fields')).toEqual([
       'nickname',
       'previousStatus',
+      ...(field === 'previousStatusInfo' ? ['previousStatusInfo'] : []),
       'status',
       'statusExpireAt',
+      ...(field === 'statusInfo' ? ['statusInfo'] : []),
       'statusReason',
     ]);
 
@@ -102,14 +115,22 @@ describe('authenticated user update status target scope', () => {
     expect(statuses.body.data.map(({ key }) => key)).not.toContain('disabled');
     const allowed = await agent.resource('users').update({
       filterByTk: target.id,
-      values: { nickname: 'Allowed edit', status: 'review', statusReason: 'visible status' },
+      values: {
+        nickname: 'Allowed edit',
+        ...(field === 'statusInfo' ? { statusInfo: { key: 'review' } } : { status: 'review' }),
+        ...(field === 'previousStatusInfo' ? { previousStatusInfo: { key: 'review' } } : {}),
+        statusReason: 'visible status',
+      },
     });
     expect(allowed.status).toBe(200);
     expect(
-      await users.findOne({ filterByTk: target.id, fields: ['nickname', 'status'] }).then((row) => row.toJSON()),
+      await users
+        .findOne({ filterByTk: target.id, fields: ['nickname', 'status', 'previousStatus'] })
+        .then((row) => row.toJSON()),
     ).toEqual({
       nickname: 'Allowed edit',
       status: 'review',
+      previousStatus: field === 'previousStatusInfo' ? 'review' : 'active',
     });
     const usersBefore = await users.find({ raw: true, sort: ['id'] });
     const rolesBefore = await roles.find({ raw: true, sort: ['name'] });
@@ -121,8 +142,8 @@ describe('authenticated user update status target scope', () => {
       filterByTk: target.id,
       values: {
         nickname: 'Changed with hidden status',
-        status: 'review',
-        [field]: 'disabled',
+        ...(field === 'statusInfo' ? {} : { status: 'review' }),
+        [field]: field.endsWith('Info') ? { key: 'disabled' } : 'disabled',
         statusExpireAt: '2030-01-01T00:00:00.000Z',
         statusReason: 'test',
       },
@@ -132,13 +153,18 @@ describe('authenticated user update status target scope', () => {
       status: response.status,
       hasData: Object.hasOwn(response.body, 'data'),
       user: await users
-        .findOne({ filterByTk: target.id, fields: ['nickname', 'status', 'statusReason'] })
+        .findOne({ filterByTk: target.id, fields: ['nickname', 'status', 'previousStatus', 'statusReason'] })
         .then((row) => row.toJSON()),
       historyCount: await histories.count({ filter: { userId: target.id } }),
     }).toEqual({
       status: 403,
       hasData: false,
-      user: { nickname: 'Allowed edit', status: 'review', statusReason: 'visible status' },
+      user: {
+        nickname: 'Allowed edit',
+        status: 'review',
+        previousStatus: field === 'previousStatusInfo' ? 'review' : 'active',
+        statusReason: 'visible status',
+      },
       historyCount: historiesBefore.length,
     });
     expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);

@@ -6,13 +6,19 @@ export const checkUserStatusTargetScope = async (ctx: Context, next: Next) => {
   if (associatedName || resourceName !== 'users' || actionName !== 'update') {
     return next();
   }
-  const statusFields = ['status', 'previousStatus'].filter(
+  const statusFields = ['status', 'previousStatus', 'statusInfo', 'previousStatusInfo'].filter(
     (field) => (!whitelist || whitelist.includes(field)) && !blacklist?.includes(field),
   );
 
   const records = Array.isArray(values) ? values : [values];
   const statusKeys = records.flatMap((record) =>
-    statusFields.flatMap((field) => (record?.[field] == null ? [] : [record[field]])),
+    statusFields.flatMap((field) => {
+      const value = record?.[field];
+      if (value == null) {
+        return [];
+      }
+      return [field.endsWith('Info') && typeof value === 'object' ? value.key : value];
+    }),
   );
   if (!statusKeys.length) {
     return next();

@@ -5,7 +5,7 @@ export const checkDepartmentMemberAssociationTargetScope = async (ctx: Context, 
   if (
     associatedName !== 'departments' ||
     resourceName !== 'members' ||
-    actionName !== 'add' ||
+    !['add', 'remove'].includes(actionName) ||
     !Array.isArray(values) ||
     values.length === 0
   ) {
@@ -15,7 +15,7 @@ export const checkDepartmentMemberAssociationTargetScope = async (ctx: Context, 
   const permission = ctx.tego.acl.can({
     role: ctx.state.currentRole,
     resource: 'users',
-    action: 'add',
+    action: actionName,
   });
   if (!permission) {
     ctx.throw(403);

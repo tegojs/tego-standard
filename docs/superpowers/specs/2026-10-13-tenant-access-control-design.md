@@ -2070,3 +2070,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 部门管理页实际通过 `departments/{id}/members:add` 添加所选用户。真实Basic认证角色的持久 `users:add` scope仅含操作员和授权用户，授权成员添加成功；scope外现存用户仍返回200，并在 `departmentsUsers` 新增关系行（RED）。
 
 新增前置守卫仅应用于 `departments.members:add`，解析当前角色 `users:add` ACL filter并核对所有待关联用户ID。修复后范围内添加成功、范围外返回403且关系不变。验证细节见ACL计划§499。本项只覆盖静态scope与add动作，不证明remove、动态scope、租户隔离或PG并发。
+
+### 部门成员移除遵守目标 users:remove scope（§500）
+
+部门管理页 `departments/{id}/members:remove` 的真实认证路径中，核心ACL将目标权限解析为 `users:remove`。持久目标scope仅允许操作员及范围内成员时，原请求仍可移除scope外用户，并实际删除 `departmentsUsers` 关联行，构成RED。前置守卫现对add/remove分别应用匹配的 `users:add/remove` 权限filter；修复后scope内移除成功，scope外请求403且关联保留。详情及验证见ACL计划§500。
+
+本项只覆盖静态用户ID scope下的部门成员remove，不证明动态scope、租户隔离、PostgreSQL并发、核心ACL组合验收或正式业务试点；SQLite只用于真实认证/ACL和持久关系功能验证。

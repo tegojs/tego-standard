@@ -4,6 +4,7 @@ import { isMainThread } from 'node:worker_threads';
 import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
+import { checkRoleUserAssociationTargetScope } from './middlewares/check-role-user-association-target-scope';
 import { UserModel } from './models/UserModel';
 
 export default class PluginUsersServer extends Plugin {
@@ -194,6 +195,12 @@ export default class PluginUsersServer extends Plugin {
     // 初始化系统状态
     this.app.on('afterLoad', async () => {
       await this.initSystemStatuses();
+    });
+
+    this.app.resourcer.use(checkRoleUserAssociationTargetScope, {
+      tag: 'checkRoleUserAssociationTargetScope',
+      after: 'setCurrentRole',
+      before: 'acl',
     });
 
     this.app.resourcer.use(

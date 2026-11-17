@@ -1,0 +1,131 @@
+import { createMockServer, type MockServer } from '@tachybase/test';
+
+describe('authenticated role user target scope', () => {
+  let app: MockServer;
+
+  afterEach(async () => {
+    await app?.destroy();
+  });
+
+  it('applies users:list scope when reading users assigned to a role', async () => {
+    app = await createMockServer({
+      acl: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      plugins: ['acl', 'auth', 'users', 'data-source-manager', 'error-handler'],
+    });
+    const operatorRole = 'role-users-target-scope-operator';
+    const targetRole = 'role-users-target-scope-target';
+    const password = 'role-users-target-scope-password';
+    await app.db.getRepository('roles').create({
+      values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.acl.roles'] },
+    });
+    await app.db.getRepository('roles').create({
+      values: { name: targetRole, strategy: { actions: [] }, snippets: [] },
+    });
+    const users = app.db.getRepository('users');
+    const operator = await users.create({ values: { username: operatorRole, password, roles: [operatorRole] } });
+    const visibleUser = await users.create({ values: { username: 'visible-role-user', roles: [targetRole] } });
+    const hiddenUser = await users.create({ values: { username: 'hidden-role-user', roles: [targetRole] } });
+
+    const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+      values: {
+        dataSourceKey: 'main',
+        name: 'Only operator and visible user',
+        resourceName: 'users',
+        scope: { id: { $in: [operator.id, visibleUser.id] } },
+      },
+    });
+    const usersResource = await app.db.getRepository('dataSourcesRolesResources').create({
+      values: {
+        dataSourceKey: 'main',
+        roleName: operatorRole,
+        name: 'users',
+        usingActionsConfig: true,
+        actions: [{ name: 'list', fields: ['id', 'username'], scope: { id: scope.id } }],
+      },
+    });
+    expect(
+      (await app.db.getRepository('dataSourcesRolesResources.actions', usersResource.id).findOne({})).get('scopeId'),
+    ).toBe(scope.id);
+    const memberships = app.db.getRepository('rolesUsers');
+    const membershipsBefore = await memberships.find({ raw: true, sort: ['userId', 'roleName'] });
+    const usersBefore = await users.find({ raw: true, sort: ['id'] });
+
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: operator.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+    const agent = app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', operatorRole);
+
+    const visibleUsers = await agent.resource('users').list({ fields: ['id'], sort: ['id'], pagination: false });
+    expect(visibleUsers.status).toBe(200);
+    expect(visibleUsers.body.data.map(({ id }) => id)).toEqual([operator.id, visibleUser.id]);
+
+    const response = await agent.resource('roles.users', targetRole).list({
+      fields: ['id', 'username'],
+      filter: { id: { $notIn: [operator.id] } },
+      sort: ['id'],
+      pagination: false,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map(({ id }) => id)).toEqual([visibleUser.id]);
+    expect(response.body.data.some(({ id }) => id === hiddenUser.id)).toBe(false);
+    const filteredOut = await agent.resource('roles.users', targetRole).list({
+      fields: ['id'],
+      filter: { id: { $eq: hiddenUser.id } },
+      pagination: false,
+    });
+    expect(filteredOut.status).toBe(200);
+    expect(filteredOut.body.data).toEqual([]);
+    expect(await memberships.find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(membershipsBefore);
+    expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
+  });
+
+  it('denies role user lists when users:list permission is absent', async () => {
+    app = await createMockServer({
+      acl: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      plugins: ['acl', 'auth', 'users', 'data-source-manager', 'error-handler'],
+    });
+    const operatorRole = 'role-users-no-target-list-operator';
+    const targetRole = 'role-users-no-target-list-target';
+    const password = 'role-users-no-target-list-password';
+    await app.db.getRepository('roles').create({
+      values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.acl.roles'] },
+    });
+    await app.db.getRepository('roles').create({
+      values: { name: targetRole, strategy: { actions: [] }, snippets: [] },
+    });
+    const users = app.db.getRepository('users');
+    const operator = await users.create({ values: { username: operatorRole, password, roles: [operatorRole] } });
+    const target = await users.create({ values: { username: 'role-user-without-target-list', roles: [targetRole] } });
+    const memberships = app.db.getRepository('rolesUsers');
+    const membershipsBefore = await memberships.find({ raw: true, sort: ['userId', 'roleName'] });
+    expect(membershipsBefore).toContainEqual(expect.objectContaining({ userId: target.id, roleName: targetRole }));
+
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: operator.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', operatorRole)
+      .resource('roles.users', targetRole)
+      .list({ fields: ['id', 'username'], pagination: false });
+
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    expect(await memberships.find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(membershipsBefore);
+  });
+});

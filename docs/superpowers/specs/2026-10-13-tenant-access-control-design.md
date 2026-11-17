@@ -2010,3 +2010,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 在 §488 的目标集合 ACL add 验收之外，本项检查真实 `users.departments:remove`。Basic登录角色的持久 `departments:list` scope 仅允许部门101，普通列表确实只返回101；数据库中先有一条指向范围外部门102的真实关联，再请求移除102时返回403，`departmentsUsers` 关系保持原值。没有生产RED，也没有生产代码改动。
 
 批准snapshot中同一认证测试文件4项通过（§487来源用户scope add/remove、§488目标scope add、§489目标scope remove）；命令、格式/lint及源码哈希见计划§489。该结果仅证明静态目标列表scope对关联remove的边界；不证明动态scope、其他关联字段、租户隔离或PG并发。SQLite仅用于认证/ACL功能验证；§466核心ACL factory组合验收、正式试点及整分支独立复核仍待完成。未启动损坏PG，不联系子智能体/外网，不推送、合并、部署或正式启用。
+
+### 角色-部门关联添加必须遵守目标集合的数据范围（§490）
+
+角色编辑器通过 `roles.departments:add` 将部门分配给角色。真实Basic认证角色持久具有角色管理及部门管理权限，持久 `departments:list` filter 仅允许部门101，列表只返回101；添加101成功后，添加范围外102原返回200且在 `departmentsRoles` 新增真实关联行（RED）。
+
+现在在 ACL/core 前解析当前角色的 `departments:list` 参数，并校验关联请求涉及的所有部门ID；任一ID不可见时403拒绝且持久关联不变。认证验收也确认101仍可关联。仅验证本入口的add与静态ID scope；动态模板、remove及租户隔离/PG并发另论。详见 ACL 计划§490。SQLite仅用于认证/ACL功能验收，不作PG并发证据；§466核心ACL factory组合验收、正式试点及整分支独立复核仍待完成，未推送/合并/部署/正式启用。

@@ -184,6 +184,13 @@ describe('authenticated role department association scope', () => {
     const visible = await agent.resource('departments').list({ fields: ['id'] });
     expect(visible.status).toBe(200);
     expect(visible.body.data.map(({ id }) => id)).toEqual([101]);
+    const pickerDepartments = await agent.resource('departments').list({
+      appends: ['roles', 'parent(recursively=true)'],
+      sort: ['createdAt'],
+    });
+    expect(pickerDepartments.status).toBe(200);
+    expect(pickerDepartments.body.data.map(({ id }) => id)).toEqual([101]);
+    expect(pickerDepartments.body.data[0]).not.toHaveProperty('parent');
 
     const roleDepartments = await agent.resource('roles.departments', targetRole).list({ fields: ['id'] });
     expect(roleDepartments.status).toBe(200);

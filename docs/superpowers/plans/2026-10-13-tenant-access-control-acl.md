@@ -146,3 +146,6 @@
 
 - §493（角色详情部门列表的父级 append 边界）：继续按 `Departments.tsx` 的实际 appends 参数检查层级名称读取。Basic认证角色 `departments:list` scope 仅允许部门101；持久部门101的父级100不在范围内。真实 `roles/{role}/departments:list` 请求带 `parent` 和递归父链后，只返回101且响应不包含 `parent`，没有发现生产RED，因此不改运行时代码。
   - 将该认证响应断言并入角色部门关联工作流回归。批准snapshot目标测试文件2项通过；Prettier通过，oxlint 0 warning/0 error；本项仅测试及记录，无运行时代码/依赖/schema变化，不需包构建。`read_lints`工具不可用，以oxlint检查。工作树/snapshot测试SHA256一致：`B4D86E2BD87B7031B35149B7ADEDBF37857A5BD9153ADAE63458C28E753A35F5`。SQLite仅用于认证/ACL功能验收，不作为PG并发证据。本项仅证明该页面的父级append未带回此静态scope外父记录，不代表动态scope、其他关联层级、租户隔离或PG并发；§466组合验收、正式试点及整分支独立复核仍待完成，不推送、合并、部署或正式启用。
+
+- §494（角色编辑器添加弹窗的部门候选父级范围）：沿 `Departments.schema` → `DepartmentTable` → `useDataSource` 检查真实 picker 请求 `departments:list`，其中 appends 为 `roles` 与递归 `parent`。同一Basic认证用户的持久列表scope仅允许101，101父级100在范围外；候选响应只含101且不返回父级100，没有生产RED，不改运行时代码。
+  - 将该候选API请求及父级断言加入同一真实角色管理认证流程。批准snapshot角色关联测试文件2项通过；Prettier通过，oxlint 0 warning/0 error；没有运行时代码/依赖/schema变化，不需包构建。工作树/snapshot测试SHA256一致：`2B6A1A50A0675017AEB9D7C6EB66D4A94DE5BAC38DE61305BB9AABE05812C7B5`。SQLite仅用于认证/ACL行为验收，不作PG并发证据。该结果只证明picker的静态部门ID scope和此父级append，不证明动态scope、其他候选入口、租户隔离或PG并发；不推送、合并、部署或正式启用。

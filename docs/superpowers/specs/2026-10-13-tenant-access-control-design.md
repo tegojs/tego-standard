@@ -1998,3 +1998,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 用户资料中的部门编辑器通过 `users.departments:add/remove` 改关联。真实Basic角色获 `pm.department`，关联动作持久scope仅允许操作员用户ID；请求把部门加到scope外目标用户时，原实现仍向 `departmentsUsers` 插入了真实关联行（RED）。原因是通用ACL关联链清理了关联动作filter，插件没有另行校验来源用户。
 
 插件现于ACL/core前解析关联动作scope，并按关联来源用户ID查验；scope外add/remove被403拒绝且关系未变化，同一认证角色在scope内两种操作仍成功。12个部门/ACL聚焦文件47项及部门插件构建通过，完整验证与哈希见计划§487。本项只证明静态源用户ID scope，不证明动态scope、其他关联字段、租户隔离或PG并发；SQLite仅用于认证/ACL功能测试。作者串行自审，§466组合验收、正式试点及整分支复核仍待完成，未推送/部署/正式启用。
+
+### 部门关联写入遵守目标集合的数据范围（§488）
+
+`users.departments:add` 在 §487 已验证来源用户 scope；本项补查目标 `departments` 集合 ACL。真实 Basic 用户具有部门管理关联操作，但其持久 `departments:list` scope 仅包含部门101。普通列表实际只返回101；尝试把范围外部门102关联到本人时返回403，`departmentsUsers` 持久关系保持原值。该入口已执行目标集合边界，本项没有生产 RED，也没有生产代码改动。
+
+批准 snapshot 中关联scope验收文件3项通过（包含 §487 的来源范围 add/remove 及本项目标范围拒绝）；具体命令、格式/lint、源码哈希与提交见计划§488。SQLite仅用于认证/ACL功能验收，不作为PostgreSQL并发证据。本项只覆盖目标集合的静态 `departments:list` scope，不证明动态scope、其他关联字段、租户隔离、PG并发、正式试点或整分支独立复核；§466核心ACL factory组合验收仍因缺少真实factory而未通过。未启动或修复PG，未联系子智能体或外网，未推送、合并、部署或正式启用。

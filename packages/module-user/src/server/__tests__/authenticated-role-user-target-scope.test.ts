@@ -88,6 +88,112 @@ describe('authenticated role user target scope', () => {
     expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
   });
 
+  it.each(['values array', 'filterByTk', 'filterByTks'])(
+    'rejects assigning users outside the target users:add scope before writing any membership (%s)',
+    async (targetParam) => {
+      app = await createMockServer({
+        acl: true,
+        database: { dialect: 'sqlite', storage: ':memory:' },
+        plugins: ['acl', 'auth', 'users', 'data-source-manager', 'error-handler'],
+      });
+      const operatorRole = 'role-users-add-scope-operator';
+      const targetRole = 'role-users-add-scope-target';
+      const password = 'role-users-add-scope-password';
+      const roles = app.db.getRepository('roles');
+      await roles.create({
+        values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.acl.roles'] },
+      });
+      await roles.create({
+        values: { name: targetRole, strategy: { actions: [] }, snippets: [] },
+      });
+      const users = app.db.getRepository('users');
+      const operator = await users.create({ values: { username: operatorRole, password, roles: [operatorRole] } });
+      const visibleUser = await users.create({ values: { username: 'visible-role-add-user', roles: ['member'] } });
+      const otherVisibleUser = await users.create({
+        values: { username: 'other-visible-role-add-user', roles: ['member'] },
+      });
+      const hiddenUser = await users.create({ values: { username: 'hidden-role-add-user', roles: ['member'] } });
+      const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+        values: {
+          dataSourceKey: 'main',
+          name: 'Only users permitted for assignment',
+          resourceName: 'users',
+          scope: { id: { $in: [operator.id, visibleUser.id, otherVisibleUser.id] } },
+        },
+      });
+      const usersResource = await app.db.getRepository('dataSourcesRolesResources').create({
+        values: {
+          dataSourceKey: 'main',
+          roleName: operatorRole,
+          name: 'users',
+          usingActionsConfig: true,
+          actions: [
+            { name: 'list', fields: ['id', 'username'] },
+            { name: 'add', fields: ['id'], scope: { id: scope.id } },
+          ],
+        },
+      });
+      const addAction = await app.db
+        .getRepository('dataSourcesRolesResources.actions', usersResource.id)
+        .findOne({ filter: { name: 'add' } });
+      expect(addAction.get('scopeId')).toBe(scope.id);
+
+      const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+        account: operator.username,
+        password,
+      });
+      expect(signIn.status).toBe(200);
+      expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+      const agent = app
+        .agent()
+        .set('Authorization', `Bearer ${signIn.body.data.token}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', operatorRole);
+
+      const listedUsers = await agent.resource('users').list({ fields: ['id'], sort: ['id'], pagination: false });
+      expect(listedUsers.status).toBe(200);
+      expect(listedUsers.body.data.map(({ id }) => id)).toEqual([
+        1,
+        operator.id,
+        visibleUser.id,
+        otherVisibleUser.id,
+        hiddenUser.id,
+      ]);
+
+      const memberships = app.db.getRepository('rolesUsers');
+      const usersBefore = await users.find({ raw: true, sort: ['id'] });
+      const rolesBefore = await roles.find({ raw: true, sort: ['name'] });
+      const allowedParams = {
+        'values array': { values: [visibleUser.id] },
+        filterByTk: { filterByTk: visibleUser.id, filterByTks: [hiddenUser.id], values: [hiddenUser.id] },
+        filterByTks: { filterByTks: [visibleUser.id], values: [hiddenUser.id] },
+      }[targetParam];
+      const allowed = await agent.resource('roles.users', targetRole).add(allowedParams);
+      expect(allowed.status).toBe(200);
+      expect(await memberships.find({ raw: true, filter: { roleName: targetRole } })).toEqual([
+        expect.objectContaining({ roleName: targetRole, userId: visibleUser.id }),
+      ]);
+      const membershipsBefore = await memberships.find({ raw: true, sort: ['userId', 'roleName'] });
+
+      const deniedParams = {
+        'values array': { values: [otherVisibleUser.id, hiddenUser.id] },
+        filterByTk: {
+          filterByTk: hiddenUser.id,
+          filterByTks: [otherVisibleUser.id],
+          values: [otherVisibleUser.id],
+        },
+        filterByTks: { filterByTks: [otherVisibleUser.id, hiddenUser.id], values: [visibleUser.id] },
+      }[targetParam];
+      const denied = await agent.resource('roles.users', targetRole).add(deniedParams);
+
+      expect(await memberships.find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(membershipsBefore);
+      expect(denied.status).toBe(403);
+      expect(denied.body).not.toHaveProperty('data');
+      expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
+      expect(await roles.find({ raw: true, sort: ['name'] })).toEqual(rolesBefore);
+    },
+  );
+
   it('denies role user lists when users:list permission is absent', async () => {
     app = await createMockServer({
       acl: true,

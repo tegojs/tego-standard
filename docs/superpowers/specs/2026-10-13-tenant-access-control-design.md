@@ -2148,3 +2148,13 @@ module-user目标关联守卫现对remove应用该action对应的解析后scope�
 新增6项真实认证验收，连同原创建、角色用户关联及相邻ACL回归共7文件29项通过、2项既有skip；module-user完整构建、Prettier与oxlint通过。RED、对照、运行警告及源码SHA256见ACL计划§509。作者按完整模板串行自审，非独立复核。
 
 本项仅证明静态角色name范围下的单用户编辑、字段白名单及静态来源scope/请求filter对照，不证明批量用户更新、动态scope、嵌套目标字段更新、其他关联动作、并发撤权原子性、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466批准snapshot核心ACL组合验收、正式试点及整分支独立复核仍待完成。未启动或修复损坏PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 用户编辑时的状态引用遵守目标 userStatuses:list scope（§510）
+
+“Edit profile”表单通过 `users:update` 修改账号状态及状态过期字段。真实Basic认证角色可更新目标用户状态字段，但持久 `userStatuses:list` scope仅允许 `active/review`；普通状态列表不含disabled时，原更新接口仍能将目标改为真实存在且配置 `allowLogin:false` 的 `disabled`，并同时改写昵称，形成持久RED。单独提交隐藏 `previousStatus` 的独立用例也返回200而非403。两个用例均在暂时移除守卫注册后重新确认RED。
+
+直接用户更新守卫现对可写的 `status` 和 `previousStatus` 分别应用目标状态列表权限及解析后的scope，任一不可见便在写入前拒绝；仍遵守最终字段白名单，并仅在用户update目标实际命中时检查。真实可见状态更新保留，隐藏当前状态或预设隐藏过期恢复状态的请求整次403，完整用户、角色、状态定义和状态历史不变。
+
+新增两个独立真实Basic认证/持久ACL测试；与创建/编辑角色分配及相邻关联回归共8文件31项通过、2项既有skip，module-user构建、Prettier和oxlint通过。详见ACL计划§510；SQLite仅作功能验收。
+
+仅证明直接单用户update中的静态状态key scope。字段白名单排除状态、来源不命中、嵌套statusInfo/previousStatusInfo、创建用户状态设定及批量/动态scope未专项验收；精简插件集历史快照为空，不证明完整状态历史钩子、过期恢复或登录策略执行，也不证明并发撤权或状态策略原子性、缓存撤销时序、租户边界或PostgreSQL并发。§466批准snapshot核心ACL组合、整分支独立复核及正式试点仍待完成。未启动损坏PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

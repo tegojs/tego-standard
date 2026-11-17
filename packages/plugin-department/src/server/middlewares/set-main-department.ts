@@ -2,6 +2,24 @@ import type { Context, Next } from '@tego/server';
 
 export const checkUserDepartmentAssociationScope = async (ctx: Context, next: Next) => {
   const { associatedName, resourceName, associatedIndex, actionName } = ctx.action.params;
+  if (associatedName === 'users' && resourceName === 'departments' && actionName === 'list') {
+    const permission = ctx.tego.acl.can({
+      role: ctx.state.currentRole,
+      resource: 'departments',
+      action: 'list',
+    });
+    if (!permission) {
+      ctx.throw(403);
+    }
+
+    const aclParams = ctx.tego.acl.filterParams(ctx, 'departments', permission.params || {});
+    const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+    ctx.action.params.filter = {
+      $and: [filter, ctx.action.params.filter || {}],
+    };
+    return next();
+  }
+
   if (associatedName === 'users' && resourceName === 'departments' && ['add', 'remove'].includes(actionName)) {
     const permission = ctx.tego.acl.can({
       role: ctx.state.currentRole,

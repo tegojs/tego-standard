@@ -175,4 +175,103 @@ describe('authenticated user department association scope', () => {
       expect(await memberships.find({ raw: true, filter: { userId: operator.id, departmentId: 102 } })).toEqual(before);
     },
   );
+
+  it('does not return associated departments outside the target collection ACL scope', async () => {
+    app = await createMockServer({
+      acl: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      plugins: [
+        'acl',
+        'auth',
+        'users',
+        'data-source-manager',
+        'error-handler',
+        [
+          PluginDepartmentServer,
+          { name: 'department', packageName: '@tachybase/plugin-department', workspaceSource: true },
+        ],
+      ],
+    });
+    const role = 'user-department-association-list-operator';
+    const password = 'user-department-association-list-password';
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: role, strategy: { actions: [] }, snippets: ['pm.department'] } });
+    const users = app.db.getRepository('users');
+    const operator = await users.create({
+      values: { username: 'user-department-association-list-operator', password, roles: [role] },
+    });
+    const target = await users.create({
+      values: { username: 'user-department-association-list-target', roles: ['member'] },
+    });
+    const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+      values: {
+        dataSourceKey: 'main',
+        name: 'Only visible department',
+        resourceName: 'departments',
+        scope: { id: { $eq: 101 } },
+      },
+    });
+    await app.db.getRepository('dataSourcesRolesResources').createMany({
+      records: [
+        {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'departments',
+          usingActionsConfig: true,
+          actions: [{ name: 'list', fields: ['id', 'title', 'parent'], scope: { id: scope.id } }],
+        },
+        {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'users.departments',
+          usingActionsConfig: true,
+          actions: [{ name: 'list', fields: ['id', 'title', 'parent'] }],
+        },
+      ],
+    });
+    await app.db.getRepository('departments').createMany({
+      records: [
+        { id: 100, title: 'Hidden parent department' },
+        { id: 101, title: 'Visible department', parentId: 100 },
+        { id: 102, title: 'Hidden department' },
+      ],
+    });
+    const memberships = app.db.getRepository('departmentsUsers');
+    await memberships.createMany({
+      records: [
+        { userId: target.id, departmentId: 101 },
+        { userId: target.id, departmentId: 102 },
+      ],
+    });
+
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: operator.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+    const agent = app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role);
+
+    const visibleDepartments = await agent.resource('departments').list({ fields: ['id'] });
+    expect(visibleDepartments.status).toBe(200);
+    expect(visibleDepartments.body.data.map(({ id }) => id)).toEqual([101]);
+    const visibleUserDepartments = await agent.resource('users.departments', target.id).list({
+      appends: ['parent(recursively=true)'],
+      pagination: false,
+    });
+
+    expect(visibleUserDepartments.status).toBe(200);
+    expect(visibleUserDepartments.body.data.map(({ id }) => id)).toEqual([101]);
+    expect(visibleUserDepartments.body.data[0]).not.toHaveProperty('parent');
+    const filteredOutDepartment = await agent.resource('users.departments', target.id).list({
+      filter: { id: { $eq: 102 } },
+    });
+    expect(filteredOutDepartment.status).toBe(200);
+    expect(filteredOutDepartment.body.data).toEqual([]);
+  });
 });

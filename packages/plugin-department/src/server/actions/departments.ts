@@ -70,12 +70,25 @@ const canManageDepartment = async (ctx: Context, departmentId) => {
   });
   return Boolean(department);
 };
+const canAccessOwnerUser = async (ctx: Context, userId) => {
+  const permission = ctx.can({ resource: 'users', action: 'list' });
+  if (!permission) {
+    return false;
+  }
+  const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
+  const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+  const user = await ctx.db.getRepository('users').findOne({ filterByTk: userId, filter });
+  return Boolean(user);
+};
 export const setOwner = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
   if (userId === undefined || departmentId === undefined) {
     ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
   }
   if (await canManageDepartment(ctx, departmentId)) {
+    if (!(await canAccessOwnerUser(ctx, userId))) {
+      ctx.throw(403);
+    }
     const throughRepo = ctx.db.getRepository('departmentsUsers');
     await throughRepo.update({
       filter: {
@@ -95,6 +108,9 @@ export const removeOwner = async (ctx: Context, next: Next) => {
     ctx.throw(400, ctx.t('User and department are required', { ns: 'departments' }));
   }
   if (await canManageDepartment(ctx, departmentId)) {
+    if (!(await canAccessOwnerUser(ctx, userId))) {
+      ctx.throw(403);
+    }
     const throughRepo = ctx.db.getRepository('departmentsUsers');
     await throughRepo.update({
       filter: {

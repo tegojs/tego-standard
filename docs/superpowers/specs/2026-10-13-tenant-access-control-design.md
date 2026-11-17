@@ -2080,3 +2080,11 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 ### 部门管理用户列表的直接成员过滤遵守部门 scope（§501）
 
 部门管理页对选中部门执行直接成员列表时仍使用真实 `users:list`，并发送 `departments.id` 与 `showChildren=false`。Basic认证角色的持久 `departments:list` scope 仅允许102：范围内查询正常返回102成员，直接查询范围外101返回403且无用户数据。该路径没有生产RED，因此只添加认证验收，不改运行代码；详情见ACL计划§501。仅验证静态部门ID scope与此列表入口，不代表动态scope、其他用户过滤、租户隔离或PG并发。
+
+### 部门负责人动作遵守目标用户范围（§502）
+
+真实 `departments:setOwner/removeOwner` 通过请求中的 `userId` 与 `departmentId` 更新 `departmentsUsers.isOwner`。持久Basic认证角色获部门动作许可且部门101在部门scope内，但 `users:list` scope仅包含操作者时，原两个动作仍返回200并实际翻转scope外用户的isOwner，形成真实持久RED。
+
+修复要求目标用户具有 `users:list` 许可，并将解析后的用户ACL filter用于目标用户查找；缺少许可或目标不在范围返回403且关系不变。原部门scope范围外仍保持既有无操作语义。8项真实认证控制和5文件27项相邻回归通过，部门插件构建通过，细节见ACL计划§502。
+
+本项只验证静态用户ID范围及缺少目标列表许可，不证明动态scope、检查与写入间的并发撤权原子性、租户隔离或PostgreSQL并发；SQLite仅用于Basic认证/ACL持久功能验收。未启动损坏PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

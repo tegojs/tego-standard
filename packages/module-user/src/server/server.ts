@@ -5,7 +5,7 @@ import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
 import { checkRoleUserAssociationTargetScope } from './middlewares/check-role-user-association-target-scope';
-import { checkUserCreateRoleTargetScope } from './middlewares/check-user-create-role-target-scope';
+import { checkUserRoleTargetScope } from './middlewares/check-user-role-target-scope';
 import { UserModel } from './models/UserModel';
 
 export default class PluginUsersServer extends Plugin {
@@ -203,8 +203,8 @@ export default class PluginUsersServer extends Plugin {
       after: 'setCurrentRole',
       before: 'acl',
     });
-    this.app.resourcer.use(checkUserCreateRoleTargetScope, {
-      tag: 'checkUserCreateRoleTargetScope',
+    this.app.resourcer.use(checkUserRoleTargetScope, {
+      tag: 'checkUserRoleTargetScope',
       after: 'acl',
     });
 

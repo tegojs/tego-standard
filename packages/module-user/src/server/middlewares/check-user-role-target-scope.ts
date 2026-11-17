@@ -1,8 +1,8 @@
 import type { Context, Next } from '@tego/server';
 
-export const checkUserCreateRoleTargetScope = async (ctx: Context, next: Next) => {
+export const checkUserRoleTargetScope = async (ctx: Context, next: Next) => {
   const { associatedName, resourceName, actionName, values, whitelist, blacklist } = ctx.action.params;
-  if (associatedName || resourceName !== 'users' || actionName !== 'create') {
+  if (associatedName || resourceName !== 'users' || !['create', 'update'].includes(actionName)) {
     return next();
   }
   if ((whitelist && !whitelist.includes('roles')) || blacklist?.includes('roles')) {
@@ -18,6 +18,14 @@ export const checkUserCreateRoleTargetScope = async (ctx: Context, next: Next) =
   });
   if (!requestedRoles.length) {
     return next();
+  }
+
+  if (actionName === 'update') {
+    const { filterByTk, filter } = ctx.action.params;
+    const user = await ctx.db.getRepository('users').findOne({ filterByTk, filter, fields: ['id'] });
+    if (!user) {
+      return next();
+    }
   }
 
   const roleNames = requestedRoles.map((role) => {

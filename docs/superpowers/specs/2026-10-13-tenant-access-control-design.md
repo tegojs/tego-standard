@@ -2138,3 +2138,13 @@ module-user目标关联守卫现对remove应用该action对应的解析后scope�
 4项新增认证验收及6文件23项聚焦回归通过，2项既有skip保持；module-user完整构建、Prettier及oxlint通过，详情、运行警告与源码SHA256见ACL计划§508。作者按完整模板串行自审，非独立复核。
 
 仅证明静态角色name scope和上述直接创建/字段白名单控制，不证明批量创建、动态scope、users:update或其他关联写入、并发撤权原子性、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466批准snapshot核心ACL组合验收、正式试点及整分支独立复核仍待完成。未启动或修复损坏PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 用户编辑表单的角色替换遵守目标 roles:list scope（§509）
+
+用户管理“Edit profile”表单通过 `useUpdateActionProps` 向 `users:update` 提交roles整组替换。真实Basic认证角色持久获指定用户的nickname/roles更新许可，但目标 `roles:list` scope只允许两个可见角色；实际列表也只返回二者。原编辑请求仍可混入隐藏角色的主键或 `{ name }` 对象，返回200并同时改动昵称及持久角色关系，形成真实RED。
+
+创建入口的角色守卫现更名并复用于直接update：在ACL完成字段权限处理后，先按最终来源filter及filterByTk确认实际命中用户，再要求请求角色满足目标 `roles:list` 权限及解析后的scope。任一不可见即在普通字段与关联写入前403，完整数据保持不变；可见角色替换正常，字段白名单排除roles时昵称更新正常，来源scope或请求filter未命中时保留200/空数组无操作。
+
+新增6项真实认证验收，连同原创建、角色用户关联及相邻ACL回归共7文件29项通过、2项既有skip；module-user完整构建、Prettier与oxlint通过。RED、对照、运行警告及源码SHA256见ACL计划§509。作者按完整模板串行自审，非独立复核。
+
+本项仅证明静态角色name范围下的单用户编辑、字段白名单及静态来源scope/请求filter对照，不证明批量用户更新、动态scope、嵌套目标字段更新、其他关联动作、并发撤权原子性、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466批准snapshot核心ACL组合验收、正式试点及整分支独立复核仍待完成。未启动或修复损坏PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

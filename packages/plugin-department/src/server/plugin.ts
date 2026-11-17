@@ -94,7 +94,11 @@ export class PluginDepartmentServer extends Plugin {
       before: 'acl',
     });
     this.app.resourcer.use(setMainDepartment, { tag: 'setMainDepartment' });
-    this.app.resourcer.use(listUsersIncludeChildDepartment, { tag: 'listUsersIncludeChildDepartment' });
+    this.app.resourcer.use(listUsersIncludeChildDepartment, {
+      tag: 'listUsersIncludeChildDepartment',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
     this.app.db.on('departmentsUsers.afterSave', async (model) => {
       const cache = this.app.cache;
       await cache.del(`departments:${model.get('userId')}`);

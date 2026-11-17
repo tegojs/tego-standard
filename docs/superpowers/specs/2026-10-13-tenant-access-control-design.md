@@ -2120,3 +2120,11 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 module-user目标关联守卫现对add解析对应 `users:add` filter，并核验核心add实际选择的 `filterByTk || filterByTks || values` 全部目标；范围外任一目标触发403，整批关联不变。认证验收覆盖三个请求形式/目标优先级、范围内添加与scope外及混合批次拒绝，完整比较用户、角色和关联行。详情、聚焦回归与构建见ACL计划§506。
 
 仅证明此角色用户关联写入按静态目标用户ID scope整批门控，不证明动态scope、并发撤权原子性、其他角色关联动作、租户隔离或PG并发；SQLite仅用于真实Basic认证、ACL及持久数据功能验收。§466核心组合验收、正式试点及整分支独立复核仍待完成。
+
+### 角色用户关联移除遵守目标 users:remove scope（§507）
+
+角色成员管理器实际通过 `roles.users:remove` 移除单个或批量用户。真实Basic认证及持久 `users:remove` scope 只允许用户3、4及操作员；范围内移除用户3成功，但原混合移除请求仍删除范围内用户4与scope外用户5的两条持久关联，形成真实RED。
+
+module-user目标关联守卫现对remove应用该action对应的解析后scope，先校验整个目标集合；用户5不可见时整批403，不会部分删掉用户4。测试同时检查scope内移除正常、被拒绝批次关联不变及用户/角色记录不变。详情及聚焦验证见ACL计划§507。
+
+仅证明该角色用户关联remove按静态目标用户ID scope整批门控，不证明动态scope、写入并发原子性、其它关联动作、租户边界或PG并发；SQLite仅用于真实Basic认证与ACL持久关系功能验收。

@@ -3,7 +3,7 @@ import type { Context, Next } from '@tego/server';
 export const checkRoleUserAssociationTargetScope = async (ctx: Context, next: Next) => {
   const { associatedName, resourceName, actionName, filterByTk, filterByTks, values } = ctx.action.params;
   const isTargetList = actionName === 'list';
-  if (associatedName !== 'roles' || resourceName !== 'users' || !['list', 'add'].includes(actionName)) {
+  if (associatedName !== 'roles' || resourceName !== 'users' || !['list', 'add', 'remove'].includes(actionName)) {
     return next();
   }
 

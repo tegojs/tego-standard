@@ -234,4 +234,79 @@ describe('authenticated role user target scope', () => {
     expect(response.body).not.toHaveProperty('data');
     expect(await memberships.find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(membershipsBefore);
   });
+
+  it('rejects removing role users outside the target users:remove scope without partial changes', async () => {
+    app = await createMockServer({
+      acl: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      plugins: ['acl', 'auth', 'users', 'data-source-manager', 'error-handler'],
+    });
+    const operatorRole = 'role-users-remove-scope-operator';
+    const targetRole = 'role-users-remove-scope-target';
+    const password = 'role-users-remove-scope-password';
+    await app.db.getRepository('roles').create({
+      values: { name: operatorRole, strategy: { actions: [] }, snippets: ['pm.acl.roles'] },
+    });
+    await app.db.getRepository('roles').create({
+      values: { name: targetRole, strategy: { actions: [] }, snippets: [] },
+    });
+    const users = app.db.getRepository('users');
+    const operator = await users.create({ values: { username: operatorRole, password, roles: [operatorRole] } });
+    const visibleUser = await users.create({ values: { username: 'visible-role-remove-user', roles: [targetRole] } });
+    const otherVisibleUser = await users.create({
+      values: { username: 'other-visible-role-remove-user', roles: [targetRole] },
+    });
+    const hiddenUser = await users.create({ values: { username: 'hidden-role-remove-user', roles: [targetRole] } });
+    const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+      values: {
+        dataSourceKey: 'main',
+        name: 'Only users permitted for removal',
+        resourceName: 'users',
+        scope: { id: { $in: [operator.id, visibleUser.id, otherVisibleUser.id] } },
+      },
+    });
+    const usersResource = await app.db.getRepository('dataSourcesRolesResources').create({
+      values: {
+        dataSourceKey: 'main',
+        roleName: operatorRole,
+        name: 'users',
+        usingActionsConfig: true,
+        actions: [{ name: 'remove', fields: ['id'], scope: { id: scope.id } }],
+      },
+    });
+    const removeAction = await app.db
+      .getRepository('dataSourcesRolesResources.actions', usersResource.id)
+      .findOne({ filter: { name: 'remove' } });
+    expect(removeAction.get('scopeId')).toBe(scope.id);
+
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: operator.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+    const agent = app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', operatorRole);
+
+    const memberships = app.db.getRepository('rolesUsers');
+    const usersBefore = await users.find({ raw: true, sort: ['id'] });
+    const rolesBefore = await app.db.getRepository('roles').find({ raw: true, sort: ['name'] });
+    const allowed = await agent.resource('roles.users', targetRole).remove({ values: [visibleUser.id] });
+    expect(allowed.status).toBe(200);
+    expect(await memberships.find({ raw: true, filter: { userId: visibleUser.id, roleName: targetRole } })).toEqual([]);
+
+    const membershipsBefore = await memberships.find({ raw: true, sort: ['userId', 'roleName'] });
+    const denied = await agent.resource('roles.users', targetRole).remove({
+      values: [otherVisibleUser.id, hiddenUser.id],
+    });
+
+    expect(denied.status).toBe(403);
+    expect(denied.body).not.toHaveProperty('data');
+    expect(await memberships.find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(membershipsBefore);
+    expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
+    expect(await app.db.getRepository('roles').find({ raw: true, sort: ['name'] })).toEqual(rolesBefore);
+  });
 });

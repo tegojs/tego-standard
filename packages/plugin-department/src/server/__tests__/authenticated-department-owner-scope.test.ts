@@ -10,21 +10,49 @@ describe('authenticated department owner data scope', () => {
   });
 
   it.each([
-    { target: 102, requestFilter: undefined, canUpdate: false, boundary: 'outside persisted scope' },
-    { target: 101, requestFilter: undefined, canUpdate: true, boundary: 'inside persisted scope' },
+    {
+      target: 102,
+      requestFilter: undefined,
+      canUpdate: false,
+      boundary: 'outside persisted scope',
+      targetUserAccess: 'none',
+    },
+    {
+      target: 101,
+      requestFilter: undefined,
+      canUpdate: true,
+      boundary: 'inside persisted scope',
+      targetUserAccess: 'all',
+    },
     {
       target: 101,
       requestFilter: { title: 'Allowed department' },
       canUpdate: true,
       boundary: 'matching request filter',
+      targetUserAccess: 'all',
     },
     {
       target: 101,
       requestFilter: { title: 'Nonmatching title' },
       canUpdate: false,
       boundary: 'excluded by request filter',
+      targetUserAccess: 'none',
     },
-  ])('honors $boundary', async ({ target, requestFilter, canUpdate }) => {
+    {
+      target: 101,
+      requestFilter: undefined,
+      canUpdate: false,
+      boundary: 'target user outside users:list scope',
+      targetUserAccess: 'original-owner',
+    },
+    {
+      target: 101,
+      requestFilter: undefined,
+      canUpdate: true,
+      boundary: 'missing users:list permission',
+      targetUserAccess: 'none',
+    },
+  ])('honors $boundary', async ({ target, requestFilter, canUpdate, targetUserAccess }) => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -67,6 +95,36 @@ describe('authenticated department owner data scope', () => {
     const operator = await users.create({ values: { username: 'department-scope-operator', password, roles: [role] } });
     const originalOwner = await users.create({ values: { username: 'scope-original-owner', roles: ['member'] } });
     const nextOwner = await users.create({ values: { username: 'scope-next-owner', roles: ['member'] } });
+    let userScope;
+    if (targetUserAccess === 'original-owner') {
+      userScope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+        values: {
+          dataSourceKey: 'main',
+          name: 'Only the original owner',
+          resourceName: 'users',
+          scope: { id: { $eq: originalOwner.id } },
+        },
+      });
+    }
+    if (targetUserAccess !== 'none') {
+      const userResource = await app.db.getRepository('dataSourcesRolesResources').create({
+        values: {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'users',
+          usingActionsConfig: true,
+          actions: [
+            {
+              name: 'list',
+              fields: ['id'],
+              ...(userScope ? { scope: { id: userScope.id } } : {}),
+            },
+          ],
+        },
+      });
+      const userAction = await app.db.getRepository('dataSourcesRolesResources.actions', userResource.id).findOne({});
+      expect(userAction.get('scopeId')).toBe(userScope?.id ?? null);
+    }
     const departments = app.db.getRepository('departments');
     await departments.createMany({
       records: [
@@ -131,25 +189,35 @@ describe('authenticated department owner data scope', () => {
         values: { title: 'Updated department', owners: [{ id: nextOwner.id }] },
       });
 
-    expect(response.status).toBe(200);
-    expect(response.body.data).toHaveLength(canUpdate ? 1 : 0);
+    const expectTargetDenied = targetUserAccess === 'original-owner' || (targetUserAccess === 'none' && canUpdate);
+    if (expectTargetDenied) {
+      expect(await readMemberships()).toEqual(before);
+      expect(await departments.find({ raw: true, sort: ['id'] })).toEqual(departmentsBefore);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+    } else {
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(canUpdate ? 1 : 0);
+    }
     expect(observed).toEqual([
       { userId: operator.id, role, filter: expect.any(Object), whitelist: ['owners', 'title'] },
     ]);
-    expect(await departments.find({ raw: true, sort: ['id'] })).toEqual(
-      departmentsBefore.map((row) =>
-        canUpdate && row.id === target
-          ? { ...row, title: 'Updated department', updatedById: operator.id, updatedAt: expect.any(String) }
-          : row,
-      ),
-    );
-    expect(await readMemberships()).toEqual(
-      before.map((row) =>
-        canUpdate && row.departmentId === target
-          ? { ...row, isOwner: row.userId === nextOwner.id, updatedAt: expect.any(String) }
-          : row,
-      ),
-    );
+    if (!expectTargetDenied) {
+      expect(await departments.find({ raw: true, sort: ['id'] })).toEqual(
+        departmentsBefore.map((row) =>
+          canUpdate && row.id === target
+            ? { ...row, title: 'Updated department', updatedById: operator.id, updatedAt: expect.any(String) }
+            : row,
+        ),
+      );
+      expect(await readMemberships()).toEqual(
+        before.map((row) =>
+          canUpdate && row.departmentId === target
+            ? { ...row, isOwner: row.userId === nextOwner.id, updatedAt: expect.any(String) }
+            : row,
+        ),
+      );
+    }
     expect(await users.find({ raw: true, sort: ['id'] })).toEqual(usersBefore);
     expect(await app.db.getRepository('rolesUsers').find({ raw: true, sort: ['userId', 'roleName'] })).toEqual(
       rolesBefore,

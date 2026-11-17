@@ -59,6 +59,20 @@ describe('authenticated department owner field permission', () => {
     });
     const originalOwner = await users.create({ values: { username: 'department-original-owner', roles: ['member'] } });
     const nextOwner = await users.create({ values: { username: 'department-next-owner', roles: ['member'] } });
+    if (field === 'owners') {
+      const userResource = await app.db.getRepository('dataSourcesRolesResources').create({
+        values: {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'users',
+          usingActionsConfig: true,
+          actions: [{ name: 'list', fields: ['id'] }],
+        },
+      });
+      const userAction = await app.db.getRepository('dataSourcesRolesResources.actions', userResource.id).findOne({});
+      expect(userAction.get('name')).toBe('list');
+      expect(userAction.get('scopeId')).toBeNull();
+    }
     const departments = app.db.getRepository('departments');
     await departments.createMany({
       records: [

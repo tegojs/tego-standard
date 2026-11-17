@@ -2004,3 +2004,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 `users.departments:add` 在 §487 已验证来源用户 scope；本项补查目标 `departments` 集合 ACL。真实 Basic 用户具有部门管理关联操作，但其持久 `departments:list` scope 仅包含部门101。普通列表实际只返回101；尝试把范围外部门102关联到本人时返回403，`departmentsUsers` 持久关系保持原值。该入口已执行目标集合边界，本项没有生产 RED，也没有生产代码改动。
 
 批准 snapshot 中关联scope验收文件3项通过（包含 §487 的来源范围 add/remove 及本项目标范围拒绝）；具体命令、格式/lint、源码哈希与提交见计划§488。SQLite仅用于认证/ACL功能验收，不作为PostgreSQL并发证据。本项只覆盖目标集合的静态 `departments:list` scope，不证明动态scope、其他关联字段、租户隔离、PG并发、正式试点或整分支独立复核；§466核心ACL factory组合验收仍因缺少真实factory而未通过。未启动或修复PG，未联系子智能体或外网，未推送、合并、部署或正式启用。
+
+### 关联移除必须遵守目标集合的数据范围（§489）
+
+在 §488 的目标集合 ACL add 验收之外，本项检查真实 `users.departments:remove`。Basic登录角色的持久 `departments:list` scope 仅允许部门101，普通列表确实只返回101；数据库中先有一条指向范围外部门102的真实关联，再请求移除102时返回403，`departmentsUsers` 关系保持原值。没有生产RED，也没有生产代码改动。
+
+批准snapshot中同一认证测试文件4项通过（§487来源用户scope add/remove、§488目标scope add、§489目标scope remove）；命令、格式/lint及源码哈希见计划§489。该结果仅证明静态目标列表scope对关联remove的边界；不证明动态scope、其他关联字段、租户隔离或PG并发。SQLite仅用于认证/ACL功能验证；§466核心ACL factory组合验收、正式试点及整分支独立复核仍待完成。未启动损坏PG，不联系子智能体/外网，不推送、合并、部署或正式启用。

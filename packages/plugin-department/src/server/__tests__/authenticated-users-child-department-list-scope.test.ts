@@ -9,7 +9,7 @@ describe('authenticated users list with child departments', () => {
     await app?.destroy();
   });
 
-  it('does not include users from descendant departments outside the department list scope', async () => {
+  it('does not return users from direct or descendant departments outside the department list scope', async () => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -178,5 +178,21 @@ describe('authenticated users list with child departments', () => {
       pagination: false,
     });
     expect(hiddenRootMembers.status).toBe(403);
+
+    const visibleDirectMembers = await hiddenRootAgent.resource('users').list({
+      filter: { departments: { id: 102 }, showChildren: false },
+      fields: ['id', 'username'],
+      pagination: false,
+    });
+    expect(visibleDirectMembers.status).toBe(200);
+    expect(visibleDirectMembers.body.data.map(({ id }) => id)).toEqual([hiddenUser.id]);
+
+    const hiddenDirectMembers = await hiddenRootAgent.resource('users').list({
+      filter: { departments: { id: 101 }, showChildren: false },
+      fields: ['id', 'username'],
+      pagination: false,
+    });
+    expect(hiddenDirectMembers.status).toBe(403);
+    expect(hiddenDirectMembers.body.data ?? []).toEqual([]);
   });
 });

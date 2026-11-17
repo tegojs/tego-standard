@@ -2076,3 +2076,7 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 部门管理页 `departments/{id}/members:remove` 的真实认证路径中，核心ACL将目标权限解析为 `users:remove`。持久目标scope仅允许操作员及范围内成员时，原请求仍可移除scope外用户，并实际删除 `departmentsUsers` 关联行，构成RED。前置守卫现对add/remove分别应用匹配的 `users:add/remove` 权限filter；修复后scope内移除成功，scope外请求403且关联保留。详情及验证见ACL计划§500。
 
 本项只覆盖静态用户ID scope下的部门成员remove，不证明动态scope、租户隔离、PostgreSQL并发、核心ACL组合验收或正式业务试点；SQLite只用于真实认证/ACL和持久关系功能验证。
+
+### 部门管理用户列表的直接成员过滤遵守部门 scope（§501）
+
+部门管理页对选中部门执行直接成员列表时仍使用真实 `users:list`，并发送 `departments.id` 与 `showChildren=false`。Basic认证角色的持久 `departments:list` scope 仅允许102：范围内查询正常返回102成员，直接查询范围外101返回403且无用户数据。该路径没有生产RED，因此只添加认证验收，不改运行代码；详情见ACL计划§501。仅验证静态部门ID scope与此列表入口，不代表动态scope、其他用户过滤、租户隔离或PG并发。

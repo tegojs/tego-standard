@@ -2016,3 +2016,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 角色编辑器通过 `roles.departments:add` 将部门分配给角色。真实Basic认证角色持久具有角色管理及部门管理权限，持久 `departments:list` filter 仅允许部门101，列表只返回101；添加101成功后，添加范围外102原返回200且在 `departmentsRoles` 新增真实关联行（RED）。
 
 现在在 ACL/core 前解析当前角色的 `departments:list` 参数，并校验关联请求涉及的所有部门ID；任一ID不可见时403拒绝且持久关联不变。认证验收也确认101仍可关联。仅验证本入口的add与静态ID scope；动态模板、remove及租户隔离/PG并发另论。详见 ACL 计划§490。SQLite仅用于认证/ACL功能验收，不作PG并发证据；§466核心ACL factory组合验收、正式试点及整分支独立复核仍待完成，未推送/合并/部署/正式启用。
+
+### 角色-部门关联移除必须遵守目标集合的数据范围（§491）
+
+角色编辑器的真实 `roles.departments:remove` 入口同样必须受目标部门可见范围约束。Basic认证用户的持久 `departments:list` scope 只允许101，普通列表仅返回101；操作员获明确的 `departments:remove` 能力后，范围内101可正常移除。为验证回归测试有效，在批准snapshot临时将守卫变异为仅检查add；真实认证下越界102返回200，且 `departmentsRoles` 中的真实关联行被删除；恢复当前分支的add/remove守卫后该测试通过。本项新增验收覆盖，不改生产实现。
+
+现在角色部门关联中间件对 `add` 和 `remove` 均在ACL/core前按 `departments:list` 的解析范围校验请求目标；越界移除返回403并保留原关联。该验收使用SQLite承载真实认证、ACL和持久关联行为，不代表PostgreSQL并发证据。仅证明本入口的静态ID scope；动态模板、租户隔离、PG并发、§466核心ACL组合验收、正式试点及整分支独立复核仍待完成。验证细节见ACL计划§491；未推送、合并、部署或正式启用。

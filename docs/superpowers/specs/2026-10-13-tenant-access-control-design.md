@@ -2064,3 +2064,9 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 部门管理页的“显示所有成员”开关通过 `users:list` 和 `filter.showChildren` 查询父部门及子部门成员。真实Basic认证角色的持久 `departments:list` 仅允许101、用户列表许可未限制用户ID；普通部门列表只返回101。首次RED表明HTTP查询中的部门ID字符串没有匹配数值 `parentId`，导致无范围管理角色也只能看到父部门成员。归一化后又实测受限角色通过该开关收到范围外子部门102用户，形成ACL RED；当角色仅可见102却请求不可见父部门101作为根时，也必须拒绝。
 
 中间件现明确运行于 `setCurrentRole` 后及 `acl` 前，对目标部门列表权限与解析filter进行校验，仅从可见部门集合递归；请求根部门不在范围时拒绝。修复后受限角色只返回101成员、只有102可见而请求101根时403，未受限管理角色能看到101及102成员。四文件14项聚焦认证测试、部门插件构建及Prettier/oxlint通过；补充root-hidden分支后单文件1项通过。SQLite只用于真实认证/ACL功能验收，不作PG并发证据。该结果只覆盖此页面、静态部门ID scope及无范围角色对照，不证明动态scope、其他用户列表入口、租户隔离或PG并发。
+
+### 部门成员添加遵守目标 users:add scope（§499）
+
+部门管理页实际通过 `departments/{id}/members:add` 添加所选用户。真实Basic认证角色的持久 `users:add` scope仅含操作员和授权用户，授权成员添加成功；scope外现存用户仍返回200，并在 `departmentsUsers` 新增关系行（RED）。
+
+新增前置守卫仅应用于 `departments.members:add`，解析当前角色 `users:add` ACL filter并核对所有待关联用户ID。修复后范围内添加成功、范围外返回403且关系不变。验证细节见ACL计划§499。本项只覆盖静态scope与add动作，不证明remove、动态scope、租户隔离或PG并发。

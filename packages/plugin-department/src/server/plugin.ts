@@ -10,6 +10,7 @@ import {
 } from './actions';
 import { departmentsField, mainDepartmentField } from './collections/users';
 import {
+  checkDepartmentMemberAssociationTargetScope,
   checkRoleDepartmentAssociationTargetScope,
   checkUserDepartmentAssociationScope,
   destroyDepartmentCheck,
@@ -90,6 +91,11 @@ export class PluginDepartmentServer extends Plugin {
     });
     this.app.resourcer.use(checkRoleDepartmentAssociationTargetScope, {
       tag: 'checkRoleDepartmentAssociationTargetScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
+    this.app.resourcer.use(checkDepartmentMemberAssociationTargetScope, {
+      tag: 'checkDepartmentMemberAssociationTargetScope',
       after: 'setCurrentRole',
       before: 'acl',
     });

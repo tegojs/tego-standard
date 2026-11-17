@@ -2,12 +2,12 @@ import type { Context, Next } from '@tego/server';
 
 export const checkDepartmentMemberAssociationTargetScope = async (ctx: Context, next: Next) => {
   const { associatedName, resourceName, actionName, values } = ctx.action.params;
+  const isTargetList = actionName === 'list';
   if (
     associatedName !== 'departments' ||
     resourceName !== 'members' ||
-    !['add', 'remove'].includes(actionName) ||
-    !Array.isArray(values) ||
-    values.length === 0
+    !['list', 'add', 'remove'].includes(actionName) ||
+    (!isTargetList && (!Array.isArray(values) || values.length === 0))
   ) {
     return next();
   }
@@ -23,6 +23,13 @@ export const checkDepartmentMemberAssociationTargetScope = async (ctx: Context, 
 
   const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
   const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+  if (isTargetList) {
+    ctx.action.params.filter = {
+      $and: [filter, ctx.action.params.filter || {}],
+    };
+    return next();
+  }
+
   const visibleUsers = await ctx.db.getRepository('users').find({
     filter: {
       $and: [filter, { id: { $in: values } }],

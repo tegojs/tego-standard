@@ -2028,3 +2028,7 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 角色编辑器实际通过 `roles/{role}/departments:list` 展示已关联部门。真实Basic认证操作员的持久 `departments:list` scope 只允许101，但原关联列表仍返回已关联的101和102（RED）。原因是通用ACL关联路径移除关联权限filter后只检查来源角色，没有应用目标部门列表scope。
 
 现有部门插件角色关联守卫在该列表入口解析 `departments:list` scope，并将其与调用方原请求filter取交集；同一真实路径只返回101，另请求 `id=102` 时结果为空。认证/ACL与持久关联验收及包构建结果见ACL计划§492。此项只证明角色详情列表的静态ID scope和filter交集，不代表动态scope、父级append逐节点授权、其他关联读取、租户隔离或PostgreSQL并发；SQLite仅用于认证/ACL功能验收。
+
+### 角色详情列表的父级 append 不扩展可见范围（§493）
+
+角色详情页面还请求 `parent` 与递归父链。持久范围只允许部门101，且101父级100范围外；真实Basic认证的角色部门列表在带实际 append 参数时仍仅返回101，响应没有附带父级100。没有发现生产RED，仅新增回归断言，不改运行时代码。SQLite仅用于认证/ACL行为验收；该结果只覆盖此角色页面及静态ID scope，不证明动态scope、其他关系层级或PostgreSQL并发。

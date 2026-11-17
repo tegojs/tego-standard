@@ -131,7 +131,8 @@ describe('authenticated role department association scope', () => {
     });
     await app.db.getRepository('departments').createMany({
       records: [
-        { id: 101, title: 'Visible department' },
+        { id: 100, title: 'Hidden parent department' },
+        { id: 101, title: 'Visible department', parentId: 100 },
         { id: 102, title: 'Hidden department' },
       ],
     });
@@ -192,6 +193,13 @@ describe('authenticated role department association scope', () => {
       .list({ fields: ['id'], filter: { id: { $eq: 102 } } });
     expect(filteredRoleDepartments.status).toBe(200);
     expect(filteredRoleDepartments.body.data).toEqual([]);
+
+    const roleDepartmentsWithAncestors = await agent
+      .resource('roles.departments', targetRole)
+      .list({ appends: ['parent', 'parent.parent(recursively=true)'] });
+    expect(roleDepartmentsWithAncestors.status).toBe(200);
+    expect(roleDepartmentsWithAncestors.body.data).toHaveLength(1);
+    expect(roleDepartmentsWithAncestors.body.data[0]).not.toHaveProperty('parent');
 
     const allowed = await agent.resource('roles.departments', targetRole).remove({ values: [101] });
     expect(allowed.status).toBe(200);

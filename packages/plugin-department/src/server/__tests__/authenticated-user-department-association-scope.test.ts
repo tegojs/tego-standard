@@ -274,4 +274,78 @@ describe('authenticated user department association scope', () => {
     expect(filteredOutDepartment.status).toBe(200);
     expect(filteredOutDepartment.body.data).toEqual([]);
   });
+
+  it('denies associated department lists when the target collection list permission is absent', async () => {
+    app = await createMockServer({
+      acl: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      plugins: [
+        'acl',
+        'auth',
+        'users',
+        'data-source-manager',
+        'error-handler',
+        [
+          PluginDepartmentServer,
+          { name: 'department', packageName: '@tachybase/plugin-department', workspaceSource: true },
+        ],
+      ],
+    });
+    const role = 'user-department-association-no-target-list-operator';
+    const password = 'user-department-association-no-target-list-password';
+    await app.db
+      .getRepository('roles')
+      .create({ values: { name: role, strategy: { actions: [] }, snippets: ['pm.department'] } });
+    const users = app.db.getRepository('users');
+    const operator = await users.create({
+      values: { username: role, password, roles: [role] },
+    });
+    const target = await users.create({
+      values: { username: 'user-department-association-no-target-list-target', roles: ['member'] },
+    });
+    await app.db.getRepository('dataSourcesRolesResources').createMany({
+      records: [
+        {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'departments',
+          usingActionsConfig: true,
+          actions: [{ name: 'get', fields: ['id', 'title'] }],
+        },
+        {
+          dataSourceKey: 'main',
+          roleName: role,
+          name: 'users.departments',
+          usingActionsConfig: true,
+          actions: [{ name: 'list', fields: ['id', 'title'] }],
+        },
+      ],
+    });
+    await app.db.getRepository('departments').create({ values: { id: 101, title: 'Hidden department' } });
+    const memberships = app.db.getRepository('departmentsUsers');
+    await memberships.create({ values: { userId: target.id, departmentId: 101 } });
+
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: operator.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user).toMatchObject({ id: operator.id, hasPassword: true });
+    const agent = app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role);
+
+    const departmentsList = await agent.resource('departments').list({ fields: ['id'] });
+    expect(departmentsList.status).toBe(403);
+    expect(await memberships.find({ raw: true, filter: { userId: target.id, departmentId: 101 } })).toHaveLength(1);
+
+    const associatedDepartments = await agent.resource('users.departments', target.id).list({
+      fields: ['id'],
+      pagination: false,
+    });
+    expect(associatedDepartments.status).toBe(403);
+    expect(associatedDepartments.body.data).not.toEqual([{ id: 101 }]);
+  });
 });

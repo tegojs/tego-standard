@@ -2036,3 +2036,11 @@ title-only、owners-only和原管理片段三种真实路径分别验证了有�
 ### 角色编辑器添加弹窗的候选列表不带回越权父级（§494）
 
 添加部门弹窗通过 `departments:list` 请求候选数据，并 append 角色和递归父级。真实Basic认证操作员的静态部门列表scope只允许101、其父级100在scope外；响应仅含101且未附带父级100。没有发现生产RED，只为该真实picker入口新增认证回归断言，不改运行时代码。此结果只覆盖该候选API与静态scope，不证明动态scope或其他关联append行为。
+
+### 主部门变更同时受目标部门可见范围约束（§495）
+
+`users:setMainDepartment` 不仅会更新用户主部门关联，还引用一个目标 `departments` 记录。真实Basic登录角色获目标用户的持久 `users:setMainDepartment` 权限，但 `departments:list` scope 仅允许101；普通部门列表仅返回101。原自定义处理器仍将目标用户从部门101切换到范围外102，返回200且持久关联的两个 `isMain` 值实际翻转，属于有效RED。
+
+处理器现先保持原有来源用户 scope 检查；只有来源用户可修改时，才要求 `departments:list` 权限并以解析后的目标filter查验 departmentId，未获目标权限或目标不可见时403且不写入。来源用户超出其操作scope时仍维持原有无操作/200行为。真实认证及完整关系持久数据验证确认越界目标不会成为主部门。详细聚焦回归、包构建及格式/lint结果见ACL计划§495。
+
+本项仅证明静态部门ID目标scope、真实认证与持久关联行为，以及现有用户scope语义不回归；没有证明动态scope、自助策略、租户隔离或PostgreSQL并发。SQLite仅用于认证/ACL功能验收；损坏PG不启动，未推送、合并、部署或正式启用。

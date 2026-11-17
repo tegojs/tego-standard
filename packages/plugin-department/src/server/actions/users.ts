@@ -106,6 +106,21 @@ export const setMainDepartment = async (ctx: Context, next: Next) => {
     return;
   }
 
+  if (departmentId !== undefined && departmentId !== null) {
+    const departmentPermission = ctx.can({ resource: 'departments', action: 'list' });
+    if (!departmentPermission) {
+      ctx.throw(403);
+    }
+    const departmentAclParams = ctx.tego.acl.filterParams(ctx, 'departments', departmentPermission.params || {});
+    const { filter: departmentFilter = {} } = await ctx.tego.acl.parseJsonTemplate(departmentAclParams, ctx);
+    const department = await ctx.db
+      .getRepository('departments')
+      .findOne({ filterByTk: departmentId, filter: departmentFilter });
+    if (!department) {
+      ctx.throw(403);
+    }
+  }
+
   const throughRepo = ctx.db.getRepository('departmentsUsers');
   await ctx.db.sequelize.transaction(async (t) => {
     await throughRepo.update({

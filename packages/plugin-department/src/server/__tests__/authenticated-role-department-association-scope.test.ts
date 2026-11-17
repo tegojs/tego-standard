@@ -98,7 +98,7 @@ describe('authenticated role department association scope', () => {
     expect(denied.status).toBe(403);
   });
 
-  it('does not remove a department outside the target collection ACL scope from a role', async () => {
+  it('does not expose or remove a department outside the target collection ACL scope from a role', async () => {
     app = await createMockServer({
       acl: true,
       database: { dialect: 'sqlite', storage: ':memory:' },
@@ -183,6 +183,15 @@ describe('authenticated role department association scope', () => {
     const visible = await agent.resource('departments').list({ fields: ['id'] });
     expect(visible.status).toBe(200);
     expect(visible.body.data.map(({ id }) => id)).toEqual([101]);
+
+    const roleDepartments = await agent.resource('roles.departments', targetRole).list({ fields: ['id'] });
+    expect(roleDepartments.status).toBe(200);
+    expect(roleDepartments.body.data.map(({ id }) => id)).toEqual([101]);
+    const filteredRoleDepartments = await agent
+      .resource('roles.departments', targetRole)
+      .list({ fields: ['id'], filter: { id: { $eq: 102 } } });
+    expect(filteredRoleDepartments.status).toBe(200);
+    expect(filteredRoleDepartments.body.data).toEqual([]);
 
     const allowed = await agent.resource('roles.departments', targetRole).remove({ values: [101] });
     expect(allowed.status).toBe(200);

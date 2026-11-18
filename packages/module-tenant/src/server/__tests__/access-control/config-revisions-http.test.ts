@@ -57,6 +57,79 @@ describe('administrator configuration revision HTTP boundary', () => {
     await app?.destroy();
   });
 
+  it('serves revision summaries only to a password-authenticated manager', async () => {
+    const managerPassword = 'revision-basic-manager-password';
+    const manager = await app.db.getRepository('users').create({
+      values: {
+        username: 'revision-basic-manager',
+        password: managerPassword,
+        roles: ['revision-manager'],
+        tenants: ['revision-tenant'],
+        defaultTenantId: 'revision-tenant',
+      },
+    });
+    const managerSignIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({
+        account: manager.get('username'),
+        password: managerPassword,
+      });
+    expect(managerSignIn.status).toBe(200);
+    expect(managerSignIn.body.data.user.hasPassword).toBe(true);
+    const asManager = () =>
+      app
+        .agent()
+        .set('Authorization', `Bearer ${managerSignIn.body.data.token}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', 'revision-manager')
+        .set('X-Tenant-Id', 'revision-tenant');
+
+    const allowed = await asManager().resource('tenants').listAccessConfigRevisions({ values });
+    expect(allowed.status).toBe(200);
+    expect(allowed.body.data).toEqual({
+      identity,
+      revisions: [
+        { revision: 2, actorUserId: String(user.get('id')), savedAt: expect.any(String) },
+        { revision: 1, actorUserId: String(user.get('id')), savedAt: expect.any(String) },
+      ],
+      nextBefore: null,
+    });
+    expect(allowed.body.data.revisions[0]).not.toHaveProperty('config');
+
+    const readerPassword = 'revision-basic-reader-password';
+    const reader = await app.db.getRepository('users').create({
+      values: {
+        username: 'revision-basic-reader',
+        password: readerPassword,
+        roles: ['revision-reader'],
+        tenants: ['revision-tenant'],
+        defaultTenantId: 'revision-tenant',
+      },
+    });
+    const readerSignIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({
+        account: reader.get('username'),
+        password: readerPassword,
+      });
+    expect(readerSignIn.status).toBe(200);
+    const denied = await app
+      .agent()
+      .set('Authorization', `Bearer ${readerSignIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', 'revision-reader')
+      .set('X-Tenant-Id', 'revision-tenant')
+      .resource('tenants')
+      .listAccessConfigRevisions({ values });
+    expect(denied.status).toBe(403);
+    expect(denied.body).not.toHaveProperty('data');
+    expect(await app.db.getRepository('tenantAccessRevisions').count()).toBe(2);
+  });
+
   it('lists only bounded revision summaries for the manager', async () => {
     const response = await agent()
       .resource('tenants')

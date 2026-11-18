@@ -2310,3 +2310,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 管理租户更新与平台代入权限分离（§531）
 
 管理页的真实租户编辑/启停写入口`tenants:update`经Basic密码认证验收：同一用户切换到impersonator角色时请求403且租户持久快照不变；切换到manager后更新目标租户成功，name/enabled变化且其他租户行及path不变。单文件1项通过、0跳过（主计划§475）；无生产RED，不改实现。SQLite不证明PostgreSQL并发；没有覆盖浏览器交互或全部树更新形状。
+
+### 配置历史摘要读取经真实 Basic 认证（§532）
+
+真实Basic密码登录的manager请求租户访问配置历史摘要，得到受限revision/actor/time字段且不含配置正文；reader同样完成认证但请求被ACL以403拒绝，历史持久行数不变。批准snapshot单文件16项通过、0跳过（主计划§476）；此前HTTP测试仅用测试身份注入。无生产RED，不改实现；SQLite不证明PostgreSQL并发，也不代表浏览器或其他历史动作均已通过真实认证。

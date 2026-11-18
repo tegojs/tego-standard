@@ -6603,3 +6603,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新增 `authenticated-tenant-management-update.test.ts`：同一持久密码用户持有独立manager/impersonator角色、无租户成员关系，经Basic登录取得真实Bearer后切换当前角色。impersonator更新被ACL拒绝，完整tenants持久快照不变；manager对相同行执行更新成功，目标行name/enabled精确变化，其他租户行及path不变。
 - 批准snapshot单文件命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-update.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1项通过、0跳过，9.52秒。没有观察到生产RED，故本项只补真实认证/ACL/持久数据验收，不改生产实现。
 - SQLite仅作为HTTP认证、当前角色ACL和持久租户数据功能证据，不证明PostgreSQL并发；作者串行审查、非独立复核。未验证管理UI浏览器交互、其他租户树更新形状或PG并发；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 476. 配置历史摘要经真实 Basic 认证读取
+
+- `TenantAccessConfigHistory` 页面使用 `tenants:listAccessConfigRevisions` 获取历史摘要。原HTTP测试通过 `agent.login(user)` 建立身份，能验证ACL但未走真实密码认证/Token链。
+- 扩展 `config-revisions-http.test.ts`：新建持久 manager 和 reader 账号，分别通过 `/auth:signIn` 的Basic密码认证取得Bearer。manager只收到 revision/actor/time 摘要，不含保存的config正文；普通reader收到403且无data，持久revision数量仍为2。请求保留真实租户选择上下文。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-revisions-http.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件16项通过、0跳过，10.59秒。未观察到生产RED，因此仅补认证验收，不改生产ACL或配置历史逻辑。
+- SQLite只作为Basic认证、ACL和持久历史摘要功能证据，不代表PG并发；未验证浏览器交互、其他历史操作的密码认证或PG并发。作者串行审查、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

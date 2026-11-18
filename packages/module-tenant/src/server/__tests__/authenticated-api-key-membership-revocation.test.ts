@@ -2,6 +2,7 @@ import type { MockServer } from '@tachybase/test';
 
 import xlsx from 'node-xlsx';
 import ExportPlugin from 'packages/plugin-action-export/src/server';
+import ImportPlugin from 'packages/plugin-action-import/src/server';
 import PluginAPIKeysServer from 'packages/plugin-api-keys/src/server';
 
 import { createTenantApp } from './utils';
@@ -18,6 +19,7 @@ describe('authenticated API key tenant membership revocation', () => {
       extraPlugins: [
         [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }],
         [ExportPlugin, { name: 'action-export' }],
+        [ImportPlugin, { name: 'action-import' }],
       ],
     });
     await app.db.getRepository('tenants').create({
@@ -72,6 +74,7 @@ describe('authenticated API key tenant membership revocation', () => {
         actions: [
           { name: 'create', fields: ['name'] },
           { name: 'export', fields: ['name'] },
+          { name: 'importXlsx', fields: ['name'] },
           { name: 'list', fields: ['name', 'tenantId'] },
           { name: 'update', fields: ['name'] },
         ],
@@ -127,6 +130,13 @@ describe('authenticated API key tenant membership revocation', () => {
           response.on('end', () => done(null, Buffer.concat(chunks)));
           response.on('error', done);
         });
+    const importToC = () =>
+      apiAgent('C')
+        .post(`/${collectionName}:importXlsx`)
+        .attach('file', xlsx.build([{ name: 'Records', data: [['Name'], ['C imported while member']] }]), {
+          filename: 'membership-import.xlsx',
+        })
+        .field('columns', JSON.stringify([{ dataIndex: ['name'], defaultTitle: 'Name' }]));
     const originalRows = [
       { id: 1, name: 'B business record', tenantId: 'B' },
       { id: 2, name: 'C business record', tenantId: 'C' },
@@ -157,6 +167,11 @@ describe('authenticated API key tenant membership revocation', () => {
     expect(exportInC.status).toBe(200);
     expect(exportInC.headers['content-disposition']).toContain('Membership%20report_C.xlsx');
     expect(xlsx.parse(exportInC.body)[0].data).toEqual([['Name'], ['C updated while member']]);
+    const importInC = await importToC();
+    expect(importInC.status).toBe(200);
+    expect(importInC.body.meta).toMatchObject({ successCount: 1, failureCount: 0 });
+    const rowsAfterImport = [...rowsAfterAuthorizedUpdate, { id: 3, name: 'C imported while member', tenantId: 'C' }];
+    expect(await rows()).toEqual(rowsAfterImport);
     const membershipsBeforeRemoval = await app.db
       .getRepository('tenantUsers')
       .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
@@ -198,7 +213,10 @@ describe('authenticated API key tenant membership revocation', () => {
     const deniedExport = await exportInTenant('C');
     expect(deniedExport.status).toBe(403);
     expect(deniedExport.headers).not.toHaveProperty('content-disposition');
-    expect(await rows()).toEqual(rowsAfterAuthorizedUpdate);
+    const deniedImport = await importToC();
+    expect(deniedImport.status).toBe(403);
+    expect(deniedImport.body).not.toHaveProperty('data');
+    expect(await rows()).toEqual(rowsAfterImport);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });

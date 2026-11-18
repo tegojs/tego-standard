@@ -2414,3 +2414,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 用户移出租户后拒绝删除该租户业务记录（§557）
 
 补查API Key tenant membership撤权下的直接 `destroy` 写入口。C membership有效时，同一密钥可按角色的持久destroy ACL删除C记录；真实管理者移除C membership后，同key对另一条C记录删除返回403且无data，完整业务快照不变；对仍授权的B详情访问继续成功，key没有被吊销、blacklist为空。一个既有API Key业务destroy测试因核心ACL factory入口缺失而条件跳过，不能证明此认证与租户撤权组合。批准snapshot验收1项通过、0跳过，验证及hash见ACL计划§557；初次测试失败仅源于测试断言/撤权前后快照基线错误，不是产品RED。未修改生产代码。SQLite不证明PG并发、批量删除、在途撤权或跨实例缓存传播。
+
+### API Key 用户移出租户后不得读取该租户业务计数（§558）
+
+补足租户membership撤权对API Key身份的 `count` 统计读取。C membership存在时，同key经持久 `count` action ACL读取C计数2；真实manager移除C membership后同一C count返回403且无data，B/C持久行快照不变；B仍授权，count仍为1。此前真实API Key membership撤权测试未配置count，§548仅证明交互式Bearer，不作为此API Key组合的证据。批准snapshot 1项通过、0跳过，测试命令/hash见ACL计划§558。无生产RED、不改实现；SQLite不证明PG并发、跨实例撤权或其它聚合API。

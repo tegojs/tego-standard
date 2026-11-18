@@ -57,7 +57,9 @@ describe('authenticated user status history target scope', () => {
       ],
     });
     const histories = app.db.getRepository('userStatusHistories');
-    const firstHistory = await histories.create({ values: { userId: firstUser.id, toStatus: 'review' } });
+    const firstHistory = await histories.create({
+      values: { userId: firstUser.id, toStatus: 'review', reason: 'private first-user reason' },
+    });
     const secondHistory = await histories.create({ values: { userId: secondUser.id, toStatus: 'disabled' } });
     const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
       account: operator.username,
@@ -74,9 +76,13 @@ describe('authenticated user status history target scope', () => {
     expect(direct.status).toBe(200);
     expect(direct.body.data.map(({ id }) => id)).toEqual([firstHistory.id]);
 
-    const firstAssociation = await agent.resource('users.statusHistories', firstUser.id).list({ pagination: false });
+    const firstAssociation = await agent.resource('users.statusHistories', firstUser.id).list({
+      fields: ['id', 'userId', 'toStatus', 'reason'],
+      pagination: false,
+    });
     expect(firstAssociation.status).toBe(200);
     expect(firstAssociation.body.data.map(({ id }) => id)).toEqual([firstHistory.id]);
+    expect(firstAssociation.body.data[0]).not.toHaveProperty('reason');
 
     const secondAssociation = await agent.resource('users.statusHistories', secondUser.id).list({ pagination: false });
     expect(secondAssociation.status).toBe(200);

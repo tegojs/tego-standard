@@ -291,3 +291,8 @@
   - 根因是get中间件阶段 `ctx.body` 为单条Sequelize模型本身，而非list常见的 `body.data[]` / `body.rows[]` 包装；即使action和appends已进入守卫，原数组专用转换也无法处理该对象。现有守卫只扩展到status关联资源的get/list，并在单模型get结果上复用同一scope key核验和最终ACL字段裁剪；list路径不变。
   - 新认证验收同时检查两个状态引用各自只含最终ACL字段`key`、`createdAt`、`updatedAt`，状态key正确且业务字段不泄露。10文件状态/历史相邻回归17项通过；module-user完整构建退出0；改动TS文件oxlint零警告/错误、Prettier及`git diff --check`通过。
   - SQLite只用于真实认证、ACL与持久数据功能验证，不作为PostgreSQL并发证据。作者串行自审而非独立复核。本项不证明其它详情关联、动态字段ACL、租户隔离或PostgreSQL并发；整分支独立复核与正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+- §521（用户状态历史关联读取字段边界）：在已有 `users.statusHistories:list` 真实Basic认证与目标用户scope测试中加入字段负向探针。请求额外包含 `userStatusHistories:list` ACL未授权的 `reason` 字段，实际关联响应不包含该字段，且范围内历史仍正确返回、范围外关联仍为空；未观察到真实RED，因此不改生产。
+  - 聚焦命令 `pnpm exec vitest run packages/module-user/src/server/__tests__/authenticated-user-status-history-target-scope.test.ts --no-file-parallelism --reporter=default --silent` 退出0，1项通过。使用真实Basic登录、持久角色/字段配置及SQLite历史记录；验收请求字段包含 `reason`，但返回不包含，既有目标scope正反向结果保持不变。
+  - 本项仅补充真实关联列表字段ACL验收；单TS文件Prettier、oxlint零警告/错误及`git diff --check`通过。测试-only改动不重复包构建。
+  - 作者串行自审而非独立复核。SQLite仅用于认证/ACL及持久数据功能验收，不是PostgreSQL并发证据；不据此宣称所有关联字段/响应形状已覆盖。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

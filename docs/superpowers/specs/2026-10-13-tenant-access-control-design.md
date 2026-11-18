@@ -2256,3 +2256,11 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 10个相邻状态/历史认证测试文件17项通过；module-user构建、oxlint、Prettier和`git diff --check`通过；精确RED见ACL计划§520。作者串行自审，非独立复核。
 
 本项仅验证真实 `users:get` 单对象响应及静态目标字段ACL，不证明其它详情关联、动态字段ACL、租户隔离或PostgreSQL并发。SQLite仅作认证/ACL与持久数据功能验收。整分支独立复核和正式业务试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 用户状态历史关联字段边界回归（§521）
+
+在已有真实Basic认证、持久ACL和用户关联历史scope测试中，新增 `users.statusHistories:list` 尝试读取目标ACL未授权的 `reason` 字段。请求仍正确返回scope内历史、范围外关联保持空，且未授权reason不出现在响应中；没有观察到真实RED，因此不改生产实现。
+
+本项测试1项通过，Prettier、oxlint和`git diff --check`通过；test-only改动未重复包构建。具体证据见ACL计划§521。
+
+该回归只覆盖此关联列表形状下 `userStatusHistories:list` 字段边界，不宣称所有关系API均已验证，也不证明租户隔离或PostgreSQL并发。SQLite仅用于认证/ACL持久数据功能验收。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

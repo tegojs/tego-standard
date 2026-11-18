@@ -2314,3 +2314,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 配置历史摘要读取经真实 Basic 认证（§532）
 
 真实Basic密码登录的manager请求租户访问配置历史摘要，得到受限revision/actor/time字段且不含配置正文；reader同样完成认证但请求被ACL以403拒绝，历史持久行数不变。批准snapshot单文件16项通过、0跳过（主计划§476）；此前HTTP测试仅用测试身份注入。无生产RED，不改实现；SQLite不证明PostgreSQL并发，也不代表浏览器或其他历史动作均已通过真实认证。
+
+### 配置读取经真实 Basic 认证（§533）
+
+真实Basic密码登录的租户管理者读取未配置collection的访问规则，响应为准确identity及`config:null`，且持久metadata与运行时collection均未被读取动作自动启用。批准snapshot聚焦文件6项通过、0跳过（主计划§477）。此前该HTTP测试以测试身份注入；无生产RED，不改实现。SQLite不证明PostgreSQL并发，校验及迁移预览action仍未由此覆盖。

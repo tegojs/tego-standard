@@ -6610,3 +6610,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 扩展 `config-revisions-http.test.ts`：新建持久 manager 和 reader 账号，分别通过 `/auth:signIn` 的Basic密码认证取得Bearer。manager只收到 revision/actor/time 摘要，不含保存的config正文；普通reader收到403且无data，持久revision数量仍为2。请求保留真实租户选择上下文。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-revisions-http.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件16项通过、0跳过，10.59秒。未观察到生产RED，因此仅补认证验收，不改生产ACL或配置历史逻辑。
 - SQLite只作为Basic认证、ACL和持久历史摘要功能证据，不代表PG并发；未验证浏览器交互、其他历史操作的密码认证或PG并发。作者串行审查、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 477. 租户访问配置读取经真实 Basic 认证
+
+- `TenantAccessConfigView` 的实际读取请求为 `tenants:readAccessConfig`。现有 `config-read-http.test.ts` 覆盖manager成功、reader/impersonator拒绝及匿名拒绝，但身份均由 `agent.login(user)` 注入，未覆盖密码Bearer认证链。
+- 新增持久manager用户，通过 `/auth:signIn` Basic密码认证后调用同一HTTP action。响应准确为当前collection identity与`config:null`；持久metadata和当前运行时collection都保持未启用`tenantAccess`，证明读取不隐式迁移或启用规则。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-read-http.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1文件6项通过、0跳过。无生产RED，故只增加真实认证验收，不改生产实现。
+- SQLite仅证明该密码认证、manager ACL与持久metadata读取功能，不代表PG并发；不覆盖校验/迁移预览两个独立action、浏览器交互或正式启用。作者串行复核、非独立审查；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

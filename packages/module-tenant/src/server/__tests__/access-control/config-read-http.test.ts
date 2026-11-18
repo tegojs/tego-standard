@@ -37,6 +37,46 @@ describe('administrator access configuration read HTTP boundary', () => {
     await app?.destroy();
   });
 
+  it('reads the unconfigured result through real password authentication', async () => {
+    const password = 'config-basic-manager-password';
+    const authenticatedUser = await app.db.getRepository('users').create({
+      values: {
+        username: 'config-basic-manager',
+        password,
+        roles: ['config-manager'],
+        tenants: ['config-tenant'],
+        defaultTenantId: 'config-tenant',
+      },
+    });
+    const signIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({
+        account: authenticatedUser.get('username'),
+        password,
+      });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user.hasPassword).toBe(true);
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', 'config-manager')
+      .set('X-Tenant-Id', 'config-tenant')
+      .resource('tenants')
+      .readAccessConfig({ values });
+
+    expect(response.status).toBe(200);
+    const metadata = await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName });
+    expect(response.body.data).toEqual({
+      identity: { ...values, collectionKey: metadata.get('key') },
+      config: null,
+    });
+    expect(metadata.getDataValue('options')).not.toHaveProperty('tenantAccess');
+    expect(app.db.getCollection(values.collectionName).options).not.toHaveProperty('tenantAccess');
+  });
+
   it('lets the management role read an explicit unconfigured result without migrating the table', async () => {
     const response = await agent('config-manager').resource('tenants').readAccessConfig({ values });
     expect(response.status).toBe(200);

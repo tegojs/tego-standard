@@ -6568,3 +6568,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - `pm.tenant.manage` snippet授予 `tenants:*`，而普通登录成员没有租户管理权。既有租户树Repository测试和profile树篡改拒绝不等于直接 `tenants:create` HTTP路径；检索没有发现该写入口的真实密码认证验收。
 - 新增 `packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts`：持久普通角色用户经Basic密码认证后尝试创建租户，实际403、无data且租户表全量持久行不变。聚焦Vitest实际exit0，1项通过；Prettier、oxlint零错误/警告及`git diff --check`通过。没有真实RED，不改生产或ACL。
 - 不触及删除/软删除、已有树形移动或角色合成。SQLite只作真实认证/ACL与持久数据功能证据，不作为PostgreSQL并发证据；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 471. 租户管理创建与平台代入的独立权限
+
+- 先检查真实管理入口：客户端设置入口声明 `pm.tenant.manage`，服务端该snippet授予 `tenants:*`；`pm.tenant.impersonate`只授予available/current/switch。§470只验证普通成员拒绝，不能证明合法管理员创建可用，也没有覆盖“持有两种角色时按当前角色分别授权”的真实密码认证链；本项不重复合成角色范围。
+- 在同一创建验收文件增加独立应用：持久空策略manager/impersonator两角色分别只有上述snippet，同一真实密码用户持有两角色但没有任何租户成员关系。原Basic登录取得同一Bearer；选择impersonator能列出既有可代入租户，但创建请求403/无data且全量租户物理行不变；切换请求头选择manager后相同创建值200，准确新增一行，根parentId为null、path为 `/managed-tenant/`，原租户全字段不变，tenantUsers仍为0。未手工grantAction或伪造认证/context。
+- 首次运行2项中1失败，失败仅在原始SQLite行的enabled断言：HTTP为true，raw存储为1；权限正反请求均已符合预期。按实际存储修正测试期待，不作为生产RED。最终 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，2项通过、0跳过，13.23秒。使用既有默认安装ACL，未设置或冒充核心createACL构建入口，不据此关闭该入口的未验证项。
+- 作者串行自审，非独立复核；无真实生产RED，不改生产代码/ACL/schema/依赖。仅测试和两份记录，按聚焦规则无需包构建；三个改动文件Prettier通过，测试oxlint零错误/警告，diff检查通过。SQLite只作为本次认证/持久数据/当前角色功能证据，不证明PG并发、正式账号状态策略、管理界面试点或整分支可合并；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

@@ -2226,3 +2226,13 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 15文件聚焦回归48项通过、2项既有skip，module-user构建、oxlint及Prettier通过；RED、警告和源码SHA256详见ACL计划§517。作者串行自审，非独立复核。
 
 本项仅证明登录用户不能通过自己的updateProfile修改上述状态字段，不证明其它profile/action入口、租户边界或PostgreSQL并发；SQLite仅用于真实认证与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 状态历史列表展开的状态对象遵守目标scope（§518）
+
+状态历史管理页通过 `userStatusHistories:list` 显式展开 `fromStatusInfo` / `toStatusInfo`。真实Basic角色的持久 `userStatuses:list` scope仅允许active，但原历史列表仍返回scope外的disabled状态对象，形成RED；历史记录本身及用户来源在该角色历史列表scope内。
+
+现有响应守卫扩展为同时覆盖用户列表状态关联与状态历史列表状态关联：仅过滤请求显式展开、且目标key不在已解析状态scope中的对象。真实验收确认from/to两方向的disabled对象均不返回，active对象保留，历史持久行不变。
+
+16文件聚焦回归49项通过、2项既有skip，module-user构建、oxlint和Prettier通过；RED、警告及SHA256见ACL计划§518。作者串行自审，非独立复核。
+
+本项仅证明静态 `userStatuses:list` key scope对状态历史列表显式展开关联对象的响应过滤，不证明动态scope、其它关联形状、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

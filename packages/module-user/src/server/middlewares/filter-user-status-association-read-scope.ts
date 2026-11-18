@@ -1,18 +1,24 @@
 import type { Context, Next } from '@tego/server';
 
-const statusAssociations = {
-  statusInfo: 'status',
-  previousStatusInfo: 'previousStatus',
+const statusAssociations: Record<string, Record<string, string> | undefined> = {
+  users: {
+    statusInfo: 'status',
+    previousStatusInfo: 'previousStatus',
+  },
+  userStatusHistories: {
+    fromStatusInfo: 'fromStatus',
+    toStatusInfo: 'toStatus',
+  },
 };
 
 export const filterUserStatusAssociationReadScope = async (ctx: Context, next: Next) => {
   const { resourceName, actionName, appends } = ctx.action.params;
-  if (
-    resourceName !== 'users' ||
-    actionName !== 'list' ||
-    !Array.isArray(appends) ||
-    !appends.some((name) => Object.hasOwn(statusAssociations, name))
-  ) {
+  const associations = statusAssociations[resourceName];
+  if (actionName !== 'list' || !Array.isArray(appends) || !associations) {
+    return next();
+  }
+  const requestedAssociations = Object.entries(associations).filter(([name]) => appends.includes(name));
+  if (!requestedAssociations.length) {
     return next();
   }
 
@@ -43,9 +49,8 @@ export const filterUserStatusAssociationReadScope = async (ctx: Context, next: N
 
   ctx.body[rowsKey] = rows.map((row) => {
     const result = typeof row.toJSON === 'function' ? row.toJSON() : { ...row };
-    for (const [association, foreignKey] of Object.entries(statusAssociations)) {
+    for (const [association, foreignKey] of requestedAssociations) {
       if (
-        appends.includes(association) &&
         result[association] != null &&
         !visibleStatusKeys.has(String(result[association].key ?? result[foreignKey]))
       ) {

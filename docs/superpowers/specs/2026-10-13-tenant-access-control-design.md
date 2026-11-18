@@ -2208,3 +2208,11 @@ module-user现在在ACL之后明确拒绝该资源API的create action。真实�
 12文件聚焦回归37项通过、2项既有skip，module-user构建、oxlint和Prettier通过；RED、运行警告及源码SHA256见ACL计划§515。作者串行自审，非独立复核。
 
 本项仅证明status管理snippet角色不能经资源API新增历史记录；不证明update/destroy响应语义、所有内部写路径、租户边界或PostgreSQL并发。SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 状态历史审计记录不可经API更新或删除（§516）
+
+真实Basic角色具有 `pm.users.statuses` snippet，可读取既有状态历史。其对一条记录执行update、另一条执行destroy时，接口按标准filter未命中语义返回200，但完整持久历史行均不变；未发现生产缺陷，因此本项只增加真实认证验收，不改运行代码。
+
+13文件聚焦回归38项通过、2项既有skip；新增测试oxlint、Prettier及`git diff --check`通过。详细断言、警告及SHA256见ACL计划§516。作者串行自审，非独立复核。
+
+本项仅证明该snippet角色经资源API无法改变/删除既有历史，不证明所有内部写入路径、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

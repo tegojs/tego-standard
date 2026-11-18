@@ -2390,3 +2390,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 所属用户移出租户后拒绝更新该租户业务记录（§551）
 
 补充同一API Key的独立 `update` 入口：C membership有效时，真实Basic登录签发的key成功更新C业务行；管理员移除membership后，同一key更新该行返回403且无data，完整B/C持久行不变，B读取仍有效、key仍存在且blacklist为空。批准snapshot单文件1项通过、0跳过，测试哈希、命令及格式/lint见ACL计划§551。未观察到生产RED，不改运行时代码。SQLite仅验收本地认证、ACL和持久数据功能路径，不是PG并发证据。
+
+### API Key 所属用户移出租户后拒绝导出该租户业务数据（§552）
+
+补充独立 `export` 文件读取入口：membership有效时同一Basic签发API Key可导出并解析出C业务记录；真实管理员移除C membership后，同一key的C导出403且无下载头，B/C业务持久行不变、仍授权的B读取继续成功。批准snapshot单文件1项通过、0跳过；命令、测试哈希与格式/lint见ACL计划§552。未观察到生产RED，不改运行时代码。SQLite只验收本地认证、ACL及持久membership功能路径，不代表PostgreSQL并发或导出worker覆盖。

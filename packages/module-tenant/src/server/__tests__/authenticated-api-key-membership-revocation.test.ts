@@ -1,5 +1,7 @@
 import type { MockServer } from '@tachybase/test';
 
+import xlsx from 'node-xlsx';
+import ExportPlugin from 'packages/plugin-action-export/src/server';
 import PluginAPIKeysServer from 'packages/plugin-api-keys/src/server';
 
 import { createTenantApp } from './utils';
@@ -13,7 +15,10 @@ describe('authenticated API key tenant membership revocation', () => {
 
   it('rechecks the key owner membership before accessing tenant business data', async () => {
     app = await createTenantApp({
-      extraPlugins: [[PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }]],
+      extraPlugins: [
+        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }],
+        [ExportPlugin, { name: 'action-export' }],
+      ],
     });
     await app.db.getRepository('tenants').create({
       values: [
@@ -66,6 +71,7 @@ describe('authenticated API key tenant membership revocation', () => {
         usingActionsConfig: true,
         actions: [
           { name: 'create', fields: ['name'] },
+          { name: 'export', fields: ['name'] },
           { name: 'list', fields: ['name', 'tenantId'] },
           { name: 'update', fields: ['name'] },
         ],
@@ -105,6 +111,22 @@ describe('authenticated API key tenant membership revocation', () => {
         .set('X-Role', writerRole)
         .set('X-Tenant-Id', tenantId);
     const rows = () => app.db.getCollection(collectionName).model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const exportInTenant = (tenantId: string) =>
+      apiAgent(tenantId)
+        .resource(collectionName)
+        .export({
+          values: {
+            title: 'Membership report',
+            columns: [{ dataIndex: ['name'], defaultTitle: 'Name', title: 'Name' }],
+          },
+        })
+        .buffer(true)
+        .parse((response, done) => {
+          const chunks: Buffer[] = [];
+          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          response.on('end', () => done(null, Buffer.concat(chunks)));
+          response.on('error', done);
+        });
     const originalRows = [
       { id: 1, name: 'B business record', tenantId: 'B' },
       { id: 2, name: 'C business record', tenantId: 'C' },
@@ -131,6 +153,10 @@ describe('authenticated API key tenant membership revocation', () => {
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(inC.status).toBe(200);
     expect(inC.body.data).toEqual([rowsAfterAuthorizedUpdate[1]]);
+    const exportInC = await exportInTenant('C');
+    expect(exportInC.status).toBe(200);
+    expect(exportInC.headers['content-disposition']).toContain('Membership%20report_C.xlsx');
+    expect(xlsx.parse(exportInC.body)[0].data).toEqual([['Name'], ['C updated while member']]);
     const membershipsBeforeRemoval = await app.db
       .getRepository('tenantUsers')
       .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
@@ -169,6 +195,9 @@ describe('authenticated API key tenant membership revocation', () => {
       .update({ filterByTk: 2, values: { name: 'Unauthorized C update' } });
     expect(deniedUpdate.status).toBe(403);
     expect(deniedUpdate.body).not.toHaveProperty('data');
+    const deniedExport = await exportInTenant('C');
+    expect(deniedExport.status).toBe(403);
+    expect(deniedExport.headers).not.toHaveProperty('content-disposition');
     expect(await rows()).toEqual(rowsAfterAuthorizedUpdate);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)

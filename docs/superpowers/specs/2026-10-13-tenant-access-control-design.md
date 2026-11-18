@@ -2446,3 +2446,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key用户移出租户后拒绝解除该租户业务关联（§565）
 
 补查API Key租户membership撤权下的具体关联写动作：C membership有效时，同一Basic登录签发的API Key成功通过 `membershipKeyBusinessRecords.children:set` 建立C业务记录与C子记录的持久关联；管理员移除owner的C membership后，同key对该关系执行 `set([])` 返回403且无data，关联保持，B读取仍有效、API Key仍存在且token blacklist为空。批准snapshot单文件1项通过、0跳过；测试hash、命令及夹具修正说明见ACL计划§565。未观察到生产RED或运行时代码修改。SQLite仅证明本地认证、ACL和持久关联行为，不证明PG并发、其它关联动作或跨实例传播。
+
+### API Key用户移出租户后拒绝读取该租户业务关联列表（§566）
+
+继续检查API Key租户membership撤权后的真实关联读入口：owner仍是C成员时，同key可从C业务记录的 `children:list` 读取持久子记录；移除C membership后，同一key、来源记录和 `X-Tenant-Id: C` 再次请求返回403且无data，关联行仍保留，B访问继续成功。批准snapshot认证文件1项通过、0跳过；命令/hash和断言对齐说明见ACL计划§566。没有生产RED或运行时代码修改。SQLite仅证明认证、ACL和持久关联功能路径，不代表PG并发、关联详情或其它关联读取动作。

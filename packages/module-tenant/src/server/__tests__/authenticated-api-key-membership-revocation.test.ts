@@ -309,6 +309,12 @@ describe('authenticated API key tenant membership revocation', () => {
     expect(deniedAssociationList.status).toBe(403);
     expect(deniedAssociationList.body).not.toHaveProperty('data');
     expect(await children()).toEqual([1]);
+    const deniedAssociationRemove = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .remove({ values: [1] });
+    expect(deniedAssociationRemove.status).toBe(403);
+    expect(deniedAssociationRemove.body).not.toHaveProperty('data');
+    expect(await children()).toEqual([1]);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });

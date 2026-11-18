@@ -56,6 +56,7 @@ describe('authenticated API key role revocation', () => {
         usingActionsConfig: true,
         actions: [
           { name: 'create', fields: ['name'] },
+          { name: 'count' },
           { name: 'get', fields: ['id', 'name', 'tenantId'] },
           { name: 'list', fields: ['name', 'tenantId'] },
           { name: 'update', fields: ['name'] },
@@ -103,6 +104,9 @@ describe('authenticated API key role revocation', () => {
     expect(updatedBeforeRemoval.body.data).toEqual([{ id: 1, name: 'Updated before role removal', tenantId: 'B' }]);
     const originalRows = [{ id: 1, name: 'Updated before role removal', tenantId: 'B' }];
     expect(await rows()).toEqual(originalRows);
+    const countBeforeRemoval = await apiAgent().resource(collectionName).count({});
+    expect(countBeforeRemoval.status).toBe(200);
+    expect(countBeforeRemoval.body.data).toBe(1);
     const listed = await apiAgent()
       .resource(collectionName)
       .list({ fields: ['name', 'tenantId'] });
@@ -135,6 +139,10 @@ describe('authenticated API key role revocation', () => {
     expect(revokedGet.status).toBe(401);
     expect(revokedGet.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
     expect(revokedGet.body).not.toHaveProperty('data');
+    const revokedCount = await apiAgent().resource(collectionName).count({});
+    expect(revokedCount.status).toBe(401);
+    expect(revokedCount.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    expect(revokedCount.body).not.toHaveProperty('data');
     const revokedUpdate = await apiAgent()
       .resource(collectionName)
       .update({ filterByTk: 1, values: { name: 'Unauthorized after role removal' } });
@@ -162,6 +170,9 @@ describe('authenticated API key role revocation', () => {
       .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
     expect(restoredGet.status).toBe(200);
     expect(restoredGet.body.data).toEqual({ id: 1, name: 'Updated before role removal', tenantId: 'B' });
+    const restoredCount = await apiAgent().resource(collectionName).count({});
+    expect(restoredCount.status).toBe(200);
+    expect(restoredCount.body.data).toBe(1);
     const restoredUpdate = await apiAgent()
       .resource(collectionName)
       .update({ filterByTk: 1, values: { name: 'Updated after role restoration' } });

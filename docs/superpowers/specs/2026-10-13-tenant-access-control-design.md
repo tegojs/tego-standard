@@ -2422,3 +2422,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key owner失去角色membership后不得更新业务记录（§559）
 
 补齐API Key owner角色membership撤销后的真实业务 `update` 写入口：有效writer角色时同key可持久更新；移除owner的writer角色关系并保留issuer后，后续同key更新401且业务行不变；恢复角色关系后无需重新签发即可继续更新。既有§554覆盖list/create、§555覆盖get，tenant membership的§551属于不同撤权条件。批准snapshot测试1项通过、0跳过，命令、哈希与断言修正说明见ACL计划§559。无生产RED、不改运行时代码；SQLite不证明PG并发、在途请求撤权或跨实例传播。
+
+### API Key owner失去角色membership后不得读取业务计数（§560）
+
+补查API Key owner角色membership撤销后的真实 `count` 统计：writer角色有效时同key从持久ACL保护的业务表得到计数1；移除owner的writer角色关系后同key请求401且无data、持久行不变；恢复writer关系后计数恢复为1。既有§558检查的是tenant membership撤销，不能替代owner角色关系撤销。批准snapshot测试1项通过、0跳过，验证命令和哈希见ACL计划§560；无生产RED、不改运行时代码。SQLite不证明PG并发、在途撤权或跨实例传播。

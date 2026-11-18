@@ -6631,3 +6631,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新用例创建持久manager密码账号，走真实`/auth:signIn` Basic登录及Bearer请求调用相同预览action。返回当前collection身份、shared legacy来源、revision 0草稿与reader角色scope摘要；持久metadata及运行时collection均未写入`tenantAccess`，预览不等于启用。
 - 批准snapshot聚焦命令`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/migration-preview-http.test.ts --no-file-parallelism --reporter=default --silent`最终实际exit0，1文件6项通过、0跳过，7.40秒。没有真实生产RED，只增加认证验收，不改生产实现。
 - SQLite仅作为Basic认证/ACL/持久metadata功能证据，不证明PG并发；未覆盖浏览器实际预览界面或正式启用。作者串行审查、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 480. 历史配置草稿预览经真实 Basic 认证
+
+- 历史面板的“预览历史版本”调用独立 action `tenants:previewAccessConfigRevision`。现有HTTP测试通过 `agent.login(user)`覆盖manager成功、reader/impersonator拒绝、匿名拒绝及预览不保存；§476真实Basic/Bearer只覆盖历史摘要列表，没有覆盖该草稿预览action。
+- 为现有 `config-revisions-http.test.ts` 增加持久manager密码用户：走 `/auth:signIn` Basic登录后，以Bearer调用历史revision 1预览。断言返回准确identity/sourceRevision和基于当前版本revision 2的草稿；集合metadata options、revision持久行数及运行时collection规则均保持不变。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-revisions-http.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件17项通过、0跳过，7.39秒。未观察到生产RED；独立预览action现有实现按合同正常工作，本项只补真实认证验收，不改生产实现。
+- SQLite仅用于认证/ACL/持久历史预览功能证据，不证明PG并发；未验证浏览器实际点击、其他历史action或正式启用。作者串行复核、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

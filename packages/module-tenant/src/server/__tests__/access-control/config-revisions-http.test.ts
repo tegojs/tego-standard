@@ -130,6 +130,47 @@ describe('administrator configuration revision HTTP boundary', () => {
     expect(await app.db.getRepository('tenantAccessRevisions').count()).toBe(2);
   });
 
+  it('previews a historical draft through real password authentication without saving it', async () => {
+    const password = 'revision-preview-basic-manager-password';
+    const manager = await app.db.getRepository('users').create({
+      values: {
+        username: 'revision-preview-basic-manager',
+        password,
+        roles: ['revision-manager'],
+        tenants: ['revision-tenant'],
+        defaultTenantId: 'revision-tenant',
+      },
+    });
+    const signIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({ account: manager.get('username'), password });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user.hasPassword).toBe(true);
+
+    const metadata = await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName });
+    const optionsBefore = metadata.getDataValue('options');
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', 'revision-manager')
+      .set('X-Tenant-Id', 'revision-tenant')
+      .resource('tenants')
+      .previewAccessConfigRevision({ values: { ...values, revision: 1 } });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ identity, sourceRevision: 1, config: { ...original, revision: 2 } });
+    expect(
+      (await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName })).getDataValue(
+        'options',
+      ),
+    ).toEqual(optionsBefore);
+    expect(await app.db.getRepository('tenantAccessRevisions').count()).toBe(2);
+    expect(app.db.getCollection(values.collectionName).options.tenantAccess).toEqual(optionsBefore.tenantAccess);
+  });
+
   it('lists only bounded revision summaries for the manager', async () => {
     const response = await agent()
       .resource('tenants')

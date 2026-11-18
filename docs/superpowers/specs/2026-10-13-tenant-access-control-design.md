@@ -2326,3 +2326,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 迁移预览经真实 Basic 认证（§535）
 
 真实Basic密码登录的manager调用管理页面使用的`tenants:previewAccessMigration`，返回准确identity、legacy来源、revision 0草稿及role scope摘要；持久metadata和运行时collection均未应用规则。批准snapshot单文件6项通过、0跳过（主计划§479）；此前测试以身份注入覆盖ACL，但未经过真实密码登录。未观察到生产RED，不改实现。SQLite不是PG并发证据，也不代表浏览器试点或正式启用。
+
+### 历史配置草稿预览经真实 Basic 认证（§536）
+
+真实Basic密码登录的manager调用`tenants:previewAccessConfigRevision`，取得所选历史版本的准确草稿和当前revision；集合持久metadata、历史行数及运行时规则均未改变。此前真实认证只覆盖历史摘要列表，该独立预览action已有身份注入的ACL/无副作用测试。批准snapshot单文件17项通过、0跳过（主计划§480）；无生产RED，不改实现。SQLite不证明PG并发，也不覆盖浏览器操作或正式启用。

@@ -76,4 +76,78 @@ describe('authenticated tenant membership access boundary', () => {
     expect(destroy.body).not.toHaveProperty('data');
     expect(await readMemberships()).toEqual(originalMemberships);
   });
+
+  it('lets a manager add membership through the management API and exposes it to the member', async () => {
+    app = await createTenantApp();
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'B', name: 'Member tenant', enabled: true },
+        { id: 'C', name: 'Added tenant', enabled: true },
+      ],
+    });
+    const memberRole = 'membership-api-member';
+    const managerRole = 'membership-api-manager';
+    await app.db.getRepository('roles').create({
+      values: [
+        { name: memberRole, strategy: { actions: [] }, snippets: [] },
+        { name: managerRole, strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
+      ],
+    });
+    const password = 'membership-api-password';
+    const member = await app.db.getRepository('users').create({
+      values: { username: memberRole, password, roles: [memberRole], tenants: ['B'], defaultTenantId: 'B' },
+    });
+    const manager = await app.db.getRepository('users').create({
+      values: { username: managerRole, password, roles: [managerRole] },
+    });
+    const login = async (username: string) => {
+      const response = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+        account: username,
+        password,
+      });
+      expect(response.status).toBe(200);
+      return app
+        .agent()
+        .set('Authorization', `Bearer ${response.body.data.token}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', username);
+    };
+    const memberAgent = await login(member.username);
+    const managerAgent = await login(manager.username);
+    const readMemberships = () =>
+      app.db
+        .getRepository('tenantUsers')
+        .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
+    expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    const originalTenants = await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const originalUsers = await app.db.getCollection('users').model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const before = await memberAgent.resource('tenants').available({});
+    expect(before.status).toBe(200);
+    expect(before.body.data.map(({ id }) => id)).toEqual(['B']);
+
+    const values = { tenantId: 'C', userId: member.id };
+    const denied = await memberAgent.resource('tenantUsers').create({ values });
+    expect(denied.status).toBe(403);
+    expect(denied.body).not.toHaveProperty('data');
+    expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+
+    const added = await managerAgent.resource('tenantUsers').create({ values });
+    expect(added.status).toBe(200);
+    expect(added.body.data).toMatchObject(values);
+    expect(await readMemberships()).toEqual([
+      { tenantId: 'B', userId: member.id },
+      { tenantId: 'C', userId: member.id },
+    ]);
+    const after = await memberAgent.resource('tenants').available({});
+    expect(after.status).toBe(200);
+    expect(after.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
+    expect(after.body.data.filter(({ current }) => current).map(({ id }) => id)).toEqual(['B']);
+    expect(await app.db.getCollection('users').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
+      originalUsers,
+    );
+    expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
+      originalTenants,
+    );
+    expect(await app.db.getRepository('tenantUsers').count({ filter: { userId: manager.id } })).toBe(0);
+  });
 });

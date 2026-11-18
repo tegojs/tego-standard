@@ -6575,3 +6575,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 在同一创建验收文件增加独立应用：持久空策略manager/impersonator两角色分别只有上述snippet，同一真实密码用户持有两角色但没有任何租户成员关系。原Basic登录取得同一Bearer；选择impersonator能列出既有可代入租户，但创建请求403/无data且全量租户物理行不变；切换请求头选择manager后相同创建值200，准确新增一行，根parentId为null、path为 `/managed-tenant/`，原租户全字段不变，tenantUsers仍为0。未手工grantAction或伪造认证/context。
 - 首次运行2项中1失败，失败仅在原始SQLite行的enabled断言：HTTP为true，raw存储为1；权限正反请求均已符合预期。按实际存储修正测试期待，不作为生产RED。最终 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，2项通过、0跳过，13.23秒。使用既有默认安装ACL，未设置或冒充核心createACL构建入口，不据此关闭该入口的未验证项。
 - 作者串行自审，非独立复核；无真实生产RED，不改生产代码/ACL/schema/依赖。仅测试和两份记录，按聚焦规则无需包构建；三个改动文件Prettier通过，测试oxlint零错误/警告，diff检查通过。SQLite只作为本次认证/持久数据/当前角色功能证据，不证明PG并发、正式账号状态策略、管理界面试点或整分支可合并；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 472. 真实管理成员新增与成员侧可选租户联动
+
+- 先检查 `TenantManagement.saveMembership`：新增成员调用原 `tenantUsers:create`，不经过profile更新。既有§463只验证普通用户创建成员关系被拒绝，§468验证list拒绝，均没有证明管理snippet的合法新增及被管理用户后继读取；选此独立管理写入链，不重复profile自增关系或软删除。
+- 原默认ACL的独立SQLite应用，manager仅持久 `pm.tenant.manage` snippet且无租户成员，member为空策略无snippet、仅B成员/default B，两账号均真实Basic密码登录。member先见available=[B]，直接创建本人C成员关系403/无data且完整关系投影不变；manager以客户端相同values创建200并返回准确tenantId/userId，完整关系投影恰为该成员B/C两行。原member同Bearer下一次available精确[B,C]且current仍B，没有重新登录或清缓存。全量users与tenants原始行不变，manager仍无成员关系。
+- `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 首次实际exit0，2项通过、0跳过，16.50秒。无真实生产RED，不改生产/ACL/schema/依赖；测试与两份权威记录为唯一改动，test-only无需包构建。三个改动文件Prettier通过，测试oxlint零错误/警告，diff检查通过；read_lints未提供，使用聚焦CLI。
+- 作者串行自审，非独立复核。使用默认安装ACL，不冒充核心createACL入口组合证据；既有active测试适配不证明正式账号状态策略。SQLite只作本次真实认证/ACL/持久数据功能验收，不证明PG并发、成员移除/成员新增事务竞争、所有关联API或浏览器试点。未启动/修复PG、未联系子智能体/外网、未推送/合并/部署/正式启用。

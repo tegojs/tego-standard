@@ -6624,3 +6624,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新用例创建持久manager密码用户，经`/auth:signIn`后携Bearer调用同一action；验证返回准确collection identity及配置，持久metadata和运行时collection均未应用`tenantAccess`，证明校验结果不等于保存或启用。
 - 首轮多加的revision Repository计数断言失败，根因是该测试应用未注册相应history collection（`getRepository()`返回undefined），与action响应无关；删除不适用于本夹具的断言后重跑通过。最终批准snapshot命令`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-validation-http.test.ts --no-file-parallelism --reporter=default --silent`实际exit0，1文件6项通过、0跳过，10.16秒。
 - 未发现真实生产RED，只补真实认证验收，不改生产实现。SQLite仅证明Basic认证/ACL/持久metadata校验，不证明PG并发；未覆盖迁移预览或浏览器。作者串行复核、非独立审查；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 479. 迁移预览经真实 Basic 认证
+
+- `TenantMigrationPreview`按当前角色调用`tenants:previewAccessMigration`。原`migration-preview-http.test.ts`覆盖pm.tenant.manage成功、reader/impersonator拒绝及匿名拒绝，但均通过`agent.login(user)`建立测试身份。
+- 新用例创建持久manager密码账号，走真实`/auth:signIn` Basic登录及Bearer请求调用相同预览action。返回当前collection身份、shared legacy来源、revision 0草稿与reader角色scope摘要；持久metadata及运行时collection均未写入`tenantAccess`，预览不等于启用。
+- 批准snapshot聚焦命令`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/migration-preview-http.test.ts --no-file-parallelism --reporter=default --silent`最终实际exit0，1文件6项通过、0跳过，7.40秒。没有真实生产RED，只增加认证验收，不改生产实现。
+- SQLite仅作为Basic认证/ACL/持久metadata功能证据，不证明PG并发；未覆盖浏览器实际预览界面或正式启用。作者串行审查、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

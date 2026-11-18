@@ -2322,3 +2322,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 配置规则校验经真实 Basic 认证（§534）
 
 真实Basic密码登录的manager调用`tenants:validateAccessConfig`，得到准确identity/config结果，但持久metadata与运行时collection没有应用规则。批准snapshot聚焦文件6项通过、0跳过（主计划§478）。首轮额外history计数断言因测试夹具未注册该collection而移除，不是权限失败；最终只保留该夹具可证明的持久状态后验。SQLite不证明PostgreSQL并发，也不覆盖迁移预览或浏览器。
+
+### 迁移预览经真实 Basic 认证（§535）
+
+真实Basic密码登录的manager调用管理页面使用的`tenants:previewAccessMigration`，返回准确identity、legacy来源、revision 0草稿及role scope摘要；持久metadata和运行时collection均未应用规则。批准snapshot单文件6项通过、0跳过（主计划§479）；此前测试以身份注入覆盖ACL，但未经过真实密码登录。未观察到生产RED，不改实现。SQLite不是PG并发证据，也不代表浏览器试点或正式启用。

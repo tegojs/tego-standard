@@ -6536,3 +6536,10 @@ Ruling: 仅为真实profile嵌套租户层级请求增加独立认证验收；�
 Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，但请求端从真实成员关系取交集后仍回落B并拒绝C；这是没有越权的真实数据边界 — 不以profile状态字段的200或数据库列变化替代“是否实际扩大租户业务读取”的独立断言 — 当前不以SQLite测试得出PG并发结论。
 
 作者串行审查当前测试与记录，非独立审查。没有未修复生产问题；通过输出记录的实际正向/拒绝结果，不扩大profile API字段策略。验证和作者审查完成；测试与两份权威记录精确纳入同一默认签名原子提交，提交对象与独立验签由后续现场审计确认。
+
+## 466. 租户选择列表经真实Basic认证读取
+
+- `CurrentTenantProvider` / `useSwitchTenant` 通过 `tenants:available` 获取当前用户可选租户；服务端动作标记为 `loggedIn`，基于持久 `tenantUsers`、可访问租户集合及启用状态返回列表。已有租户树与fallback集成测试主要通过测试agent登录助手，动作单测另以mock context验证；补查真实密码认证到此业务入口的完整HTTP链。
+- 新增 `packages/module-tenant/src/server/__tests__/authenticated-available-tenants.test.ts`：SQLite持久租户包含当前成员A、无关启用B和非启用C；普通无snippet角色用户通过Basic密码真实登录。匿名调用为401；真实Bearer调用返回仅A且标记current，完整持久tenantUsers关系后验仍只含A。没有修改生产代码或ACL策略。
+- 聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-available-tenants.test.ts --no-file-parallelism --reporter=default --silent` 实际退出0，1项通过。新增测试Prettier通过、oxlint零错误/警告、`git diff --check`通过；test-only无需包构建。
+- 没有真实RED，因此本项只补足HTTP认证集成证据，不宣称修复租户可见性问题。SQLite仅用于真实Basic认证、ACL和持久数据功能验收，不代表PostgreSQL并发。作者串行自审而非独立复核；正式规则/安装启用、浏览器试点、PG并发及整分支独立复核仍未完成。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

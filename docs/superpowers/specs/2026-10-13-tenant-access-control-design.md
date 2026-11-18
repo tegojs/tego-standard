@@ -2264,3 +2264,9 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 本项测试1项通过，Prettier、oxlint和`git diff --check`通过；test-only改动未重复包构建。具体证据见ACL计划§521。
 
 该回归只覆盖此关联列表形状下 `userStatusHistories:list` 字段边界，不宣称所有关系API均已验证，也不证明租户隔离或PostgreSQL并发。SQLite仅用于认证/ACL持久数据功能验收。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 租户选择列表真实认证集成（§522）
+
+真实客户端的 `CurrentTenantProvider` 和租户切换器调用 `tenants:available`。新增HTTP级验收以Basic密码完成真实登录，再读取持久成员租户：匿名请求401，普通无管理snippet用户只收到其已启用成员租户，非成员及停用租户均不出现，current标记与持久defaultTenantId一致。当前实现满足这些断言，没有观察到真实RED，因此不改生产实现。
+
+该测试单项通过，格式、lint、diff检查通过；详见主计划§466。SQLite仅用于认证、ACL和持久成员关系功能验收，不是PostgreSQL并发证据。此项不代表租户选择、切换、树继承所有形状或PG并发均已验收；整分支独立复核和正式试点仍待完成。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

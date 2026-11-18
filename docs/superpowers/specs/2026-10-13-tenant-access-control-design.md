@@ -2418,3 +2418,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 用户移出租户后不得读取该租户业务计数（§558）
 
 补足租户membership撤权对API Key身份的 `count` 统计读取。C membership存在时，同key经持久 `count` action ACL读取C计数2；真实manager移除C membership后同一C count返回403且无data，B/C持久行快照不变；B仍授权，count仍为1。此前真实API Key membership撤权测试未配置count，§548仅证明交互式Bearer，不作为此API Key组合的证据。批准snapshot 1项通过、0跳过，测试命令/hash见ACL计划§558。无生产RED、不改实现；SQLite不证明PG并发、跨实例撤权或其它聚合API。
+
+### API Key owner失去角色membership后不得更新业务记录（§559）
+
+补齐API Key owner角色membership撤销后的真实业务 `update` 写入口：有效writer角色时同key可持久更新；移除owner的writer角色关系并保留issuer后，后续同key更新401且业务行不变；恢复角色关系后无需重新签发即可继续更新。既有§554覆盖list/create、§555覆盖get，tenant membership的§551属于不同撤权条件。批准snapshot测试1项通过、0跳过，命令、哈希与断言修正说明见ACL计划§559。无生产RED、不改运行时代码；SQLite不证明PG并发、在途请求撤权或跨实例传播。

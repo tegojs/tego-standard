@@ -58,6 +58,7 @@ describe('authenticated API key role revocation', () => {
           { name: 'create', fields: ['name'] },
           { name: 'get', fields: ['id', 'name', 'tenantId'] },
           { name: 'list', fields: ['name', 'tenantId'] },
+          { name: 'update', fields: ['name'] },
         ],
       },
     });
@@ -95,19 +96,24 @@ describe('authenticated API key role revocation', () => {
       .resource(collectionName)
       .create({ values: { name: 'Before role removal' } });
     expect(created.status).toBe(200);
-    const originalRows = [{ id: 1, name: 'Before role removal', tenantId: 'B' }];
+    const updatedBeforeRemoval = await apiAgent()
+      .resource(collectionName)
+      .update({ filterByTk: 1, values: { name: 'Updated before role removal' } });
+    expect(updatedBeforeRemoval.status).toBe(200);
+    expect(updatedBeforeRemoval.body.data).toEqual([{ id: 1, name: 'Updated before role removal', tenantId: 'B' }]);
+    const originalRows = [{ id: 1, name: 'Updated before role removal', tenantId: 'B' }];
     expect(await rows()).toEqual(originalRows);
     const listed = await apiAgent()
       .resource(collectionName)
       .list({ fields: ['name', 'tenantId'] });
     expect(listed.status).toBe(200);
     expect(listed.body.data).toHaveLength(1);
-    expect(listed.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+    expect(listed.body.data[0]).toMatchObject({ name: 'Updated before role removal', tenantId: 'B' });
     const fetched = await apiAgent()
       .resource(collectionName)
       .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
     expect(fetched.status).toBe(200);
-    expect(fetched.body.data).toEqual({ id: 1, name: 'Before role removal', tenantId: 'B' });
+    expect(fetched.body.data).toEqual({ id: 1, name: 'Updated before role removal', tenantId: 'B' });
 
     await app.db.getRepository('rolesUsers').destroy({ filter: { userId: owner.id, roleName: writerRole } });
     expect(
@@ -129,6 +135,12 @@ describe('authenticated API key role revocation', () => {
     expect(revokedGet.status).toBe(401);
     expect(revokedGet.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
     expect(revokedGet.body).not.toHaveProperty('data');
+    const revokedUpdate = await apiAgent()
+      .resource(collectionName)
+      .update({ filterByTk: 1, values: { name: 'Unauthorized after role removal' } });
+    expect(revokedUpdate.status).toBe(401);
+    expect(revokedUpdate.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    expect(revokedUpdate.body).not.toHaveProperty('data');
     const revokedCreate = await apiAgent()
       .resource(collectionName)
       .create({ values: { name: 'After role removal' } });
@@ -144,16 +156,24 @@ describe('authenticated API key role revocation', () => {
       .list({ fields: ['name', 'tenantId'] });
     expect(restoredList.status).toBe(200);
     expect(restoredList.body.data).toHaveLength(1);
-    expect(restoredList.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+    expect(restoredList.body.data[0]).toMatchObject({ name: 'Updated before role removal', tenantId: 'B' });
     const restoredGet = await apiAgent()
       .resource(collectionName)
       .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
     expect(restoredGet.status).toBe(200);
-    expect(restoredGet.body.data).toEqual({ id: 1, name: 'Before role removal', tenantId: 'B' });
+    expect(restoredGet.body.data).toEqual({ id: 1, name: 'Updated before role removal', tenantId: 'B' });
+    const restoredUpdate = await apiAgent()
+      .resource(collectionName)
+      .update({ filterByTk: 1, values: { name: 'Updated after role restoration' } });
+    expect(restoredUpdate.status).toBe(200);
+    expect(restoredUpdate.body.data).toEqual([{ id: 1, name: 'Updated after role restoration', tenantId: 'B' }]);
     const restoredCreate = await apiAgent()
       .resource(collectionName)
       .create({ values: { name: 'After role restoration' } });
     expect(restoredCreate.status).toBe(200);
-    expect(await rows()).toEqual([...originalRows, { id: 2, name: 'After role restoration', tenantId: 'B' }]);
+    expect(await rows()).toEqual([
+      { id: 1, name: 'Updated after role restoration', tenantId: 'B' },
+      { id: 2, name: 'After role restoration', tenantId: 'B' },
+    ]);
   });
 });

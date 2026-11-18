@@ -6638,3 +6638,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 为现有 `config-revisions-http.test.ts` 增加持久manager密码用户：走 `/auth:signIn` Basic登录后，以Bearer调用历史revision 1预览。断言返回准确identity/sourceRevision和基于当前版本revision 2的草稿；集合metadata options、revision持久行数及运行时collection规则均保持不变。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-revisions-http.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件17项通过、0跳过，7.39秒。未观察到生产RED；独立预览action现有实现按合同正常工作，本项只补真实认证验收，不改生产实现。
 - SQLite仅用于认证/ACL/持久历史预览功能证据，不证明PG并发；未验证浏览器实际点击、其他历史action或正式启用。作者串行复核、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 481. 核心 ACL factory 入口解除配置发布验收的条件跳过
+
+- 核查 `authenticated-config-publication.test.ts` 后确认，该测试不是缺少核心仓库权限或路径：它通过 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY` 动态导入 `createACL`，但未设置环境变量时整个describe条件跳过。核心仓库实际绝对路径为 `D:\Dev\TegoJS\tego`，其分支为 `feat/tenant-access-control`、HEAD=`d742a1c569579e05187b8260f14d48af0d8ccbae`，工作树干净；批准的构建入口 `packages/core/lib/acl/index.js` 存在且导出契约已由§474确认。
+- 在批准snapshot设置 `$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'` 后执行 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/authenticated-config-publication.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件2项通过、0跳过。两项均以独立应用、Basic密码登录/Bearer身份验证跨实例保存规则后的真实业务list/count/update；发布保存仍通过store调用，不应表述成管理员保存HTTP验收或正式启用。
+- 测试源码工作树与批准snapshot SHA256一致：`C29DCAADBA62B977DC78D833C8D6755062BC13E4F60C4BA65C987CCA8354C21E`。核心产物SHA256为`260114D086DA1D00ACA5DB01A5BC6B06BA7215783999BC5A37C0D29C27A2C6DA`；本项未修改核心或标准生产代码、测试或依赖，仅记录现有测试的实际执行方式与结果。
+- 此运行没有提供 `TENANT_ACCESS_TEST_DATABASE_URL`，故使用测试SQLite；仅证明ACL factory组合及认证业务功能刷新，不证明PostgreSQL并发、事务原子性或先前损坏PG环境。不得将其作为§5139原PG专用项的替代；不启动/修复/重建PG、不改端口绕过、不联系子智能体/外网、不推送/合并/部署/正式启用。

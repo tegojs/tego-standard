@@ -2330,3 +2330,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 历史配置草稿预览经真实 Basic 认证（§536）
 
 真实Basic密码登录的manager调用`tenants:previewAccessConfigRevision`，取得所选历史版本的准确草稿和当前revision；集合持久metadata、历史行数及运行时规则均未改变。此前真实认证只覆盖历史摘要列表，该独立预览action已有身份注入的ACL/无副作用测试。批准snapshot单文件17项通过、0跳过（主计划§480）；无生产RED，不改实现。SQLite不证明PG并发，也不覆盖浏览器操作或正式启用。
+
+### 配置发布的跨实例认证验收解除条件跳过（§537）
+
+核心仓库现有构建入口`D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js`可直接作为`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`；设置后，批准snapshot中条件跳过的`authenticated-config-publication.test.ts`实际运行2项并全部通过。用例验证不同实例完成Basic登录/Bearer认证后，规则保存前后的业务读取、计数和更新权限刷新。运行使用SQLite，只证明功能链，不替代坏损PG并发/原子证据；测试通过store直接保存规则，也不是管理员保存HTTP或正式启用验收。详细环境、命令、hash与边界见主计划§481。

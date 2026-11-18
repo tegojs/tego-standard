@@ -304,3 +304,7 @@
 - §545（移除成员关系后旧 Bearer 不得向原租户直接新增业务数据）：在 §544 的真实列表拒绝之上，使用同一普通角色和 `tenantScoped` 业务表验证独立 create 动作。成员在被移除前可携带同一 Bearer/header 成功写入C记录；管理员经 `tenantUsers:destroy` 删除C membership后，同一 Bearer/角色/header 的业务 `create` 返回403且无 `data`，持久B/C行快照不增加记录。列表拒绝与租户关系撤销后验保持。
   - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default`：1文件3项通过、0跳过；真实Basic认证、ACL及SQLite持久业务表。测试SHA256=`703E3D3B87A824AA49B2A2F1166008C75D79F34A7EEB064DD07241D5058D29C`；Prettier、oxlint（0 warning/0 error）及`git diff --check`通过。不运行包构建（测试-only）。
   - 作者串行自审，非独立复核。此项只证明被撤销成员后续独立HTTP create 被拒绝，不证明已进入请求的撤权并发、跨实例/缓存、更新/删除动作或PostgreSQL并发；SQLite不是PG并发证据。无生产RED/改动，未启动损坏PG、未联系子智能体/外网、未推送/合并/部署/正式启用。
+
+- §546（移除成员关系后旧 Bearer 不能更新原租户业务资源）：在 §544/§545 已覆盖的 list/create 撤权后拒绝基础上补查独立 update 入口。成员在 C membership 存在时用同一真实 Basic Bearer、角色和 `X-Tenant-Id: C` 成功更新 C 的持久 `tenantScoped` 记录；管理员经 `tenantUsers:destroy` 移除 C membership 后，同一请求更新返回403且无 `data`，B/C 业务行快照保持不变。未观察到生产 RED，因此不改生产代码。
+  - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default`：1文件3项通过、0跳过；真实Basic认证、ACL、持久membership和SQLite业务表。测试SHA256=`CF816FF453232E8560D70CA10AAB37C04C1A17DDA00583C9DD62BD15460661CB`；Prettier检查通过，oxlint 0 warning/0 error，`git diff --check`通过。测试-only，不运行包构建。
+  - 作者串行自审，非独立复核。SQLite只证明该本地认证/ACL/持久数据功能路径，不是PostgreSQL并发证据；本项不证明在途请求撤权、跨实例/缓存传播、删除动作、浏览器试点或正式启用。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

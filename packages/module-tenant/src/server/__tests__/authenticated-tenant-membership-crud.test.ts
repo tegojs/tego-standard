@@ -203,7 +203,7 @@ describe('authenticated tenant membership access boundary', () => {
     expect(await app.db.getRepository('tenantUsers').count({ filter: { userId: manager.id } })).toBe(0);
   });
 
-  it('denies direct business reads in a tenant after the member is removed', async () => {
+  it('denies direct business access in a tenant after the member is removed', async () => {
     app = await createTenantApp();
     await app.db.getRepository('tenants').create({
       values: [
@@ -240,6 +240,7 @@ describe('authenticated tenant membership access boundary', () => {
         actions: [
           { name: 'create', fields: ['value'] },
           { name: 'list', fields: ['tenantId', 'value'] },
+          { name: 'update', fields: ['value'] },
         ],
       },
     });
@@ -308,9 +309,14 @@ describe('authenticated tenant membership access boundary', () => {
       tenantId: 'C',
       value: 'C created before removal',
     });
+    const updatedBeforeRemoval = await memberInC().update({
+      filterByTk: 2,
+      values: { value: 'C updated before removal' },
+    });
+    expect(updatedBeforeRemoval.status).toBe(200);
     const businessRowsBeforeRemoval = [
       { id: 1, value: 'B record', tenantId: 'B' },
-      { id: 2, value: 'C record', tenantId: 'C' },
+      { id: 2, value: 'C updated before removal', tenantId: 'C' },
       { id: 3, value: 'C created before removal', tenantId: 'C' },
     ];
     expect(await readBusinessRows()).toEqual(businessRowsBeforeRemoval);
@@ -327,6 +333,12 @@ describe('authenticated tenant membership access boundary', () => {
     const deniedBusinessCreate = await memberInC().create({ values: { value: 'C created after removal' } });
     expect(deniedBusinessCreate.status).toBe(403);
     expect(deniedBusinessCreate.body).not.toHaveProperty('data');
+    const deniedBusinessUpdate = await memberInC().update({
+      filterByTk: 2,
+      values: { value: 'C updated after removal' },
+    });
+    expect(deniedBusinessUpdate.status).toBe(403);
+    expect(deniedBusinessUpdate.body).not.toHaveProperty('data');
     expect(await readBusinessRows()).toEqual(businessRowsBeforeRemoval);
     const staleSwitch = await memberAgent.resource('tenants').switch({ values: { tenantId: 'C' } });
     expect(staleSwitch.status).toBe(403);

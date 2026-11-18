@@ -2236,3 +2236,13 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 16文件聚焦回归49项通过、2项既有skip，module-user构建、oxlint和Prettier通过；RED、警告及SHA256见ACL计划§518。作者串行自审，非独立复核。
 
 本项仅证明静态 `userStatuses:list` key scope对状态历史列表显式展开关联对象的响应过滤，不证明动态scope、其它关联形状、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 状态历史展开对象遵守目标字段权限（§519）
+
+真实Basic角色对 `userStatuses:list` 仅配置 `key`，但状态历史列表显式展开 `fromStatusInfo` / `toStatusInfo` 时，原响应守卫只校验目标状态key是否在scope，未裁剪原关联对象；认证测试确认 `title`、`allowLogin`、`description` 仍泄露，形成真实RED。
+
+守卫现将目标 `userStatuses:list` 权限经 `filterParams` 与 `parseJsonTemplate` 后的最终fields应用于两个展开对象，同时保留scope key核验。最终权限字段还含框架自动补入的 `createdAt` / `updatedAt`；这两项按既有ACL结果保留，未将框架授权误判为漏洞。未配置字段数组时不新增裁剪。
+
+九文件状态/历史相邻认证回归16项通过，module-user构建、oxlint、Prettier和`git diff --check`通过；RED及权限参数观测详见ACL计划§519。作者串行自审，非独立复核。
+
+本项只证明静态目标字段ACL对状态历史列表显式展开对象的字段裁剪，不证明动态字段ACL、其它状态关联/响应形状、租户隔离或PostgreSQL并发。SQLite仅用于认证/ACL与持久数据功能验收，不作为PostgreSQL并发证据。整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

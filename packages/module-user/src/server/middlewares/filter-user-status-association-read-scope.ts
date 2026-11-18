@@ -28,9 +28,13 @@ export const filterUserStatusAssociationReadScope = async (ctx: Context, next: N
     action: 'list',
   });
   const visibleStatusKeys = new Set<string>();
+  let visibleStatusFields: Set<string> | undefined;
   if (permission) {
     const aclParams = ctx.tego.acl.filterParams(ctx, 'userStatuses', permission.params || {});
-    const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+    const { filter = {}, fields } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+    if (Array.isArray(fields)) {
+      visibleStatusFields = new Set(fields);
+    }
     const statuses = await ctx.db.getRepository('userStatuses').find({
       filter,
       fields: ['key'],
@@ -55,6 +59,10 @@ export const filterUserStatusAssociationReadScope = async (ctx: Context, next: N
         !visibleStatusKeys.has(String(result[association].key ?? result[foreignKey]))
       ) {
         delete result[association];
+      } else if (result[association] != null && visibleStatusFields) {
+        result[association] = Object.fromEntries(
+          Object.entries(result[association]).filter(([field]) => visibleStatusFields.has(field)),
+        );
       }
     }
     return result;

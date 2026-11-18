@@ -2178,3 +2178,13 @@ module-user目标关联守卫现对remove应用该action对应的解析后scope�
 新增真实认证验收通过直接列表、范围内来源关联和范围外来源关联三条路径确认目标记录边界与数据不变；连同相邻module-user/ACL回归共9文件34项通过、2项既有skip，module-user构建、Prettier和oxlint通过。详情及源码SHA256见ACL计划§512。
 
 本项仅证明 `users.statusHistories:list` 与静态目标scope的组合，不证明其他关联读取、动态scope、字段权限、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG，未联系子智能体或外网，未推送、合并、部署或正式启用。
+
+### 用户列表展开的状态信息遵守目标集合scope（§513）
+
+真实Basic认证角色的持久 `userStatuses:list` scope仅允许 `active`，但目标用户仍在 `users:list` scope内；原列表请求显式展开 `statusInfo` / `previousStatusInfo` 时，仍返回scope外的 `disabled` 状态对象，构成真实RED。该行为是用户列表响应中的目标关联读取，不同于§512的状态历史列表。
+
+module-user现仅在 `users:list` 显式请求这两个状态关联时，根据解析后的目标状态scope过滤展开对象；隐藏状态关联不返回，可见前一状态保留，不改用户/状态持久数据。移除守卫注册后测试因隐藏状态对象泄露而失败，恢复后通过。
+
+10文件聚焦回归35项通过、2项既有skip，module-user构建、oxlint、Prettier通过；RED、弃用警告及源码SHA256见ACL计划§513。作者串行自审，非独立复核。
+
+本项仅证明静态状态key scope下 `users:list` 显式展开关联对象的响应过滤，不证明动态scope、其它状态关联/响应路径、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

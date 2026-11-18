@@ -3,7 +3,7 @@ import type { Context, Next } from '@tego/server';
 export const checkUserStatusTargetScope = async (ctx: Context, next: Next) => {
   const { associatedName, resourceName, actionName, values, whitelist, blacklist, filterByTk, filter } =
     ctx.action.params;
-  if (associatedName || resourceName !== 'users' || actionName !== 'update') {
+  if (associatedName || resourceName !== 'users' || !['create', 'update'].includes(actionName)) {
     return next();
   }
   const statusFields = ['status', 'previousStatus', 'statusInfo', 'previousStatusInfo'].filter(
@@ -24,9 +24,11 @@ export const checkUserStatusTargetScope = async (ctx: Context, next: Next) => {
     return next();
   }
 
-  const user = await ctx.db.getRepository('users').findOne({ filterByTk, filter, fields: ['id'] });
-  if (!user) {
-    return next();
+  if (actionName === 'update') {
+    const user = await ctx.db.getRepository('users').findOne({ filterByTk, filter, fields: ['id'] });
+    if (!user) {
+      return next();
+    }
   }
 
   if (statusKeys.some((key) => typeof key !== 'string' || !key)) {

@@ -2188,3 +2188,13 @@ module-user现仅在 `users:list` 显式请求这两个状态关联时，根据�
 10文件聚焦回归35项通过、2项既有skip，module-user构建、oxlint、Prettier通过；RED、弃用警告及源码SHA256见ACL计划§513。作者串行自审，非独立复核。
 
 本项仅证明静态状态key scope下 `users:list` 显式展开关联对象的响应过滤，不证明动态scope、其它状态关联/响应路径、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 创建用户的状态对象遵守目标集合scope（§514）
+
+真实Basic认证角色可执行 `users:create`，但其持久 `userStatuses:list` scope仅允许 `active`。可见状态创建对照正常；提交 `statusInfo: { key: 'disabled' }` 原先返回200并实际持久创建状态为disabled的用户，构成RED。
+
+既有状态目标守卫现同时覆盖 `users:create` 与 `users:update`，创建请求按目标状态列表权限及解析后的scope校验显式状态引用；隐藏状态在创建前403。拒绝请求没有创建用户或改变用户、状态、角色、成员关系和状态历史表，可见active创建及原更新验收保留。
+
+11文件聚焦回归36项通过、2项既有skip，module-user构建、oxlint和Prettier通过；精确RED、警告及源码SHA256见ACL计划§514。作者串行自审，非独立复核。
+
+本项仅证明单用户创建时显式 `statusInfo` key的静态scope，不证明其它状态引用形状、批量创建、动态scope、并发撤权原子性、租户边界或PostgreSQL并发；SQLite仅用于认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

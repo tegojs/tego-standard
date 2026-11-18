@@ -2216,3 +2216,13 @@ module-user现在在ACL之后明确拒绝该资源API的create action。真实�
 13文件聚焦回归38项通过、2项既有skip；新增测试oxlint、Prettier及`git diff --check`通过。详细断言、警告及SHA256见ACL计划§516。作者串行自审，非独立复核。
 
 本项仅证明该snippet角色经资源API无法改变/删除既有历史，不证明所有内部写入路径、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 自助资料更新不得改变受管理状态字段（§517）
+
+`users:updateProfile` 是单独的 `loggedIn` action。原实现只blacklist标量 `status`，真实Basic验收分别发现 `statusInfo`、`previousStatus`、`previousStatusInfo`、`statusExpireAt`、`statusReason` 仍可由本人修改；对象statusInfo用例将账号实际改为disabled，五项修复前断言全部失败。
+
+updateProfile现将这五个状态管理字段一并排除，保留昵称等普通资料更新。修复后五项状态字段验收及原profile action测试通过，状态历史保持不变。
+
+15文件聚焦回归48项通过、2项既有skip，module-user构建、oxlint及Prettier通过；RED、警告和源码SHA256详见ACL计划§517。作者串行自审，非独立复核。
+
+本项仅证明登录用户不能通过自己的updateProfile修改上述状态字段，不证明其它profile/action入口、租户边界或PostgreSQL并发；SQLite仅用于真实认证与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

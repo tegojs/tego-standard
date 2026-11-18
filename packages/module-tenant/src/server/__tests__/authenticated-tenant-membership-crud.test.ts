@@ -239,6 +239,7 @@ describe('authenticated tenant membership access boundary', () => {
         usingActionsConfig: true,
         actions: [
           { name: 'create', fields: ['value'] },
+          { name: 'get', fields: ['tenantId', 'value'] },
           { name: 'list', fields: ['tenantId', 'value'] },
           { name: 'update', fields: ['value'] },
         ],
@@ -302,6 +303,9 @@ describe('authenticated tenant membership access boundary', () => {
     const beforeRemoval = await memberInC().list({ fields: ['tenantId', 'value'] });
     expect(beforeRemoval.status).toBe(200);
     expect(beforeRemoval.body.data).toEqual([{ tenantId: 'C', value: 'C record' }]);
+    const detailBeforeRemoval = await memberInC().get({ filterByTk: 2, fields: ['id', 'tenantId', 'value'] });
+    expect(detailBeforeRemoval.status).toBe(200);
+    expect(detailBeforeRemoval.body.data).toEqual({ id: 2, tenantId: 'C', value: 'C record' });
     const createdBeforeRemoval = await memberInC().create({ values: { value: 'C created before removal' } });
     expect(createdBeforeRemoval.status).toBe(200);
     expect(createdBeforeRemoval.body.data).toEqual({
@@ -330,6 +334,9 @@ describe('authenticated tenant membership access boundary', () => {
     const deniedBusinessRead = await memberInC().list({ fields: ['tenantId', 'value'] });
     expect(deniedBusinessRead.status).toBe(403);
     expect(deniedBusinessRead.body).not.toHaveProperty('data');
+    const deniedBusinessDetail = await memberInC().get({ filterByTk: 2, fields: ['id', 'tenantId', 'value'] });
+    expect(deniedBusinessDetail.status).toBe(403);
+    expect(deniedBusinessDetail.body).not.toHaveProperty('data');
     const deniedBusinessCreate = await memberInC().create({ values: { value: 'C created after removal' } });
     expect(deniedBusinessCreate.status).toBe(403);
     expect(deniedBusinessCreate.body).not.toHaveProperty('data');

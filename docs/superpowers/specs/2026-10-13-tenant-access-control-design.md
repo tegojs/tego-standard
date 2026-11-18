@@ -2318,3 +2318,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 配置读取经真实 Basic 认证（§533）
 
 真实Basic密码登录的租户管理者读取未配置collection的访问规则，响应为准确identity及`config:null`，且持久metadata与运行时collection均未被读取动作自动启用。批准snapshot聚焦文件6项通过、0跳过（主计划§477）。此前该HTTP测试以测试身份注入；无生产RED，不改实现。SQLite不证明PostgreSQL并发，校验及迁移预览action仍未由此覆盖。
+
+### 配置规则校验经真实 Basic 认证（§534）
+
+真实Basic密码登录的manager调用`tenants:validateAccessConfig`，得到准确identity/config结果，但持久metadata与运行时collection没有应用规则。批准snapshot聚焦文件6项通过、0跳过（主计划§478）。首轮额外history计数断言因测试夹具未注册该collection而移除，不是权限失败；最终只保留该夹具可证明的持久状态后验。SQLite不证明PostgreSQL并发，也不覆盖迁移预览或浏览器。

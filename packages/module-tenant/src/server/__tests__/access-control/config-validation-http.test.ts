@@ -37,6 +37,50 @@ describe('administrator access rule validation HTTP boundary', () => {
     await app?.destroy();
   });
 
+  it('validates a configuration through real password authentication without applying it', async () => {
+    const password = 'validation-basic-manager-password';
+    const authenticatedUser = await app.db.getRepository('users').create({
+      values: {
+        username: 'validation-basic-manager',
+        password,
+        roles: ['validation-manager'],
+        tenants: ['validation-tenant'],
+        defaultTenantId: 'validation-tenant',
+      },
+    });
+    const signIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .send({
+        account: authenticatedUser.get('username'),
+        password,
+      });
+    expect(signIn.status).toBe(200);
+    expect(signIn.body.data.user.hasPassword).toBe(true);
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', 'validation-manager')
+      .set('X-Tenant-Id', 'validation-tenant')
+      .resource('tenants')
+      .validateAccessConfig({ values });
+
+    expect(response.status).toBe(200);
+    const record = await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName });
+    expect(response.body.data).toEqual({
+      identity: {
+        dataSourceKey: 'main',
+        collectionName: values.collectionName,
+        collectionKey: record.get('key'),
+      },
+      config,
+    });
+    expect(record.getDataValue('options')).not.toHaveProperty('tenantAccess');
+    expect(app.db.getCollection(values.collectionName).options).not.toHaveProperty('tenantAccess');
+  });
+
   it('validates without saving, incrementing a revision or activating a collection', async () => {
     const response = await agent('validation-manager').resource('tenants').validateAccessConfig({ values });
     expect(response.status).toBe(200);

@@ -6617,3 +6617,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新增持久manager用户，通过 `/auth:signIn` Basic密码认证后调用同一HTTP action。响应准确为当前collection identity与`config:null`；持久metadata和当前运行时collection都保持未启用`tenantAccess`，证明读取不隐式迁移或启用规则。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-read-http.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1文件6项通过、0跳过。无生产RED，故只增加真实认证验收，不改生产实现。
 - SQLite仅证明该密码认证、manager ACL与持久metadata读取功能，不代表PG并发；不覆盖校验/迁移预览两个独立action、浏览器交互或正式启用。作者串行复核、非独立审查；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 478. 配置规则校验经真实 Basic 认证
+
+- `TenantAccessConfigDraft`实际调用独立的`tenants:validateAccessConfig` action。既有`config-validation-http.test.ts`验证管理权限与reader/impersonator拒绝，但通过`agent.login(user)`注入测试身份；此前没有该校验action的真实Basic密码/Bearer验收。
+- 新用例创建持久manager密码用户，经`/auth:signIn`后携Bearer调用同一action；验证返回准确collection identity及配置，持久metadata和运行时collection均未应用`tenantAccess`，证明校验结果不等于保存或启用。
+- 首轮多加的revision Repository计数断言失败，根因是该测试应用未注册相应history collection（`getRepository()`返回undefined），与action响应无关；删除不适用于本夹具的断言后重跑通过。最终批准snapshot命令`pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/config-validation-http.test.ts --no-file-parallelism --reporter=default --silent`实际exit0，1文件6项通过、0跳过，10.16秒。
+- 未发现真实生产RED，只补真实认证验收，不改生产实现。SQLite仅证明Basic认证/ACL/持久metadata校验，不证明PG并发；未覆盖迁移预览或浏览器。作者串行复核、非独立审查；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

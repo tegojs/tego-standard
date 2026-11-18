@@ -2354,3 +2354,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 管理员真实读取租户树且代入角色无枚举权（§542）
 
 租户管理页面实际使用的 `tenants:list` 经真实认证验证：manager取得准确root/child/独立root层级及路径；同一用户切为仅有impersonate权限的角色则403无data。批准snapshot文件3项通过、0跳过（主计划§486）；补足manager正向读取，不替代普通成员枚举拒绝测试。无生产RED、不改实现，SQLite不证明PG并发或浏览器交互。
+
+### 移除当前租户成员关系后的旧Bearer拒绝（§543）
+
+成员先以真实Basic登录Bearer切至C，管理员移除其C membership后，同一Bearer再次切至C返回403；虽持久默认偏好仍为C，后续可用租户解析只返回B并将B作为当前租户。批准snapshot membership CRUD文件3项通过、0跳过（主计划§487）。证明独立HTTP请求重新按持久关系授权，不证明PG并发/跨进程撤权或在途操作；无生产修改。

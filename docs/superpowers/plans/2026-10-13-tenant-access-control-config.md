@@ -6679,3 +6679,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 扩展 `authenticated-tenant-management-create.test.ts`：为真实密码用户配置仅含独立`pm.tenant.manage`与`pm.tenant.impersonate`角色，持久化一个root、child及另一root。以同Bearer切换当前角色，impersonator `tenants:list`返回403且无data；manager同一请求200，root/child parentId和materialized path与持久树精确一致，物理租户行数为3。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件3项通过、0跳过，16.62秒。测试源码/snapshot SHA256一致：`0B05652430B2EED5F40A3777673337E3CD9A9195AB03E3650A8A766B93BFFB32`；Prettier、oxlint、`git diff --check`通过。
 - 未观察生产RED，只补真实认证读权限及持久树数据验收，不改生产ACL或接口。SQLite仅是HTTP认证/ACL/功能证据，不证明PG并发，也不替代浏览器UI实测；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 487. 移除当前租户成员关系后旧Bearer不能重新选回该租户
+
+- §482证明管理员移除一个非当前租户后列表收窄；还需覆盖用户已选择该租户时，服务端是否在旧Bearer下一次切换请求重新以持久membership授权，而非信任旧`defaultTenantId`或token缓存。
+- 扩展 `authenticated-tenant-membership-crud.test.ts` 的真实manager/member路径：member先经 `tenants:switch` 成功切至C并持久设置`defaultTenantId:C`，manager通过`tenantUsers:destroy`移除C；同一Bearer再次switch C必须403且无data，持久偏好仍为C；后续`tenants:available`只返回成员B并把B标记为current，租户C本身及其余关系不变。
+- 批准snapshot最终聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1文件3项通过、0跳过，16.04秒。工作树与snapshot SHA256一致：`65CCD68FB35B33E2FBE8065F8A6BDCE65E2141D6FDC18CD3D117EC333CD60CFD`；最终格式化版本重新运行通过。Prettier、oxlint、`git diff --check`通过。
+- 这是逐个新HTTP请求基于SQLite持久关系的撤销功能证据，不是PG并发、跨进程缓存或在途操作撤权证据；没有生产RED，不改实现。作者串行自审、非独立复核，不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

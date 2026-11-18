@@ -253,6 +253,10 @@ describe('authenticated tenant membership access boundary', () => {
     const before = await memberAgent.resource('tenants').available({});
     expect(before.status).toBe(200);
     expect(before.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
+    const selected = await memberAgent.resource('tenants').switch({ values: { tenantId: 'C' } });
+    expect(selected.status).toBe(200);
+    expect(selected.body.data).toMatchObject({ id: 'C', name: 'Removed tenant' });
+    expect((await app.db.getRepository('users').findOne({ filterByTk: member.id })).get('defaultTenantId')).toBe('C');
     const removed = await managerAgent.resource('tenantUsers').destroy({
       filter: { tenantId: 'C', userId: member.id },
     });
@@ -260,6 +264,10 @@ describe('authenticated tenant membership access boundary', () => {
     expect(removed.status).toBe(200);
     expect(removed.body).toHaveProperty('data');
     expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    const staleSwitch = await memberAgent.resource('tenants').switch({ values: { tenantId: 'C' } });
+    expect(staleSwitch.status).toBe(403);
+    expect(staleSwitch.body).not.toHaveProperty('data');
+    expect((await app.db.getRepository('users').findOne({ filterByTk: member.id })).get('defaultTenantId')).toBe('C');
     const after = await memberAgent.resource('tenants').available({});
     expect(after.status).toBe(200);
     expect(after.body.data.map(({ id }) => id)).toEqual(['B']);
@@ -267,11 +275,5 @@ describe('authenticated tenant membership access boundary', () => {
     expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
       originalTenants,
     );
-    expect(
-      await app.db
-        .getCollection('users')
-        .model.findByPk(member.id)
-        .then((record) => record?.get('defaultTenantId')),
-    ).toBe('B');
   });
 });

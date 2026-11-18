@@ -2382,3 +2382,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 所属用户移出租户后继续执行成员边界（§549）
 
 区别于网页登录Bearer，使用Basic密码真实登录签发、数据库持久绑定writer角色的API Key：用户在B/C成员关系存在时用同一key成功向两个租户写入真实 `tenantScoped` 业务行；tenant manager经真实Basic认证和 `tenantUsers:destroy` 删除C membership后，API Key的C列表被拒绝（403、无data），业务表全行未变；key仍持久有效、token blacklist为空且B列表仍成功返回B行。无生产RED，不改实现，也未撤销API Key。批准snapshot单文件1项通过、0跳过，SHA256及格式/lint结果见ACL计划§549。SQLite仅为本地认证、ACL和持久membership功能验收，不证明PG并发或跨实例撤权。
+
+### API Key 所属用户移出租户后拒绝该租户业务创建（§550）
+
+补充同一API Key的写请求：C membership有效时创建C业务记录成功；管理员删除membership后同一key在C调用 `create` 得到403且无data，完整B/C持久行不变；用户仍可用该key读取保留的B租户数据，且key未删除、没有写入token blacklist。批准snapshot单文件1项通过、0跳过，最终代码哈希/聚焦命令见ACL计划§550。无生产RED或运行时代码修改；SQLite不证明PG并发、在途请求或跨实例撤权。

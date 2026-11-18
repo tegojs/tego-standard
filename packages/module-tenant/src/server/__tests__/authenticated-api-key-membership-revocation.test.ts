@@ -150,6 +150,11 @@ describe('authenticated API key tenant membership revocation', () => {
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(denied.status).toBe(403);
     expect(denied.body).not.toHaveProperty('data');
+    const deniedCreate = await apiAgent('C')
+      .resource(collectionName)
+      .create({ values: { name: 'Unauthorized C business record' } });
+    expect(deniedCreate.status).toBe(403);
+    expect(deniedCreate.body).not.toHaveProperty('data');
     expect(await rows()).toEqual(originalRows);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)

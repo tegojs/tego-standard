@@ -6543,3 +6543,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新增 `packages/module-tenant/src/server/__tests__/authenticated-available-tenants.test.ts`：SQLite持久租户包含当前成员A、无关启用B和非启用C；普通无snippet角色用户通过Basic密码真实登录。匿名调用为401；真实Bearer调用返回仅A且标记current，完整持久tenantUsers关系后验仍只含A。没有修改生产代码或ACL策略。
 - 聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-available-tenants.test.ts --no-file-parallelism --reporter=default --silent` 实际退出0，1项通过。新增测试Prettier通过、oxlint零错误/警告、`git diff --check`通过；test-only无需包构建。
 - 没有真实RED，因此本项只补足HTTP认证集成证据，不宣称修复租户可见性问题。SQLite仅用于真实Basic认证、ACL和持久数据功能验收，不代表PostgreSQL并发。作者串行自审而非独立复核；正式规则/安装启用、浏览器试点、PG并发及整分支独立复核仍未完成。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。
+
+## 467. 当前租户公开信息经真实认证读取
+
+- 现有 `currentTenant` handler单测只核公开字段投影，未覆盖登录态由原认证与租户中间件建立后的HTTP链。该action在插件中注册为 `tenants:current` 并允许 `loggedIn` 用户，属于独立只读入口，不重复§438的切换写入或§466的可选租户列表。
+- 新增 `packages/module-tenant/src/server/__tests__/authenticated-current-tenant.test.ts`：普通无snippet用户经Basic密码登录，持久成员关系仅包含当前租户；匿名调用401，Bearer调用只返回 `{id,name}`，不返回租户内部字段，且持久成员关系后验仍一致。
+- `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-current-tenant.test.ts --no-file-parallelism --reporter=default --silent` 实际退出0，1项通过；测试Prettier通过、oxlint零错误/警告、`git diff --check`通过。test-only改动不触及生产实现。SQLite仅用于真实认证/ACL与持久关系功能验收，不作为PostgreSQL并发证据。
+- 当前尚未宣称整分支独立复核、正式规则/安装启用或业务浏览器试点完成；不启动/修复PG，不联系子智能体或外网，不推送/合并/部署/正式启用。

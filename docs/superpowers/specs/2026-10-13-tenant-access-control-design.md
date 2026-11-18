@@ -2378,3 +2378,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 成员撤权后旧 Bearer 不得读取原租户业务计数（§548）
 
 补查独立普通业务 `count` 接口：真实Basic Bearer在C membership有效时、携带 `X-Tenant-Id: C` 得到C业务计数1；管理员执行 `tenantUsers:destroy` 后，同Bearer计数请求403且无data，B/C业务物理行不变。首次403发生在撤权前，定位为测试角色尚未获显式 `count` ACL；给夹具增加该持久动作授权后，正向/撤权后拒绝均通过，不是生产RED。批准snapshot中认证测试文件3项通过、0跳过，命令、哈希及lint/格式结果见ACL计划§548。无生产修改；SQLite不证明PG并发、在途撤权、其它统计API或跨实例缓存传播。
+
+### API Key 所属用户移出租户后继续执行成员边界（§549）
+
+区别于网页登录Bearer，使用Basic密码真实登录签发、数据库持久绑定writer角色的API Key：用户在B/C成员关系存在时用同一key成功向两个租户写入真实 `tenantScoped` 业务行；tenant manager经真实Basic认证和 `tenantUsers:destroy` 删除C membership后，API Key的C列表被拒绝（403、无data），业务表全行未变；key仍持久有效、token blacklist为空且B列表仍成功返回B行。无生产RED，不改实现，也未撤销API Key。批准snapshot单文件1项通过、0跳过，SHA256及格式/lint结果见ACL计划§549。SQLite仅为本地认证、ACL和持久membership功能验收，不证明PG并发或跨实例撤权。

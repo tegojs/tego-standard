@@ -1,5 +1,7 @@
 import type { MockServer } from '@tachybase/test';
 
+import xlsx from 'node-xlsx';
+import ExportPlugin from 'packages/plugin-action-export/src/server';
 import PluginAPIKeysServer from 'packages/plugin-api-keys/src/server';
 
 import { createTenantApp } from './utils';
@@ -13,7 +15,10 @@ describe('authenticated API key role revocation', () => {
 
   it('rechecks the key owner role membership before tenant business access', async () => {
     app = await createTenantApp({
-      extraPlugins: [[PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }]],
+      extraPlugins: [
+        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }],
+        [ExportPlugin, { name: 'action-export' }],
+      ],
     });
     await app.db.getRepository('tenants').create({ values: { id: 'B', name: 'B', enabled: true } });
 
@@ -57,6 +62,7 @@ describe('authenticated API key role revocation', () => {
         actions: [
           { name: 'create', fields: ['name'] },
           { name: 'count' },
+          { name: 'export', fields: ['name'] },
           { name: 'get', fields: ['id', 'name', 'tenantId'] },
           { name: 'list', fields: ['name', 'tenantId'] },
           { name: 'update', fields: ['name'] },
@@ -93,6 +99,22 @@ describe('authenticated API key role revocation', () => {
         .set('X-Role', writerRole)
         .set('X-Tenant-Id', 'B');
     const rows = () => app.db.getCollection(collectionName).model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const exportBusinessRows = () =>
+      apiAgent()
+        .resource(collectionName)
+        .export({
+          values: {
+            title: 'Role revocation report',
+            columns: [{ dataIndex: ['name'], defaultTitle: 'Name', title: 'Name' }],
+          },
+        })
+        .buffer(true)
+        .parse((response, done) => {
+          const chunks: Buffer[] = [];
+          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          response.on('end', () => done(null, Buffer.concat(chunks)));
+          response.on('error', done);
+        });
     const created = await apiAgent()
       .resource(collectionName)
       .create({ values: { name: 'Before role removal' } });
@@ -118,6 +140,10 @@ describe('authenticated API key role revocation', () => {
       .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
     expect(fetched.status).toBe(200);
     expect(fetched.body.data).toEqual({ id: 1, name: 'Updated before role removal', tenantId: 'B' });
+    const exportBeforeRemoval = await exportBusinessRows();
+    expect(exportBeforeRemoval.status).toBe(200);
+    expect(exportBeforeRemoval.headers['content-disposition']).toContain('Role%20revocation%20report_B.xlsx');
+    expect(xlsx.parse(exportBeforeRemoval.body)[0].data).toEqual([['Name'], ['Updated before role removal']]);
 
     await app.db.getRepository('rolesUsers').destroy({ filter: { userId: owner.id, roleName: writerRole } });
     expect(
@@ -143,6 +169,9 @@ describe('authenticated API key role revocation', () => {
     expect(revokedCount.status).toBe(401);
     expect(revokedCount.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
     expect(revokedCount.body).not.toHaveProperty('data');
+    const revokedExport = await exportBusinessRows();
+    expect(revokedExport.status).toBe(401);
+    expect(revokedExport.headers).not.toHaveProperty('content-disposition');
     const revokedUpdate = await apiAgent()
       .resource(collectionName)
       .update({ filterByTk: 1, values: { name: 'Unauthorized after role removal' } });
@@ -173,6 +202,10 @@ describe('authenticated API key role revocation', () => {
     const restoredCount = await apiAgent().resource(collectionName).count({});
     expect(restoredCount.status).toBe(200);
     expect(restoredCount.body.data).toBe(1);
+    const exportAfterRestoration = await exportBusinessRows();
+    expect(exportAfterRestoration.status).toBe(200);
+    expect(exportAfterRestoration.headers['content-disposition']).toContain('Role%20revocation%20report_B.xlsx');
+    expect(xlsx.parse(exportAfterRestoration.body)[0].data).toEqual([['Name'], ['Updated before role removal']]);
     const restoredUpdate = await apiAgent()
       .resource(collectionName)
       .update({ filterByTk: 1, values: { name: 'Updated after role restoration' } });

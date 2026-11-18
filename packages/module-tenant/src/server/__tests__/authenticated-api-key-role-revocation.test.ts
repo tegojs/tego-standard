@@ -56,6 +56,7 @@ describe('authenticated API key role revocation', () => {
         usingActionsConfig: true,
         actions: [
           { name: 'create', fields: ['name'] },
+          { name: 'get', fields: ['id', 'name', 'tenantId'] },
           { name: 'list', fields: ['name', 'tenantId'] },
         ],
       },
@@ -102,6 +103,11 @@ describe('authenticated API key role revocation', () => {
     expect(listed.status).toBe(200);
     expect(listed.body.data).toHaveLength(1);
     expect(listed.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+    const fetched = await apiAgent()
+      .resource(collectionName)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.data).toEqual({ id: 1, name: 'Before role removal', tenantId: 'B' });
 
     await app.db.getRepository('rolesUsers').destroy({ filter: { userId: owner.id, roleName: writerRole } });
     expect(
@@ -117,6 +123,12 @@ describe('authenticated API key role revocation', () => {
       .list({ fields: ['name', 'tenantId'] });
     expect(revokedList.status).toBe(401);
     expect(revokedList.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    const revokedGet = await apiAgent()
+      .resource(collectionName)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(revokedGet.status).toBe(401);
+    expect(revokedGet.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    expect(revokedGet.body).not.toHaveProperty('data');
     const revokedCreate = await apiAgent()
       .resource(collectionName)
       .create({ values: { name: 'After role removal' } });
@@ -133,6 +145,11 @@ describe('authenticated API key role revocation', () => {
     expect(restoredList.status).toBe(200);
     expect(restoredList.body.data).toHaveLength(1);
     expect(restoredList.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+    const restoredGet = await apiAgent()
+      .resource(collectionName)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(restoredGet.status).toBe(200);
+    expect(restoredGet.body.data).toEqual({ id: 1, name: 'Before role removal', tenantId: 'B' });
     const restoredCreate = await apiAgent()
       .resource(collectionName)
       .create({ values: { name: 'After role restoration' } });

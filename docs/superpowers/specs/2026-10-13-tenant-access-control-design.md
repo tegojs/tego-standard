@@ -2402,3 +2402,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 绑定角色从用户移除后撤销业务访问（§554）
 
 持久签发绑定writer角色的API Key后移除该用户的writer `rolesUsers` 关系，保留issuer角色：同一key后续list/create均401且不改变业务行；恢复writer关系后同一key恢复读写。区别于tenant membership撤销，补测owner role membership的更新传播；普通Bearer撤权验收条件跳过，API Key key-owner删除验收不覆盖角色移除。真实持久关系及认证请求全通过，无生产代码修改。命令、哈希、相关plugin API Keys测试/构建见ACL计划§554；SQLite不代表PG并发。
+
+### API Key 角色membership撤权后拒绝读取业务详情（§555）
+
+继续核查§554的真实认证读入口：此前API Key角色撤权测试没有配置 `get`；另一个API Key `get` 测试依赖核心 ACL factory 的条件入口，不能算作覆盖证据。扩展真实Basic登录签发的API Key验收：writer角色membership有效时可读取持久B业务行详情；管理员侧持久移除owner的writer `rolesUsers` 关联后，同一key的详情 `get` 返回401/`ROLE_NOT_FOUND_ERR`且无data，B业务行保持不变；恢复关系后同key恢复详情读取。批准snapshot中1项通过、0跳过，测试SHA256及命令见ACL计划§555。没有生产RED或运行时代码修改。SQLite只证明本地认证、ACL和持久数据功能路径，不证明PG并发、在途撤权或跨实例缓存传播。

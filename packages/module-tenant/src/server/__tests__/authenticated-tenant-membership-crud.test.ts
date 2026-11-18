@@ -83,6 +83,7 @@ describe('authenticated tenant membership access boundary', () => {
       values: [
         { id: 'B', name: 'Member tenant', enabled: true },
         { id: 'C', name: 'Added tenant', enabled: true },
+        { id: 'D', name: 'Unrelated tenant', enabled: true },
       ],
     });
     const memberRole = 'membership-api-member';
@@ -96,6 +97,15 @@ describe('authenticated tenant membership access boundary', () => {
     const password = 'membership-api-password';
     const member = await app.db.getRepository('users').create({
       values: { username: memberRole, password, roles: [memberRole], tenants: ['B'], defaultTenantId: 'B' },
+    });
+    const unrelatedUser = await app.db.getRepository('users').create({
+      values: {
+        username: 'membership-api-unrelated',
+        password,
+        roles: [memberRole],
+        tenants: ['D'],
+        defaultTenantId: 'D',
+      },
     });
     const manager = await app.db.getRepository('users').create({
       values: { username: managerRole, password, roles: [managerRole] },
@@ -118,7 +128,10 @@ describe('authenticated tenant membership access boundary', () => {
       app.db
         .getRepository('tenantUsers')
         .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
-    expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    expect(await readMemberships()).toEqual([
+      { tenantId: 'B', userId: member.id },
+      { tenantId: 'D', userId: unrelatedUser.id },
+    ]);
     const originalTenants = await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
     const originalUsers = await app.db.getCollection('users').model.findAll({ raw: true, order: [['id', 'ASC']] });
     const before = await memberAgent.resource('tenants').available({});
@@ -129,7 +142,10 @@ describe('authenticated tenant membership access boundary', () => {
     const denied = await memberAgent.resource('tenantUsers').create({ values });
     expect(denied.status).toBe(403);
     expect(denied.body).not.toHaveProperty('data');
-    expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    expect(await readMemberships()).toEqual([
+      { tenantId: 'B', userId: member.id },
+      { tenantId: 'D', userId: unrelatedUser.id },
+    ]);
 
     const added = await managerAgent.resource('tenantUsers').create({ values });
     expect(added.status).toBe(200);
@@ -137,11 +153,22 @@ describe('authenticated tenant membership access boundary', () => {
     expect(await readMemberships()).toEqual([
       { tenantId: 'B', userId: member.id },
       { tenantId: 'C', userId: member.id },
+      { tenantId: 'D', userId: unrelatedUser.id },
     ]);
     const after = await memberAgent.resource('tenants').available({});
     expect(after.status).toBe(200);
     expect(after.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
     expect(after.body.data.filter(({ current }) => current).map(({ id }) => id)).toEqual(['B']);
+    const tenantMemberList = await managerAgent.resource('users').list({
+      page: 1,
+      pageSize: 20,
+      appends: ['tenants', 'defaultTenant'],
+      filter: { 'tenants.id': 'C' },
+    });
+    expect(tenantMemberList.status).toBe(200);
+    expect(tenantMemberList.body.data.map(({ id }) => id)).toEqual([member.id]);
+    expect(tenantMemberList.body.data[0].tenants.map(({ id }) => id)).toEqual(['B', 'C']);
+    expect(tenantMemberList.body.data.map(({ id }) => id)).not.toContain(unrelatedUser.id);
     expect(await app.db.getCollection('users').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
       originalUsers,
     );

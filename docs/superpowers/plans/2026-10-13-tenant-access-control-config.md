@@ -6582,3 +6582,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 原默认ACL的独立SQLite应用，manager仅持久 `pm.tenant.manage` snippet且无租户成员，member为空策略无snippet、仅B成员/default B，两账号均真实Basic密码登录。member先见available=[B]，直接创建本人C成员关系403/无data且完整关系投影不变；manager以客户端相同values创建200并返回准确tenantId/userId，完整关系投影恰为该成员B/C两行。原member同Bearer下一次available精确[B,C]且current仍B，没有重新登录或清缓存。全量users与tenants原始行不变，manager仍无成员关系。
 - `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 首次实际exit0，2项通过、0跳过，16.50秒。无真实生产RED，不改生产/ACL/schema/依赖；测试与两份权威记录为唯一改动，test-only无需包构建。三个改动文件Prettier通过，测试oxlint零错误/警告，diff检查通过；read_lints未提供，使用聚焦CLI。
 - 作者串行自审，非独立复核。使用默认安装ACL，不冒充核心createACL入口组合证据；既有active测试适配不证明正式账号状态策略。SQLite只作本次真实认证/ACL/持久数据功能验收，不证明PG并发、成员移除/成员新增事务竞争、所有关联API或浏览器试点。未启动/修复PG、未联系子智能体/外网、未推送/合并/部署/正式启用。
+
+## 473. 管理成员列表按租户关联过滤
+
+- 检查 `TenantManagement` 的成员查询：原HTTP链调用 `users:list`，带 `appends:['tenants','defaultTenant']` 与 `filter:{'tenants.id': tenantId}`。在§472同一真实manager/member认证场景增加一个只属于D的持久用户，检查管理者查询C时只返回C成员、不混入D用户，展开的tenants关系正确；该查询是成员维护UI实际列表入口，现有§472只查available、未查此动作。
+- 真实Basic登录的manager持 `pm.tenant.manage`，member普通空策略且只属B。新增C成员关系前后以HTTP管理API执行；之后manager通过原 `users:list` 请求形状查询C，实际仅返回目标member，展开的持久成员关系[B,C]准确，D用户被排除；全量users与tenants物理行不变。
+- 首轮失败仅为加入D fixture后，初始成员关系基线断言仍只期待B；更新为完整B/D持久基线后，最终聚焦测试实际exit0，2项通过、0跳过，11.93秒。测试和两份记录Prettier通过、测试oxlint零错误/警告、`git diff --check`通过；无生产RED，不改生产/ACL/schema/依赖。
+- 作者串行自审，非独立复核。SQLite仅作真实认证/ACL/关联过滤和持久数据功能验收，不证明PG并发、通用users列表所有关联过滤形状、正式账号状态或浏览器试点。无子智能体/外网、PG启动/修复、推送/合并/部署/正式启用。

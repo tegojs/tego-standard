@@ -11,10 +11,10 @@ import { configStore, initialConfig, mainIdentity, seedConfigStore } from './con
 import { seedDatabase, sqliteDatabase } from './database';
 import { documents, exampleConfig, quoteIdentifier } from './fixtures';
 
-const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
-const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
+const coreFactoryEntry = process.env.TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY;
+const coreAvailable = coreFactoryEntry || 'registerActionParamsResolver' in ACL.prototype;
 
-// An optional local draft core entry allows contract validation without dependency changes.
+// An optional built core factory allows contract validation without dependency changes.
 describe.skipIf(!coreAvailable)('tenant scope adapter with the resolving core ACL', () => {
   let db: Database;
   let acl: ACL;
@@ -23,7 +23,9 @@ describe.skipIf(!coreAvailable)('tenant scope adapter with the resolving core AC
   let unregister: () => void;
 
   beforeEach(async () => {
-    const CoreACL = coreEntry ? (await import(/* @vite-ignore */ pathToFileURL(coreEntry).href)).ACL : ACL;
+    const createACL = coreFactoryEntry
+      ? (await import(/* @vite-ignore */ pathToFileURL(coreFactoryEntry).href)).createACL
+      : () => new ACL();
     db = sqliteDatabase();
     await seedConfigStore(db);
     await seedAclScopes(db);
@@ -72,7 +74,7 @@ describe.skipIf(!coreAvailable)('tenant scope adapter with the resolving core AC
       { id: 'C', parentId: 'H', enabled: true },
     ]);
     store = configStore(db);
-    acl = new CoreACL();
+    acl = createACL();
     await grantStoredScope(db, acl);
     adapter = new AccessAclScopeAdapter(acl, 'main', store, db);
     unregister = adapter.register();

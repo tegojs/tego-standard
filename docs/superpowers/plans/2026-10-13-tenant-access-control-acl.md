@@ -49,7 +49,7 @@
 
 ## 2026-11-16 接续验收记录
 
-- §466（普通用户直接修改租户成员关系）：依赖 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY` 的组合测试仍因批准 snapshot 未配置该入口而 6 项全部 skip，不算通过。§471 另以默认 ACL 和真实 Basic 登录独立验收直接 `tenantUsers:update/destroy`，但不替代核心 ACL 扩展点组合场景；未改生产代码。
+- §466（普通用户直接修改租户成员关系）：初始组合测试曾因批准 snapshot 未配置 `TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY` 而6项全部skip；该入口已在§474接通核心factory并于批准snapshot验证为13项通过、0跳过。§471仍是默认ACL与真实Basic登录的独立HTTP验收，不替代该核心ACL扩展点组合场景；未改生产代码。
 - §467（个人资料不能赋予特权 specialRole）：真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可将持久 `specialRole` 从空值写成 `root`（RED）。两个处理器把该字段加入既有 blacklist 后，用户模块 2 项及分享插件 1 项聚焦测试通过；Prettier 与 oxlint 通过。未测试账号状态字段，也未改变它们的行为。
 - §468（个人资料不能绕过账号状态管理）：真实 Basic 登录后，用户模块和分享插件的 `users:updateProfile` 均可把持久 `status` 从 `active` 写成 `pending`（RED）。两个处理器把 `status` 加入既有 blacklist 后，保留昵称更新且状态仍为 `active`；用户模块 3 项、分享插件 2 项聚焦测试通过。状态元数据和管理员状态管理流程未改。
 - §469（个人资料不得绕过专用密码修改验证）：真实 Basic 登录后，两个 `users:updateProfile` 入口均可直接替换密码，旧密码随后 401、新密码 200（RED）；专用 `auth:changePassword` 则校验旧密码。两个处理器把 `password` 加入既有 blacklist 后，资料昵称仍可更新，旧密码 200、新密码 401；用户模块 4 项、分享插件 3 项聚焦测试通过。

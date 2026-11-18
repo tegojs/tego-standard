@@ -6589,3 +6589,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 真实Basic登录的manager持 `pm.tenant.manage`，member普通空策略且只属B。新增C成员关系前后以HTTP管理API执行；之后manager通过原 `users:list` 请求形状查询C，实际仅返回目标member，展开的持久成员关系[B,C]准确，D用户被排除；全量users与tenants物理行不变。
 - 首轮失败仅为加入D fixture后，初始成员关系基线断言仍只期待B；更新为完整B/D持久基线后，最终聚焦测试实际exit0，2项通过、0跳过，11.93秒。测试和两份记录Prettier通过、测试oxlint零错误/警告、`git diff --check`通过；无生产RED，不改生产/ACL/schema/依赖。
 - 作者串行自审，非独立复核。SQLite仅作真实认证/ACL/关联过滤和持久数据功能验收，不证明PG并发、通用users列表所有关联过滤形状、正式账号状态或浏览器试点。无子智能体/外网、PG启动/修复、推送/合并/部署/正式启用。
+
+## 474. 核心 ACL factory 组合验收不再条件跳过
+
+- 复核§466未完成原因：功能测试原先接受ACL类入口，而两份记录要求的是核心构建入口导出的`createACL` factory。核心仓库`D:\Dev\TegoJS\tego`当前`feat/tenant-access-control`包含`packages/core/src/acl/index.ts`的factory源码和已构建入口`packages/core/lib/acl/index.js`；factory创建的ACL具备`registerActionParamsResolver`。核心工作树在验证前后保持干净、HEAD=`d742a1c569579e05187b8260f14d48af0d8ccbae`。
+- 将`acl-core-contract.test.ts`环境变量统一为`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，并从该入口调用`createACL()`；测试工作树与批准snapshot内该文件SHA256相同。批准snapshot为`D:\Dev\TegoJS\.tenant-integration-8037f223c\snapshot`。
+- 在批准snapshot运行`$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'; pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/acl-core-contract.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件13项通过、0跳过。该文件覆盖resolver下租户读写范围、原请求/fixed条件、最终ACL处理器与拒绝路径。
+- 无真实生产RED；只改测试夹具和两份权威记录，没有改标准或核心生产实现、依赖、schema或锁文件。使用SQLite仅作为ACL功能组合测试，不作为PostgreSQL并发证据；核心产物为既有已构建文件，本项未声称重新构建核心包。作者串行复核，非独立审查；PG并发、正式启用/业务试点和整分支独立复核仍未完成。未启动/修复PG、未联系子智能体/外网、未推送/合并/部署/正式启用。

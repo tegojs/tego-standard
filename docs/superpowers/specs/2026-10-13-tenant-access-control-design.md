@@ -2302,3 +2302,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 管理成员列表遵守租户关系过滤（§529）
 
 补充UI对应的真实 `users:list` 认证查询：以 `tenants.id = C` 过滤并展开 `tenants/defaultTenant` 时，manager只读取已关联C的目标成员，不返回仅属于D的用户，持久关联展开正确。首轮测试失败是D夹具加入后的基线预期未同步，不是API结果异常；修正完整关系基线后2项均通过、0跳过。详见主计划§473。未观察到生产RED，不改实现；SQLite不证明PG并发或该API全部关联形状。
+
+### 核心 ACL factory 组合验收解除条件跳过（§530）
+
+修正ACL组合测试入口，使其调用核心 Tego 构建产物`packages/core/lib/acl/index.js`导出的`createACL()`，不再以ACL类入口替代factory。批准snapshot中该单文件13项通过、0跳过（主计划§474）；核心与标准生产实现均未修改。此SQLite验收仅证明核心factory与租户ACL扩展的功能组合，不是PostgreSQL并发证据；核心包本轮未重建，正式安装/启用、业务试点和整分支独立复核仍待完成。

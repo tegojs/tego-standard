@@ -14,7 +14,7 @@ const statusAssociations: Record<string, Record<string, string> | undefined> = {
 export const filterUserStatusAssociationReadScope = async (ctx: Context, next: Next) => {
   const { resourceName, actionName, appends } = ctx.action.params;
   const associations = statusAssociations[resourceName];
-  if (actionName !== 'list' || !Array.isArray(appends) || !associations) {
+  if (!['list', 'get'].includes(actionName) || !Array.isArray(appends) || !associations) {
     return next();
   }
   const requestedAssociations = Object.entries(associations).filter(([name]) => appends.includes(name));
@@ -47,11 +47,7 @@ export const filterUserStatusAssociationReadScope = async (ctx: Context, next: N
 
   const rowsKey = Array.isArray(ctx.body?.rows) ? 'rows' : 'data';
   const rows = ctx.body?.[rowsKey];
-  if (!Array.isArray(rows)) {
-    return;
-  }
-
-  ctx.body[rowsKey] = rows.map((row) => {
+  const filterRow = (row) => {
     const result = typeof row.toJSON === 'function' ? row.toJSON() : { ...row };
     for (const [association, foreignKey] of requestedAssociations) {
       if (
@@ -66,5 +62,15 @@ export const filterUserStatusAssociationReadScope = async (ctx: Context, next: N
       }
     }
     return result;
-  });
+  };
+
+  if (Array.isArray(rows)) {
+    ctx.body[rowsKey] = rows.map(filterRow);
+  } else if (rows && typeof rows === 'object') {
+    ctx.body[rowsKey] = filterRow(rows);
+  } else if (typeof ctx.body?.toJSON === 'function') {
+    ctx.body = filterRow(ctx.body);
+  } else {
+    return;
+  }
 };

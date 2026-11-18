@@ -285,3 +285,9 @@
   - 根因是既有响应守卫只解析 `userStatuses:list` filter以确认key可见，内部查询固定读取key用于scope判定，但未按目标资源的最终字段权限裁剪原响应关联对象。运行时逐层观测 `permission.params`、`filterParams`及`parseJsonTemplate`的fields均为`['key','createdAt','updatedAt']`，后两项是框架自动补入字段；read action没有whitelist/blacklist。修复依据最终解析字段集合裁剪from/to两个展开对象，原目标key scope过滤及未配置字段限制时的返回语义保持不变。
   - GREEN后认证用例要求每个关联仅含最终ACL字段`key`、`createdAt`、`updatedAt`，并拒绝`title`、`allowLogin`、`description`；同角色普通状态list只请求key的行为及历史数据不变。九文件相邻状态/历史scope与状态写保护回归16项通过。module-user完整构建退出0；两改动TS文件oxlint零警告/错误、Prettier及`git diff --check`通过。
   - SQLite仅承担真实认证、ACL和持久数据功能验收，不是PostgreSQL并发证据。作者串行自审而非独立复核。本项不证明动态字段ACL、其它状态关联/响应形状、租户隔离或PostgreSQL并发；整分支独立复核及正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+- §520（用户详情状态展开遵守目标字段权限）：检查用户编辑抽屉实际调用的 `users:get`，显式展开 `statusInfo` / `previousStatusInfo`。复用同一Basic角色、目标 `userStatuses:list` 字段配置仅含 `key` 的持久ACL，真实详情响应仍返回两个状态对象的全部11个字段，形成独立真实RED；该路径不同于§519的历史 `list` action。
+  - RED命令 `pnpm exec vitest run packages/module-user/src/server/__tests__/authenticated-user-get-status-association-field-scope.test.ts --no-file-parallelism --reporter=default --silent` 修复前退出1，字段断言显示 `allowLogin`、`title`、`description` 等额外返回。
+  - 根因是get中间件阶段 `ctx.body` 为单条Sequelize模型本身，而非list常见的 `body.data[]` / `body.rows[]` 包装；即使action和appends已进入守卫，原数组专用转换也无法处理该对象。现有守卫只扩展到status关联资源的get/list，并在单模型get结果上复用同一scope key核验和最终ACL字段裁剪；list路径不变。
+  - 新认证验收同时检查两个状态引用各自只含最终ACL字段`key`、`createdAt`、`updatedAt`，状态key正确且业务字段不泄露。10文件状态/历史相邻回归17项通过；module-user完整构建退出0；改动TS文件oxlint零警告/错误、Prettier及`git diff --check`通过。
+  - SQLite只用于真实认证、ACL与持久数据功能验证，不作为PostgreSQL并发证据。作者串行自审而非独立复核。本项不证明其它详情关联、动态字段ACL、租户隔离或PostgreSQL并发；整分支独立复核与正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

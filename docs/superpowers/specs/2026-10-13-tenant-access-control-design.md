@@ -2246,3 +2246,13 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 九文件状态/历史相邻认证回归16项通过，module-user构建、oxlint、Prettier和`git diff --check`通过；RED及权限参数观测详见ACL计划§519。作者串行自审，非独立复核。
 
 本项只证明静态目标字段ACL对状态历史列表显式展开对象的字段裁剪，不证明动态字段ACL、其它状态关联/响应形状、租户隔离或PostgreSQL并发。SQLite仅用于认证/ACL与持久数据功能验收，不作为PostgreSQL并发证据。整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 用户详情状态展开遵守目标字段权限（§520）
+
+用户编辑抽屉通过真实 `users:get` 显式展开 `statusInfo` / `previousStatusInfo`。Basic角色的 `userStatuses:list` 持久字段权限只配置 `key`，但原详情路径仍返回状态对象全部字段，包含 `title`、`allowLogin`、`description`，构成不同于§519历史列表action的真实RED。
+
+响应守卫现同时支持用户/历史列表以及用户/历史详情；针对get返回的Sequelize单记录模型执行原有状态key scope核验和最终ACL字段裁剪。真实认证断言两个状态关联只含ACL最终字段`key`、`createdAt`、`updatedAt`，不会泄露其它字段。历史列表的集合响应行为保持不变。
+
+10个相邻状态/历史认证测试文件17项通过；module-user构建、oxlint、Prettier和`git diff --check`通过；精确RED见ACL计划§520。作者串行自审，非独立复核。
+
+本项仅验证真实 `users:get` 单对象响应及静态目标字段ACL，不证明其它详情关联、动态字段ACL、租户隔离或PostgreSQL并发。SQLite仅作认证/ACL与持久数据功能验收。整分支独立复核和正式业务试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

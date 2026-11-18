@@ -2406,3 +2406,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 角色membership撤权后拒绝读取业务详情（§555）
 
 继续核查§554的真实认证读入口：此前API Key角色撤权测试没有配置 `get`；另一个API Key `get` 测试依赖核心 ACL factory 的条件入口，不能算作覆盖证据。扩展真实Basic登录签发的API Key验收：writer角色membership有效时可读取持久B业务行详情；管理员侧持久移除owner的writer `rolesUsers` 关联后，同一key的详情 `get` 返回401/`ROLE_NOT_FOUND_ERR`且无data，B业务行保持不变；恢复关系后同key恢复详情读取。批准snapshot中1项通过、0跳过，测试SHA256及命令见ACL计划§555。没有生产RED或运行时代码修改。SQLite只证明本地认证、ACL和持久数据功能路径，不证明PG并发、在途撤权或跨实例缓存传播。
+
+### API Key 用户移出租户后拒绝读取该租户业务详情（§556）
+
+补查API Key tenant membership撤权下的单记录 `get`：§547的详情撤权使用交互式Bearer，§555检查的是owner角色membership，不等于本项API Key用户移出租户。C membership存在时，同key可读取C持久业务记录详情；真实管理员移除C membership后，详情请求403且无data、B/C业务行快照不变，仍有membership的B详情继续成功，密钥未删除且token blacklist为空。批准snapshot认证测试1项通过、0跳过，命令及测试哈希见ACL计划§556。没有生产RED，不改运行时代码；SQLite只证明本地真实认证、ACL及持久数据功能路径，不证明PG并发、在途撤权或跨实例缓存传播。

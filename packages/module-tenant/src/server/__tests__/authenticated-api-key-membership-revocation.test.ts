@@ -74,6 +74,7 @@ describe('authenticated API key tenant membership revocation', () => {
         actions: [
           { name: 'create', fields: ['name'] },
           { name: 'export', fields: ['name'] },
+          { name: 'get', fields: ['id', 'name', 'tenantId'] },
           { name: 'importXlsx', fields: ['name'] },
           { name: 'list', fields: ['name', 'tenantId'] },
           { name: 'update', fields: ['name'] },
@@ -172,6 +173,11 @@ describe('authenticated API key tenant membership revocation', () => {
     expect(importInC.body.meta).toMatchObject({ successCount: 1, failureCount: 0 });
     const rowsAfterImport = [...rowsAfterAuthorizedUpdate, { id: 3, name: 'C imported while member', tenantId: 'C' }];
     expect(await rows()).toEqual(rowsAfterImport);
+    const getCWhileMember = await apiAgent('C')
+      .resource(collectionName)
+      .get({ filterByTk: 2, fields: ['id', 'name', 'tenantId'] });
+    expect(getCWhileMember.status).toBe(200);
+    expect(getCWhileMember.body.data).toEqual({ id: 2, name: 'C updated while member', tenantId: 'C' });
     const membershipsBeforeRemoval = await app.db
       .getRepository('tenantUsers')
       .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
@@ -210,6 +216,11 @@ describe('authenticated API key tenant membership revocation', () => {
       .update({ filterByTk: 2, values: { name: 'Unauthorized C update' } });
     expect(deniedUpdate.status).toBe(403);
     expect(deniedUpdate.body).not.toHaveProperty('data');
+    const deniedGet = await apiAgent('C')
+      .resource(collectionName)
+      .get({ filterByTk: 2, fields: ['id', 'name', 'tenantId'] });
+    expect(deniedGet.status).toBe(403);
+    expect(deniedGet.body).not.toHaveProperty('data');
     const deniedExport = await exportInTenant('C');
     expect(deniedExport.status).toBe(403);
     expect(deniedExport.headers).not.toHaveProperty('content-disposition');
@@ -222,6 +233,12 @@ describe('authenticated API key tenant membership revocation', () => {
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(stillAuthorized.status).toBe(200);
     expect(stillAuthorized.body.data).toEqual([originalRows[0]]);
+    const stillAuthorizedGet = await apiAgent('B')
+      .resource(collectionName)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(stillAuthorizedGet.status).toBe(200);
+    expect(stillAuthorizedGet.body.data).toEqual({ id: 1, name: 'B business record', tenantId: 'B' });
+    expect(await rows()).toEqual(rowsAfterImport);
     expect(await app.db.getRepository('apiKeys').findOne({ filter: { accessToken: apiKey } })).toBeTruthy();
     expect(await app.db.getRepository('tokenBlacklist').count()).toBe(0);
   });

@@ -6562,3 +6562,9 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - `tenants:available` 是面向当前用户的成员租户选择入口；底层 `tenants:list` 则读取完整租户集合。当前Basic认证验收验证available只返回成员A，但尚未实测普通用户直接访问完整集合列表的ACL边界。
 - 在 `authenticated-available-tenants.test.ts` 的真实Basic登录/Bearer链加入 `tenants:list` 对照：普通无snippet用户实际收到403且无data；后续 `tenants:available` 仍只返回持久成员且启用的租户。聚焦Vitest实际exit0，1项通过；Prettier、oxlint零错误/警告、`git diff --check`通过。未观察到真实RED，不改生产/ACL。
 - SQLite只用于真实认证、ACL和持久成员关系功能验收，不代表PostgreSQL并发。整分支独立复核及正式启用/试点仍未完成；不启动/修复PG，不联系子智能体或外网，不推送/合并/部署/正式启用。
+
+## 470. 普通成员不能创建租户
+
+- `pm.tenant.manage` snippet授予 `tenants:*`，而普通登录成员没有租户管理权。既有租户树Repository测试和profile树篡改拒绝不等于直接 `tenants:create` HTTP路径；检索没有发现该写入口的真实密码认证验收。
+- 新增 `packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts`：持久普通角色用户经Basic密码认证后尝试创建租户，实际403、无data且租户表全量持久行不变。聚焦Vitest实际exit0，1项通过；Prettier、oxlint零错误/警告及`git diff --check`通过。没有真实RED，不改生产或ACL。
+- 不触及删除/软删除、已有树形移动或角色合成。SQLite只作真实认证/ACL与持久数据功能证据，不作为PostgreSQL并发证据；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

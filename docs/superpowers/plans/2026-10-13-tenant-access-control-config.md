@@ -6658,3 +6658,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - `authenticated-tenant-switch-write.test.ts` 原本通过 `describe.skipIf(!TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY)` 在缺少入口时整项跳过。复用§474/§481已确认的核心Tego构建产物 `D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js`，核心仓库分支/HEAD/clean状态及产物hash同§481；测试源码与批准snapshot SHA256一致：`A6156D606EE7F22C9A09FE8F05008B7168CF441E3DBDA6621809F2D2759394E2`。
 - 在批准snapshot设置 `$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'` 后执行 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/authenticated-tenant-switch-write.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件1项通过、0跳过。真实用户从B切到已关联C后，headerless业务create/list/update均按C归属与ACL执行；未关联D切换403且defaultTenant/current业务结果保持C；再切回B后其后续读写回归B。
 - 本命令未配置 `TENANT_ACCESS_TEST_DATABASE_URL`，测试使用SQLite；仅解除ACL factory功能组合验收的条件跳过，不证明PG并发、SQL原子隔离、独立进程或正式浏览器试点。记录覆盖§6223已有行为的实际单文件重新执行，不声称新增生产RED或生产修改；PG损坏状态保持不动，不推送/合并/部署/正式启用。
+
+## 484. 真实认证租户更新覆盖子树移动与路径联动
+
+- 管理表单的租户更新包含 `parentId`，除名称/启用状态外还允许重新挂接租户树。既有真实manager/impersonator `tenants:update` 测试只覆盖name/enabled；树算法测试通过Repository直接更新，未验证HTTP ACL、认证和完整持久子树路径联动。
+- 扩展 `authenticated-tenant-management-update.test.ts`：真实密码用户持有仅 `pm.tenant.manage` 与仅 `pm.tenant.impersonate` 两角色，使用同一Basic Bearer分别更新。代入角色尝试将move-subtree从root-a移至root-b返回403且全部tenant行不变；manager相同HTTP请求200，子树根parentId/path改为root-b下，leaf materialized path同步更新；两个root和无关tenant完整记录不变。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-update.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件2项通过、0跳过，11.90秒。测试源码/snapshot SHA256相同：`A57160AFBA1D66D2E1A0A854EC99BCBEA1301875EA198D42D1775478A3EBBB1E`；Prettier、oxlint及`git diff --check`通过。首轮只因精确整行期待忽略不了更新自动时间戳而失败；收窄为目标父/路径字段及完整无关行后通过，不是产品RED。
+- 未观察真实生产RED，不改生产实现。SQLite仅证明真实HTTP认证/ACL、持久树移动与子孙路径功能，不证明PG事务并发原子性或浏览器UI；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

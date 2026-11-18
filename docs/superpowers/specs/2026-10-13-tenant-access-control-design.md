@@ -2342,3 +2342,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 租户切换后的业务写入验收解除条件跳过（§539）
 
 为已有 `authenticated-tenant-switch-write.test.ts` 指定核心构建入口`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY=D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js`后，原条件跳过用例实际运行并通过：经真实切换后的headerless业务读写使用新租户；未关联租户切换拒绝且上下文/持久偏好不变。批准snapshot单项通过、0跳过（主计划§483）。此为SQLite功能验收，不是PG并发或原子证据；未改生产实现。
+
+### 真实认证租户更新移动整棵子树（§540）
+
+管理者经真实Basic Bearer `tenants:update` 修改parentId后，子树根及leaf的持久路径均正确更新；impersonator使用相同入口403且全表不变，其他根和无关租户保持原记录。单文件2项通过、0跳过（主计划§484）；无生产RED、不改实现。SQLite不证明PG并发原子性或浏览器交互。

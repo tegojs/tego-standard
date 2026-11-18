@@ -210,6 +210,16 @@ describe('authenticated API key role revocation', () => {
     expect(noRolesUpdate.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
     expect(noRolesUpdate.body).not.toHaveProperty('data');
     expect(await rows()).toEqual(originalRows);
+
+    const noRolesSelfGrant = await apiAgent()
+      .resource('users.roles', owner.id)
+      .add({ values: [writerRole] });
+    expect(noRolesSelfGrant.status).toBe(401);
+    expect(noRolesSelfGrant.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
+    expect(noRolesSelfGrant.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('rolesUsers').model.findAll({ where: { userId: owner.id }, raw: true })).toEqual(
+      [],
+    );
     expect(await app.db.getRepository('apiKeys').findOne({ filter: { accessToken: apiKey } })).toBeTruthy();
     expect(await app.db.getRepository('tokenBlacklist').count()).toBe(0);
 

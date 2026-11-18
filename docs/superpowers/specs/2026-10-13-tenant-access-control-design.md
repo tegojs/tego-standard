@@ -2438,3 +2438,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key owner失去全部角色后拒绝更新业务记录（§563）
 
 补充API Key角色撤权时owner最后一个角色也被移除的真实认证分支：保留issuer但删除writer时更新返回 `ROLE_NOT_FOUND_ERR`；再删除issuer后，持久角色关系为空，同一key更新返回 `USER_HAS_NO_ROLES_ERR`且业务行不变，key仍持久存在、blacklist为空；恢复issuer及writer后同key恢复业务读写。既有§554/§559均保留issuer，不能覆盖零角色分支。批准snapshot测试1项通过、0跳过，命令/hash见ACL计划§563。无生产RED、不改运行时代码；SQLite不证明PG并发或跨实例传播。
+
+### API Key owner无角色时不得通过用户角色关联自助恢复权限（§564）
+
+在§563的真实Basic/API Key零角色分支中增加独立关联写入口：同一API Key尝试经 `users.roles:add` 给owner本人恢复writer角色，返回401/`USER_HAS_NO_ROLES_ERR`且无data，持久 `rolesUsers` 仍为空；API Key仍存在、token blacklist为空。批准snapshot认证文件1项通过、0跳过，测试SHA256及命令见ACL计划§564。没有生产RED或运行时代码修改；SQLite仅用于本地认证与持久关系功能验收，不证明PG并发、其它关联动作或跨实例传播；认证先行拒绝也不单独证明该动作的ACL授权决策。

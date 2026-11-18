@@ -2306,3 +2306,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 核心 ACL factory 组合验收解除条件跳过（§530）
 
 修正ACL组合测试入口，使其调用核心 Tego 构建产物`packages/core/lib/acl/index.js`导出的`createACL()`，不再以ACL类入口替代factory。批准snapshot中该单文件13项通过、0跳过（主计划§474）；核心与标准生产实现均未修改。此SQLite验收仅证明核心factory与租户ACL扩展的功能组合，不是PostgreSQL并发证据；核心包本轮未重建，正式安装/启用、业务试点和整分支独立复核仍待完成。
+
+### 管理租户更新与平台代入权限分离（§531）
+
+管理页的真实租户编辑/启停写入口`tenants:update`经Basic密码认证验收：同一用户切换到impersonator角色时请求403且租户持久快照不变；切换到manager后更新目标租户成功，name/enabled变化且其他租户行及path不变。单文件1项通过、0跳过（主计划§475）；无生产RED，不改实现。SQLite不证明PostgreSQL并发；没有覆盖浏览器交互或全部树更新形状。

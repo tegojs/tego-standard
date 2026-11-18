@@ -6596,3 +6596,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 将`acl-core-contract.test.ts`环境变量统一为`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`，并从该入口调用`createACL()`；测试工作树与批准snapshot内该文件SHA256相同。批准snapshot为`D:\Dev\TegoJS\.tenant-integration-8037f223c\snapshot`。
 - 在批准snapshot运行`$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'; pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/acl-core-contract.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件13项通过、0跳过。该文件覆盖resolver下租户读写范围、原请求/fixed条件、最终ACL处理器与拒绝路径。
 - 无真实生产RED；只改测试夹具和两份权威记录，没有改标准或核心生产实现、依赖、schema或锁文件。使用SQLite仅作为ACL功能组合测试，不作为PostgreSQL并发证据；核心产物为既有已构建文件，本项未声称重新构建核心包。作者串行复核，非独立审查；PG并发、正式启用/业务试点和整分支独立复核仍未完成。未启动/修复PG、未联系子智能体/外网、未推送/合并/部署/正式启用。
+
+## 475. 管理租户更新与平台代入权限分离
+
+- 检查管理页 `TenantManagement`：编辑租户名和启停开关都调用真实 `tenants:update`。现有认证验收只覆盖管理创建与代入角色创建拒绝，没有覆盖更新入口。服务端`pm.tenant.manage`明确包含`tenants:*`，而`pm.tenant.impersonate`只包含available/current/switch。
+- 新增 `authenticated-tenant-management-update.test.ts`：同一持久密码用户持有独立manager/impersonator角色、无租户成员关系，经Basic登录取得真实Bearer后切换当前角色。impersonator更新被ACL拒绝，完整tenants持久快照不变；manager对相同行执行更新成功，目标行name/enabled精确变化，其他租户行及path不变。
+- 批准snapshot单文件命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-update.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1项通过、0跳过，9.52秒。没有观察到生产RED，故本项只补真实认证/ACL/持久数据验收，不改生产实现。
+- SQLite仅作为HTTP认证、当前角色ACL和持久租户数据功能证据，不证明PostgreSQL并发；作者串行审查、非独立复核。未验证管理UI浏览器交互、其他租户树更新形状或PG并发；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

@@ -2374,3 +2374,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 移除成员关系后旧 Bearer 不能直接读取原租户业务详情（§547）
 
 在集合列表撤权验收之外，补查单记录 `get`：C成员关系仍存在时，同一真实Basic Bearer和 `X-Tenant-Id: C` 可准确读取C持久业务行；管理员经 `tenantUsers:destroy` 删除C membership后，同一Bearer再次请求该详情返回403且无data，B/C业务行完整快照未变。批准snapshot认证测试文件3项通过、0跳过；具体命令、哈希及格式/lint见ACL计划§547。没有观察到生产RED，不改实现。SQLite仅用于本地认证、ACL和持久数据验收，不证明PG并发、在途撤权、跨实例/缓存传播、删除动作或正式启用。
+
+### 成员撤权后旧 Bearer 不得读取原租户业务计数（§548）
+
+补查独立普通业务 `count` 接口：真实Basic Bearer在C membership有效时、携带 `X-Tenant-Id: C` 得到C业务计数1；管理员执行 `tenantUsers:destroy` 后，同Bearer计数请求403且无data，B/C业务物理行不变。首次403发生在撤权前，定位为测试角色尚未获显式 `count` ACL；给夹具增加该持久动作授权后，正向/撤权后拒绝均通过，不是生产RED。批准snapshot中认证测试文件3项通过、0跳过，命令、哈希及lint/格式结果见ACL计划§548。无生产修改；SQLite不证明PG并发、在途撤权、其它统计API或跨实例缓存传播。

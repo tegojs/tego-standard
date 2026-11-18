@@ -296,3 +296,7 @@
   - 聚焦命令 `pnpm exec vitest run packages/module-user/src/server/__tests__/authenticated-user-status-history-target-scope.test.ts --no-file-parallelism --reporter=default --silent` 退出0，1项通过。使用真实Basic登录、持久角色/字段配置及SQLite历史记录；验收请求字段包含 `reason`，但返回不包含，既有目标scope正反向结果保持不变。
   - 本项仅补充真实关联列表字段ACL验收；单TS文件Prettier、oxlint零警告/错误及`git diff --check`通过。测试-only改动不重复包构建。
   - 作者串行自审而非独立复核。SQLite仅用于认证/ACL及持久数据功能验收，不是PostgreSQL并发证据；不据此宣称所有关联字段/响应形状已覆盖。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+- §544（移除成员关系后旧 Bearer 不得直接读取原租户业务数据）：沿 §543 的成员撤销链补查普通业务资源入口，而非重复测试 `tenants:switch`。真实 Basic 密码登录的成员先以同一 Bearer 和 `X-Tenant-Id: C` 成功读取 C 专属 `tenantScoped` 业务行；管理员通过 `tenantUsers:destroy` 持久移除其 C membership 后，相同 Bearer/角色/header 再请求同一 `list` 返回403且无 `data`，完整B/C业务行及剩余B membership保持不变。未观察到生产 RED，不改生产代码。
+  - 批准snapshot中运行 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default`：1文件3项通过、0跳过，含原普通成员拒绝和管理员添加对照。真实SQLite持久租户、membership、ACL、Basic认证及业务行；不是PostgreSQL并发证据。改动测试SHA256=`20837C487F6602A5FB193182883AC9A46D24D3C12433005DE42522991B5931AD`；Prettier、oxlint（0 warning/0 error）及`git diff --check`通过。测试-only且无运行时代码、导出或依赖变更，不跑包构建。
+  - 作者串行自审，非独立复核。本项只证明独立HTTP请求在持久membership撤销后拒绝对原租户的直接业务列表读取；不证明已进入请求的撤权并发、跨实例/缓存一致性、业务写操作、PG并发、浏览器试点或正式启用。未启动损坏PG、未联系子智能体/外网、未推送/合并/部署/正式启用。

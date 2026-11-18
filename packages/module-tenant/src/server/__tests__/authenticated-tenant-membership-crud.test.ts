@@ -203,13 +203,25 @@ describe('authenticated tenant membership access boundary', () => {
     expect(await app.db.getRepository('tenantUsers').count({ filter: { userId: manager.id } })).toBe(0);
   });
 
-  it('lets a manager remove membership and stops exposing the removed tenant to the member', async () => {
+  it('denies direct business reads in a tenant after the member is removed', async () => {
     app = await createTenantApp();
     await app.db.getRepository('tenants').create({
       values: [
         { id: 'B', name: 'Member tenant', enabled: true },
         { id: 'C', name: 'Removed tenant', enabled: true },
       ],
+    });
+    const businessName = 'membershipRevocationRecords';
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: businessName,
+        tenancy: 'tenantScoped',
+        timestamps: false,
+        createdBy: false,
+        updatedBy: false,
+        fields: [{ name: 'value', type: 'string' }],
+      },
     });
     const memberRole = 'membership-remove-member';
     const managerRole = 'membership-remove-manager';
@@ -219,6 +231,15 @@ describe('authenticated tenant membership access boundary', () => {
         { name: managerRole, strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
       ],
     });
+    await app.db.getRepository('dataSourcesRolesResources').create({
+      values: {
+        dataSourceKey: 'main',
+        roleName: memberRole,
+        name: businessName,
+        usingActionsConfig: true,
+        actions: [{ name: 'list', fields: ['tenantId', 'value'] }],
+      },
+    });
     const password = 'membership-remove-password';
     const member = await app.db.getRepository('users').create({
       values: { username: memberRole, password, roles: [memberRole], tenants: ['B', 'C'], defaultTenantId: 'B' },
@@ -226,20 +247,37 @@ describe('authenticated tenant membership access boundary', () => {
     const manager = await app.db.getRepository('users').create({
       values: { username: managerRole, password, roles: [managerRole] },
     });
+    await app.db.getCollection(businessName).model.bulkCreate([
+      { value: 'B record', tenantId: 'B' },
+      { value: 'C record', tenantId: 'C' },
+    ]);
     const login = async (username: string) => {
       const response = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
         account: username,
         password,
       });
       expect(response.status).toBe(200);
-      return app
-        .agent()
-        .set('Authorization', `Bearer ${response.body.data.token}`)
-        .set('X-Authenticator', 'basic')
-        .set('X-Role', username);
+      return {
+        token: response.body.data.token,
+        agent: app
+          .agent()
+          .set('Authorization', `Bearer ${response.body.data.token}`)
+          .set('X-Authenticator', 'basic')
+          .set('X-Role', username),
+      };
     };
-    const memberAgent = await login(member.username);
-    const managerAgent = await login(manager.username);
+    const { agent: memberAgent, token: memberToken } = await login(member.username);
+    const { agent: managerAgent } = await login(manager.username);
+    const memberInC = () =>
+      app
+        .agent()
+        .set('Authorization', `Bearer ${memberToken}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', memberRole)
+        .set('X-Tenant-Id', 'C')
+        .resource(businessName);
+    const readBusinessRows = () =>
+      app.db.getCollection(businessName).model.findAll({ raw: true, order: [['id', 'ASC']] });
     const readMemberships = () =>
       app.db
         .getRepository('tenantUsers')
@@ -257,6 +295,9 @@ describe('authenticated tenant membership access boundary', () => {
     expect(selected.status).toBe(200);
     expect(selected.body.data).toMatchObject({ id: 'C', name: 'Removed tenant' });
     expect((await app.db.getRepository('users').findOne({ filterByTk: member.id })).get('defaultTenantId')).toBe('C');
+    const beforeRemoval = await memberInC().list({ fields: ['tenantId', 'value'] });
+    expect(beforeRemoval.status).toBe(200);
+    expect(beforeRemoval.body.data).toEqual([{ tenantId: 'C', value: 'C record' }]);
     const removed = await managerAgent.resource('tenantUsers').destroy({
       filter: { tenantId: 'C', userId: member.id },
     });
@@ -264,6 +305,13 @@ describe('authenticated tenant membership access boundary', () => {
     expect(removed.status).toBe(200);
     expect(removed.body).toHaveProperty('data');
     expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    const deniedBusinessRead = await memberInC().list({ fields: ['tenantId', 'value'] });
+    expect(deniedBusinessRead.status).toBe(403);
+    expect(deniedBusinessRead.body).not.toHaveProperty('data');
+    expect(await readBusinessRows()).toEqual([
+      { id: 1, value: 'B record', tenantId: 'B' },
+      { id: 2, value: 'C record', tenantId: 'C' },
+    ]);
     const staleSwitch = await memberAgent.resource('tenants').switch({ values: { tenantId: 'C' } });
     expect(staleSwitch.status).toBe(403);
     expect(staleSwitch.body).not.toHaveProperty('data');

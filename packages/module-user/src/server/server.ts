@@ -6,6 +6,7 @@ import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 import * as actions from './actions/users';
 import { checkRoleUserAssociationTargetScope } from './middlewares/check-role-user-association-target-scope';
 import { checkUserRoleTargetScope } from './middlewares/check-user-role-target-scope';
+import { checkUserStatusHistoryAssociationTargetScope } from './middlewares/check-user-status-history-association-target-scope';
 import { checkUserStatusTargetScope } from './middlewares/check-user-status-target-scope';
 import { UserModel } from './models/UserModel';
 
@@ -210,6 +211,10 @@ export default class PluginUsersServer extends Plugin {
     });
     this.app.resourcer.use(checkUserStatusTargetScope, {
       tag: 'checkUserStatusTargetScope',
+      after: 'acl',
+    });
+    this.app.resourcer.use(checkUserStatusHistoryAssociationTargetScope, {
+      tag: 'checkUserStatusHistoryAssociationTargetScope',
       after: 'acl',
     });
 

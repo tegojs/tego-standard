@@ -2168,3 +2168,13 @@ module-user目标关联守卫现对remove应用该action对应的解析后scope�
 新增两个对象验收，连同两个原标量用例及相邻回归共8文件33项通过、2项既有skip；module-user完整构建、Prettier和oxlint通过。RED命令、源码SHA256及既有警告详见ACL计划§511。作者按完整模板串行自审，非独立复核。
 
 仅证明直接单用户更新的 `{ key }` 关联引用及静态目标scope，不证明关联目标属性嵌套修改、字段排除/来源不命中、创建/批量/动态scope、完整状态历史钩子、过期恢复/登录策略、缓存撤销或并发原子性、租户边界及PostgreSQL并发；SQLite仅用于真实认证/ACL及持久数据功能验收，精简插件集历史快照为空。§466核心ACL组合验收、整分支独立复核及正式试点仍待完成，未启动或修复损坏PG，未联系子智能体或外网，未推送、合并、部署或正式启用。
+
+### 用户状态历史关联读取遵守目标集合scope（§512）
+
+真实Basic认证与持久角色ACL验证了直接 `userStatusHistories:list` 按 `userId` scope只返回授权用户历史；但相同角色通过 `users.statusHistories` 关联查询第二个可见用户时，原处理链仍返回scope外历史ID，形成真实RED。该风险不因来源用户本身可见而消失。
+
+新增module-user关联列表守卫，针对该关联要求目标历史集合的 `list` 权限，并把目标ACL filter与来源关联filter、请求filter按AND合并。未改变直接集合读取，也未授予目标读取权限。
+
+新增真实认证验收通过直接列表、范围内来源关联和范围外来源关联三条路径确认目标记录边界与数据不变；连同相邻module-user/ACL回归共9文件34项通过、2项既有skip，module-user构建、Prettier和oxlint通过。详情及源码SHA256见ACL计划§512。
+
+本项仅证明 `users.statusHistories:list` 与静态目标scope的组合，不证明其他关联读取、动态scope、字段权限、租户边界或PostgreSQL并发；SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG，未联系子智能体或外网，未推送、合并、部署或正式启用。

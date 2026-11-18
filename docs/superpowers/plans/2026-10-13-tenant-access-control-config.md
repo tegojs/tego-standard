@@ -6550,3 +6550,9 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新增 `packages/module-tenant/src/server/__tests__/authenticated-current-tenant.test.ts`：普通无snippet用户经Basic密码登录，持久成员关系仅包含当前租户；匿名调用401，Bearer调用只返回 `{id,name}`，不返回租户内部字段，且持久成员关系后验仍一致。
 - `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-current-tenant.test.ts --no-file-parallelism --reporter=default --silent` 实际退出0，1项通过；测试Prettier通过、oxlint零错误/警告、`git diff --check`通过。test-only改动不触及生产实现。SQLite仅用于真实认证/ACL与持久关系功能验收，不作为PostgreSQL并发证据。
 - 当前尚未宣称整分支独立复核、正式规则/安装启用或业务浏览器试点完成；不启动/修复PG，不联系子智能体或外网，不推送/合并/部署/正式启用。
+
+## 468. 普通成员不能枚举租户成员关系
+
+- `tenantUsers` 是持久用户-租户关系资源；`pm.tenant.manage` snippet授予 `tenantUsers:*`。现有真实Basic认证验收覆盖普通成员的membership update/destroy拒绝，但没有覆盖list读取入口。
+- 在 `authenticated-tenant-membership-crud.test.ts` 的真实密码/Bearer链加入普通无snippet成员调用 `tenantUsers:list`；实际403、无data，之后既有update/destroy拒绝仍成立，持久关系完整后验保持原值。聚焦Vitest实际exit0，1项通过；Prettier、oxlint零错误/警告及`git diff --check`通过。未观察到真实RED，不改生产/ACL。
+- SQLite仅用于真实认证、ACL与持久关系功能验收，不代表PostgreSQL并发。不要据此宣称管理界面完整、整分支独立复核或正式试点完成；不启动/修复PG，不联系子智能体或外网，不推送/合并/部署/正式启用。

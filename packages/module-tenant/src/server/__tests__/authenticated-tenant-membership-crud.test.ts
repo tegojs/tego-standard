@@ -2,7 +2,7 @@ import type { MockServer } from '@tachybase/test';
 
 import { createTenantApp } from './utils';
 
-describe('authenticated tenant membership CRUD boundary', () => {
+describe('authenticated tenant membership access boundary', () => {
   let app: MockServer;
 
   afterEach(async () => {
@@ -55,6 +55,7 @@ describe('authenticated tenant membership CRUD boundary', () => {
     const originalMemberships = await readMemberships();
     expect(originalMemberships).toEqual([{ tenantId: 'B', userId: user.id }]);
 
+    const list = await current().resource('tenantUsers').list({});
     const update = await current()
       .resource('tenantUsers')
       .update({
@@ -67,6 +68,8 @@ describe('authenticated tenant membership CRUD boundary', () => {
         filter: { userId: user.id, tenantId: 'B' },
       });
 
+    expect(list.status).toBe(403);
+    expect(list.body).not.toHaveProperty('data');
     expect(update.status).toBe(403);
     expect(update.body).not.toHaveProperty('data');
     expect(destroy.status).toBe(403);

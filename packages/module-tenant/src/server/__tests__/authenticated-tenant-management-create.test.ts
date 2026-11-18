@@ -100,4 +100,50 @@ describe('authenticated tenant management create boundary', () => {
     });
     expect(await app.db.getRepository('tenantUsers').count({ filter: { userId: user.id } })).toBe(0);
   });
+
+  it('allows managers to load the persisted tenant tree without granting enumeration to impersonators', async () => {
+    app = await createTenantApp();
+    const roles = ['tenant-tree-list-manager', 'tenant-tree-list-impersonator'];
+    await app.db.getRepository('roles').create({
+      values: [
+        { name: roles[0], strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
+        { name: roles[1], strategy: { actions: [] }, snippets: ['pm.tenant.impersonate'] },
+      ],
+    });
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tree-list-root', name: 'Tree list root', enabled: true },
+        { id: 'tree-list-child', name: 'Tree list child', parentId: 'tree-list-root', enabled: true },
+        { id: 'tree-list-other', name: 'Tree list other', enabled: true },
+      ],
+    });
+    const password = 'tenant-tree-list-password';
+    const manager = await app.db.getRepository('users').create({
+      values: { username: roles[0], password, roles },
+    });
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: manager.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    const asRole = (role: string) =>
+      app
+        .agent()
+        .set('Authorization', `Bearer ${signIn.body.data.token}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', role);
+
+    const impersonatorList = await asRole(roles[1]).resource('tenants').list({ page: 1, pageSize: 20 });
+    expect(impersonatorList.status).toBe(403);
+    expect(impersonatorList.body).not.toHaveProperty('data');
+
+    const managerList = await asRole(roles[0]).resource('tenants').list({ page: 1, pageSize: 20 });
+    expect(managerList.status).toBe(200);
+    expect(managerList.body.data.map(({ id, parentId, path }) => ({ id, parentId, path }))).toEqual([
+      { id: 'tree-list-root', parentId: null, path: '/tree-list-root/' },
+      { id: 'tree-list-child', parentId: 'tree-list-root', path: '/tree-list-root/tree-list-child/' },
+      { id: 'tree-list-other', parentId: null, path: '/tree-list-other/' },
+    ]);
+    expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toHaveLength(3);
+  });
 });

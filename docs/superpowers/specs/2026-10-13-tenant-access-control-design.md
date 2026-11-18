@@ -2350,3 +2350,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 管理员设置成员默认租户偏好不授予membership（§541）
 
 manager经真实认证的 `users:update` 可将目标成员的默认偏好持久写为其未加入的D；目标成员随后读取 `tenants:available`仍只获得B/C，当前为B，持久tenantUsers关系未因此改变。成员管理CRUD同文件3项通过、0跳过（主计划§485）。这是默认偏好与访问授权分离的真实API验收，无生产修改；SQLite不代表PG并发证据。
+
+### 管理员真实读取租户树且代入角色无枚举权（§542）
+
+租户管理页面实际使用的 `tenants:list` 经真实认证验证：manager取得准确root/child/独立root层级及路径；同一用户切为仅有impersonate权限的角色则403无data。批准snapshot文件3项通过、0跳过（主计划§486）；补足manager正向读取，不替代普通成员枚举拒绝测试。无生产RED、不改实现，SQLite不证明PG并发或浏览器交互。

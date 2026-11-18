@@ -6672,3 +6672,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 扩展 `authenticated-tenant-membership-crud.test.ts`：已有真实 Basic Bearer manager对member成功加入C后，再通过管理页相同 `users:update` 将其偏好设为未加入的D。断言偏好确实持久为D、仅目标用户偏好/审计字段变化、其它用户及tenants/membership均不变；member随后真实`tenants:available`仍只返回B/C且当前B，未获得D成员资格。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0：1文件3项通过、0跳过，15.02秒。源码与snapshot SHA256一致：`3A7B191374C69E3EC4DEA585620D82CFC000D9BE54F8AEFB9A0B9A183A6ADFA9`。首轮快照断言未包含预期审计变化，第二轮误将关联roles当作物理列；均为测试基线问题，最终仅核真实可观察物理字段及关联边界。Prettier、oxlint、`git diff --check`结果见提交前验证。
 - 未观察到生产RED，不改实现。SQLite只证明认证/ACL/偏好和成员数据的功能边界，不证明PG并发或其它用户资料写入形状；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 486. 管理租户树真实读取允许manager并拒绝impersonator
+
+- 管理界面 `tenant-tree.ts:loadTenantRecords` 使用普通资源 `tenants:list` 拉取整页树数据。§469已覆盖普通成员不能枚举完整租户集合；但现有真实Basic认证测试没有manager可见树的正向验收，且 §475/§484 的更新用例不能证明读取许可/树形数据正确。
+- 扩展 `authenticated-tenant-management-create.test.ts`：为真实密码用户配置仅含独立`pm.tenant.manage`与`pm.tenant.impersonate`角色，持久化一个root、child及另一root。以同Bearer切换当前角色，impersonator `tenants:list`返回403且无data；manager同一请求200，root/child parentId和materialized path与持久树精确一致，物理租户行数为3。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件3项通过、0跳过，16.62秒。测试源码/snapshot SHA256一致：`0B05652430B2EED5F40A3777673337E3CD9A9195AB03E3650A8A766B93BFFB32`；Prettier、oxlint、`git diff --check`通过。
+- 未观察生产RED，只补真实认证读权限及持久树数据验收，不改生产ACL或接口。SQLite仅是HTTP认证/ACL/功能证据，不证明PG并发，也不替代浏览器UI实测；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

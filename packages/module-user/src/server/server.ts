@@ -8,6 +8,7 @@ import { checkRoleUserAssociationTargetScope } from './middlewares/check-role-us
 import { checkUserRoleTargetScope } from './middlewares/check-user-role-target-scope';
 import { checkUserStatusHistoryAssociationTargetScope } from './middlewares/check-user-status-history-association-target-scope';
 import { checkUserStatusTargetScope } from './middlewares/check-user-status-target-scope';
+import { denyUserStatusHistoryCreate } from './middlewares/deny-user-status-history-create';
 import { filterUserStatusAssociationReadScope } from './middlewares/filter-user-status-association-read-scope';
 import { UserModel } from './models/UserModel';
 
@@ -216,6 +217,10 @@ export default class PluginUsersServer extends Plugin {
     });
     this.app.resourcer.use(checkUserStatusHistoryAssociationTargetScope, {
       tag: 'checkUserStatusHistoryAssociationTargetScope',
+      after: 'acl',
+    });
+    this.app.resourcer.use(denyUserStatusHistoryCreate, {
+      tag: 'denyUserStatusHistoryCreate',
       after: 'acl',
     });
     this.app.resourcer.use(filterUserStatusAssociationReadScope, {

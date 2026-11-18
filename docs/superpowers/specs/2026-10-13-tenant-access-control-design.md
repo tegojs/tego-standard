@@ -2198,3 +2198,13 @@ module-user现仅在 `users:list` 显式请求这两个状态关联时，根据�
 11文件聚焦回归36项通过、2项既有skip，module-user构建、oxlint和Prettier通过；精确RED、警告及源码SHA256见ACL计划§514。作者串行自审，非独立复核。
 
 本项仅证明单用户创建时显式 `statusInfo` key的静态scope，不证明其它状态引用形状、批量创建、动态scope、并发撤权原子性、租户边界或PostgreSQL并发；SQLite仅用于认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。
+
+### 状态历史审计记录拒绝直接创建（§515）
+
+真实Basic角色通过 `pm.users.statuses` snippet 获得历史记录读取权限；直接调用 `userStatusHistories:create` 原先返回200并插入伪造审计行ID 2。服务器配置的固定create filter并未阻止这项写入，不能单独充当只读保证。
+
+module-user现在在ACL之后明确拒绝该资源API的create action。真实验收确认既有历史仍可读取，伪造创建返回403且历史/用户数据不变；内部Repository生成系统历史的路径不经过该API守卫。
+
+12文件聚焦回归37项通过、2项既有skip，module-user构建、oxlint和Prettier通过；RED、运行警告及源码SHA256见ACL计划§515。作者串行自审，非独立复核。
+
+本项仅证明status管理snippet角色不能经资源API新增历史记录；不证明update/destroy响应语义、所有内部写路径、租户边界或PostgreSQL并发。SQLite仅用于真实认证/ACL与持久数据功能验收。§466核心ACL组合验收、整分支独立复核和正式试点仍待完成。未启动或修复PG、未联系子智能体或外网、未推送、合并、部署或正式启用。

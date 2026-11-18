@@ -1,0 +1,142 @@
+import type { MockServer } from '@tachybase/test';
+
+import PluginAPIKeysServer from 'packages/plugin-api-keys/src/server';
+
+import { createTenantApp } from './utils';
+
+describe('authenticated API key role revocation', () => {
+  let app: MockServer;
+
+  afterEach(async () => {
+    await app?.destroy();
+  });
+
+  it('rechecks the key owner role membership before tenant business access', async () => {
+    app = await createTenantApp({
+      extraPlugins: [[PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }]],
+    });
+    await app.db.getRepository('tenants').create({ values: { id: 'B', name: 'B', enabled: true } });
+
+    const issuerRole = 'role-key-issuer';
+    const writerRole = 'role-key-writer';
+    const password = 'role-key-password';
+    await app.db.getRepository('roles').create({
+      values: [
+        { name: issuerRole, strategy: { actions: [] }, snippets: ['pm.api-keys.configuration'] },
+        { name: writerRole, strategy: { actions: [] }, snippets: [] },
+      ],
+    });
+    const owner = await app.db.getRepository('users').create({
+      values: {
+        username: 'role-key-owner',
+        password,
+        roles: [issuerRole, writerRole],
+        tenants: ['B'],
+        defaultTenantId: 'B',
+      },
+    });
+
+    const collectionName = 'roleRevocationBusinessRecords';
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: collectionName,
+        tenancy: 'tenantScoped',
+        timestamps: false,
+        createdBy: false,
+        updatedBy: false,
+        fields: [{ name: 'name', type: 'string' }],
+      },
+    });
+    await app.db.getRepository('dataSourcesRolesResources').create({
+      values: {
+        dataSourceKey: 'main',
+        roleName: writerRole,
+        name: collectionName,
+        usingActionsConfig: true,
+        actions: [
+          { name: 'create', fields: ['name'] },
+          { name: 'list', fields: ['name', 'tenantId'] },
+        ],
+      },
+    });
+
+    const signedIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: owner.username,
+      password,
+    });
+    expect(signedIn.status).toBe(200);
+    expect(signedIn.body.data.user).toMatchObject({ id: owner.id, hasPassword: true });
+    const issued = await app
+      .agent()
+      .set('Authorization', `Bearer ${signedIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', issuerRole)
+      .set('X-Tenant-Id', 'B')
+      .resource('apiKeys')
+      .create({ values: { name: 'Role revocation key', role: { name: writerRole }, expiresIn: '1d' } });
+    expect(issued.status).toBe(200);
+    const apiKey = issued.body.data.token as string;
+    expect(apiKey).toMatch(/^[a-f0-9]{64}$/);
+    const keyRecord = await app.db.getRepository('apiKeys').findOne({ filter: { accessToken: apiKey } });
+    expect(keyRecord.get('createdById')).toBe(owner.id);
+    expect(keyRecord.get('roleName')).toBe(writerRole);
+
+    const apiAgent = () =>
+      app
+        .agent()
+        .set('Authorization', `Bearer ${apiKey}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', writerRole)
+        .set('X-Tenant-Id', 'B');
+    const rows = () => app.db.getCollection(collectionName).model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const created = await apiAgent()
+      .resource(collectionName)
+      .create({ values: { name: 'Before role removal' } });
+    expect(created.status).toBe(200);
+    const originalRows = [{ id: 1, name: 'Before role removal', tenantId: 'B' }];
+    expect(await rows()).toEqual(originalRows);
+    const listed = await apiAgent()
+      .resource(collectionName)
+      .list({ fields: ['name', 'tenantId'] });
+    expect(listed.status).toBe(200);
+    expect(listed.body.data).toHaveLength(1);
+    expect(listed.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+
+    await app.db.getRepository('rolesUsers').destroy({ filter: { userId: owner.id, roleName: writerRole } });
+    expect(
+      await app.db.getCollection('rolesUsers').model.findAll({
+        where: { userId: owner.id },
+        attributes: ['roleName'],
+        raw: true,
+      }),
+    ).toEqual([{ roleName: issuerRole }]);
+
+    const revokedList = await apiAgent()
+      .resource(collectionName)
+      .list({ fields: ['name', 'tenantId'] });
+    expect(revokedList.status).toBe(401);
+    expect(revokedList.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    const revokedCreate = await apiAgent()
+      .resource(collectionName)
+      .create({ values: { name: 'After role removal' } });
+    expect(revokedCreate.status).toBe(401);
+    expect(revokedCreate.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
+    expect(await rows()).toEqual(originalRows);
+    expect(await app.db.getRepository('apiKeys').findOne({ filter: { accessToken: apiKey } })).toBeTruthy();
+    expect(await app.db.getRepository('tokenBlacklist').count()).toBe(0);
+
+    await app.db.getRepository('rolesUsers').create({ values: { userId: owner.id, roleName: writerRole } });
+    const restoredList = await apiAgent()
+      .resource(collectionName)
+      .list({ fields: ['name', 'tenantId'] });
+    expect(restoredList.status).toBe(200);
+    expect(restoredList.body.data).toHaveLength(1);
+    expect(restoredList.body.data[0]).toMatchObject({ name: 'Before role removal', tenantId: 'B' });
+    const restoredCreate = await apiAgent()
+      .resource(collectionName)
+      .create({ values: { name: 'After role restoration' } });
+    expect(restoredCreate.status).toBe(200);
+    expect(await rows()).toEqual([...originalRows, { id: 2, name: 'After role restoration', tenantId: 'B' }]);
+  });
+});

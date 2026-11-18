@@ -2398,3 +2398,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key 所属用户移出租户后拒绝向该租户批量导入数据（§553）
 
 普通租户导入测试未使用真实API Key，认证约束导入测试受核心ACL factory入口影响而条件跳过。本项以同一Basic签发API Key执行真实 multipart XLSX `importXlsx`：C membership有效时成功导入且持久业务行归属C；manager持久移除C membership后，同key的相同导入返回403且无data，完整B/C业务行不变，B仍可读取。批准snapshot认证验收通过、未改生产代码；测试哈希、验证命令及导入插件测试/构建见ACL计划§553。SQLite不代表PG并发或关联导入完整性。
+
+### API Key 绑定角色从用户移除后撤销业务访问（§554）
+
+持久签发绑定writer角色的API Key后移除该用户的writer `rolesUsers` 关系，保留issuer角色：同一key后续list/create均401且不改变业务行；恢复writer关系后同一key恢复读写。区别于tenant membership撤销，补测owner role membership的更新传播；普通Bearer撤权验收条件跳过，API Key key-owner删除验收不覆盖角色移除。真实持久关系及认证请求全通过，无生产代码修改。命令、哈希、相关plugin API Keys测试/构建见ACL计划§554；SQLite不代表PG并发。

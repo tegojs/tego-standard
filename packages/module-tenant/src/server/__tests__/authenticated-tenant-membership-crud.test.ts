@@ -177,4 +177,76 @@ describe('authenticated tenant membership access boundary', () => {
     );
     expect(await app.db.getRepository('tenantUsers').count({ filter: { userId: manager.id } })).toBe(0);
   });
+
+  it('lets a manager remove membership and stops exposing the removed tenant to the member', async () => {
+    app = await createTenantApp();
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'B', name: 'Member tenant', enabled: true },
+        { id: 'C', name: 'Removed tenant', enabled: true },
+      ],
+    });
+    const memberRole = 'membership-remove-member';
+    const managerRole = 'membership-remove-manager';
+    await app.db.getRepository('roles').create({
+      values: [
+        { name: memberRole, strategy: { actions: [] }, snippets: [] },
+        { name: managerRole, strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
+      ],
+    });
+    const password = 'membership-remove-password';
+    const member = await app.db.getRepository('users').create({
+      values: { username: memberRole, password, roles: [memberRole], tenants: ['B', 'C'], defaultTenantId: 'B' },
+    });
+    const manager = await app.db.getRepository('users').create({
+      values: { username: managerRole, password, roles: [managerRole] },
+    });
+    const login = async (username: string) => {
+      const response = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+        account: username,
+        password,
+      });
+      expect(response.status).toBe(200);
+      return app
+        .agent()
+        .set('Authorization', `Bearer ${response.body.data.token}`)
+        .set('X-Authenticator', 'basic')
+        .set('X-Role', username);
+    };
+    const memberAgent = await login(member.username);
+    const managerAgent = await login(manager.username);
+    const readMemberships = () =>
+      app.db
+        .getRepository('tenantUsers')
+        .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
+    const originalTenants = await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
+    expect(await readMemberships()).toEqual([
+      { tenantId: 'B', userId: member.id },
+      { tenantId: 'C', userId: member.id },
+    ]);
+
+    const before = await memberAgent.resource('tenants').available({});
+    expect(before.status).toBe(200);
+    expect(before.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
+    const removed = await managerAgent.resource('tenantUsers').destroy({
+      filter: { tenantId: 'C', userId: member.id },
+    });
+
+    expect(removed.status).toBe(200);
+    expect(removed.body).toHaveProperty('data');
+    expect(await readMemberships()).toEqual([{ tenantId: 'B', userId: member.id }]);
+    const after = await memberAgent.resource('tenants').available({});
+    expect(after.status).toBe(200);
+    expect(after.body.data.map(({ id }) => id)).toEqual(['B']);
+    expect(after.body.data.filter(({ current }) => current).map(({ id }) => id)).toEqual(['B']);
+    expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
+      originalTenants,
+    );
+    expect(
+      await app.db
+        .getCollection('users')
+        .model.findByPk(member.id)
+        .then((record) => record?.get('defaultTenantId')),
+    ).toBe('B');
+  });
 });

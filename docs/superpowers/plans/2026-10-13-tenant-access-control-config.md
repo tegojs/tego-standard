@@ -6645,3 +6645,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 在批准snapshot设置 `$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'` 后执行 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/authenticated-config-publication.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件2项通过、0跳过。两项均以独立应用、Basic密码登录/Bearer身份验证跨实例保存规则后的真实业务list/count/update；发布保存仍通过store调用，不应表述成管理员保存HTTP验收或正式启用。
 - 测试源码工作树与批准snapshot SHA256一致：`C29DCAADBA62B977DC78D833C8D6755062BC13E4F60C4BA65C987CCA8354C21E`。核心产物SHA256为`260114D086DA1D00ACA5DB01A5BC6B06BA7215783999BC5A37C0D29C27A2C6DA`；本项未修改核心或标准生产代码、测试或依赖，仅记录现有测试的实际执行方式与结果。
 - 此运行没有提供 `TENANT_ACCESS_TEST_DATABASE_URL`，故使用测试SQLite；仅证明ACL factory组合及认证业务功能刷新，不证明PostgreSQL并发、事务原子性或先前损坏PG环境。不得将其作为§5139原PG专用项的替代；不启动/修复/重建PG、不改端口绕过、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 482. 管理员移除成员后可用租户集合收窄
+
+- 管理页面 `saveMembership` 的真实删除写入口是 `tenantUsers:destroy`。既有 `authenticated-tenant-membership-crud.test.ts` 证明普通成员无法直接修改/移除关系，也证明管理员能添加关系后目标用户的`tenants:available`会扩大；但没有覆盖管理员合法移除后关系持久删除及可用列表收窄。
+- 新验收创建B/C租户、真实密码manager及同时属于B/C的持久member，双方经Basic登录获得Bearer。manager通过同一 `tenantUsers:destroy` API删除member-C关系；断言完整tenantUsers关系只剩B、原member的后续`tenants:available`仅返回B且当前仍为B、租户物理行和默认租户偏好未改变。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件3项通过、0跳过，9.68秒。测试源码与snapshot SHA256一致：`838E34F7A03AC33CA116EB9A9050ECB1CD1DFC0FAB9F6B97FFC69831436B9A48`；Prettier、oxlint和`git diff --check`通过。无生产RED，故只补真实认证/持久数据验收，不改生产ACL或业务实现。
+- SQLite仅证明HTTP认证、ACL、持久关系变更及紧随其后的可用租户读取，不证明PG并发或撤销即时性跨进程缓存语义；未覆盖浏览器点击。作者串行自审、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

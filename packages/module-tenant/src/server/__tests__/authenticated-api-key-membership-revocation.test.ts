@@ -54,6 +54,22 @@ describe('authenticated API key tenant membership revocation', () => {
     });
 
     const collectionName = 'membershipKeyBusinessRecords';
+    const childCollectionName = 'membershipKeyBusinessChildren';
+    await app.db.getRepository('collections').create({
+      context: {},
+      values: {
+        name: childCollectionName,
+        tenancy: 'tenantScoped',
+        timestamps: false,
+        createdBy: false,
+        updatedBy: false,
+        fields: [{ name: 'name', type: 'string' }],
+      },
+    });
+    (app.pm.get('acl') as any).registerAssociationFieldAction('belongsToMany', {
+      create: { associationActions: ['add', 'set', 'remove'] },
+      view: { associationActions: ['list', 'get'] },
+    });
     await app.db.getRepository('collections').create({
       context: {},
       values: {
@@ -62,7 +78,10 @@ describe('authenticated API key tenant membership revocation', () => {
         timestamps: false,
         createdBy: false,
         updatedBy: false,
-        fields: [{ name: 'name', type: 'string' }],
+        fields: [
+          { name: 'name', type: 'string' },
+          { name: 'children', type: 'belongsToMany', target: childCollectionName },
+        ],
       },
     });
     await app.db.getRepository('dataSourcesRolesResources').create({
@@ -72,14 +91,28 @@ describe('authenticated API key tenant membership revocation', () => {
         name: collectionName,
         usingActionsConfig: true,
         actions: [
-          { name: 'create', fields: ['name'] },
+          { name: 'create', fields: ['name', 'children'] },
           { name: 'destroy' },
           { name: 'export', fields: ['name'] },
-          { name: 'get', fields: ['id', 'name', 'tenantId'] },
+          { name: 'get', fields: ['id', 'name', 'tenantId', 'children'] },
           { name: 'importXlsx', fields: ['name'] },
-          { name: 'list', fields: ['name', 'tenantId'] },
+          { name: 'list', fields: ['name', 'tenantId', 'children'] },
           { name: 'count' },
-          { name: 'update', fields: ['name'] },
+          { name: 'update', fields: ['name', 'children'] },
+          { name: 'set', fields: ['children'] },
+        ],
+      },
+    });
+    await app.db.getRepository('dataSourcesRolesResources').create({
+      values: {
+        dataSourceKey: 'main',
+        roleName: writerRole,
+        name: childCollectionName,
+        usingActionsConfig: true,
+        actions: [
+          { name: 'create', fields: ['name'] },
+          { name: 'view', fields: ['id', 'name', 'tenantId'] },
+          { name: 'set', fields: ['id'] },
         ],
       },
     });
@@ -117,6 +150,12 @@ describe('authenticated API key tenant membership revocation', () => {
         .set('X-Role', writerRole)
         .set('X-Tenant-Id', tenantId);
     const rows = () => app.db.getCollection(collectionName).model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const childRows = () =>
+      app.db.getCollection(childCollectionName).model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const children = async () =>
+      (await app.db.getRepository(`${collectionName}.children`, 2).find({ sort: ['id'] })).map((record) =>
+        record.get('id'),
+      );
     const exportInTenant = (tenantId: string) =>
       apiAgent(tenantId)
         .resource(collectionName)
@@ -152,6 +191,16 @@ describe('authenticated API key tenant membership revocation', () => {
       expect(created.status).toBe(200);
     }
     expect(await rows()).toEqual(originalRows);
+    const childCreated = await apiAgent('C')
+      .resource(childCollectionName)
+      .create({ values: { name: 'C child' } });
+    expect(childCreated.status).toBe(200);
+    expect(await childRows()).toEqual([{ id: 1, name: 'C child', tenantId: 'C' }]);
+    const associatedWhileMember = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .set({ values: [1] });
+    expect(associatedWhileMember.status, JSON.stringify(associatedWhileMember.body)).toBe(200);
+    expect(await children()).toEqual([1]);
 
     const updatedInC = await apiAgent('C')
       .resource(collectionName)
@@ -244,6 +293,10 @@ describe('authenticated API key tenant membership revocation', () => {
     expect(deniedImport.status).toBe(403);
     expect(deniedImport.body).not.toHaveProperty('data');
     expect(await rows()).toEqual(rowsAfterAuthorizedDelete);
+    const deniedAssociationSet = await apiAgent('C').resource(`${collectionName}.children`, 2).set({ values: [] });
+    expect(deniedAssociationSet.status).toBe(403);
+    expect(deniedAssociationSet.body).not.toHaveProperty('data');
+    expect(await children()).toEqual([1]);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });

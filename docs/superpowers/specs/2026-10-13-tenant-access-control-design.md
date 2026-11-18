@@ -2442,3 +2442,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key owner无角色时不得通过用户角色关联自助恢复权限（§564）
 
 在§563的真实Basic/API Key零角色分支中增加独立关联写入口：同一API Key尝试经 `users.roles:add` 给owner本人恢复writer角色，返回401/`USER_HAS_NO_ROLES_ERR`且无data，持久 `rolesUsers` 仍为空；API Key仍存在、token blacklist为空。批准snapshot认证文件1项通过、0跳过，测试SHA256及命令见ACL计划§564。没有生产RED或运行时代码修改；SQLite仅用于本地认证与持久关系功能验收，不证明PG并发、其它关联动作或跨实例传播；认证先行拒绝也不单独证明该动作的ACL授权决策。
+
+### API Key用户移出租户后拒绝解除该租户业务关联（§565）
+
+补查API Key租户membership撤权下的具体关联写动作：C membership有效时，同一Basic登录签发的API Key成功通过 `membershipKeyBusinessRecords.children:set` 建立C业务记录与C子记录的持久关联；管理员移除owner的C membership后，同key对该关系执行 `set([])` 返回403且无data，关联保持，B读取仍有效、API Key仍存在且token blacklist为空。批准snapshot单文件1项通过、0跳过；测试hash、命令及夹具修正说明见ACL计划§565。未观察到生产RED或运行时代码修改。SQLite仅证明本地认证、ACL和持久关联行为，不证明PG并发、其它关联动作或跨实例传播。

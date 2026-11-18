@@ -6652,3 +6652,9 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 新验收创建B/C租户、真实密码manager及同时属于B/C的持久member，双方经Basic登录获得Bearer。manager通过同一 `tenantUsers:destroy` API删除member-C关系；断言完整tenantUsers关系只剩B、原member的后续`tenants:available`仅返回B且当前仍为B、租户物理行和默认租户偏好未改变。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件3项通过、0跳过，9.68秒。测试源码与snapshot SHA256一致：`838E34F7A03AC33CA116EB9A9050ECB1CD1DFC0FAB9F6B97FFC69831436B9A48`；Prettier、oxlint和`git diff --check`通过。无生产RED，故只补真实认证/持久数据验收，不改生产ACL或业务实现。
 - SQLite仅证明HTTP认证、ACL、持久关系变更及紧随其后的可用租户读取，不证明PG并发或撤销即时性跨进程缓存语义；未覆盖浏览器点击。作者串行自审、非独立复核；不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 483. 解除租户切换后业务写入验收的条件跳过
+
+- `authenticated-tenant-switch-write.test.ts` 原本通过 `describe.skipIf(!TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY)` 在缺少入口时整项跳过。复用§474/§481已确认的核心Tego构建产物 `D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js`，核心仓库分支/HEAD/clean状态及产物hash同§481；测试源码与批准snapshot SHA256一致：`A6156D606EE7F22C9A09FE8F05008B7168CF441E3DBDA6621809F2D2759394E2`。
+- 在批准snapshot设置 `$env:TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY='D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js'` 后执行 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/access-control/authenticated-tenant-switch-write.test.ts --no-file-parallelism --reporter=default --silent`，实际exit0：1文件1项通过、0跳过。真实用户从B切到已关联C后，headerless业务create/list/update均按C归属与ACL执行；未关联D切换403且defaultTenant/current业务结果保持C；再切回B后其后续读写回归B。
+- 本命令未配置 `TENANT_ACCESS_TEST_DATABASE_URL`，测试使用SQLite；仅解除ACL factory功能组合验收的条件跳过，不证明PG并发、SQL原子隔离、独立进程或正式浏览器试点。记录覆盖§6223已有行为的实际单文件重新执行，不声称新增生产RED或生产修改；PG损坏状态保持不动，不推送/合并/部署/正式启用。

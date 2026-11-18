@@ -2338,3 +2338,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 管理员移除成员后可用租户集合收窄（§538）
 
 管理页面对应的`tenantUsers:destroy`经真实manager密码认证成功移除B/C成员关系；目标用户随后的真实`tenants:available`请求仅返回仍有关联的B，当前租户偏好保持B，租户本身未删除。普通成员拒绝与管理员添加/列表扩大的已有同文件验收同时通过，共3项、0跳过（主计划§482）。无生产RED、不改实现；SQLite不证明PG并发或跨进程撤权缓存语义。
+
+### 租户切换后的业务写入验收解除条件跳过（§539）
+
+为已有 `authenticated-tenant-switch-write.test.ts` 指定核心构建入口`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY=D:\Dev\TegoJS\tego\packages\core\lib\acl\index.js`后，原条件跳过用例实际运行并通过：经真实切换后的headerless业务读写使用新租户；未关联租户切换拒绝且上下文/持久偏好不变。批准snapshot单项通过、0跳过（主计划§483）。此为SQLite功能验收，不是PG并发或原子证据；未改生产实现。

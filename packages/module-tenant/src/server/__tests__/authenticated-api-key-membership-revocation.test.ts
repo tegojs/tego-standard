@@ -67,6 +67,7 @@ describe('authenticated API key tenant membership revocation', () => {
         actions: [
           { name: 'create', fields: ['name'] },
           { name: 'list', fields: ['name', 'tenantId'] },
+          { name: 'update', fields: ['name'] },
         ],
       },
     });
@@ -117,11 +118,19 @@ describe('authenticated API key tenant membership revocation', () => {
     }
     expect(await rows()).toEqual(originalRows);
 
+    const updatedInC = await apiAgent('C')
+      .resource(collectionName)
+      .update({ filterByTk: 2, values: { name: 'C updated while member' } });
+    expect(updatedInC.status).toBe(200);
+    expect(updatedInC.body.data).toEqual([{ id: 2, name: 'C updated while member', tenantId: 'C' }]);
+    const rowsAfterAuthorizedUpdate = [originalRows[0], { id: 2, name: 'C updated while member', tenantId: 'C' }];
+    expect(await rows()).toEqual(rowsAfterAuthorizedUpdate);
+
     const inC = await apiAgent('C')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(inC.status).toBe(200);
-    expect(inC.body.data).toEqual([originalRows[1]]);
+    expect(inC.body.data).toEqual([rowsAfterAuthorizedUpdate[1]]);
     const membershipsBeforeRemoval = await app.db
       .getRepository('tenantUsers')
       .find({ fields: ['tenantId', 'userId'], sort: ['tenantId', 'userId'], raw: true });
@@ -155,7 +164,12 @@ describe('authenticated API key tenant membership revocation', () => {
       .create({ values: { name: 'Unauthorized C business record' } });
     expect(deniedCreate.status).toBe(403);
     expect(deniedCreate.body).not.toHaveProperty('data');
-    expect(await rows()).toEqual(originalRows);
+    const deniedUpdate = await apiAgent('C')
+      .resource(collectionName)
+      .update({ filterByTk: 2, values: { name: 'Unauthorized C update' } });
+    expect(deniedUpdate.status).toBe(403);
+    expect(deniedUpdate.body).not.toHaveProperty('data');
+    expect(await rows()).toEqual(rowsAfterAuthorizedUpdate);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });

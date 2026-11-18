@@ -2362,3 +2362,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 移除成员关系后旧 Bearer 不能读取原租户业务资源（§544）
 
 补查与租户切换不同的真实业务入口：成员先用同一 Basic 登录 Bearer 和 `X-Tenant-Id: C` 成功读取 `tenantScoped` 业务表中归属 C 的持久记录；管理员经 `tenantUsers:destroy` 移除 C membership 后，相同 Bearer、角色和 header 对同一业务 `list` 得到403且无 `data`，完整业务行保持原样，剩余B membership仍存在。批准snapshot中该认证测试文件3项通过、0跳过；测试哈希、命令及格式/lint详见 ACL 计划§544。没有观察到生产RED，因此未改生产。SQLite只证明本地认证、ACL和持久数据功能路径，不证明PG并发、已在途请求撤权或跨实例/缓存一致性；本项只覆盖读取，不代表业务写入口或浏览器试点已验收。
+
+### 移除成员关系后旧 Bearer 不能写入原租户业务资源（§545）
+
+同一真实Basic Bearer在C membership仍存在时，能通过普通 `create` action向 `tenantScoped` 业务表写入C归属记录；管理员使用真实 `tenantUsers:destroy` 移除成员关系后，同一token/角色及 `X-Tenant-Id: C` 请求create返回403且无data，完整B/C业务行快照不变。该认证测试文件3项通过、0跳过；命令、测试哈希与格式/lint详见ACL计划§545。未发现生产RED，因此无生产代码修改；与§544分列，分别记录读拒绝和写拒绝。SQLite只证明功能链，不证明PG并发或已在途请求撤权，未覆盖update/destroy/跨实例缓存及正式业务启用。

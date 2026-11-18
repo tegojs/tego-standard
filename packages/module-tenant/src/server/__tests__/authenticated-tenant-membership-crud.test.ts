@@ -237,7 +237,10 @@ describe('authenticated tenant membership access boundary', () => {
         roleName: memberRole,
         name: businessName,
         usingActionsConfig: true,
-        actions: [{ name: 'list', fields: ['tenantId', 'value'] }],
+        actions: [
+          { name: 'create', fields: ['value'] },
+          { name: 'list', fields: ['tenantId', 'value'] },
+        ],
       },
     });
     const password = 'membership-remove-password';
@@ -298,6 +301,19 @@ describe('authenticated tenant membership access boundary', () => {
     const beforeRemoval = await memberInC().list({ fields: ['tenantId', 'value'] });
     expect(beforeRemoval.status).toBe(200);
     expect(beforeRemoval.body.data).toEqual([{ tenantId: 'C', value: 'C record' }]);
+    const createdBeforeRemoval = await memberInC().create({ values: { value: 'C created before removal' } });
+    expect(createdBeforeRemoval.status).toBe(200);
+    expect(createdBeforeRemoval.body.data).toEqual({
+      id: 3,
+      tenantId: 'C',
+      value: 'C created before removal',
+    });
+    const businessRowsBeforeRemoval = [
+      { id: 1, value: 'B record', tenantId: 'B' },
+      { id: 2, value: 'C record', tenantId: 'C' },
+      { id: 3, value: 'C created before removal', tenantId: 'C' },
+    ];
+    expect(await readBusinessRows()).toEqual(businessRowsBeforeRemoval);
     const removed = await managerAgent.resource('tenantUsers').destroy({
       filter: { tenantId: 'C', userId: member.id },
     });
@@ -308,10 +324,10 @@ describe('authenticated tenant membership access boundary', () => {
     const deniedBusinessRead = await memberInC().list({ fields: ['tenantId', 'value'] });
     expect(deniedBusinessRead.status).toBe(403);
     expect(deniedBusinessRead.body).not.toHaveProperty('data');
-    expect(await readBusinessRows()).toEqual([
-      { id: 1, value: 'B record', tenantId: 'B' },
-      { id: 2, value: 'C record', tenantId: 'C' },
-    ]);
+    const deniedBusinessCreate = await memberInC().create({ values: { value: 'C created after removal' } });
+    expect(deniedBusinessCreate.status).toBe(403);
+    expect(deniedBusinessCreate.body).not.toHaveProperty('data');
+    expect(await readBusinessRows()).toEqual(businessRowsBeforeRemoval);
     const staleSwitch = await memberAgent.resource('tenants').switch({ values: { tenantId: 'C' } });
     expect(staleSwitch.status).toBe(403);
     expect(staleSwitch.body).not.toHaveProperty('data');

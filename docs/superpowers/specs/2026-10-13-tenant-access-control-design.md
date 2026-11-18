@@ -2430,3 +2430,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key owner失去角色membership后不得导出业务文件（§561）
 
 补查API Key owner角色membership撤销后的真实文件导出：writer角色关系有效时同key导出并解析出持久B业务行；移除owner的writer角色关系后，导出401且无下载头、业务行不变；恢复writer关系后同key恢复导出。既有§552检查tenant membership撤权，不等于角色关系撤销。批准snapshot认证测试1项通过、0跳过；导出插件聚焦9文件85项通过并构建成功，验证及hash见ACL计划§561。插件测试有一条Sequelize logging-option弃用警告；无生产RED、不改运行时代码。SQLite不证明PG并发或在途撤权。
+
+### API Key owner失去角色membership后不得通过批量导入写入业务数据（§562）
+
+补查API Key owner角色membership撤销后的multipart `importXlsx` 入口：writer关系存在时同key按持久ACL导入成功；移除owner的writer关系后同key返回401且无data、业务表不变；恢复关系后导入恢复成功。既有§553检查tenant membership撤销，不是相同撤权组合。批准snapshot认证测试1项通过、0跳过，导入插件3文件72项及包构建通过，命令/hash见ACL计划§562。无生产RED、不改运行时代码；SQLite不证明PG并发或在途撤权。

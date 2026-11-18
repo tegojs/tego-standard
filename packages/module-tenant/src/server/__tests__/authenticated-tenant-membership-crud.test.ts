@@ -159,6 +159,16 @@ describe('authenticated tenant membership access boundary', () => {
     expect(after.status).toBe(200);
     expect(after.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
     expect(after.body.data.filter(({ current }) => current).map(({ id }) => id)).toEqual(['B']);
+    const changedDefault = await managerAgent.resource('users').update({
+      filterByTk: member.id,
+      values: { defaultTenantId: 'D' },
+    });
+    expect(changedDefault.status).toBe(200);
+    expect((await app.db.getRepository('users').findOne({ filterByTk: member.id })).get('defaultTenantId')).toBe('D');
+    const afterInaccessibleDefault = await memberAgent.resource('tenants').available({});
+    expect(afterInaccessibleDefault.status).toBe(200);
+    expect(afterInaccessibleDefault.body.data.map(({ id }) => id)).toEqual(['B', 'C']);
+    expect(afterInaccessibleDefault.body.data.filter(({ current }) => current).map(({ id }) => id)).toEqual(['B']);
     const tenantMemberList = await managerAgent.resource('users').list({
       page: 1,
       pageSize: 20,
@@ -169,9 +179,24 @@ describe('authenticated tenant membership access boundary', () => {
     expect(tenantMemberList.body.data.map(({ id }) => id)).toEqual([member.id]);
     expect(tenantMemberList.body.data[0].tenants.map(({ id }) => id)).toEqual(['B', 'C']);
     expect(tenantMemberList.body.data.map(({ id }) => id)).not.toContain(unrelatedUser.id);
-    expect(await app.db.getCollection('users').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
-      originalUsers,
+    const usersAfterDefaultChange = await app.db
+      .getCollection('users')
+      .model.findAll({ raw: true, order: [['id', 'ASC']] });
+    expect(usersAfterDefaultChange.filter(({ id }) => id !== member.id)).toEqual(
+      originalUsers.filter(({ id }) => id !== member.id),
     );
+    expect(usersAfterDefaultChange.find(({ id }) => id === member.id)).toMatchObject({
+      id: member.id,
+      username: member.username,
+      defaultTenantId: 'D',
+      updatedById: manager.id,
+    });
+    const memberBeforeDefaultChange = originalUsers.find(({ id }) => id === member.id);
+    expect(usersAfterDefaultChange.find(({ id }) => id === member.id)).toMatchObject({
+      email: memberBeforeDefaultChange.email,
+      phone: memberBeforeDefaultChange.phone,
+      status: memberBeforeDefaultChange.status,
+    });
     expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
       originalTenants,
     );

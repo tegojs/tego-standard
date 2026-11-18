@@ -6665,3 +6665,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 扩展 `authenticated-tenant-management-update.test.ts`：真实密码用户持有仅 `pm.tenant.manage` 与仅 `pm.tenant.impersonate` 两角色，使用同一Basic Bearer分别更新。代入角色尝试将move-subtree从root-a移至root-b返回403且全部tenant行不变；manager相同HTTP请求200，子树根parentId/path改为root-b下，leaf materialized path同步更新；两个root和无关tenant完整记录不变。
 - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-update.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0，1文件2项通过、0跳过，11.90秒。测试源码/snapshot SHA256相同：`A57160AFBA1D66D2E1A0A854EC99BCBEA1301875EA198D42D1775478A3EBBB1E`；Prettier、oxlint及`git diff --check`通过。首轮只因精确整行期待忽略不了更新自动时间戳而失败；收窄为目标父/路径字段及完整无关行后通过，不是产品RED。
 - 未观察真实生产RED，不改生产实现。SQLite仅证明真实HTTP认证/ACL、持久树移动与子孙路径功能，不证明PG事务并发原子性或浏览器UI；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 485. 管理员设置成员默认租户偏好不能授予成员资格
+
+- 成员管理UI在新增/移除 `tenantUsers` 后，会对目标用户执行独立的 `users:update(defaultTenantId)`。§465只验收用户本人经profile写入不可访问的默认租户值；已有成员管理真实认证测试没有覆盖manager为他人写默认值后成员可用租户集合仍由持久membership决定。
+- 扩展 `authenticated-tenant-membership-crud.test.ts`：已有真实 Basic Bearer manager对member成功加入C后，再通过管理页相同 `users:update` 将其偏好设为未加入的D。断言偏好确实持久为D、仅目标用户偏好/审计字段变化、其它用户及tenants/membership均不变；member随后真实`tenants:available`仍只返回B/C且当前B，未获得D成员资格。
+- 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 最终实际exit0：1文件3项通过、0跳过，15.02秒。源码与snapshot SHA256一致：`3A7B191374C69E3EC4DEA585620D82CFC000D9BE54F8AEFB9A0B9A183A6ADFA9`。首轮快照断言未包含预期审计变化，第二轮误将关联roles当作物理列；均为测试基线问题，最终仅核真实可观察物理字段及关联边界。Prettier、oxlint、`git diff --check`结果见提交前验证。
+- 未观察到生产RED，不改实现。SQLite只证明认证/ACL/偏好和成员数据的功能边界，不证明PG并发或其它用户资料写入形状；作者串行自审、非独立复核。不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。

@@ -2346,3 +2346,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 真实认证租户更新移动整棵子树（§540）
 
 管理者经真实Basic Bearer `tenants:update` 修改parentId后，子树根及leaf的持久路径均正确更新；impersonator使用相同入口403且全表不变，其他根和无关租户保持原记录。单文件2项通过、0跳过（主计划§484）；无生产RED、不改实现。SQLite不证明PG并发原子性或浏览器交互。
+
+### 管理员设置成员默认租户偏好不授予membership（§541）
+
+manager经真实认证的 `users:update` 可将目标成员的默认偏好持久写为其未加入的D；目标成员随后读取 `tenants:available`仍只获得B/C，当前为B，持久tenantUsers关系未因此改变。成员管理CRUD同文件3项通过、0跳过（主计划§485）。这是默认偏好与访问授权分离的真实API验收，无生产修改；SQLite不代表PG并发证据。

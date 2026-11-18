@@ -198,9 +198,22 @@ describe('authenticated API key role revocation', () => {
     expect(revokedCreate.status).toBe(401);
     expect(revokedCreate.body.errors[0].code).toBe('ROLE_NOT_FOUND_ERR');
     expect(await rows()).toEqual(originalRows);
+
+    await app.db.getRepository('rolesUsers').destroy({ filter: { userId: owner.id, roleName: issuerRole } });
+    expect(await app.db.getCollection('rolesUsers').model.findAll({ where: { userId: owner.id }, raw: true })).toEqual(
+      [],
+    );
+    const noRolesUpdate = await apiAgent()
+      .resource(collectionName)
+      .update({ filterByTk: 1, values: { name: 'Unauthorized with no owner roles' } });
+    expect(noRolesUpdate.status).toBe(401);
+    expect(noRolesUpdate.body.errors[0].code).toBe('USER_HAS_NO_ROLES_ERR');
+    expect(noRolesUpdate.body).not.toHaveProperty('data');
+    expect(await rows()).toEqual(originalRows);
     expect(await app.db.getRepository('apiKeys').findOne({ filter: { accessToken: apiKey } })).toBeTruthy();
     expect(await app.db.getRepository('tokenBlacklist').count()).toBe(0);
 
+    await app.db.getRepository('rolesUsers').create({ values: { userId: owner.id, roleName: issuerRole } });
     await app.db.getRepository('rolesUsers').create({ values: { userId: owner.id, roleName: writerRole } });
     const restoredList = await apiAgent()
       .resource(collectionName)

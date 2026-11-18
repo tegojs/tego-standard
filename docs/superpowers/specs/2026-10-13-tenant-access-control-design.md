@@ -2434,3 +2434,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key owner失去角色membership后不得通过批量导入写入业务数据（§562）
 
 补查API Key owner角色membership撤销后的multipart `importXlsx` 入口：writer关系存在时同key按持久ACL导入成功；移除owner的writer关系后同key返回401且无data、业务表不变；恢复关系后导入恢复成功。既有§553检查tenant membership撤销，不是相同撤权组合。批准snapshot认证测试1项通过、0跳过，导入插件3文件72项及包构建通过，命令/hash见ACL计划§562。无生产RED、不改运行时代码；SQLite不证明PG并发或在途撤权。
+
+### API Key owner失去全部角色后拒绝更新业务记录（§563）
+
+补充API Key角色撤权时owner最后一个角色也被移除的真实认证分支：保留issuer但删除writer时更新返回 `ROLE_NOT_FOUND_ERR`；再删除issuer后，持久角色关系为空，同一key更新返回 `USER_HAS_NO_ROLES_ERR`且业务行不变，key仍持久存在、blacklist为空；恢复issuer及writer后同key恢复业务读写。既有§554/§559均保留issuer，不能覆盖零角色分支。批准snapshot测试1项通过、0跳过，命令/hash见ACL计划§563。无生产RED、不改运行时代码；SQLite不证明PG并发或跨实例传播。

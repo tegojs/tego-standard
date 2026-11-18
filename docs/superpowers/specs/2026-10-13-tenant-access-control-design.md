@@ -2278,3 +2278,7 @@ updateProfile现将这五个状态管理字段一并排除，保留昵称等普�
 ### 普通成员读取租户成员关系的ACL边界（§524）
 
 在已有真实Basic认证租户成员关系写入拒绝验收中补查 `tenantUsers:list`：普通无snippet成员不能枚举关系，HTTP返回403且不含数据，完整持久关系仍保持原状。该资源读取由现有ACL/snippet控制，本项只扩充认证验收，不改生产或授权策略；详情见主计划§468。SQLite不代表PostgreSQL并发证据。
+
+### 普通成员不能读取完整租户集合（§525）
+
+在真实Basic认证的租户选择流程中增加底层 `tenants:list` 对照；普通无snippet用户应被ACL拒绝，而 `tenants:available` 继续只返回本人持久成员且启用的租户。只补认证验收，不改策略；结果见主计划§469。SQLite不代表PostgreSQL并发证据。

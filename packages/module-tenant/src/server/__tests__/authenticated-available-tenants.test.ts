@@ -40,6 +40,16 @@ describe('authenticated available tenant listing', () => {
       password,
     });
     expect(signIn.status).toBe(200);
+    const collectionList = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role)
+      .resource('tenants')
+      .list({});
+    expect(collectionList.status).toBe(403);
+    expect(collectionList.body).not.toHaveProperty('data');
+
     const response = await app
       .agent()
       .set('Authorization', `Bearer ${signIn.body.data.token}`)

@@ -2490,3 +2490,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 配置草稿目前没有持久化 HTTP 保存或启用入口（§576）
 
 检查管理页面配置草稿的实际客户端和服务端调用链：`TenantAccessConfigView` / `TenantAccessConfigDraft` 只发起已注册的只读配置读取和草稿校验请求，未调用保存请求；tenant server 注册了读取、校验、迁移预览及历史预览 action，没有配置保存 action。内部 `AccessConfigStore.save` 负责版本化metadata/audit事务，但本身不构成用户可调用的认证/ACL入口。现有真实 HTTP metadata 测试覆盖普通写入不得伪造/篡改 `tenantAccess`、保存配置时普通 metadata 更新保留其值，以及存储服务审计；不能据此声称管理员已可通过产品界面保存或启用配置。批准snapshot中读取、校验、metadata防护3个聚焦文件32项通过、0跳过，验证真实Basic认证且未落库/启用草案。设计阶段明确保存和启用关闭，故本次没有权限RED，也没有新增不对应实际请求的测试。另用核心仓库现有 `createACL` 构建导出入口在批准snapshot新鲜运行真实认证的 `authenticated-config-publication.test.ts`，2项通过、0跳过，验证两独立实例经Bearer进行配置发布前后的list/count/update；该SQLite组合测试不是管理员HTTP保存或PG并发验收。若上线范围要求开放该能力，需另行授权实现保存入口，并验收认证、管理ACL、版本冲突、持久审计与实际业务执行；不得将当前只读/校验验收解释为已上线。
+
+### 租户隔离策略由管理角色经 `collections:update` 持久化（§577）
+
+沿 `TenantManagement.saveCollection` 检查表级 `tenancy`、`legacyDataTenantIds` 和 `allowEditingLegacyData` 的真实持久写入口。使用持久manager/impersonator roles/snippets与Basic密码认证；manager通过HTTP更新后，collection metadata中序列化options及运行时Collection options均体现新策略；仅有 `pm.tenant.impersonate` 的角色请求403且metadata/runtime均不变。批准snapshot聚焦认证验收1项通过、0跳过（ACL计划§577）。这补足的是策略管理写入的角色边界，不代表规则草稿保存/启用；SQLite仅证明该认证/ACL/持久功能路径，不证明PostgreSQL并发或并发策略切换。

@@ -2482,3 +2482,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 有成员的租户不可通过管理 API 删除（§574）
 
 §571的空叶子删除验收不覆盖 `tenants.beforeDestroy` 的membership限制。真实Basic认证manager通过HTTP删除仍有tenantUsers成员的租户时返回成员约束错误且无data，租户表及完整membership持久快照不变；测试使成员defaultTenantId位于另一租户，以独立命中成员关系约束。首次运行发现并修正测试夹具API调用与前置默认租户冲突，不是生产RED。批准snapshot 4文件10项通过、无skip；命令及测试哈希见ACL计划§574。没有运行时代码修改。SQLite仅用于认证、ACL及持久业务约束功能验收，不证明PostgreSQL并发或删除与成员添加间原子性。
+
+### 用户默认租户不可通过管理 API 删除（§575）
+
+继续沿 `tenants:destroy` → `tenants.beforeDestroy` 验收独立默认租户引用约束。真实Basic manager拥有持久 `pm.tenant.manage`，用户同时属于控制租户与目标租户且 `defaultTenantId` 指向目标；删除请求返回“user's default tenant”错误且无data，租户表和用户默认租户持久状态不变。批准snapshot单文件3项通过、无skip；命令及最终测试哈希见ACL计划§575。未改运行时代码；SQLite不证明PostgreSQL并发、跨实例传播或默认租户迁移与删除的原子性。

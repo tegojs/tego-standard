@@ -103,4 +103,56 @@ describe('authenticated tenant management destroy boundary', () => {
       await app.db.getCollection('tenantUsers').model.findAll({ raw: true, order: [['tenantId', 'ASC']] }),
     ).toEqual(beforeMemberships);
   });
+
+  it('does not let a manager delete a tenant used as a user default tenant', async () => {
+    app = await createTenantApp();
+    const role = 'tenant-destroy-default-manager';
+    const password = 'tenant-destroy-default-password';
+    await app.db.getRepository('roles').create({
+      values: { name: role, strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
+    });
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'default-tenant', name: 'Default tenant', enabled: true },
+        { id: 'control-tenant', name: 'Control tenant', enabled: true },
+      ],
+    });
+    const manager = await app.db.getRepository('users').create({
+      values: {
+        username: role,
+        password,
+        roles: [role],
+        tenants: ['default-tenant', 'control-tenant'],
+        defaultTenantId: 'default-tenant',
+      },
+    });
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: manager.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    const beforeTenants = await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const beforeUser = await app.db.getRepository('users').findOne({ filterByTk: manager.id });
+
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role)
+      .resource('tenants')
+      .destroy({ filterByTk: 'default-tenant' });
+
+    expect(response.status).toBe(500);
+    expect(response.body.errors?.[0]?.message).toBe(
+      "This tenant is set as a user's default tenant. Reassign those users before deleting it.",
+    );
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
+      beforeTenants,
+    );
+    expect(await app.db.getRepository('users').findOne({ filterByTk: manager.id })).toMatchObject({
+      id: beforeUser.get('id'),
+      defaultTenantId: 'default-tenant',
+    });
+  });
 });

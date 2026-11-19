@@ -2478,3 +2478,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 租户成员管理不得由 impersonator 改写成员默认租户（§573）
 
 沿客户端 `TenantManagement.saveMembership` 检查其独立 `users:update(defaultTenantId)` 写入口。真实Basic登录、持久角色snippet及membership下，仅有 `pm.tenant.impersonate` 的角色试图把成员默认租户从其原租户改到另一租户时返回403且无data，用户默认租户与membership持久行保持不变。首次即拒绝，没有生产RED或运行时代码修改。批准snapshot聚焦认证验收1项通过、相邻5文件10项通过且均无skip；命令、最终hash见ACL计划§573（工作树与snapshot测试SHA256同为 `856573BC23DB685AD509DCC1F8D0165779D3692891EFFBE044FF976C0E41E689`）。SQLite只用于认证/ACL/持久状态功能验收，不证明PostgreSQL并发、在途撤权或跨实例传播。
+
+### 有成员的租户不可通过管理 API 删除（§574）
+
+§571的空叶子删除验收不覆盖 `tenants.beforeDestroy` 的membership限制。真实Basic认证manager通过HTTP删除仍有tenantUsers成员的租户时返回成员约束错误且无data，租户表及完整membership持久快照不变；测试使成员defaultTenantId位于另一租户，以独立命中成员关系约束。首次运行发现并修正测试夹具API调用与前置默认租户冲突，不是生产RED。批准snapshot 4文件10项通过、无skip；命令及测试哈希见ACL计划§574。没有运行时代码修改。SQLite仅用于认证、ACL及持久业务约束功能验收，不证明PostgreSQL并发或删除与成员添加间原子性。

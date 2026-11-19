@@ -50,4 +50,57 @@ describe('authenticated tenant management destroy boundary', () => {
     expect(destroyed.body).toHaveProperty('data');
     expect(await readTenants()).toEqual(before.filter(({ id }) => id !== 'managed-tenant'));
   });
+
+  it('does not let a manager delete a tenant that still has members', async () => {
+    app = await createTenantApp();
+    const role = 'tenant-destroy-member-manager';
+    const password = 'tenant-destroy-member-password';
+    await app.db.getRepository('roles').create({
+      values: { name: role, strategy: { actions: [] }, snippets: ['pm.tenant.manage'] },
+    });
+    await app.db.getRepository('tenants').create({
+      values: [
+        { id: 'tenant-with-member', name: 'Tenant with member', enabled: true },
+        { id: 'control-tenant', name: 'Control tenant', enabled: true },
+      ],
+    });
+    const member = await app.db.getRepository('users').create({
+      values: {
+        username: 'tenant-destroy-member',
+        password,
+        roles: [role],
+        tenants: ['tenant-with-member'],
+        defaultTenantId: 'control-tenant',
+      },
+    });
+    const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
+      account: member.username,
+      password,
+    });
+    expect(signIn.status).toBe(200);
+    const beforeTenants = await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] });
+    const beforeMemberships = await app.db
+      .getCollection('tenantUsers')
+      .model.findAll({ raw: true, order: [['tenantId', 'ASC']] });
+
+    const response = await app
+      .agent()
+      .set('Authorization', `Bearer ${signIn.body.data.token}`)
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', role)
+      .resource('tenants')
+      .destroy({ filterByTk: 'tenant-with-member' });
+
+    expect(response.status).toBe(500);
+    expect(response.body.errors?.[0]?.message).toBe(
+      'This tenant still has members. Remove all members before deleting it.',
+    );
+    expect(response.body).not.toHaveProperty('data');
+    expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toEqual(
+      beforeTenants,
+    );
+    expect(
+      await app.db.getCollection('tenantUsers').model.findAll({ raw: true, order: [['tenantId', 'ASC']] }),
+    ).toEqual(beforeMemberships);
+  });
 });

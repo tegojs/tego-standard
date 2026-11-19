@@ -155,6 +155,16 @@ describe('authenticated tenant membership access boundary', () => {
       { tenantId: 'C', userId: member.id },
       { tenantId: 'D', userId: unrelatedUser.id },
     ]);
+    const managerMemberships = await managerAgent.resource('tenantUsers').list({
+      fields: ['tenantId', 'userId'],
+      sort: ['tenantId', 'userId'],
+    });
+    expect(managerMemberships.status).toBe(200);
+    expect(managerMemberships.body.data).toEqual([
+      { tenantId: 'B', userId: member.id },
+      { tenantId: 'C', userId: member.id },
+      { tenantId: 'D', userId: unrelatedUser.id },
+    ]);
     const after = await memberAgent.resource('tenants').available({});
     expect(after.status).toBe(200);
     expect(after.body.data.map(({ id }) => id)).toEqual(['B', 'C']);

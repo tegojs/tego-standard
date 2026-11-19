@@ -91,6 +91,7 @@ describe('authenticated API key tenant membership revocation', () => {
         name: collectionName,
         usingActionsConfig: true,
         actions: [
+          { name: 'add', fields: ['children'] },
           { name: 'create', fields: ['name', 'children'] },
           { name: 'destroy' },
           { name: 'export', fields: ['name'] },
@@ -110,6 +111,7 @@ describe('authenticated API key tenant membership revocation', () => {
         name: childCollectionName,
         usingActionsConfig: true,
         actions: [
+          { name: 'add', fields: ['id'] },
           { name: 'create', fields: ['name'] },
           { name: 'view', fields: ['id', 'name', 'tenantId'] },
           { name: 'set', fields: ['id'] },
@@ -195,18 +197,40 @@ describe('authenticated API key tenant membership revocation', () => {
       .resource(childCollectionName)
       .create({ values: { name: 'C child' } });
     expect(childCreated.status).toBe(200);
-    expect(await childRows()).toEqual([{ id: 1, name: 'C child', tenantId: 'C' }]);
+    const childForAdd = await apiAgent('C')
+      .resource(childCollectionName)
+      .create({ values: { name: 'C child for add' } });
+    expect(childForAdd.status).toBe(200);
+    const childForRevokedAdd = await apiAgent('C')
+      .resource(childCollectionName)
+      .create({ values: { name: 'C child for revoked add' } });
+    expect(childForRevokedAdd.status).toBe(200);
+    expect(await childRows()).toEqual([
+      { id: 1, name: 'C child', tenantId: 'C' },
+      { id: 2, name: 'C child for add', tenantId: 'C' },
+      { id: 3, name: 'C child for revoked add', tenantId: 'C' },
+    ]);
     const associatedWhileMember = await apiAgent('C')
       .resource(`${collectionName}.children`, 2)
       .set({ values: [1] });
     expect(associatedWhileMember.status, JSON.stringify(associatedWhileMember.body)).toBe(200);
     expect(await children()).toEqual([1]);
+    const associationAddedWhileMember = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .add({ values: [2] });
+    expect(associationAddedWhileMember.status, JSON.stringify(associationAddedWhileMember.body)).toBe(200);
+    expect(await children()).toEqual([1, 2]);
     const associationReadWhileMember = await apiAgent('C')
       .resource(`${collectionName}.children`, 2)
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(associationReadWhileMember.status).toBe(200);
-    expect(associationReadWhileMember.body.data).toHaveLength(1);
-    expect(associationReadWhileMember.body.data[0]).toMatchObject({ id: 1, name: 'C child', tenantId: 'C' });
+    expect(associationReadWhileMember.body.data).toHaveLength(2);
+    expect(associationReadWhileMember.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 1, name: 'C child', tenantId: 'C' }),
+        expect.objectContaining({ id: 2, name: 'C child for add', tenantId: 'C' }),
+      ]),
+    );
 
     const updatedInC = await apiAgent('C')
       .resource(collectionName)
@@ -302,19 +326,25 @@ describe('authenticated API key tenant membership revocation', () => {
     const deniedAssociationSet = await apiAgent('C').resource(`${collectionName}.children`, 2).set({ values: [] });
     expect(deniedAssociationSet.status).toBe(403);
     expect(deniedAssociationSet.body).not.toHaveProperty('data');
-    expect(await children()).toEqual([1]);
+    expect(await children()).toEqual([1, 2]);
     const deniedAssociationList = await apiAgent('C')
       .resource(`${collectionName}.children`, 2)
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(deniedAssociationList.status).toBe(403);
     expect(deniedAssociationList.body).not.toHaveProperty('data');
-    expect(await children()).toEqual([1]);
+    expect(await children()).toEqual([1, 2]);
     const deniedAssociationRemove = await apiAgent('C')
       .resource(`${collectionName}.children`, 2)
       .remove({ values: [1] });
     expect(deniedAssociationRemove.status).toBe(403);
     expect(deniedAssociationRemove.body).not.toHaveProperty('data');
-    expect(await children()).toEqual([1]);
+    expect(await children()).toEqual([1, 2]);
+    const deniedAssociationAdd = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .add({ values: [3] });
+    expect(deniedAssociationAdd.status).toBe(403);
+    expect(deniedAssociationAdd.body).not.toHaveProperty('data');
+    expect(await children()).toEqual([1, 2]);
     const stillAuthorized = await apiAgent('B')
       .resource(collectionName)
       .list({ fields: ['id', 'name', 'tenantId'] });

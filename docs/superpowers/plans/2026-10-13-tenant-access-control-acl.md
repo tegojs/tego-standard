@@ -392,3 +392,7 @@
 - §567（API Key 所属用户移出租户后不得解除该租户业务关联）：补查§565的 `children:set` 之外的独立关联 `children:remove` 写入口。owner仍有C membership时关联已真实持久化；管理员经真实 `tenantUsers:destroy` 移除C membership后，同一API Key对同一来源和C租户请求移除子记录返回403且无data，持久关联仍存在，B租户读取继续成功。未观察到生产RED，不改运行时代码。
   - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-api-key-membership-revocation.test.ts --no-file-parallelism --reporter=default --silent`：1文件1项通过、0跳过；测试SHA256=`13259480199D4E5BB6F2F344F4688A5F3C385B54FA23C5DAC4079BBB57ED23F9`。Prettier通过，oxlint 0 warning/0 error，`git diff --check`通过。真实Basic认证签发API Key、持久tenant membership/ACL与belongsToMany关联；仅测试与记录变更，SQLite不证明PG并发。
   - 作者串行自审、非独立复核。仅覆盖此belongsToMany关系的后续remove请求，不证明其它关联类型、在途撤权、跨实例传播、PG并发或正式启用。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。
+
+- §568（API Key 所属用户移出租户后不得新增该租户业务关联）：补查 `children:add` 写入口。C membership有效时，同一真实Basic签发的API Key可将C子记录加入C来源记录；管理员经真实 `tenantUsers:destroy` 移除C membership后，同key对新C子记录执行add返回403且无data，原有关联保持，B租户访问继续成功。新增add ACL仅为测试夹具配置，未改运行时代码。
+  - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-api-key-membership-revocation.test.ts --no-file-parallelism --reporter=default --silent`：1文件1项通过、0跳过；测试SHA256=`3C475F6F446FC679CCF12E7162C8FCCCC0AFB61BE4AF2315C40DE0AB191A74B8`。Prettier通过，oxlint 0 warning/0 error；`git diff --check`在授权worktree通过（snapshot目录非Git worktree，无法在那里运行）。真实Basic认证签发API Key、持久tenant membership/ACL与belongsToMany关联；SQLite不证明PG并发。
+  - 作者串行自审、非独立复核。仅覆盖此belongsToMany关系后续add请求，不证明其它关联类型、在途撤权、跨实例传播、PG并发或正式启用。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

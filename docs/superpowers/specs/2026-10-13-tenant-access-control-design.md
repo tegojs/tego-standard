@@ -2502,3 +2502,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### collections tenancy 更新后业务 HTTP 立即应用租户边界（§579）
 
 在真实manager Basic会话经 `collections:update` 将shared集合更新为 `tenantScoped` 后，同一应用中另一Basic用户以持久B membership及业务ACL访问该真实业务集合：HTTP list只返回B记录，create持久归属B。跨租户C行的update返回200空结果而不是403，但C行持久内容不变；这是租户过滤造成的零命中，与另有自定义访问规则的403路径不同。批准snapshot核心ACL factory聚焦组合3文件3项通过、无skip，详见ACL计划§579。SQLite仅证明当前实例中的认证、租户模式发布及持久数据功能链，不证明跨实例/PG并发。
+
+### 已签发 token 的默认租户停用后重新解析业务租户（§580）
+
+补查管理端停用租户后的真实业务读取：用户先以 Basic 登录并保留 A、B 两个持久 membership，默认租户为 B；管理员随后通过真实 `tenants:update` HTTP 将 B 持久停用。使用原 Bearer token、没有租户请求头访问 `tenantScoped` 业务表时，服务端回落至仍启用的 A 且只返回 A 行；同一 token 显式请求 B 返回403且无data。B membership及A/B两条业务行保持持久存在。该用例固定的是停用后新请求重新解析可用租户边界，不证明正在执行的请求被中断或跨实例/PG并发撤权。首次失败因测试复用的supertest agent保留了前一请求的 `X-Tenant-Id: B`；为每次请求新建agent后通过，属于测试夹具状态而非生产RED。无运行时代码修改；SQLite仅用于真实Basic/Bearer认证、核心ACL与持久功能验收。

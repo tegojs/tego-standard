@@ -144,6 +144,26 @@ describe('authenticated tenant management create boundary', () => {
       { id: 'tree-list-child', parentId: 'tree-list-root', path: '/tree-list-root/tree-list-child/' },
       { id: 'tree-list-other', parentId: null, path: '/tree-list-other/' },
     ]);
+    const impersonatorGet = await asRole(roles[1])
+      .resource('tenants')
+      .get({
+        filterByTk: 'tree-list-child',
+        fields: ['id', 'parentId', 'path'],
+      });
+    expect(impersonatorGet.status).toBe(403);
+    expect(impersonatorGet.body).not.toHaveProperty('data');
+    const managerGet = await asRole(roles[0])
+      .resource('tenants')
+      .get({
+        filterByTk: 'tree-list-child',
+        fields: ['id', 'parentId', 'path'],
+      });
+    expect(managerGet.status).toBe(200);
+    expect(managerGet.body.data).toEqual({
+      id: 'tree-list-child',
+      parentId: 'tree-list-root',
+      path: '/tree-list-root/tree-list-child/',
+    });
     expect(await app.db.getCollection('tenants').model.findAll({ raw: true, order: [['id', 'ASC']] })).toHaveLength(3);
   });
 });

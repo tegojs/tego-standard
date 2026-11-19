@@ -408,3 +408,7 @@
 - §571（租户管理角色可删除空叶子租户）：补查管理端真实 `tenants:destroy` 写入口。manager角色经真实Basic/Bearer认证并持久授予 `pm.tenant.manage` 后删除无成员、无子租户的叶子租户返回200且持久租户表只移除目标；impersonator角色同请求返回403且表不变。未观察到生产RED，不改运行时代码。
   - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-destroy.test.ts --no-file-parallelism --reporter=default --silent`：1文件1项通过、0跳过；测试SHA256=`100261DE5E5073915309A35D0BB03EA5A09E73ADC7F47841D31853C843044E9E`。Prettier通过，oxlint 0 warning/0 error；`git diff --check`在授权worktree通过（snapshot目录非Git worktree）。真实Basic认证、持久pm.tenant.manage ACL及tenant树；SQLite不证明PG并发。
   - 作者串行自审、非独立复核。仅证明空叶子租户的manager删除和impersonator拒绝，不证明有成员/子树删除、并发删除、跨实例传播、PG并发或正式启用。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。
+
+- §572（租户管理角色可读取单租户详情）：补查管理端真实 `tenants:get` 读入口。manager角色经真实Basic/Bearer认证并持久授予 `pm.tenant.manage` 后可读取树中子租户的id/parentId/path详情；仅有 `pm.tenant.impersonate` 的角色对同一详情返回403且无data，持久租户树不变。未观察到生产RED，不改运行时代码。
+  - 批准snapshot聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-management-create.test.ts --no-file-parallelism --reporter=default --silent`：1文件3项通过、0跳过；测试SHA256=`EB93DE9E4A74B72977F2635C268888EC0D8ECA2D4A825EFBE2076B3AF14E7142`。Prettier通过，oxlint 0 warning/0 error；`git diff --check`在授权worktree通过（snapshot目录非Git worktree）。真实Basic认证、持久pm.tenant.manage ACL及租户树；SQLite不证明PG并发。
+  - 作者串行自审、非独立复核。仅证明单租户详情的manager允许/impersonator拒绝，不证明其它管理读取、范围过滤、在途权限撤销、跨实例传播、PG并发或正式启用。未启动/修复PG、未联系子智能体或外网、未推送/合并/部署/正式启用。

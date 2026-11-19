@@ -231,6 +231,11 @@ describe('authenticated API key tenant membership revocation', () => {
         expect.objectContaining({ id: 2, name: 'C child for add', tenantId: 'C' }),
       ]),
     );
+    const associationGetWhileMember = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(associationGetWhileMember.status).toBe(200);
+    expect(associationGetWhileMember.body.data).toMatchObject({ id: 1, name: 'C child', tenantId: 'C' });
 
     const updatedInC = await apiAgent('C')
       .resource(collectionName)
@@ -332,6 +337,12 @@ describe('authenticated API key tenant membership revocation', () => {
       .list({ fields: ['id', 'name', 'tenantId'] });
     expect(deniedAssociationList.status).toBe(403);
     expect(deniedAssociationList.body).not.toHaveProperty('data');
+    expect(await children()).toEqual([1, 2]);
+    const deniedAssociationGet = await apiAgent('C')
+      .resource(`${collectionName}.children`, 2)
+      .get({ filterByTk: 1, fields: ['id', 'name', 'tenantId'] });
+    expect(deniedAssociationGet.status).toBe(403);
+    expect(deniedAssociationGet.body).not.toHaveProperty('data');
     expect(await children()).toEqual([1, 2]);
     const deniedAssociationRemove = await apiAgent('C')
       .resource(`${collectionName}.children`, 2)

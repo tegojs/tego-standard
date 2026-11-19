@@ -2458,3 +2458,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### API Key用户移出租户后拒绝新增该租户业务关联（§568）
 
 补查 `children:add` 外的真实关联写入口。C membership有效时，同一真实Basic签发的API Key可将C子记录加入C来源记录；移除owner的C membership后，同key对新C子记录执行add返回403且无data，原有关联保持，B租户访问继续成功。新增add ACL仅为测试夹具配置，未修改运行时代码。批准snapshot聚焦验收1项通过、0跳过；命令/hash和环境说明见ACL计划§568。SQLite仅用于认证/ACL及持久关系功能验证，不证明PG并发、其它关联类型或跨实例传播。
+
+### API Key用户移出租户后拒绝读取该租户业务关联详情（§569）
+
+补查 `children:list` 外的真实关联 `children:get` 读入口。C membership有效时，同一真实Basic签发的API Key可读取来源记录指定的C子记录详情；移除owner的C membership后，同key、同来源和C租户header请求关联详情返回403且无data，关联保持，B租户访问继续成功。批准snapshot聚焦验收1项通过、0跳过；命令/hash和环境说明见ACL计划§569。未修改运行时代码。SQLite仅用于认证/ACL及持久关系功能验证，不证明PG并发、其它关联类型或跨实例传播。

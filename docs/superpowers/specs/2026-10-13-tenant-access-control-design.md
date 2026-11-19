@@ -2486,3 +2486,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 用户默认租户不可通过管理 API 删除（§575）
 
 继续沿 `tenants:destroy` → `tenants.beforeDestroy` 验收独立默认租户引用约束。真实Basic manager拥有持久 `pm.tenant.manage`，用户同时属于控制租户与目标租户且 `defaultTenantId` 指向目标；删除请求返回“user's default tenant”错误且无data，租户表和用户默认租户持久状态不变。批准snapshot单文件3项通过、无skip；命令及最终测试哈希见ACL计划§575。未改运行时代码；SQLite不证明PostgreSQL并发、跨实例传播或默认租户迁移与删除的原子性。
+
+### 配置草稿目前没有持久化 HTTP 保存或启用入口（§576）
+
+检查管理页面配置草稿的实际客户端和服务端调用链：`TenantAccessConfigView` / `TenantAccessConfigDraft` 只发起已注册的只读配置读取和草稿校验请求，未调用保存请求；tenant server 注册了读取、校验、迁移预览及历史预览 action，没有配置保存 action。内部 `AccessConfigStore.save` 负责版本化metadata/audit事务，但本身不构成用户可调用的认证/ACL入口。现有真实 HTTP metadata 测试覆盖普通写入不得伪造/篡改 `tenantAccess`、保存配置时普通 metadata 更新保留其值，以及存储服务审计；不能据此声称管理员已可通过产品界面保存或启用配置。批准snapshot中读取、校验、metadata防护3个聚焦文件32项通过、0跳过，验证真实Basic认证且未落库/启用草案。设计阶段明确保存和启用关闭，故本次没有权限RED，也没有新增不对应实际请求的测试。另用核心仓库现有 `createACL` 构建导出入口在批准snapshot新鲜运行真实认证的 `authenticated-config-publication.test.ts`，2项通过、0跳过，验证两独立实例经Bearer进行配置发布前后的list/count/update；该SQLite组合测试不是管理员HTTP保存或PG并发验收。若上线范围要求开放该能力，需另行授权实现保存入口，并验收认证、管理ACL、版本冲突、持久审计与实际业务执行；不得将当前只读/校验验收解释为已上线。

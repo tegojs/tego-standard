@@ -2494,3 +2494,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 租户隔离策略由管理角色经 `collections:update` 持久化（§577）
 
 沿 `TenantManagement.saveCollection` 检查表级 `tenancy`、`legacyDataTenantIds` 和 `allowEditingLegacyData` 的真实持久写入口。使用持久manager/impersonator roles/snippets与Basic密码认证；manager通过HTTP更新后，collection metadata中序列化options及运行时Collection options均体现新策略；仅有 `pm.tenant.impersonate` 的角色请求403且metadata/runtime均不变。批准snapshot聚焦认证验收1项通过、0跳过（ACL计划§577）。这补足的是策略管理写入的角色边界，不代表规则草稿保存/启用；SQLite仅证明该认证/ACL/持久功能路径，不证明PostgreSQL并发或并发策略切换。
+
+### impersonator 不可通过租户成员面板搜索用户（§578）
+
+真实成员面板的已有成员与候选用户查询都调用 `users:list`，并附加 `tenants/defaultTenant`、按目标tenant过滤。manager成功列出tenant成员的正向路径已由既有认证验收覆盖；impersonator只有 `pm.tenant.impersonate`，该snippet不授予 `users:list`。新真实Basic登录测试以持久目标用户及tenantUsers关系请求同一users列表，得到403且无data，关系保持。批准snapshot单文件1项通过、0跳过（ACL计划§578）。无生产RED或运行代码修改；SQLite不代表PostgreSQL并发证据。

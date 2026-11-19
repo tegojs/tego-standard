@@ -6686,3 +6686,10 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 扩展 `authenticated-tenant-membership-crud.test.ts` 的真实manager/member路径：member先经 `tenants:switch` 成功切至C并持久设置`defaultTenantId:C`，manager通过`tenantUsers:destroy`移除C；同一Bearer再次switch C必须403且无data，持久偏好仍为C；后续`tenants:available`只返回成员B并把B标记为current，租户C本身及其余关系不变。
 - 批准snapshot最终聚焦命令 `pnpm exec vitest run packages/module-tenant/src/server/__tests__/authenticated-tenant-membership-crud.test.ts --no-file-parallelism --reporter=default --silent` 实际exit0，1文件3项通过、0跳过，16.04秒。工作树与snapshot SHA256一致：`65CCD68FB35B33E2FBE8065F8A6BDCE65E2141D6FDC18CD3D117EC333CD60CFD`；最终格式化版本重新运行通过。Prettier、oxlint、`git diff --check`通过。
 - 这是逐个新HTTP请求基于SQLite持久关系的撤销功能证据，不是PG并发、跨进程缓存或在途操作撤权证据；没有生产RED，不改实现。作者串行自审、非独立复核，不启动/修复PG、不联系子智能体/外网、不推送/合并/部署/正式启用。
+
+## 488. 核心 logger 已发送响应后的中间件兼容修复
+
+- 上线检查文件受控下载时，发现 standard 的内部 `captureAttachment` 只提供最终 download ACL/G 与记录证明，`attachmentResolver` 只接 create/upload/destroy，正式下载 Koa 执行器没有注册。已批准设计§150记录的阻断可定位至核心 `packages/logger/src/request-logger.ts`：`await next()` 完成后无条件 `ctx.res.setHeader('X-Request-Id', reqId)`，而受控下载必须等待 Node HTTP `pipeline` 完成后才退出授权回调。
+- 在核心仓库 `D:\Dev\TegoJS\tego` 新增真实 Node HTTP 回归测试，先 `writeHead`、发送完整响应并等待 `finish`，再断言 middleware completion 无错误；同时断言普通未发送响应仍有 `X-Request-Id`。先运行原实现得到 `ERR_HTTP_HEADERS_SENT`（RED），最小修复是在 `ctx.res.headersSent` 时跳过迟到的 header 写入。核心提交：`787ad50dc fix(logger): support responses sent by downstream middleware`。
+- 核心聚焦命令 `pnpm exec vitest run packages/logger/src/__tests__/request-logger.test.ts --reporter=default` 最终实际 exit 0，1文件1项通过。`pnpm exec oxlint` 两个改动文件0警告/0错误；`pnpm exec prettier --check`通过；全仓 `pnpm lint` exit 0、0 errors/45 warnings（既有仓库警告）。logger package 无单独build脚本，未运行全仓构建；Vitest 已实际编译并运行 middleware。提交前钩子运行 Prettier 与 oxlint并通过。
+- standard lockfile 仍解析 `@tachybase/logger@1.6.24`，故核心修复尚未进入 standard。必须等核心包发布后更新/引入该版本，并在标准 Koa 资源链中验证真实认证、最终 ACL、受控流、错误映射与完整中间件退出；在此之前不保留或启用正式下载执行器。公开文件 URL仍无法按用户/租户撤权。没有数据库测试、没有 PG 启动/修复、没有推送/合并/部署/正式启用；核心源码提交不等于租户下载功能完成。

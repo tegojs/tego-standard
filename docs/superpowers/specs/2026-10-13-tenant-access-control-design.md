@@ -2506,3 +2506,9 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 已签发 token 的默认租户停用后重新解析业务租户（§580）
 
 补查管理端停用租户后的真实业务读取：用户先以 Basic 登录并保留 A、B 两个持久 membership，默认租户为 B；管理员随后通过真实 `tenants:update` HTTP 将 B 持久停用。使用原 Bearer token、没有租户请求头访问 `tenantScoped` 业务表时，服务端回落至仍启用的 A 且只返回 A 行；同一 token 显式请求 B 返回403且无data。B membership及A/B两条业务行保持持久存在。该用例固定的是停用后新请求重新解析可用租户边界，不证明正在执行的请求被中断或跨实例/PG并发撤权。首次失败因测试复用的supertest agent保留了前一请求的 `X-Tenant-Id: B`；为每次请求新建agent后通过，属于测试夹具状态而非生产RED。无运行时代码修改；SQLite仅用于真实Basic/Bearer认证、核心ACL与持久功能验收。
+
+### 核心 logger 支持下游已发送响应的中间件退出（§581）
+
+沿受控附件下载链路确认：standard 已具备内部最终 download ACL/G 捕获及本地安全发送能力，但 `module-file` 的 resolver 仍只覆盖 create/upload/destroy，内部 capture 不登记正式路由；Koa 执行器此前因 request logger 在 `await next()` 后无条件设置 `X-Request-Id` 而被明确阻断。核心 Tego 在 `D:\Dev\TegoJS\tego` 的提交 `787ad50dc` 为已发送响应增加 `headersSent` 守卫，并新增真实 Node HTTP 回归测试：先 `writeHead`、发送附件字节并等待 `finish` 时，原实现重现 `ERR_HTTP_HEADERS_SENT`，修复后 middleware 正常退出；普通响应仍带 request-id。该提交只修核心兼容行为，没有注册/启用 standard 下载入口。
+
+standard 的 `pnpm-lock.yaml` 当前仍固定 `@tachybase/logger@1.6.24`，尚未包含核心提交；因此正式 Koa+ACL+下载完整链仍未验证，下载仍不得接线或启用。下一步需由核心仓库产出含该修复的包版本并引入 standard，再用真实标准资源、最终 ACL、标准错误链及完整 middleware 退出重跑；公开 URL 的隔离问题仍是独立限制。未使用数据库或 PostgreSQL，不把核心 HTTP 单测视为租户/ACL/PG 验收。

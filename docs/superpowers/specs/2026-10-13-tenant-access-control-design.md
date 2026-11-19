@@ -2498,3 +2498,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### impersonator 不可通过租户成员面板搜索用户（§578）
 
 真实成员面板的已有成员与候选用户查询都调用 `users:list`，并附加 `tenants/defaultTenant`、按目标tenant过滤。manager成功列出tenant成员的正向路径已由既有认证验收覆盖；impersonator只有 `pm.tenant.impersonate`，该snippet不授予 `users:list`。新真实Basic登录测试以持久目标用户及tenantUsers关系请求同一users列表，得到403且无data，关系保持。批准snapshot单文件1项通过、0跳过（ACL计划§578）。无生产RED或运行代码修改；SQLite不代表PostgreSQL并发证据。
+
+### collections tenancy 更新后业务 HTTP 立即应用租户边界（§579）
+
+在真实manager Basic会话经 `collections:update` 将shared集合更新为 `tenantScoped` 后，同一应用中另一Basic用户以持久B membership及业务ACL访问该真实业务集合：HTTP list只返回B记录，create持久归属B。跨租户C行的update返回200空结果而不是403，但C行持久内容不变；这是租户过滤造成的零命中，与另有自定义访问规则的403路径不同。批准snapshot核心ACL factory聚焦组合3文件3项通过、无skip，详见ACL计划§579。SQLite仅证明当前实例中的认证、租户模式发布及持久数据功能链，不证明跨实例/PG并发。

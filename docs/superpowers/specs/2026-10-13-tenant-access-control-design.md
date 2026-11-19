@@ -2474,3 +2474,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 租户管理角色读取单租户详情（§572）
 
 补查管理端真实 `tenants:get` 读入口。manager角色经真实Basic/Bearer认证并持久授予 `pm.tenant.manage` 后可读取树中子租户的id/parentId/path详情；仅有 `pm.tenant.impersonate` 的角色对同一详情返回403且无data，持久租户树不变。批准snapshot聚焦验收1项通过、0跳过；命令/hash和环境说明见ACL计划§572。未修改运行时代码。SQLite仅用于真实认证、ACL及租户树持久数据功能验证，不证明PG并发、其它管理读取或跨实例传播。
+
+### 租户成员管理不得由 impersonator 改写成员默认租户（§573）
+
+沿客户端 `TenantManagement.saveMembership` 检查其独立 `users:update(defaultTenantId)` 写入口。真实Basic登录、持久角色snippet及membership下，仅有 `pm.tenant.impersonate` 的角色试图把成员默认租户从其原租户改到另一租户时返回403且无data，用户默认租户与membership持久行保持不变。首次即拒绝，没有生产RED或运行时代码修改。批准snapshot聚焦认证验收1项通过、相邻5文件10项通过且均无skip；命令、最终hash见ACL计划§573（工作树与snapshot测试SHA256同为 `856573BC23DB685AD509DCC1F8D0165779D3692891EFFBE044FF976C0E41E689`）。SQLite只用于认证/ACL/持久状态功能验收，不证明PostgreSQL并发、在途撤权或跨实例传播。

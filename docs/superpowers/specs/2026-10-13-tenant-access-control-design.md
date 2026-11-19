@@ -2466,3 +2466,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 租户管理角色读取持久 tenantUsers 列表（§570）
 
 补查管理端真实 `tenantUsers:list` 读入口。manager角色经真实Basic/Bearer认证并持久授予 `pm.tenant.manage` 后，添加C membership，再请求列表返回B/C/D三条持久关系且字段和排序准确；普通成员的list/update/destroy拒绝对照仍保持。批准snapshot聚焦验收1项通过、0跳过；命令/hash和环境说明见ACL计划§570。未修改运行时代码。SQLite仅用于真实认证、ACL和持久关系功能验证，不证明PG并发、其它管理动作或跨实例传播。
+
+### 租户管理角色删除空叶子租户（§571）
+
+补查管理端真实 `tenants:destroy` 写入口。manager角色经真实Basic/Bearer认证并持久授予 `pm.tenant.manage` 后删除无成员、无子租户的叶子租户返回200且持久租户表只移除目标；impersonator角色同请求返回403且表不变。批准snapshot聚焦验收1项通过、0跳过；命令/hash和环境说明见ACL计划§571。未修改运行时代码。SQLite仅用于真实认证、ACL及租户树持久数据功能验证，不证明PG并发、有成员/子树删除或跨实例传播。

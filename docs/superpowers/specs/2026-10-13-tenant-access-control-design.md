@@ -2533,3 +2533,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 本地合并基线预演（§586）
 
 在授权feature worktree仅对本地引用做只读合并盘点：`main`与`origin/main`同为`f914f210d4`（`v1.6.68`），共同祖先为2026-10-10的`89f026c996`；相对feature，main有10个独有提交，feature有668个独有提交，三点diff涉及690个文件（约171,554行新增/1,889行删除）。main侧124个变更路径与feature侧690个路径没有同名重叠；`git merge-tree --write-tree main HEAD`退出0并产生无冲突合并树。此结果仅代表当前本地main快照的文本/树合成无冲突，不代表完整验证、整分支合并就绪或上线就绪；没有移动分支、合并或推送。认证回归仍有SQLite native binding阻塞、§585的可选插件风险需独立处理；作者串行审查，非独立复核。
+
+### 复制动作包在Tego 1.6.25下的构建复核（§587）
+
+批准snapshot在移除临时database `.24` override、离线重算lockfile后，执行 `pnpm exec tegod build @tachybase/plugin-action-duplicate` 退出0，client、server与declaration均构建完成。此项仅作为§584已覆盖复制路径的`.25`包兼容性证据；因§584真实认证验收仍被SQLite native binding阻塞，不声称该测试本次通过或以构建替代测试。

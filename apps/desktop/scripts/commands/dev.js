@@ -5,7 +5,7 @@
  * 启动 web 开发服务器、后端服务器和 Electron 应用
  */
 
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 const { getProjectRoot, getDesktopDir } = require('../utils/paths');
 const { createLogPrefix, title, log, success, error, info } = require('../utils/logger');
 const { createTaskList, createCommandTask, runTasks } = require('../utils/task-runner');

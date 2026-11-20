@@ -5,9 +5,9 @@
  * 完整的 macOS 应用打包流程
  */
 
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
+const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
 const { getDesktopDir } = require('../utils/paths');
 const { detectAppName } = require('../utils/app-detector');
 const { createLogPrefix, title, success, error } = require('../utils/logger');

@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 const { createLogPrefix, warn, log } = require('../utils/logger');
 
 const logPrefix = createLogPrefix('dist-mac');

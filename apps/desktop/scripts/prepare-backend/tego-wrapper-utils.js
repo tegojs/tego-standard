@@ -5,8 +5,8 @@
  * 提供模块解析相关的工具函数
  */
 
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 
 /**
  * 路径配置对象

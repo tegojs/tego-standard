@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const path = require('path');
+const path = require('node:path');
 
 /**
  * 获取 desktop 目录路径
@@ -67,7 +67,7 @@ function getDmgPath(appName, version, arch) {
  * @returns {string} 架构 ('arm64' | 'x64')
  */
 function detectArchitecture(desktopDir, appName) {
-  const fs = require('fs');
+  const fs = require('node:fs');
   // 优先检测 arm64（Apple Silicon）
   const arm64Path = path.resolve(desktopDir, `dist/mac-arm64/${appName}.app`);
   if (fs.existsSync(arm64Path)) {
@@ -89,7 +89,7 @@ function detectArchitecture(desktopDir, appName) {
  * @returns {string[]} 架构列表
  */
 function getBuiltArchitectures(desktopDir, appName) {
-  const fs = require('fs');
+  const fs = require('node:fs');
   const architectures = [];
   const arm64Path = path.resolve(desktopDir, `dist/mac-arm64/${appName}.app`);
   const x64Path = path.resolve(desktopDir, `dist/mac-x64/${appName}.app`);

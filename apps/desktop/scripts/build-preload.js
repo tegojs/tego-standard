@@ -6,8 +6,8 @@
  */
 
 const esbuild = require('esbuild');
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 
 const desktopDir = path.join(__dirname, '..');
 const electronDir = path.join(desktopDir, 'electron');

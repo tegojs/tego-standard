@@ -6,8 +6,8 @@
  * 在打包后自动复制 node 可执行文件到应用包中
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { findNodeExecutable, verifyNodeVersion } = require('./node-finder');
 const { copyExecutable, removeFile } = require('./file-operations');
 const { createLogPrefix, success, warn, error } = require('./logger');

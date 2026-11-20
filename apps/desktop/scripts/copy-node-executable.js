@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { getAppResourcesPath } = require('./utils/paths');
 const { copyExecutable, removeFile } = require('./utils/file-operations');
 const { detectAppName } = require('./utils/app-detector');

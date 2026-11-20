@@ -2585,3 +2585,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 图表 Decimal transformer 使用严格格式匹配（§598）
 
 复核两处Oxlint `eqeqeq`位置：图表配置schema中的format选项为字符串，`Decimal` transformer由`number`字段选项提供；依现有用户配置契约，宽松相等没有兼容不同合法类型的必要。两处比较改为`===`，并扩充现存 `useFieldTransformer` hook测试，验证`format: 'Decimal'`和`specific: 'TwoDigits'`仍把12.5转换成`12.50`，普通日期格式仍按原行为处理。批准snapshot聚焦hook测试1文件7项通过、0跳过；Oxlint两文件0 warnings/0 errors，Prettier通过；`pnpm exec tegod build @tachybase/plugin-block-charts`退出0（保留既有约1.4MB bundle warning）。完整命令见实施计划§598。全仓Oxlint中eqeqeq错误从20降至18，node-protocol错误仍有100，当前共118 errors/741 warnings；余下宽松比较需要结合动态类型逐项判定，未批量改写。SQLite/PG和租户认证均未涉及。
+
+### Node内置模块导入协议规范化（§599）
+
+对全仓报告的100项 `unicorn/prefer-node-protocol`逐项确认均为Node内置模块的裸specifier；在52个文件内只将这些specifier规范化为`node:`协议，未改变模块、调用或业务逻辑。修改范围Oxlint为0 errors（2条既有warning）；48个JS/MJS文件`node --check`全部通过；受影响的`@tachybase/module-backup`、`@tachybase/module-workflow`、`@tachybase/plugin-adapter-red-node`、`@tachybase/plugin-mock-collections`构建均退出0。Prettier对这些既有文件报告原有格式差异，本项不进行整文件格式化，避免无关重排；因此记录为局部源码验证通过、全文件Prettier仍不洁。全仓复扫由118 errors降为18 errors，node-protocol错误清零；剩余均为eqeqeq，继续逐项核查。无租户认证、数据库或PG并发影响。

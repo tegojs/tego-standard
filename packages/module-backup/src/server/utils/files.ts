@@ -1,5 +1,5 @@
 import { readdir, stat, unlink } from 'node:fs/promises';
-import path from 'path';
+import path from 'node:path';
 
 /**
  * 清理指定目录中旧的 .tbdump 文件，仅保留最新的 maxNumber 个文件

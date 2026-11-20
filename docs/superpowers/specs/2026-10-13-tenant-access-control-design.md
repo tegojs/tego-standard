@@ -2549,3 +2549,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 打印模板 ACL 查询传递认证/租户解析上下文（§590）
 
 补查 ACL scope 的动态表达式解析：该路径的核心 `templateManage:get` scope 可以依赖 `ctx.state.currentTenant.id`；Repository 的过滤解析必须拿到当前请求 `context`。为 `readPDF` scope 用例改用 `{{ ctx.state.currentTenant.id }}`，并要求 repository 查询包含同一请求 context，先得到预期RED（旧查询仅传 filter/appends）。随后 `generate/getTags/readPDF` 三处查询统一传 `context: ctx`，聚焦回归4项通过、0跳过，oxlint 0 warning/0 error、Prettier通过，插件包构建退出0，命令/哈希见实施计划§590。该测试证明查询边界透传上下文，不是实际数据库解析表达式的持久验收；批准snapshot的sqlite3 native module缺失仍阻止真实认证/SQLite查询。未声称动态过滤端到端或PG并发验证通过。
+
+### 打印模板修复复验与整分支PR就绪度（§591）
+
+批准snapshot复跑打印模板ACL聚焦验收为1文件4项通过、0跳过；改动的3个TypeScript文件oxlint为0 warning/0 error，Prettier通过，插件构建退出0。尝试require `sqlite3`仍因原生模块缺失报`Cannot find module 'sqlite3'`，所以不宣称真实认证/持久数据库scope解析已通过。PR范围核对显示本地`main`和`origin/main`均为`f914f210d46f7d938af0ffde259ac94dbfb2fda2`，分支相对共同祖先有673个独有提交，三点diff为693文件、171781新增/1896删除；`git merge-tree --write-tree main HEAD`无文本冲突，`git diff --check main...HEAD`通过。无冲突不等于集成验证通过；本次没有跑完整影响包验证矩阵。根目录`pnpm lint`扫描嵌套`node_modules`构建产物后中断（exit 1），不视为源码lint结论；仅改动文件聚焦lint有效。故最近插件修复具备窄范围提交审查证据，但不能据此认定整个分支ready-to-merge或上线就绪。未推送/创建PR/合并/部署/正式启用；详细边界与命令见实施计划§591。

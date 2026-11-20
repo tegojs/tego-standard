@@ -2518,3 +2518,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 用户明确要求升级当前 `feat/tenant-access-control` 开发分支的全部核心包。Standard workspace catalog 的9项——`@tachybase/globals`、`@tachybase/loader`、`@tachybase/schema`、`@tachybase/test`、`@tachybase/utils`、`@tego/client`、`@tego/devkit`、`@tego/server`、`tego`——及锁文件均已升级为 `1.6.25`。冻结锁文件安装退出0；workspace依赖树解析为1.6.25；批准snapshot `tego --version` 输出1.6.25。此次只变更依赖目录和锁文件，没有Standard运行时代码变更。
 
 真实认证的collection tenancy验收尚未通过：snapshot重装时跳过安装脚本，缺少SQLite native binding，在数据库初始化阶段失败；SQLite rebuild的预编译获取遇到`ECONNRESET`，使用本地Node headers直接node-gyp构建又因缓存缺少`node.lib`在链接阶段失败。该失败不触达业务断言，不是应用行为RED。当前证据不证明PostgreSQL并发，也不能声称完整真实认证验收通过。开发worktree的`node_modules`是指向`D:\Dev\TegoJS\tego-standard\node_modules`的junction，安装重建了该共享依赖目录；其跟踪文件仍干净，但本地依赖环境受影响且未恢复。未启用、推送或合并。升级不代表Standard附件下载路由已接线；公开URL隔离和完整Koa+ACL+下载退出验收仍是独立上线条件。
+
+### 图表聚合真实业务读取入口复核（§583）
+
+`charts:query` 的 `loggedIn` 是路由入口授权，不替代目标业务集合的 `list` ACL。现有管线会追加最终角色 scope、应用真实目标集合 tenancy，并由字段解析拒绝无权度量/维度。真实认证 grouped-business-chart 验收及B/C租户、角色条件、字段拒绝、持久业务行的既有证据见实施计划§453；因此本次审查确认该聚合读取行为已覆盖，不新增重复认证测试或生产改动。本次没有重跑该SQLite用例：批准snapshot的SQLite native binding未能本地构建（详§582），故不把旧结果冒充为本次`.25`回归证据。`@tachybase/module-tenant` 与 `@tachybase/plugin-block-charts` 在`.25`依赖下的聚焦包构建均退出0（chart有既有约1.4MB bundle warning）。

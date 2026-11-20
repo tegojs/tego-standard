@@ -2526,3 +2526,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 记录复制动作真实认证读写路径复核（§584）
 
 检查 `plugin-action-duplicate` 的真实业务写入：客户端先经 `fetchTemplateData` 调目标集合的标准 `get`（`isTemplate: true`），再调用同集合标准 `create`；该插件服务端没有自定义业务 handler，不能绕过核心读取和创建授权。已有 `authenticated-template-duplicate.test.ts` 通过真实 Basic 登录/Bearer、持久角色 ACL、B 租户业务行和核心 ACL factory，验证模板读取仅返回允许字段且剥离主键、无读取权限和无独立创建权限分别被拒绝，并验证复制后新行持久归属 B。该测试源码在 feature worktree 与批准 snapshot 的 SHA256 均为 `1866542D2A41C6506DDB6F35F935C9C33631C6CE2D9F35D0D81F87D4CFEB1D0F`，无需新增重复验收或生产修改。本次在 snapshot 设置核心 factory 入口并运行该单文件，Vitest 在数据库初始化阶段因 `sqlite3@5.1.7` 缺少 `node_sqlite3.node` 退出1、0项通过；未抵达认证/ACL断言，不是生产 RED，也不声称本次 `.25` 真实认证验证通过。SQLite不证明PostgreSQL并发。
+
+### 可选打印模板插件的公开文件读取风险（§585）
+
+复核可选包 `packages/plugin-prototype-print-template`：启用时注册 `printTemplates:generate/getTags/addConversionJob/readPDF`，并对 `printTemplates:*` 配置 `public`；三个读处理器均没有认证、资源 ACL 或 tenant 检查，直接按请求 ID 查询 `templateManage` 并读取关联模板/PDF文件。核心 ACL `.25` 的匿名上下文运行时检查对 `generate/getTags/readPDF` 的 allow guard 均返回 `true`。该包位于prototype目录，Standard主应用代码未发现默认引用，故本次不把它误记为tenant改造回归，也不改变其产品语义。批准snapshot的真实认证持久HTTP复现因SQLite native binding缺失未运行到业务断言；风险限于启用该插件的部署，必须在启用/发布它之前单独确定其公开访问意图并补足认证/授权/租户边界验收。本项无生产改动，不宣称端到端利用已复现。

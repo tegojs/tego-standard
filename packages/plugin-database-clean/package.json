@@ -24,7 +24,7 @@
     "@types/lodash": "^4.17.20",
     "antd": "5.22.5",
     "archiver": "^7.0.1",
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.23",
     "file-saver": "^2.0.5",
     "lodash": "4.17.21",
     "rc-field-form": "^2.7.0",

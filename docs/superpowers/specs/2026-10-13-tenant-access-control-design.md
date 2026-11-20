@@ -2561,3 +2561,11 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 全仓 lint 结果不替代变更范围 lint（§593）
 
 批准snapshot在显式排除依赖和生成目录后对6157个源码文件执行Oxlint，结果为120 errors/746 warnings（exit 1），覆盖scripts、client与多插件；没有逐项与main基线对比，因此不能断言这些都由tenant分支引入。当前新修的producer及ACL测试文件聚焦oxlint为0 warning/0 error，但没有全分支源码文件lint通过证据。该结果仅用于准确限定PR验证状态，不作为批量改动无关源码的理由；命令与限制见实施计划§593。
+
+### 恢复本地认证验收SQLite并重跑租户/ACL路径（§594）
+
+批准snapshot中仅缺`sqlite3@5.1.7`的原生`.node`绑定，pnpm virtual store包本身存在。使用已有Node `v22.21.0` x64 headers和VS2022 Build Tools运行`pnpm rebuild sqlite3`，从Node发布站点取匹配`node.lib`并成功本地构建；没有改依赖声明/lockfile，生成文件仅留在批准snapshot。用修复后的snapshot重跑9项真实Basic登录、核心ACL、持久SQLite用例，涵盖collection租户模式发布、模板复制、租户成员搜索、默认租户停用、关联资源读取、expanded read、聚合图表、tenant切换业务写和collection隔离配置，全部通过且无跳过，命令清单见实施计划§594。此前“真实认证测试因sqlite3 native binding缺失而无法运行”的状态至此解除；本地SQLite只作为功能验收数据源，不替代PostgreSQL并发验证，也不证明生产PG运行行为。
+
+### 本分支源码lint结果（§595）
+
+针对相对本地main变更的581个源码文件分批执行Oxlint，0 errors；首批5条warning位于`packages/client/src/block-provider/hooks/index.ts`未改动的行，相关diff只在后续主键导航逻辑，详细比对见实施计划§595。故不把它们当作此PR引入，也不因静态警告扩大无回归保护的无关UI改动。聚焦新producer与ACL测试文件lint无warning/error。全仓排除生成目录的6157文件检查仍报告120 errors/746 warnings（§593）；没有全分支所有历史文件无诊断的证据，不能把整仓检查描述为clean。

@@ -1288,7 +1288,7 @@ export const useAssociationFilterBlockProps = () => {
     if (!optionalField) {
       run();
     }
-  }, [labelKey, valueKey, serializedParams, optionalField, fieldSchema, run]);
+  }, [labelKey, valueKey, serializedParams, optionalField, run]);
 
   if (!collectionField) {
     return {};

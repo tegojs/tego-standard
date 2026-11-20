@@ -2537,3 +2537,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 复制动作包在Tego 1.6.25下的构建复核（§587）
 
 批准snapshot在移除临时database `.24` override、离线重算lockfile后，执行 `pnpm exec tegod build @tachybase/plugin-action-duplicate` 退出0，client、server与declaration均构建完成。此项仅作为§584已覆盖复制路径的`.25`包兼容性证据；因§584真实认证验收仍被SQLite native binding阻塞，不声称该测试本次通过或以构建替代测试。
+
+### 可选打印模板插件移除匿名 ACL 全局放行（§588）
+
+针对§585已确认的真实匿名 ACL 放行，在插件实际执行 `load()` 注册 `printTemplates` action、并使用核心 `@tego/server` ACL 检查匿名上下文的聚焦回归中，先观察到旧 `public` grant 令 `generate/getTags/addConversionJob/readPDF` 均允许匿名请求；删除全局 grant 后，四个 action 均拒绝匿名访问，显式定义的登录角色 grant 仍可通过 ACL。批准snapshot中该文件1项通过、0跳过，oxlint 0 warning/0 error，Prettier通过，`pnpm exec tegod build @tachybase/plugin-print-template`退出0。测试SHA256=`74A5EB7812C41E32B2FD38F0D4DE7C77BE9E9385661DE5C028B31052648ADE85`，feature worktree与snapshot一致。该最小收紧不验证处理器的记录级授权、tenant过滤或文件访问边界；启用该可选插件前仍需继续核实并补测这些路径。未声称真实认证/持久数据端到端或PostgreSQL并发通过，未推送、合并、部署或正式启用。

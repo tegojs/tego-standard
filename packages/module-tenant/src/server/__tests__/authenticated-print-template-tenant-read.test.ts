@@ -1,7 +1,8 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { vi } from 'vitest';
 
 import PrintTemplateServer from '../../../../plugin-prototype-print-template/src/server';
 import { createTenantApp } from './utils';
@@ -57,6 +58,7 @@ describe.skipIf(!coreEntry)('authenticated print template tenant read boundary',
       context: {},
       values: {
         name: 'printTemplateFiles',
+        tenancy: 'tenantScoped',
         timestamps: false,
         createdBy: false,
         updatedBy: false,
@@ -86,15 +88,20 @@ describe.skipIf(!coreEntry)('authenticated print template tenant read boundary',
       role,
       actions: {
         'printTemplates:readPDF': {},
+        'printTemplates:getTags': {},
+        'printTemplateFiles:list': {},
         'templateManage:get': { fields: ['id', 'pdf_SavePath', 'template'] },
       },
     });
 
-    const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'print-template-tenant-read-'));
+    const tempDirectory = fs.mkdtempSync(path.join(process.cwd(), '.tmp-print-template-tenant-read-'));
     const bPdfPath = path.join(tempDirectory, 'tenant-b.pdf');
     const cPdfPath = path.join(tempDirectory, 'tenant-c.pdf');
     fs.writeFileSync(bPdfPath, 'tenant B PDF');
     fs.writeFileSync(cPdfPath, 'tenant C secret PDF');
+
+    const originalPwd = process.env.PWD;
+    process.env.PWD = process.cwd();
 
     try {
       const templates = await app.db.getCollection('templateManage').model.bulkCreate([
@@ -102,12 +109,10 @@ describe.skipIf(!coreEntry)('authenticated print template tenant read boundary',
         { pdf_SavePath: cPdfPath, tenantId: 'print-template-C' },
       ]);
       const [bTemplate, cTemplate] = templates;
-      await app.db.getRepository('printTemplateFiles').create({
-        values: [
-          { url: 'tenant-b.docx', templateManageId: bTemplate.get('id') },
-          { url: 'tenant-c.docx', templateManageId: cTemplate.get('id') },
-        ],
-      });
+      await app.db.getCollection('printTemplateFiles').model.bulkCreate([
+        { url: 'tenant-b.docx', tenantId: 'print-template-B', templateManageId: bTemplate.get('id') },
+        { url: 'tenant-c.docx', tenantId: 'print-template-C', templateManageId: cTemplate.get('id') },
+      ]);
 
       const signIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
         account: user.username,
@@ -137,7 +142,32 @@ describe.skipIf(!coreEntry)('authenticated print template tenant read boundary',
       const inheritedPdf = await agent.post('/printTemplates:readPDF').query({ id: cTemplate.get('id') });
       expect(inheritedPdf.status).toBe(200);
       expect(inheritedPdf.body).toEqual(Buffer.from('tenant C secret PDF'));
+
+      const [relatedOnlyToForeignFile] = await app.db
+        .getCollection('templateManage')
+        .model.bulkCreate([{ pdf_SavePath: bPdfPath, tenantId: 'print-template-B' }]);
+      const foreignTemplatePath = path.join(tempDirectory, 'foreign-tenant-template.docx');
+      fs.writeFileSync(foreignTemplatePath, 'foreign tenant template bytes');
+      await app.db.getCollection('printTemplateFiles').model.create({
+        url: path.relative(process.env.PWD || process.cwd(), foreignTemplatePath),
+        tenantId: 'print-template-C',
+        templateManageId: relatedOnlyToForeignFile.get('id'),
+      });
+
+      const fileReadSpy = vi.spyOn(fs, 'readFileSync');
+      const tagsResponse = await agent
+        .post('/printTemplates:getTags')
+        .query({ id: relatedOnlyToForeignFile.get('id') });
+      const readPaths = fileReadSpy.mock.calls.map(([file]) => path.resolve(String(file)));
+      fileReadSpy.mockRestore();
+      expect(readPaths).not.toContain(path.resolve(foreignTemplatePath));
+      expect(tagsResponse.status).toBe(404);
     } finally {
+      if (originalPwd === undefined) {
+        delete process.env.PWD;
+      } else {
+        process.env.PWD = originalPwd;
+      }
       fs.rmSync(tempDirectory, { recursive: true, force: true });
     }
   });

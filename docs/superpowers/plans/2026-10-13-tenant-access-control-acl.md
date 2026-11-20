@@ -1,5 +1,10 @@
 # 租户访问模型：角色权限接入计划
 
+## 最新执行记录（§602）
+
+打印模板`getTags`读取`templateManage.template`关联文件时，ACL将关联授权编码在`params.appends`而非普通`params.fields`，旧校验错误拒绝；放行该ACL append 后，真实Basic认证B租户用户实际读取了B模板关联的C租户DOCX文件，目标集合为`tenantScoped`，形成跨租户读取RED。现改为按`printTemplateFiles:list`单独查询关联行，并分别合并目标ACL filter、目标collection tenancy filter与父记录外键；ACL appends也计入已授权必要字段。无当前租户可见附件返回404，`generate/getTags`共用安全读取器。批准snapshot的认证持久SQLite回归及ACL单测共2文件6项通过、0跳过，目标文件路径未再被打开；Oxlint 0 warnings/errors、Prettier与diff检查通过，插件build退出0。测试SHA256=`8CC4925E974929705A56264EE4E083E7B7A2BA0DA52742F14297AAB81F55538C`，handler SHA256=`B9FF6B20C35D30789704F3D896FD1AD37F8D974AE51131E5FC49B34A4E1C81B6`，worktree与snapshot一致。SQLite不证明PG并发；未启动/修改PG、未推送/合并/启用插件。
+更正：回归夹具只授予实际使用的`printTemplateFiles:list`权限；因此最终测试SHA256为`8A52658937175A3F7EA0EF461DBC294AF487DC86618848B5341C73895F179A58`，上方记录中的测试哈希已被此值取代。
+
 > 在当前功能分支按 executing-plans 和 test-driven-development 执行；验证后按职责提交，不升级依赖、不启用业务表。
 
 **目标：** 在固定条件和请求条件合并之前，识别可以委托给新模型的内置租户范围；保留角色操作权限、字段权限和自定义限制。

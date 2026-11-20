@@ -1,5 +1,11 @@
 # 租户归属性与可见性
 
+## 最新验证记录（§602）：打印模板关联附件
+
+`generate/getTags`原本通过父记录`appends: ['template']`加载`printTemplateFiles`，未独立确保目标集合租户范围。真实Basic认证测试确认B租户读取B模板时会打开C租户且`tenantScoped`附件的文件路径，属于实际数据读取RED。实现现对`templateManage:get`按ACL授权字段/appends检查，再对关联集合执行独立`list` ACL和tenant过滤查询，将ACL过滤、租户过滤、关联外键合并；无可见附件返回404。批准snapshot中ACL与Basic认证持久数据测试2文件6项通过、0跳过；关联外国文件路径未被读取。Oxlint、Prettier、diff检查和`@tachybase/plugin-print-template`构建通过。测试/handler SHA256分别为`8CC4925E974929705A56264EE4E083E7B7A2BA0DA52742F14297AAB81F55538C`与`B9FF6B20C35D30789704F3D896FD1AD37F8D974AE51131E5FC49B34A4E1C81B6`。SQLite只作功能验证，不能作为PG并发证据；未启用该可选插件。
+
+更正：回归夹具仅授予目标集合`list`权限，最终认证测试SHA256为`8A52658937175A3F7EA0EF461DBC294AF487DC86618848B5341C73895F179A58`，取代上段测试哈希。
+
 ## 1. 两类权限，一个访问控制模型
 
 归属性和可见性是权限的两种分类，都由新的通用访问控制模型配置、计算和执行：

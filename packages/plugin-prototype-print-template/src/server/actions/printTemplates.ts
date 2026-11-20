@@ -12,19 +12,31 @@ import Docxtemplater from 'docxtemplater'; //用于处理word文版模板
 import InspectModule from 'docxtemplater/js/inspect-module'; //Docxtemplater使用它来处理Word文档。
 import PizZip from 'pizzip'; //导入PizZip库，用于处理ZIP文件，Docxtemplater使用它来处理word文档
 
-function getTemplateManageReadFilter(ctx: Context, id: number | string, requiredFields: string[]) {
-  const permission = ctx.can?.({ resource: 'templateManage', action: 'get' });
+function getCollectionReadFilter(
+  ctx: Context,
+  resource: string,
+  action: string,
+  filter: Record<string, any>,
+  requiredFields: string[],
+) {
+  const permission = ctx.can?.({ resource, action });
   if (!permission) {
     ctx.throw(403);
   }
 
   const allowedFields = permission.params?.fields;
-  if (Array.isArray(allowedFields) && requiredFields.some((field) => !allowedFields.includes(field))) {
+  const allowedAppends = permission.params?.appends;
+  if (
+    Array.isArray(allowedFields) &&
+    requiredFields.some(
+      (field) => !allowedFields.includes(field) && !(Array.isArray(allowedAppends) && allowedAppends.includes(field)),
+    )
+  ) {
     ctx.throw(403);
   }
 
   const accessFilter = permission.params?.filter;
-  const collection = ctx.db.getCollection?.('templateManage');
+  const collection = ctx.db.getCollection?.(resource);
   const tenancyMode = collection?.options?.tenancy;
   let tenantFilter;
 
@@ -45,14 +57,13 @@ function getTemplateManageReadFilter(ctx: Context, id: number | string, required
     }
   }
 
-  const filters = [{ id }, ...(accessFilter ? [accessFilter] : []), ...(tenantFilter ? [tenantFilter] : [])];
+  const filters = [filter, ...(accessFilter ? [accessFilter] : []), ...(tenantFilter ? [tenantFilter] : [])];
   return filters.length === 1 ? filters[0] : { $and: filters };
 }
 
 async function findTemplateManageRecord(ctx: Context, id: number | string, requiredFields: string[]) {
   const template = await ctx.db.getRepository('templateManage').findOne({
-    filter: getTemplateManageReadFilter(ctx, id, requiredFields),
-    appends: ['template'],
+    filter: getCollectionReadFilter(ctx, 'templateManage', 'get', { id }, requiredFields),
     context: ctx,
   });
 
@@ -63,12 +74,28 @@ async function findTemplateManageRecord(ctx: Context, id: number | string, requi
   return template;
 }
 
+async function getTemplateFilePath(ctx: Context, template: Model) {
+  const templateFile = await ctx.db.getRepository('printTemplateFiles').findOne({
+    filter: getCollectionReadFilter(ctx, 'printTemplateFiles', 'list', { templateManageId: template.get('id') }, [
+      'url',
+    ]),
+    context: ctx,
+  });
+  const templateUrl = templateFile?.get?.('url');
+
+  if (typeof templateUrl !== 'string' || !templateUrl) {
+    ctx.throw(404);
+  }
+
+  return path.join(process.env.PWD, templateUrl);
+}
+
 export const generate = async (ctx: Context) => {
   const id = ctx.action.params.id;
   const template: Model = await findTemplateManageRecord(ctx, id, ['testData', 'template']);
 
   const rawTemplate = template.get();
-  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
+  const templatePath = await getTemplateFilePath(ctx, template);
   const data = rawTemplate.testData;
 
   try {
@@ -88,8 +115,7 @@ export const generate = async (ctx: Context) => {
 export const getTags = async (ctx: Context) => {
   const id = ctx.action.params.id;
   const template: Model = await findTemplateManageRecord(ctx, id, ['template']);
-  const rawTemplate = template.get();
-  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
+  const templatePath = await getTemplateFilePath(ctx, template);
 
   try {
     const content = fs.readFileSync(templatePath, 'binary'); //同步读取模板文件的内容

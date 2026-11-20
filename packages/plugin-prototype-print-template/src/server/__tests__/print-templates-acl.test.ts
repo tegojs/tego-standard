@@ -149,7 +149,6 @@ describe('print template action access', () => {
       expect(fixedParams).toHaveBeenCalledTimes(1);
       expect(repository.findOne).toHaveBeenCalledWith({
         filter: { $and: [{ id: 47 }, scopeFilter] },
-        appends: ['template'],
         context,
       });
       expect(context.body).toEqual(Buffer.from('tenant B document'));

@@ -2522,3 +2522,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 图表聚合真实业务读取入口复核（§583）
 
 `charts:query` 的 `loggedIn` 是路由入口授权，不替代目标业务集合的 `list` ACL。现有管线会追加最终角色 scope、应用真实目标集合 tenancy，并由字段解析拒绝无权度量/维度。真实认证 grouped-business-chart 验收及B/C租户、角色条件、字段拒绝、持久业务行的既有证据见实施计划§453；因此本次审查确认该聚合读取行为已覆盖，不新增重复认证测试或生产改动。本次没有重跑该SQLite用例：批准snapshot的SQLite native binding未能本地构建（详§582），故不把旧结果冒充为本次`.25`回归证据。`@tachybase/module-tenant` 与 `@tachybase/plugin-block-charts` 在`.25`依赖下的聚焦包构建均退出0（chart有既有约1.4MB bundle warning）。
+
+### 记录复制动作真实认证读写路径复核（§584）
+
+检查 `plugin-action-duplicate` 的真实业务写入：客户端先经 `fetchTemplateData` 调目标集合的标准 `get`（`isTemplate: true`），再调用同集合标准 `create`；该插件服务端没有自定义业务 handler，不能绕过核心读取和创建授权。已有 `authenticated-template-duplicate.test.ts` 通过真实 Basic 登录/Bearer、持久角色 ACL、B 租户业务行和核心 ACL factory，验证模板读取仅返回允许字段且剥离主键、无读取权限和无独立创建权限分别被拒绝，并验证复制后新行持久归属 B。该测试源码在 feature worktree 与批准 snapshot 的 SHA256 均为 `1866542D2A41C6506DDB6F35F935C9C33631C6CE2D9F35D0D81F87D4CFEB1D0F`，无需新增重复验收或生产修改。本次在 snapshot 设置核心 factory 入口并运行该单文件，Vitest 在数据库初始化阶段因 `sqlite3@5.1.7` 缺少 `node_sqlite3.node` 退出1、0项通过；未抵达认证/ACL断言，不是生产 RED，也不声称本次 `.25` 真实认证验证通过。SQLite不证明PostgreSQL并发。

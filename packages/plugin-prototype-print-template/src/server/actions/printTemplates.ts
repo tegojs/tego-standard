@@ -12,11 +12,26 @@ import Docxtemplater from 'docxtemplater'; //用于处理word文版模板
 import InspectModule from 'docxtemplater/js/inspect-module'; //Docxtemplater使用它来处理Word文档。
 import PizZip from 'pizzip'; //导入PizZip库，用于处理ZIP文件，Docxtemplater使用它来处理word文档
 
+function getTemplateManageReadFilter(ctx: Context, id: number | string, requiredFields: string[]) {
+  const permission = ctx.can?.({ resource: 'templateManage', action: 'get' });
+  if (!permission) {
+    ctx.throw(403);
+  }
+
+  const allowedFields = permission.params?.fields;
+  if (Array.isArray(allowedFields) && requiredFields.some((field) => !allowedFields.includes(field))) {
+    ctx.throw(403);
+  }
+
+  const accessFilter = permission.params?.filter;
+  return accessFilter ? { $and: [{ id }, accessFilter] } : { id };
+}
+
 export const generate = async (ctx: Context) => {
   const id = ctx.action.params.id;
   const repo = ctx.db.getRepository('templateManage');
   const template: Model = await repo.findOne({
-    filter: { id },
+    filter: getTemplateManageReadFilter(ctx, id, ['testData', 'template']),
     appends: ['template'],
   });
 
@@ -42,9 +57,7 @@ export const getTags = async (ctx: Context) => {
   const id = ctx.action.params.id;
   const repo = ctx.db.getRepository('templateManage');
   const template: Model = await repo.findOne({
-    filter: {
-      id,
-    },
+    filter: getTemplateManageReadFilter(ctx, id, ['template']),
     appends: ['template'],
   });
   const rawTemplate = template.get();
@@ -104,7 +117,7 @@ export const readPDF = async (ctx: Context) => {
   const id = ctx.action.params.id;
   const repo = ctx.db.getRepository('templateManage');
   const template: Model = await repo.findOne({
-    filter: { id },
+    filter: getTemplateManageReadFilter(ctx, id, ['pdf_SavePath']),
     appends: ['template'],
   });
 

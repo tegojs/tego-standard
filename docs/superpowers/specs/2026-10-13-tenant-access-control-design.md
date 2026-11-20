@@ -2541,3 +2541,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 可选打印模板插件移除匿名 ACL 全局放行（§588）
 
 针对§585已确认的真实匿名 ACL 放行，在插件实际执行 `load()` 注册 `printTemplates` action、并使用核心 `@tego/server` ACL 检查匿名上下文的聚焦回归中，先观察到旧 `public` grant 令 `generate/getTags/addConversionJob/readPDF` 均允许匿名请求；删除全局 grant 后，四个 action 均拒绝匿名访问，显式定义的登录角色 grant 仍可通过 ACL。批准snapshot中该文件1项通过、0跳过，oxlint 0 warning/0 error，Prettier通过，`pnpm exec tegod build @tachybase/plugin-print-template`退出0。测试SHA256=`74A5EB7812C41E32B2FD38F0D4DE7C77BE9E9385661DE5C028B31052648ADE85`，feature worktree与snapshot一致。该最小收紧不验证处理器的记录级授权、tenant过滤或文件访问边界；启用该可选插件前仍需继续核实并补测这些路径。未声称真实认证/持久数据端到端或PostgreSQL并发通过，未推送、合并、部署或正式启用。
+
+### 打印模板 action 继承底层模板 ACL scope 与必要字段限制（§589）
+
+在§588之后继续追踪可选插件 `readPDF` 的真实 handler：它以 `templateManage` Repository 按请求 ID 直接读取 `pdf_SavePath`，没有经过 `templateManage:get` 的 ACL action；因此仅授予 `printTemplates:readPDF` 的角色仍能读出文件。使用真实核心 `ACL` 与 `Resourcer` 执行插件实际 `readPDF` handler 的测试先出现预期RED：缺少底层 `templateManage:get` 权限时，handler 仍读取本地文件；另一个RED表明虽有 `get` 权限、但字段只允许 `id` 时仍可读取 `pdf_SavePath`。最小修复为 `generate/getTags/readPDF` 在 repository 查询前调用 `ctx.can({resource:'templateManage', action:'get'})`，无权即403；将 ACL `params.filter` 与请求 ID 以 `$and` 合并，拒绝未授权字段，并分别要求各 handler 所需的 `testData/template`、`template`、`pdf_SavePath` 字段。批准snapshot最终4项通过、0跳过，oxlint 0 warning/0 error、Prettier通过，插件构建退出0，详见计划§589。该窄测试使用真实 ACL/Resourcer、临时文件及边界 repository fake，不是Basic/Bearer认证或持久数据库测试；只证明底层 `get` action、静态/已解析 ACL filter 和字段白名单边界，不证明module-tenant租户中间件、关联附件自身的 ACL/租户范围、数据库端到端或PostgreSQL并发。上述边界仍需独立认证/持久路径验收后才能判断该可选插件是否适合启用。

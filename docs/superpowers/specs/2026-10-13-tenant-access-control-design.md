@@ -2557,3 +2557,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 打印模板转换任务保留 ACL 拒绝状态（§592）
 
 真实核心ACL/Resourcer对`addConversionJob`的拒绝路径显示：仅授予转换action、不授予底层`templateManage:get`时，`generate`正确抛403，但producer宽泛catch将其转成500。修复为对403重新抛出，其它转换/队列故障仍保留500处理。批准snapshot中先确认RED（期望403、实际500，且无模板repository读取），修复后5项聚焦测试通过、修改文件oxlint 0 warning/0 error、Prettier通过、插件构建退出0，详细命令见实施计划§592。此测试证明真实ACL/Resourcer handler拒绝及状态保留，但repository仍为隔离用fake，未覆盖HTTP错误序列化和持久数据库；SQLite原生绑定缺失及附件关联ACL/租户边界问题仍待验证。本变更不等于整分支PR/上线门槛完成。
+
+### 全仓 lint 结果不替代变更范围 lint（§593）
+
+批准snapshot在显式排除依赖和生成目录后对6157个源码文件执行Oxlint，结果为120 errors/746 warnings（exit 1），覆盖scripts、client与多插件；没有逐项与main基线对比，因此不能断言这些都由tenant分支引入。当前新修的producer及ACL测试文件聚焦oxlint为0 warning/0 error，但没有全分支源码文件lint通过证据。该结果仅用于准确限定PR验证状态，不作为批量改动无关源码的理由；命令与限制见实施计划§593。

@@ -2511,4 +2511,10 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 
 沿受控附件下载链路确认：standard 已具备内部最终 download ACL/G 捕获及本地安全发送能力，但 `module-file` 的 resolver 仍只覆盖 create/upload/destroy，内部 capture 不登记正式路由；Koa 执行器此前因 request logger 在 `await next()` 后无条件设置 `X-Request-Id` 而被明确阻断。核心 Tego 在 `D:\Dev\TegoJS\tego` 的提交 `787ad50dc` 为已发送响应增加 `headersSent` 守卫，并新增真实 Node HTTP 回归测试：先 `writeHead`、发送附件字节并等待 `finish` 时，原实现重现 `ERR_HTTP_HEADERS_SENT`，修复后 middleware 正常退出；普通响应仍带 request-id。该提交只修核心兼容行为，没有注册/启用 standard 下载入口。
 
-standard 的 `pnpm-lock.yaml` 当前仍固定 `@tachybase/logger@1.6.24`，尚未包含核心提交；因此正式 Koa+ACL+下载完整链仍未验证，下载仍不得接线或启用。下一步需由核心仓库产出含该修复的包版本并引入 standard，再用真实标准资源、最终 ACL、标准错误链及完整 middleware 退出重跑；公开 URL 的隔离问题仍是独立限制。未使用数据库或 PostgreSQL，不把核心 HTTP 单测视为租户/ACL/PG 验收。
+记录本节时Standard锁文件仍固定`@tachybase/logger@1.6.24`；后续核心包升级到`1.6.25`及真实验收阻塞见§582。正式Koa+ACL+下载完整链仍未验证，下载仍不得接线或启用；公开URL隔离问题仍是独立限制。核心HTTP单测不代表租户/ACL/PG验收。
+
+### Standard 开发分支核心 Tego 依赖升级至 1.6.25（§582）
+
+用户明确要求升级当前 `feat/tenant-access-control` 开发分支的全部核心包。Standard workspace catalog 的9项——`@tachybase/globals`、`@tachybase/loader`、`@tachybase/schema`、`@tachybase/test`、`@tachybase/utils`、`@tego/client`、`@tego/devkit`、`@tego/server`、`tego`——及锁文件均已升级为 `1.6.25`。冻结锁文件安装退出0；workspace依赖树解析为1.6.25；批准snapshot `tego --version` 输出1.6.25。此次只变更依赖目录和锁文件，没有Standard运行时代码变更。
+
+真实认证的collection tenancy验收尚未通过：snapshot重装时跳过安装脚本，缺少SQLite native binding，在数据库初始化阶段失败；SQLite rebuild的预编译获取遇到`ECONNRESET`，使用本地Node headers直接node-gyp构建又因缓存缺少`node.lib`在链接阶段失败。该失败不触达业务断言，不是应用行为RED。当前证据不证明PostgreSQL并发，也不能声称完整真实认证验收通过。开发worktree的`node_modules`是指向`D:\Dev\TegoJS\tego-standard\node_modules`的junction，安装重建了该共享依赖目录；其跟踪文件仍干净，但本地依赖环境受影响且未恢复。未启用、推送或合并。升级不代表Standard附件下载路由已接线；公开URL隔离和完整Koa+ACL+下载退出验收仍是独立上线条件。

@@ -2530,3 +2530,6 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 可选打印模板插件的公开文件读取风险（§585）
 
 复核可选包 `packages/plugin-prototype-print-template`：启用时注册 `printTemplates:generate/getTags/addConversionJob/readPDF`，并对 `printTemplates:*` 配置 `public`；三个读处理器均没有认证、资源 ACL 或 tenant 检查，直接按请求 ID 查询 `templateManage` 并读取关联模板/PDF文件。核心 ACL `.25` 的匿名上下文运行时检查对 `generate/getTags/readPDF` 的 allow guard 均返回 `true`。该包位于prototype目录，Standard主应用代码未发现默认引用，故本次不把它误记为tenant改造回归，也不改变其产品语义。批准snapshot的真实认证持久HTTP复现因SQLite native binding缺失未运行到业务断言；风险限于启用该插件的部署，必须在启用/发布它之前单独确定其公开访问意图并补足认证/授权/租户边界验收。本项无生产改动，不宣称端到端利用已复现。
+### 本地合并基线预演（§586）
+
+在授权feature worktree仅对本地引用做只读合并盘点：`main`与`origin/main`同为`f914f210d4`（`v1.6.68`），共同祖先为2026-10-10的`89f026c996`；相对feature，main有10个独有提交，feature有668个独有提交，三点diff涉及690个文件（约171,554行新增/1,889行删除）。main侧124个变更路径与feature侧690个路径没有同名重叠；`git merge-tree --write-tree main HEAD`退出0并产生无冲突合并树。此结果仅代表当前本地main快照的文本/树合成无冲突，不代表完整验证、整分支合并就绪或上线就绪；没有移动分支、合并或推送。认证回归仍有SQLite native binding阻塞、§585的可选插件风险需独立处理；作者串行审查，非独立复核。

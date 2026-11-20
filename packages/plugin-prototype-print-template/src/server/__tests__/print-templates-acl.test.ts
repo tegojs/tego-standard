@@ -6,6 +6,7 @@ import { ACL, Resourcer } from '@tego/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { readPDF } from '../actions/printTemplates';
+import { addConversionJob } from '../actions/producer';
 import { PluginPrintTemplateServer } from '../plugin';
 
 vi.mock('bullmq', () => ({
@@ -84,6 +85,36 @@ describe('print template action access', () => {
     } finally {
       fs.rmSync(fileDirectory, { recursive: true, force: true });
     }
+  });
+
+  it('preserves the template read denial when starting a conversion job', async () => {
+    const acl = new ACL();
+    const role = 'print-template-job-reader';
+    acl.define({ role, actions: { 'printTemplates:addConversionJob': {} } });
+
+    const resourcer = new Resourcer();
+    resourcer.use(acl.middleware(), { tag: 'acl' });
+    resourcer.define({ name: 'printTemplates', actions: { addConversionJob } });
+    const action = resourcer.getAction('printTemplates', 'addConversionJob');
+    Object.assign(action, { resourceName: 'printTemplates', actionName: 'addConversionJob' });
+    action.params.id = 47;
+
+    const repository = { findOne: vi.fn() };
+    const context: Record<string, any> = {
+      state: { currentRole: role },
+      db: { getRepository: vi.fn(() => repository) },
+      throw(status: number) {
+        const error = new Error('Forbidden') as Error & { status: number };
+        error.status = status;
+        throw error;
+      },
+    };
+
+    await expect(
+      resourcer.execute({ resource: 'printTemplates', action: 'addConversionJob' }, context),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(repository.findOne).not.toHaveBeenCalled();
   });
 
   it('keeps the templateManage ACL filter on the PDF repository lookup', async () => {

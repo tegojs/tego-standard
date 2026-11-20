@@ -2553,3 +2553,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 打印模板修复复验与整分支PR就绪度（§591）
 
 批准snapshot复跑打印模板ACL聚焦验收为1文件4项通过、0跳过；改动的3个TypeScript文件oxlint为0 warning/0 error，Prettier通过，插件构建退出0。尝试require `sqlite3`仍因原生模块缺失报`Cannot find module 'sqlite3'`，所以不宣称真实认证/持久数据库scope解析已通过。PR范围核对显示本地`main`和`origin/main`均为`f914f210d46f7d938af0ffde259ac94dbfb2fda2`，分支相对共同祖先有673个独有提交，三点diff为693文件、171781新增/1896删除；`git merge-tree --write-tree main HEAD`无文本冲突，`git diff --check main...HEAD`通过。无冲突不等于集成验证通过；本次没有跑完整影响包验证矩阵。根目录`pnpm lint`扫描嵌套`node_modules`构建产物后中断（exit 1），不视为源码lint结论；仅改动文件聚焦lint有效。故最近插件修复具备窄范围提交审查证据，但不能据此认定整个分支ready-to-merge或上线就绪。未推送/创建PR/合并/部署/正式启用；详细边界与命令见实施计划§591。
+
+### 打印模板转换任务保留 ACL 拒绝状态（§592）
+
+真实核心ACL/Resourcer对`addConversionJob`的拒绝路径显示：仅授予转换action、不授予底层`templateManage:get`时，`generate`正确抛403，但producer宽泛catch将其转成500。修复为对403重新抛出，其它转换/队列故障仍保留500处理。批准snapshot中先确认RED（期望403、实际500，且无模板repository读取），修复后5项聚焦测试通过、修改文件oxlint 0 warning/0 error、Prettier通过、插件构建退出0，详细命令见实施计划§592。此测试证明真实ACL/Resourcer handler拒绝及状态保留，但repository仍为隔离用fake，未覆盖HTTP错误序列化和持久数据库；SQLite原生绑定缺失及附件关联ACL/租户边界问题仍待验证。本变更不等于整分支PR/上线门槛完成。

@@ -2569,3 +2569,9 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 本分支源码lint结果（§595）
 
 针对相对本地main变更的581个源码文件分批执行Oxlint，0 errors；首批5条warning位于`packages/client/src/block-provider/hooks/index.ts`未改动的行，相关diff只在后续主键导航逻辑，详细比对见实施计划§595。故不把它们当作此PR引入，也不因静态警告扩大无回归保护的无关UI改动。聚焦新producer与ACL测试文件lint无warning/error。全仓排除生成目录的6157文件检查仍报告120 errors/746 warnings（§593）；没有全分支所有历史文件无诊断的证据，不能把整仓检查描述为clean。
+
+### 修复 client hooks 过期闭包与 lint warning（§596）
+
+重新检查§595所定位的 `packages/client/src/block-provider/hooks/index.ts` hooks 后，确认 `useInsertSchema` callback 漏掉 `fieldSchema`/`insertAfterBegin` 依赖，会在schema上下文变化后继续读取旧值；association-filter hook 的 effect 也改为使用稳定的序列化参数/可选字段变量，并明确声明当前schema和`run`依赖。新增React rerender回归锁定前一问题：旧callback依赖在批准snapshot中触发测试RED（旧schema reducer被调用一次），恢复修复后该测试通过；新断言确保切换后旧reducer为0调用、当前reducer恰好调用一次。
+
+批准snapshot最终运行 `pnpm exec vitest run packages/client/src/block-provider/hooks/__tests__/use-insert-schema.test.tsx packages/client/src/block-provider/hooks/__tests__/create-page-navigation.test.tsx --project=client --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --reporter=default --silent`，2文件10项通过、0跳过；改动源文件与新增回归测试Oxlint为0 warnings/0 errors，Prettier检查通过；`pnpm exec tegod build @tachybase/client`退出0，esm、cjs、locale及declaration构建完成。源码worktree/snapshot一致；验证产物仅留snapshot。直接在授权worktree跑Vitest会因其 `node_modules` junction指向D盘main依赖且其中缺`@tachybase/test/setup/client.ts`而在加载阶段退出；没有重装或修改共享依赖。此次修复消除之前报告的client hooks 5条变更文件warning；不改变§593全仓120 errors/746 warnings的事实，也不把该client验证当成tenant ACL认证或PostgreSQL并发证据。

@@ -235,10 +235,17 @@ describe('hooks', () => {
           type: 'number',
           format: 'YYYY',
         },
+        {
+          field: '3',
+          type: 'number',
+          format: 'Decimal',
+          specific: 'TwoDigits',
+        },
       ]),
     );
     expect(result.current['1']).toBeDefined();
     expect(result.current['2']).toBeUndefined();
+    expect(result.current['3'](12.5)).toBe('12.50');
   });
 
   test('useOrderFieldsOptions', () => {

@@ -2581,3 +2581,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 对 `useAssociationFilterBlockProps` 的真实React effect补回归：挂载时以关系字段触发一次列表请求，随后只替换schema对象引用、保持label/value字段、参数、可选状态及`run`不变。初次失败属于夹具映射错误，调整mock到实现实际导入模块后，旧依赖行为稳定重现为多发一次请求（2次而非1次），确认是生产行为RED。effect只消费`optionalField`而不使用schema对象，因此从依赖数组删除冗余`fieldSchema`，保留查询键、序列化请求参数、可选状态及稳定`run`依赖。修复后该回归通过，未改变query inputs变化时刷新请求的依赖。
 
 批准snapshot命令 `pnpm exec vitest run packages/client/src/block-provider/hooks/__tests__/use-insert-schema.test.tsx packages/client/src/block-provider/hooks/__tests__/create-page-navigation.test.tsx --project=client --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --reporter=default --silent`：2文件11项通过、0跳过。hook源码及测试Oxlint为0 warnings/0 errors；Prettier检查通过；`pnpm exec tegod build @tachybase/client`退出0，esm/cjs、locale和declaration均完成。worktree依赖junction缺测试setup导致直接测试在加载阶段失败，故只在批准snapshot验证且未修复/重装main共享依赖。此项消除不必要列表请求，不作为租户认证或PostgreSQL并发证据；生成产物留在snapshot。
+
+### 图表 Decimal transformer 使用严格格式匹配（§598）
+
+复核两处Oxlint `eqeqeq`位置：图表配置schema中的format选项为字符串，`Decimal` transformer由`number`字段选项提供；依现有用户配置契约，宽松相等没有兼容不同合法类型的必要。两处比较改为`===`，并扩充现存 `useFieldTransformer` hook测试，验证`format: 'Decimal'`和`specific: 'TwoDigits'`仍把12.5转换成`12.50`，普通日期格式仍按原行为处理。批准snapshot聚焦hook测试1文件7项通过、0跳过；Oxlint两文件0 warnings/0 errors，Prettier通过；`pnpm exec tegod build @tachybase/plugin-block-charts`退出0（保留既有约1.4MB bundle warning）。完整命令见实施计划§598。全仓Oxlint中eqeqeq错误从20降至18，node-protocol错误仍有100，当前共118 errors/741 warnings；余下宽松比较需要结合动态类型逐项判定，未批量改写。SQLite/PG和租户认证均未涉及。

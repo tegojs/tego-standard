@@ -37,7 +37,7 @@ function css_browser_selector(u) {
     html = document.documentElement,
     b = [
       (!/opera|webtv/i.test(ua) && /msie\s(\d+)/.test(ua)) || /trident\/.*rv:([0-9]{1,}[.0-9]{0,})/.test(ua)
-        ? 'ie ie' + (/trident\/4\.0/.test(ua) ? '8' : RegExp.$1 == '11.0' ? '11' : RegExp.$1)
+        ? 'ie ie' + (/trident\/4\.0/.test(ua) ? '8' : RegExp.$1 === '11.0' ? '11' : RegExp.$1)
         : is('firefox/')
           ? g +
             ' ' +
@@ -87,13 +87,13 @@ function css_browser_selector(u) {
                             (/version\/((\d+)(\.(\d+))(\.\d+)*)/.test(ua)
                               ? ' ' + s + RegExp.$2 + ' ' + s + RegExp.$2 + RegExp.$3.replace('.', '_')
                               : / Safari\/(\d+)/i.test(ua)
-                                ? RegExp.$1 == '419' || RegExp.$1 == '417' || RegExp.$1 == '416' || RegExp.$1 == '412'
+                                ? RegExp.$1 === '419' || RegExp.$1 === '417' || RegExp.$1 === '416' || RegExp.$1 === '412'
                                   ? ' ' + s + '2_0'
-                                  : RegExp.$1 == '312'
+                                  : RegExp.$1 === '312'
                                     ? ' ' + s + '1_3'
-                                    : RegExp.$1 == '125'
+                                    : RegExp.$1 === '125'
                                       ? ' ' + s + '1_2'
-                                      : RegExp.$1 == '85'
+                                      : RegExp.$1 === '85'
                                         ? ' ' + s + '1_0'
                                         : ''
                                 : '')
@@ -139,7 +139,7 @@ function css_browser_selector(u) {
                         ? 'linux'
                         : '',
       /[; |[](([a-z]{2})(-[a-z]{2})?)[)|;|\]]/i.test(ua)
-        ? (lang + RegExp.$2).replace('-', '_') + (RegExp.$3 != '' ? (' ' + lang + RegExp.$1).replace('-', '_') : '')
+        ? (lang + RegExp.$2).replace('-', '_') + (RegExp.$3 !== '' ? (' ' + lang + RegExp.$1).replace('-', '_') : '')
         : '',
       is('ipad|iphone|ipod') && !is('safari') ? 'ipad_app' : '',
     ];

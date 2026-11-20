@@ -29,7 +29,7 @@ export const IconFilterList = (props) => {
             fontSize: 18,
             marginRight: 10,
             cursor: 'pointer',
-            backgroundColor: currentKey == key ? '#9bb0d393' : '',
+            backgroundColor: currentKey === key ? '#9bb0d393' : '',
           }}
         >
           <Tooltip

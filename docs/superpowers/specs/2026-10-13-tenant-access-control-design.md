@@ -2589,3 +2589,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### Node内置模块导入协议规范化（§599）
 
 对全仓报告的100项 `unicorn/prefer-node-protocol`逐项确认均为Node内置模块的裸specifier；在52个文件内只将这些specifier规范化为`node:`协议，未改变模块、调用或业务逻辑。修改范围Oxlint为0 errors（2条既有warning）；48个JS/MJS文件`node --check`全部通过；受影响的`@tachybase/module-backup`、`@tachybase/module-workflow`、`@tachybase/plugin-adapter-red-node`、`@tachybase/plugin-mock-collections`构建均退出0。Prettier对这些既有文件报告原有格式差异，本项不进行整文件格式化，避免无关重排；因此记录为局部源码验证通过、全文件Prettier仍不洁。全仓复扫由118 errors降为18 errors，node-protocol错误清零；剩余均为eqeqeq，继续逐项核查。无租户认证、数据库或PG并发影响。
+
+### 逐项处理全仓 eqeqeq 诊断（§600）
+
+复核原有18项宽松比较，不做全局机械替换。OpenMode仅接受明确的`modal`字符串，pattern标记只接受布尔`true`，图标键、UA正则捕获以及JSON Logic运算符键均为字符串，已将这些同类型比较改为严格比较。保留4处有意类型兼容并添加局部Oxlint豁免与解释：JSON Logic `$ne`采用JS coercive semantics；Radio既有demo展示数字字段配字符串enum，需要保留option-value匹配兼容；`currentPoint`保留历史零值判断。验证：全仓Oxlint以`--quiet`复扫退出0；本组7个源码文件聚焦Oxlint退出0；批准snapshot运行`radio.test.tsx`为1文件3项通过；`node --check apps/web/public/browser-checker.js`和`git diff --check`通过。Prettier对本组7个文件报告格式差异，未整文件重写。没有运行/启动数据库，没有租户认证或PG并发验证。

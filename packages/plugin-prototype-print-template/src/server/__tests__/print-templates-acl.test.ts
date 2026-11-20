@@ -89,7 +89,7 @@ describe('print template action access', () => {
   it('keeps the templateManage ACL filter on the PDF repository lookup', async () => {
     const acl = new ACL();
     const role = 'print-template-scoped-reader';
-    const scopeFilter = { tenantId: 'B' };
+    const scopeFilter = { tenantId: '{{ ctx.state.currentTenant.id }}' };
     const fixedParams = vi.fn(() => ({ filter: scopeFilter }));
     acl.define({ role, actions: { 'printTemplates:readPDF': {}, 'templateManage:get': {} } });
     acl.addFixedParams('templateManage', 'get', fixedParams);
@@ -119,6 +119,7 @@ describe('print template action access', () => {
       expect(repository.findOne).toHaveBeenCalledWith({
         filter: { $and: [{ id: 47 }, scopeFilter] },
         appends: ['template'],
+        context,
       });
       expect(context.body).toEqual(Buffer.from('tenant B document'));
     } finally {

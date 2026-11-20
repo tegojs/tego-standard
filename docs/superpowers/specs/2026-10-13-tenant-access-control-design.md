@@ -2545,3 +2545,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 打印模板 action 继承底层模板 ACL scope 与必要字段限制（§589）
 
 在§588之后继续追踪可选插件 `readPDF` 的真实 handler：它以 `templateManage` Repository 按请求 ID 直接读取 `pdf_SavePath`，没有经过 `templateManage:get` 的 ACL action；因此仅授予 `printTemplates:readPDF` 的角色仍能读出文件。使用真实核心 `ACL` 与 `Resourcer` 执行插件实际 `readPDF` handler 的测试先出现预期RED：缺少底层 `templateManage:get` 权限时，handler 仍读取本地文件；另一个RED表明虽有 `get` 权限、但字段只允许 `id` 时仍可读取 `pdf_SavePath`。最小修复为 `generate/getTags/readPDF` 在 repository 查询前调用 `ctx.can({resource:'templateManage', action:'get'})`，无权即403；将 ACL `params.filter` 与请求 ID 以 `$and` 合并，拒绝未授权字段，并分别要求各 handler 所需的 `testData/template`、`template`、`pdf_SavePath` 字段。批准snapshot最终4项通过、0跳过，oxlint 0 warning/0 error、Prettier通过，插件构建退出0，详见计划§589。该窄测试使用真实 ACL/Resourcer、临时文件及边界 repository fake，不是Basic/Bearer认证或持久数据库测试；只证明底层 `get` action、静态/已解析 ACL filter 和字段白名单边界，不证明module-tenant租户中间件、关联附件自身的 ACL/租户范围、数据库端到端或PostgreSQL并发。上述边界仍需独立认证/持久路径验收后才能判断该可选插件是否适合启用。
+
+### 打印模板 ACL 查询传递认证/租户解析上下文（§590）
+
+补查 ACL scope 的动态表达式解析：该路径的核心 `templateManage:get` scope 可以依赖 `ctx.state.currentTenant.id`；Repository 的过滤解析必须拿到当前请求 `context`。为 `readPDF` scope 用例改用 `{{ ctx.state.currentTenant.id }}`，并要求 repository 查询包含同一请求 context，先得到预期RED（旧查询仅传 filter/appends）。随后 `generate/getTags/readPDF` 三处查询统一传 `context: ctx`，聚焦回归4项通过、0跳过，oxlint 0 warning/0 error、Prettier通过，插件包构建退出0，命令/哈希见实施计划§590。该测试证明查询边界透传上下文，不是实际数据库解析表达式的持久验收；批准snapshot的sqlite3 native module缺失仍阻止真实认证/SQLite查询。未声称动态过滤端到端或PG并发验证通过。

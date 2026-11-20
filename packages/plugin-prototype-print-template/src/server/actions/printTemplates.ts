@@ -33,6 +33,7 @@ export const generate = async (ctx: Context) => {
   const template: Model = await repo.findOne({
     filter: getTemplateManageReadFilter(ctx, id, ['testData', 'template']),
     appends: ['template'],
+    context: ctx,
   });
 
   const rawTemplate = template.get();
@@ -59,6 +60,7 @@ export const getTags = async (ctx: Context) => {
   const template: Model = await repo.findOne({
     filter: getTemplateManageReadFilter(ctx, id, ['template']),
     appends: ['template'],
+    context: ctx,
   });
   const rawTemplate = template.get();
   const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
@@ -119,6 +121,7 @@ export const readPDF = async (ctx: Context) => {
   const template: Model = await repo.findOne({
     filter: getTemplateManageReadFilter(ctx, id, ['pdf_SavePath']),
     appends: ['template'],
+    context: ctx,
   });
 
   const rawTemplate = template.get();

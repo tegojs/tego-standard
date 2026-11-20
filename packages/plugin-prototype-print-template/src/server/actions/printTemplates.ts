@@ -24,17 +24,48 @@ function getTemplateManageReadFilter(ctx: Context, id: number | string, required
   }
 
   const accessFilter = permission.params?.filter;
-  return accessFilter ? { $and: [{ id }, accessFilter] } : { id };
+  const collection = ctx.db.getCollection?.('templateManage');
+  const tenancyMode = collection?.options?.tenancy;
+  let tenantFilter;
+
+  if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+    const state = ctx.state;
+    const tenantId = state?.currentTenant?.id ?? state?.currentTenantId;
+
+    if (tenantId === null || tenantId === undefined) {
+      tenantFilter = { id: -1 };
+    } else {
+      const tenantFilterValue =
+        tenancyMode === 'tenantInherited'
+          ? { tenantId: { $in: [tenantId, ...(state?.currentTenantDescendantIds || [])] } }
+          : { tenantId };
+      const legacyDataTenantIds = collection.options?.legacyDataTenantIds ?? state?.currentLegacyDataTenantIds ?? [];
+      const canReadLegacyData = legacyDataTenantIds.some((legacyTenantId) => `${legacyTenantId}` === `${tenantId}`);
+      tenantFilter = canReadLegacyData ? { $or: [tenantFilterValue, { tenantId: null }] } : tenantFilterValue;
+    }
+  }
+
+  const filters = [{ id }, ...(accessFilter ? [accessFilter] : []), ...(tenantFilter ? [tenantFilter] : [])];
+  return filters.length === 1 ? filters[0] : { $and: filters };
+}
+
+async function findTemplateManageRecord(ctx: Context, id: number | string, requiredFields: string[]) {
+  const template = await ctx.db.getRepository('templateManage').findOne({
+    filter: getTemplateManageReadFilter(ctx, id, requiredFields),
+    appends: ['template'],
+    context: ctx,
+  });
+
+  if (!template) {
+    ctx.throw(404);
+  }
+
+  return template;
 }
 
 export const generate = async (ctx: Context) => {
   const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: getTemplateManageReadFilter(ctx, id, ['testData', 'template']),
-    appends: ['template'],
-    context: ctx,
-  });
+  const template: Model = await findTemplateManageRecord(ctx, id, ['testData', 'template']);
 
   const rawTemplate = template.get();
   const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
@@ -56,12 +87,7 @@ export const generate = async (ctx: Context) => {
 //用于获取文档中的所有占位符标签
 export const getTags = async (ctx: Context) => {
   const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: getTemplateManageReadFilter(ctx, id, ['template']),
-    appends: ['template'],
-    context: ctx,
-  });
+  const template: Model = await findTemplateManageRecord(ctx, id, ['template']);
   const rawTemplate = template.get();
   const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
 
@@ -117,12 +143,7 @@ function generateDocxFromTemplate(templatePath, data): Buffer {
 
 export const readPDF = async (ctx: Context) => {
   const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: getTemplateManageReadFilter(ctx, id, ['pdf_SavePath']),
-    appends: ['template'],
-    context: ctx,
-  });
+  const template: Model = await findTemplateManageRecord(ctx, id, ['pdf_SavePath']);
 
   const rawTemplate = template.get();
   const path = rawTemplate.pdf_SavePath;

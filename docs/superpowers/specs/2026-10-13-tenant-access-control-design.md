@@ -2593,3 +2593,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 逐项处理全仓 eqeqeq 诊断（§600）
 
 复核原有18项宽松比较，不做全局机械替换。OpenMode仅接受明确的`modal`字符串，pattern标记只接受布尔`true`，图标键、UA正则捕获以及JSON Logic运算符键均为字符串，已将这些同类型比较改为严格比较。保留4处有意类型兼容并添加局部Oxlint豁免与解释：JSON Logic `$ne`采用JS coercive semantics；Radio既有demo展示数字字段配字符串enum，需要保留option-value匹配兼容；`currentPoint`保留历史零值判断。验证：全仓Oxlint以`--quiet`复扫退出0；本组7个源码文件聚焦Oxlint退出0；批准snapshot运行`radio.test.tsx`为1文件3项通过；`node --check apps/web/public/browser-checker.js`和`git diff --check`通过。Prettier对本组7个文件报告格式差异，未整文件重写。没有运行/启动数据库，没有租户认证或PG并发验证。
+
+### 打印模板PDF自定义读取应用collection租户边界（§601）
+
+真实检查发现自定义`printTemplates:readPDF`虽验证了`templateManage:get`核心ACL，但随后直接使用Repository查记录；因为本次resourcer action资源是`printTemplates`，不会自动运行`templateManage`普通collection action的租户过滤。真实Basic登录、持久B tenant membership、tenantScoped业务记录验收首次收到HTTP 200及unassigned PDF bytes，证明此自定义读路径绕过标准tenant过滤。处理器共享查询现在同时将记录ID、ACL filter、collection tenancy filter以AND约束：tenantScoped只看当前租户；tenantInherited限当前租户及已解析后代；按collection legacy配置决定是否容许null tenantId；隔离启用但缺当前租户时不匹配。filtered miss返回404，避免null model解引用500。`generate/getTags/readPDF`统一使用该读取器。验证夹具发现Repository create没有保留测试指定tenantId，随后改为直接持久化有明确B/C归属的业务行，最终验收证明B可读、C在tenantScoped不可读且文件不返回，以及将C设为B子租户并切换tenantInherited后可读。批准snapshot聚焦运行原`print-templates-acl.test.ts`和新认证HTTP测试共2文件6项通过，插件build退出0；修改源Oxlint、Prettier、diff检查通过。handler SHA256 `B16E6F4AE817915478AC6B2DB1B1DC71F7EE229677714DA8EAFE05F12E25B9FB`；新HTTP测试SHA256 `317A8F5DC8F46F10AC2CA4A6F9718F2766EA27573645E53655FF0414604E99CB`，snapshot/worktree一致。SQLite只证明认证、ACL和持久功能，不是PG并发证据；可选插件仍未被产品默认启用。

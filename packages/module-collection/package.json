@@ -30,6 +30,7 @@
     "@tego/server": "catalog:",
     "@types/lodash": "^4.17.20",
     "async-mutex": "^0.5.0",
+    "dayjs": "catalog:",
     "lodash": "4.17.21",
     "sequelize": "catalog:",
     "toposort": "^2.0.2"

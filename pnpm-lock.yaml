@@ -780,6 +780,9 @@ importers:
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
+      dayjs:
+        specifier: 1.11.13
+        version: 1.11.13
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -1002,6 +1005,9 @@ importers:
       cos-nodejs-sdk-v5:
         specifier: ^2.15.1
         version: 2.15.1
+      dayjs:
+        specifier: 1.11.13
+        version: 1.11.13
       koa-send:
         specifier: ^5.0.1
         version: 5.0.1
@@ -1229,7 +1235,7 @@ importers:
         version: 1.6.25(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tego/server':
         specifier: 1.6.25
-        version: 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+        version: 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -1242,6 +1248,9 @@ importers:
       lodash:
         specifier: 4.17.21
         version: 4.17.21
+      mariadb:
+        specifier: ^3.4.5
+        version: 3.4.5
       mysql2:
         specifier: ^3.14.3
         version: 3.14.3
@@ -22813,9 +22822,9 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tachybase/acl@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/acl@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       koa-compose: 4.1.0
@@ -22833,9 +22842,9 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/acl@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/acl@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       koa-compose: 4.1.0
@@ -22873,15 +22882,15 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/actions@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/actions@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@tachybase/cache': 1.6.25
-      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       koa: 2.16.3
       lodash: 4.17.21
-      sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
     transitivePeerDependencies:
       - ibm_db
       - mariadb
@@ -22894,15 +22903,15 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/actions@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/actions@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/cache': 1.6.25
-      '@tachybase/database': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       koa: 2.16.3
       lodash: 4.17.21
-      sequelize: 6.37.5(mysql2@3.14.3)(pg@8.16.3)
+      sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
     transitivePeerDependencies:
       - ibm_db
       - mariadb
@@ -22936,10 +22945,10 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
+  '@tachybase/auth@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       jsonwebtoken: 8.5.1
@@ -22955,10 +22964,10 @@ snapshots:
       - supports-color
       - tedious
 
-  '@tachybase/auth@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
+  '@tachybase/auth@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
-      '@tachybase/actions': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       jsonwebtoken: 8.5.1
@@ -23046,6 +23055,28 @@ snapshots:
       - supports-color
       - tedious
 
+  '@tachybase/data-source@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/resourcer': 1.6.25
+      '@tachybase/utils': 1.6.25
+      deepmerge: 4.3.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+    transitivePeerDependencies:
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
   '@tachybase/data-source@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
@@ -23070,9 +23101,9 @@ snapshots:
 
   '@tachybase/data-source@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/resourcer': 1.6.25
       '@tachybase/utils': 1.6.25
       deepmerge: 4.3.1
@@ -23134,6 +23165,39 @@ snapshots:
       - supports-color
       - tedious
 
+  '@tachybase/database@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/globals': 1.6.25
+      '@tachybase/logger': 1.6.25
+      '@tachybase/utils': 1.6.25
+      async-mutex: 0.5.0
+      chalk: 4.1.2
+      dayjs: 1.11.13
+      debug: 4.4.3
+      deepmerge: 4.3.1
+      dottie: 2.0.6
+      excel-date-to-js: 1.1.5
+      exponential-backoff: 3.1.2
+      flat: 5.0.2
+      glob: 11.0.0
+      lodash: 4.17.21
+      nanoid: 3.3.11
+      qs: 6.14.0
+      semver: 7.7.2
+      sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      umzug: 3.8.2
+    transitivePeerDependencies:
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
   '@tachybase/database@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@tachybase/globals': 1.6.25
@@ -23154,39 +23218,6 @@ snapshots:
       qs: 6.14.0
       semver: 7.7.2
       sequelize: 6.37.5(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
-      umzug: 3.8.2
-    transitivePeerDependencies:
-      - ibm_db
-      - mariadb
-      - mysql2
-      - oracledb
-      - pg
-      - pg-hstore
-      - snowflake-sdk
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@tachybase/database@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
-    dependencies:
-      '@tachybase/globals': 1.6.25
-      '@tachybase/logger': 1.6.25
-      '@tachybase/utils': 1.6.25
-      async-mutex: 0.5.0
-      chalk: 4.1.2
-      dayjs: 1.11.13
-      debug: 4.4.3
-      deepmerge: 4.3.1
-      dottie: 2.0.6
-      excel-date-to-js: 1.1.5
-      exponential-backoff: 3.1.2
-      flat: 5.0.2
-      glob: 11.0.0
-      lodash: 4.17.21
-      nanoid: 3.3.11
-      qs: 6.14.0
-      semver: 7.7.2
-      sequelize: 6.37.5(mysql2@3.14.3)(pg@8.16.3)
       umzug: 3.8.2
     transitivePeerDependencies:
       - ibm_db
@@ -23440,6 +23471,62 @@ snapshots:
       - tedious
       - utf-8-validate
 
+  '@tego/core@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
+    dependencies:
+      '@koa/cors': 5.0.0
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/cache': 1.6.25
+      '@tachybase/data-source': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/di': 1.6.25
+      '@tachybase/globals': 1.6.25
+      '@tachybase/loader': 1.6.25
+      '@tachybase/logger': 1.6.25
+      '@tachybase/resourcer': 1.6.25
+      '@tachybase/utils': 1.6.25
+      '@types/decompress': 4.2.7
+      '@types/ini': 4.1.1
+      async-mutex: 0.5.0
+      axios: 0.29.0
+      commander: 9.5.0
+      compression: 1.8.1
+      cron-parser: 5.5.0
+      dayjs: 1.11.13
+      decompress: 4.2.1
+      execa: 5.1.1
+      fast-glob: 3.3.3
+      fs-extra: 11.3.2
+      glob: 11.0.0
+      i18next: 23.16.8
+      ini: 5.0.0
+      koa: 2.16.3
+      koa-bodyparser: 4.4.1
+      koa-compose: 4.1.0
+      lodash: 4.17.21
+      nanoid: 3.3.8
+      qs: 6.14.0
+      semver: 7.7.2
+      serve-handler: 6.1.6
+      winston: 3.17.0
+      ws: 8.18.3
+      xpipe: 1.0.8
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
   '@tego/core@1.6.25(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)':
     dependencies:
       '@koa/cors': 5.0.0
@@ -23499,12 +23586,12 @@ snapshots:
   '@tego/core@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
       '@koa/cors': 5.0.0
-      '@tachybase/acl': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/auth': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/cache': 1.6.25
       '@tachybase/data-source': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/di': 1.6.25
       '@tachybase/globals': 1.6.25
       '@tachybase/loader': 1.6.25
@@ -23774,14 +23861,43 @@ snapshots:
       - tedious
       - utf-8-validate
 
+  '@tego/server@1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)':
+    dependencies:
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/cache': 1.6.25
+      '@tachybase/data-source': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/di': 1.6.25
+      '@tachybase/evaluators': 1.6.25
+      '@tachybase/logger': 1.6.25
+      '@tachybase/resourcer': 1.6.25
+      '@tachybase/utils': 1.6.25
+      '@tego/core': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+      - utf-8-validate
+
   '@tego/server@1.6.25(mysql2@3.14.3)(pg@8.16.3)':
     dependencies:
-      '@tachybase/acl': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/actions': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/auth': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/acl': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/actions': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/auth': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/cache': 1.6.25
       '@tachybase/data-source': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
-      '@tachybase/database': 1.6.25(mysql2@3.14.3)(pg@8.16.3)
+      '@tachybase/database': 1.6.25(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3)
       '@tachybase/di': 1.6.25
       '@tachybase/evaluators': 1.6.25
       '@tachybase/logger': 1.6.25
@@ -32278,6 +32394,31 @@ snapshots:
 
   sequelize-pool@7.1.0: {}
 
+  sequelize@6.37.5(mariadb@3.4.5)(mysql2@3.14.3)(pg@8.16.3):
+    dependencies:
+      '@types/debug': 4.1.12
+      '@types/validator': 13.11.7
+      debug: 4.4.1(supports-color@5.5.0)
+      dottie: 2.0.6
+      inflection: 1.13.4
+      lodash: 4.17.21
+      moment: 2.30.1
+      moment-timezone: 0.5.48
+      pg-connection-string: 2.9.1
+      retry-as-promised: 7.0.4
+      semver: 7.7.2
+      sequelize-pool: 7.1.0
+      toposort-class: 1.0.1
+      uuid: 8.3.2
+      validator: 13.11.0
+      wkx: 0.5.0
+    optionalDependencies:
+      mariadb: 3.4.5
+      mysql2: 3.14.3
+      pg: 8.16.3
+    transitivePeerDependencies:
+      - supports-color
+
   sequelize@6.37.5(mariadb@3.4.5)(mysql2@3.15.3)(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7):
     dependencies:
       '@types/debug': 4.1.12
@@ -32302,30 +32443,6 @@ snapshots:
       pg: 8.16.3
       pg-hstore: 2.3.4
       sqlite3: 5.1.7
-    transitivePeerDependencies:
-      - supports-color
-
-  sequelize@6.37.5(mysql2@3.14.3)(pg@8.16.3):
-    dependencies:
-      '@types/debug': 4.1.12
-      '@types/validator': 13.11.7
-      debug: 4.4.1(supports-color@5.5.0)
-      dottie: 2.0.6
-      inflection: 1.13.4
-      lodash: 4.17.21
-      moment: 2.30.1
-      moment-timezone: 0.5.48
-      pg-connection-string: 2.9.1
-      retry-as-promised: 7.0.4
-      semver: 7.7.2
-      sequelize-pool: 7.1.0
-      toposort-class: 1.0.1
-      uuid: 8.3.2
-      validator: 13.11.0
-      wkx: 0.5.0
-    optionalDependencies:
-      mysql2: 3.14.3
-      pg: 8.16.3
     transitivePeerDependencies:
       - supports-color
 

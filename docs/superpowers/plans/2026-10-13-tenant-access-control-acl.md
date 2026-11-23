@@ -507,6 +507,12 @@
 - §600（逐项核实并清理剩余eqeqeq诊断）：全仓18项中，OpenMode配置值、pattern布尔标记、图标键、浏览器UA正则捕获字符串、以及JSON Logic的`?:`对象键均能证明为同类型，14项改为严格比较。其余4处保留有意的强制类型兼容：JSON Logic `$ne`按JS coercive比较；Radio只读/默认选择已有number schema配string enum的demo；公式`currentPoint`维持其旧零值输入判断。为防止未来误判，这4处添加局部说明及Oxlint规则豁免，不改变行为。全仓Oxlint及本组7个源码文件的聚焦Oxlint均无错误；批准snapshot Radio聚焦测试1文件3项通过；`browser-checker.js`语法检查和`git diff --check`通过。Prettier对本组7个既有源文件仍报告格式差异，本项只做小幅语义等价编辑，不做整文件格式化。完整扫描结果记录在设计文档§600；本项不是租户ACL认证或PG并发证据。
 
 - §601（打印模板PDF自定义读取遵循租户行范围）：沿真实认证`printTemplates:readPDF`检查§589已验证的ACL helper之后续查询。自定义action按`templateManage`的`get` ACL查Repository，但它自身不是`templateManage`标准collection action，租户resource guard不会自动向这次查询追加collection tenancy过滤；经真实Basic登录的B成员可收到`tenantScoped`未归属PDF的实际文件字节（200），构成数据暴露RED。修复在共享读取filter内读取目标collection tenancy模式：`tenantScoped`限制当前tenantId，`tenantInherited`限制当前租户及后代；仅配置允许的legacy租户可读null tenantId；启用租户隔离但缺租户上下文时fail-closed。请求id、核心ACL filter与租户过滤用`$and`组合；scope后找不到记录时统一404，`generate/getTags/readPDF`复用同一查询。回归测试使用Basic登录、持久tenant membership和业务PDF行、核心ACL及HTTP；覆盖B当前租户读成功、C异租户在tenantScoped下404且不回文件、C作为B子租户时tenantInherited读取成功。首轮测试夹具经普通Repository create没有写入tenantId，暴露unassigned文件的真实读取RED；后续改为model bulkCreate持久化明确B/C归属，再验证修复后的scope行为。最终批准snapshot `print-templates-acl.test.ts`+新`authenticated-print-template-tenant-read.test.ts`：2文件6项通过、0跳过；`pnpm exec tegod build @tachybase/plugin-print-template`退出0；源文件Oxlint、Prettier及diff检查通过。新测试SHA256=`317A8F5DC8F46F10AC2CA4A6F9718F2766EA27573645E53655FF0414604E99CB`，handler SHA256=`B16E6F4AE817915478AC6B2DB1B1DC71F7EE229677714DA8EAFE05F12E25B9FB`，snapshot与worktree一致。SQLite只作本地认证/ACL/持久业务功能证据，不代表PG并发；未变更租户核心过滤、不启用可选插件、未推送/合并/部署/正式启用。
+### §602 workflow重试更新保留当前执行者审计字段
+
+真实workflow重试更新中，业务字段无变化但`updatedById`属于上一执行者时，原no-op过滤会让记录不进入writer，重试actor审计字段因此错误保留。修复在审计字段发现结果中提供当前用户比较器，并在更新no-op过滤前捕获审计元数据；仅当自动`updatedById`需要变更时保留该记录。普通业务no-op仍被过滤。
+
+批准snapshot使用真实核心ACL factory入口并以Node 22串行验证：`workflow-write-authority.test.ts`为1文件83项通过、0失败；受影响的16个authenticated workflow文件为16文件36项通过、0失败、0跳过。`pnpm exec tegod build @tachybase/module-tenant`在Node 20.19.0下退出0。改动文件Prettier通过、Oxlint 0 warning/0 error，`git diff --check`通过。测试使用SQLite持久数据，不证明PostgreSQL并发；未启动/修复PG，未推送、合并、部署或正式启用。
+
 ### §603 构建期直接依赖声明补齐
 
 全仓构建在Node 20模拟CI时暴露三个包缺少直接依赖：`@tachybase/module-multi-app`实际使用`mariadb`但未声明，`@tachybase/module-collection`和`@tachybase/module-file`实际使用`dayjs`但未声明。为遵循包边界，分别补入直接依赖并更新`pnpm-lock.yaml`；随后`@tachybase/module-collection`、`@tachybase/module-file`、`@tachybase/module-multi-app`及`@tachybase/plugin-multi-app-share-collection`构建均退出0。该项是CI/构建完整性修复，不改变租户运行时授权语义。

@@ -2607,6 +2607,12 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### 打印模板PDF自定义读取应用collection租户边界（§601）
 
 真实检查发现自定义`printTemplates:readPDF`虽验证了`templateManage:get`核心ACL，但随后直接使用Repository查记录；因为本次resourcer action资源是`printTemplates`，不会自动运行`templateManage`普通collection action的租户过滤。真实Basic登录、持久B tenant membership、tenantScoped业务记录验收首次收到HTTP 200及unassigned PDF bytes，证明此自定义读路径绕过标准tenant过滤。处理器共享查询现在同时将记录ID、ACL filter、collection tenancy filter以AND约束：tenantScoped只看当前租户；tenantInherited限当前租户及已解析后代；按collection legacy配置决定是否容许null tenantId；隔离启用但缺当前租户时不匹配。filtered miss返回404，避免null model解引用500。`generate/getTags/readPDF`统一使用该读取器。验证夹具发现Repository create没有保留测试指定tenantId，随后改为直接持久化有明确B/C归属的业务行，最终验收证明B可读、C在tenantScoped不可读且文件不返回，以及将C设为B子租户并切换tenantInherited后可读。批准snapshot聚焦运行原`print-templates-acl.test.ts`和新认证HTTP测试共2文件6项通过，插件build退出0；修改源Oxlint、Prettier、diff检查通过。handler SHA256 `B16E6F4AE817915478AC6B2DB1B1DC71F7EE229677714DA8EAFE05F12E25B9FB`；新HTTP测试SHA256 `317A8F5DC8F46F10AC2CA4A6F9718F2766EA27573645E53655FF0414604E99CB`，snapshot/worktree一致。SQLite只证明认证、ACL和持久功能，不是PG并发证据；可选插件仍未被产品默认启用。
+### §602 workflow重试更新保留当前执行者审计字段
+
+真实workflow重试更新中，业务字段无变化但`updatedById`属于上一执行者时，原no-op过滤会让记录不进入writer，重试actor审计字段因此错误保留。修复在审计字段发现结果中提供当前用户比较器，并在更新no-op过滤前捕获审计元数据；仅当自动`updatedById`需要变更时保留该记录。普通业务no-op仍被过滤。
+
+批准snapshot验证结果：`workflow-write-authority.test.ts` 83/83通过；16个authenticated workflow文件共36项通过、0失败、0跳过；`@tachybase/module-tenant`构建退出0；改动文件Prettier、Oxlint及diff检查通过。SQLite仅作持久功能验收，不替代PostgreSQL并发证据。
+
 ### §603 构建期直接依赖声明补齐
 
 构建期解析确认三个包缺失直接依赖：multi-app补`mariadb`，collection与file补`dayjs`，并更新lockfile。四个受影响包（collection、file、multi-app、multi-app-share-collection）构建均退出0；本项只修复包声明/CI构建完整性，不改变运行时租户授权语义。

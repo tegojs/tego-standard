@@ -375,12 +375,18 @@ export class AccessMutationService {
             ([field]) => !(config.ownership.enabled && field === 'tenantId'),
           ),
         );
+        const audit =
+          request.operation === 'update' ? captureUserAuditFields(this.db, collection, authenticated) : undefined;
         const plan: ExistingAccessWritePlan =
           request.operation === 'update'
             ? Object.freeze({
                 ...authorized,
                 records: Object.freeze(
-                  authorized.records.filter((record) => hasPersistedChanges(record, scalarValues)),
+                  authorized.records.filter(
+                    (record) =>
+                      hasPersistedChanges(record, scalarValues) ||
+                      (audit?.has('updatedById') && !audit.isCurrentUser(record.getDataValue('updatedById'))),
+                  ),
                 ),
               })
             : authorized;
@@ -389,8 +395,6 @@ export class AccessMutationService {
         const expected = plan.records.map(
           (record) => plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
         );
-        const audit =
-          request.operation === 'update' ? captureUserAuditFields(this.db, collection, authenticated) : undefined;
         const protectedValues =
           request.operation === 'update'
             ? snapshotProtectedValues(

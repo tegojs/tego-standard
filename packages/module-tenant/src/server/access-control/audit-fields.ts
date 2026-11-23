@@ -95,6 +95,7 @@ export function captureUserAuditFields(db: Database, collection: Collection, act
     value == null ? currentUser === null : currentUser !== null && normalizeKeys([value], users!)[0] === currentUser;
   return {
     has: (name: string) => selected.has(name),
+    isCurrentUser: (value: unknown) => sameUser(value),
     assertCurrent() {
       const current = discover();
       if (

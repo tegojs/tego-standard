@@ -1,5 +1,9 @@
 # 租户访问模型：角色权限接入计划
 
+## 最新执行记录（§603）
+
+在批准snapshot使用真实核心构建入口`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY=D:\\Dev\\TegoJS\\tego\\packages\\core\\lib\\acl\\index.js`，并固定Node `v22.21.0`（Node 26会使旧`buffer-equal-constant-time`在Vitest加载阶段读取不存在的`SlowBuffer.prototype`，导致测试尚未开始即失败）后，串行运行`packages/module-tenant/src/server/__tests__/access-control/authenticated-*.test.ts`全部103个认证回归文件，分9批执行：共288项通过、8项既有条件跳过、0失败。跳过不是核心factory缺失；所有批次均在SQLite真实认证/ACL路径上完成，输出仅含既有Sequelize `logging-option`弃用警告。随后以同一Node运行`pnpm exec tegod build @tachybase/module-tenant`退出0。该结果补强了核心factory组合和module-tenant认证矩阵，但仍不证明PostgreSQL并发、跨实例传播或正式试点；未启动/修复PG，未推送/合并/部署/正式启用。
+
 ## 最新执行记录（§602）
 
 打印模板`getTags`读取`templateManage.template`关联文件时，ACL将关联授权编码在`params.appends`而非普通`params.fields`，旧校验错误拒绝；放行该ACL append 后，真实Basic认证B租户用户实际读取了B模板关联的C租户DOCX文件，目标集合为`tenantScoped`，形成跨租户读取RED。现改为按`printTemplateFiles:list`单独查询关联行，并分别合并目标ACL filter、目标collection tenancy filter与父记录外键；ACL appends也计入已授权必要字段。无当前租户可见附件返回404，`generate/getTags`共用安全读取器。批准snapshot的认证持久SQLite回归及ACL单测共2文件6项通过、0跳过，目标文件路径未再被打开；Oxlint 0 warnings/errors、Prettier与diff检查通过，插件build退出0。测试SHA256=`8CC4925E974929705A56264EE4E083E7B7A2BA0DA52742F14297AAB81F55538C`，handler SHA256=`B9FF6B20C35D30789704F3D896FD1AD37F8D974AE51131E5FC49B34A4E1C81B6`，worktree与snapshot一致。SQLite不证明PG并发；未启动/修改PG、未推送/合并/启用插件。

@@ -1,5 +1,9 @@
 # 租户归属性与可见性
 
+## 最新验证记录（§603）：module-tenant认证回归矩阵
+
+批准snapshot设置真实核心`createACL`构建入口并固定Node `v22.21.0`后，串行运行`packages/module-tenant/src/server/__tests__/access-control/authenticated-*.test.ts`共103文件、9批：288项通过、8项既有条件跳过、0失败。先前使用Node 26时出现的`buffer-equal-constant-time`/`SlowBuffer.prototype`加载错误是运行时兼容性问题，未进入业务断言；正确运行时下所有可执行认证测试完成。`pnpm exec tegod build @tachybase/module-tenant`退出0。SQLite仅证明真实认证、ACL与持久功能路径，不能替代PostgreSQL并发证据；整分支仍需独立审查、PG/跨实例验证和正式试点，未推送/合并/部署/启用。
+
 ## 最新验证记录（§602）：打印模板关联附件
 
 `generate/getTags`原本通过父记录`appends: ['template']`加载`printTemplateFiles`，未独立确保目标集合租户范围。真实Basic认证测试确认B租户读取B模板时会打开C租户且`tenantScoped`附件的文件路径，属于实际数据读取RED。实现现对`templateManage:get`按ACL授权字段/appends检查，再对关联集合执行独立`list` ACL和tenant过滤查询，将ACL过滤、租户过滤、关联外键合并；无可见附件返回404。批准snapshot中ACL与Basic认证持久数据测试2文件6项通过、0跳过；关联外国文件路径未被读取。Oxlint、Prettier、diff检查和`@tachybase/plugin-print-template`构建通过。测试/handler SHA256分别为`8CC4925E974929705A56264EE4E083E7B7A2BA0DA52742F14297AAB81F55538C`与`B9FF6B20C35D30789704F3D896FD1AD37F8D974AE51131E5FC49B34A4E1C81B6`。SQLite只作功能验证，不能作为PG并发证据；未启用该可选插件。

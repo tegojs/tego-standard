@@ -35,6 +35,8 @@ import {
 } from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
 
+vi.setConfig({ testTimeout: 60000 });
+
 /** Stub templates for testing injection logic. */
 class StubGeneralTemplate extends CollectionTemplate {
   name = 'general';

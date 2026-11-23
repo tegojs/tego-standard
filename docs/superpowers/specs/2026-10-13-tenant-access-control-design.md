@@ -2632,3 +2632,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 针对§605全量JSON中剩余的非目标失败项，批准snapshot串行复核 `packages/module-file/src/server/__tests__/action.test.ts`、`attachment.test.ts`、`packages/module-workflow/src/server/__tests__/execution-provenance.test.ts` 与 `instructions/query.test.ts` 共4文件30/30通过，未发现稳定RED。两个module-tenant client文件（`plugin.test.tsx`、`tenant-access-config-view.test.tsx`）在单文件、单worker运行时均停留在Vitest `queued`，没有进入测试体；清理本次中止命令遗留的两个Vitest子进程后重复仍相同，因此记录为批准snapshot client runner/Application加载环境阻塞，不通过增加超时或改业务逻辑掩盖。当前提交不修改这些无稳定RED的文件；其余可执行server回归已通过。
   - 有效server命令：Node 22、`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`与`TZ=Asia/Shanghai`下，4文件串行30/30通过；输出含既有Sequelize logging-option弃用警告，不影响断言。
   - 未启动/修复PG，SQLite只作持久功能测试数据源，不替代PostgreSQL并发证据；未推送、合并、部署或正式启用。PR审核需将两个queued client suite作为环境前置条件单独重跑，而不是生产代码失败。
+
+### §607 client 测试依赖与局部超时补齐
+
+复核两个queued client suite源码后确认：`tenant-access-config-view.test.tsx`直接使用`vi.fn()`但未显式导入`vi`，两个文件也未声明其实际慢测试所需的文件级超时。补入显式Vitest导入，并在`plugin.test.tsx`与`tenant-access-config-view.test.tsx`各自设置60秒局部超时；不改变生产代码、全局Vitest配置或断言语义。改动文件Prettier、Oxlint和diff检查通过。批准snapshot在Node 20/22及forks/threads runner下重跑仍停留queued，未进入测试体，故不将环境阻塞伪装成业务通过；该修复用于消除测试自身缺陷，queued问题仍需在正常CI client runner中验证。

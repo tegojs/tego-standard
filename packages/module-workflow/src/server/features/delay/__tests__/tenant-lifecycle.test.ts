@@ -355,10 +355,11 @@ describe('tenant delay timer failure lifecycle', () => {
     try {
       await waitForFastAssertion(() => expect(read).toBe(true));
       instruction.schedule(pending);
-      await waitForFastAssertion(async () => {
-        expect((await pending.reload()).status).toBe(JOB_STATUS.RESOLVED);
-        expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(1);
-      });
+      await waitForFastAssertion(async () => expect((await pending.reload()).status).toBe(JOB_STATUS.RESOLVED), 30000);
+      await waitForFastAssertion(
+        async () => expect(await app.db.getCollection('delayFailureResults').model.count()).toBe(1),
+        30000,
+      );
       await Promise.all(outcomes);
       await waitForWorkflowIdle(app);
       expect((await execution.reload()).status).toBe(EXECUTION_STATUS.STARTED);

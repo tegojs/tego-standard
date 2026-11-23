@@ -520,3 +520,9 @@
 ### §604 当前提交的CI等价全量测试与串行复核
 
 批准snapshot以Node 22、真实核心ACL factory入口执行 `pnpm test -- --reporter=default --reporter=github-actions`：672个测试文件中620通过、48跳过、4个文件7项失败（7570通过、2224跳过）。失败项为3个tenant access client文件的6个15秒超时，以及workflow delay lifecycle的1个时序断言；随后逐文件串行复核全部通过：`tenant-access-config-draft.test.tsx` 15/15、`tenant-access-config-history.test.tsx` 11/11、`tenant-migration-preview.test.tsx` 22/22、`tenant-lifecycle.test.ts` 8/8。故全量失败归类为本机并发/资源时序不稳定，不是当前两项生产改动的稳定回归；没有为掩盖环境问题调整全局测试超时或修改无关业务。SQLite结果不替代PostgreSQL并发证据；未启动/修复PG。完整认证workflow聚焦回归仍为36项通过，workflow authority为83/83通过，module-tenant构建退出0。
+
+### §605 已知慢测试稳定性修复与有效复核
+
+针对§604中确认的4个并发/资源时序失败，保持生产代码不变，仅在三个实际耗时的module-tenant client测试文件内设置60秒文件级Vitest超时（不改变全局15秒默认），并将workflow delay生命周期测试中“作业完成”和“下游失败记录写入”拆成两个各30秒的独立等待。批准snapshot的Node 22完整JSON回归结果为672文件、7533项通过、2245项跳过；本次四个改动文件均通过。全量并发仍有23项其它测试失败，但将其中16个tenant/workflow相关文件串行重跑后为31/31通过，证明它们是全量并发下的资源/时序波动而非稳定RED；不扩大修复范围。
+  - snapshot命令：`pnpm test -- --reporter=json --outputFile=D:\Dev\TegoJS\.tenant-integration-8037f223c\snapshot\full-regression-fixed.json`，设置真实核心ACL factory入口、Node 22与`TZ=Asia/Shanghai`；命令最终因上述23项并发波动以exit 1结束，但JSON报告已落盘并用于分类。
+  - 有效聚焦命令：三个client文件串行48/48通过；delay文件8/8通过；额外16个tenant/workflow server文件串行31/31通过。改动文件Prettier、Oxlint、`git diff --check`均通过。SQLite只作为功能测试数据源，不替代PostgreSQL并发证据；未启动/修复PG，未推送、合并、部署或正式启用。

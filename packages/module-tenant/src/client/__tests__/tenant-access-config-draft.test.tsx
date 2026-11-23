@@ -2,8 +2,12 @@ import React from 'react';
 import { APIClientProvider } from '@tachybase/client';
 import { act, fireEvent, render } from '@tachybase/test/client';
 
+import { vi } from 'vitest';
+
 import type { AccessConfig } from '../../server/access-control/types';
 import { TenantAccessConfigDraft } from '../TenantAccessConfigDraft';
+
+vi.setConfig({ testTimeout: 60000 });
 
 const identity = { dataSourceKey: 'main', collectionName: 'documents', collectionKey: 'documents-key' };
 const config: AccessConfig = {

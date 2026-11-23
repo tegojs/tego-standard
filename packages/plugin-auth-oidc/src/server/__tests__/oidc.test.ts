@@ -70,6 +70,7 @@ describe('oidc', () => {
     expect(res.body.data).toBeDefined();
     const search = new URLSearchParams(decodeURIComponent(res.body.data));
     expect(search.get('token')).toBeDefined();
+    expect(search.get('token')).toMatch(/^[A-Za-z0-9_-]{15}$/);
     expect(search.get('name')).toBe('oidc-auth');
     expect(res.headers['set-cookie']).toBeDefined();
     const token = res.headers['set-cookie'][0].split(';')[0].split('=')[1];

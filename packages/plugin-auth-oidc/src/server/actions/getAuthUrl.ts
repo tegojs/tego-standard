@@ -1,6 +1,6 @@
-import { Context, Next } from '@tego/server';
+import { randomBytes } from 'node:crypto';
 
-import { nanoid } from 'nanoid';
+import { Context, Next } from '@tego/server';
 
 import { cookieName } from '../../constants';
 import { OIDCAuth } from '../oidc-auth';
@@ -11,7 +11,7 @@ export const getAuthUrl = async (ctx: Context, next: Next) => {
   const auth = ctx.auth as OIDCAuth;
   const client = await auth.createOIDCClient();
   const { scope, stateToken } = auth.getOptions();
-  const token = stateToken || nanoid(15);
+  const token = stateToken || randomBytes(12).toString('base64url').slice(0, 15);
   ctx.cookies.set(cookieName, token, {
     httpOnly: true,
     domain: ctx.hostname,

@@ -2305,9 +2305,6 @@ importers:
       antd:
         specifier: 5.22.5
         version: 5.22.5(date-fns@3.6.0)(luxon@3.7.1)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      nanoid:
-        specifier: ^6.0.2
-        version: 6.0.2
       openid-client:
         specifier: ^5.7.1
         version: 5.7.1

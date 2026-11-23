@@ -2616,3 +2616,7 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 ### §603 构建期直接依赖声明补齐
 
 构建期解析确认三个包缺失直接依赖：multi-app补`mariadb`，collection与file补`dayjs`，并更新lockfile。四个受影响包（collection、file、multi-app、multi-app-share-collection）构建均退出0；本项只修复包声明/CI构建完整性，不改变运行时租户授权语义。
+
+### §604 当前提交的CI等价全量测试与串行复核
+
+批准snapshot以Node 22、真实核心ACL factory入口执行全量测试：672个文件中620通过、48跳过，4文件7项失败；失败为三个client文件的全量并发超时和一个workflow delay时序断言。逐文件串行复核后，draft 15/15、history 11/11、migration preview 22/22、delay lifecycle 8/8全部通过。该差异记录为本机并发/资源时序不稳定，不调整全局超时，也不修改无关业务；SQLite不替代PostgreSQL并发证据。聚焦workflow回归、构建及签名提交证据保持不变。

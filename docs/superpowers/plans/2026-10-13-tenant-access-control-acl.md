@@ -516,3 +516,7 @@
 ### §603 构建期直接依赖声明补齐
 
 全仓构建在Node 20模拟CI时暴露三个包缺少直接依赖：`@tachybase/module-multi-app`实际使用`mariadb`但未声明，`@tachybase/module-collection`和`@tachybase/module-file`实际使用`dayjs`但未声明。为遵循包边界，分别补入直接依赖并更新`pnpm-lock.yaml`；随后`@tachybase/module-collection`、`@tachybase/module-file`、`@tachybase/module-multi-app`及`@tachybase/plugin-multi-app-share-collection`构建均退出0。该项是CI/构建完整性修复，不改变租户运行时授权语义。
+
+### §604 当前提交的CI等价全量测试与串行复核
+
+批准snapshot以Node 22、真实核心ACL factory入口执行 `pnpm test -- --reporter=default --reporter=github-actions`：672个测试文件中620通过、48跳过、4个文件7项失败（7570通过、2224跳过）。失败项为3个tenant access client文件的6个15秒超时，以及workflow delay lifecycle的1个时序断言；随后逐文件串行复核全部通过：`tenant-access-config-draft.test.tsx` 15/15、`tenant-access-config-history.test.tsx` 11/11、`tenant-migration-preview.test.tsx` 22/22、`tenant-lifecycle.test.ts` 8/8。故全量失败归类为本机并发/资源时序不稳定，不是当前两项生产改动的稳定回归；没有为掩盖环境问题调整全局测试超时或修改无关业务。SQLite结果不替代PostgreSQL并发证据；未启动/修复PG。完整认证workflow聚焦回归仍为36项通过，workflow authority为83/83通过，module-tenant构建退出0。

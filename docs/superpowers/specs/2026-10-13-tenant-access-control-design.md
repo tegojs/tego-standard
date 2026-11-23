@@ -2626,3 +2626,9 @@ manager经真实认证的 `users:update` 可将目标成员的默认偏好持久
 针对§604中确认的4个并发/资源时序失败，保持生产代码不变，仅在三个实际耗时的module-tenant client测试文件内设置60秒文件级Vitest超时（不改变全局15秒默认），并将workflow delay生命周期测试中“作业完成”和“下游失败记录写入”拆成两个各30秒的独立等待。批准snapshot的Node 22完整JSON回归结果为672文件、7533项通过、2245项跳过；本次四个改动文件均通过。全量并发仍有23项其它测试失败，但将其中16个tenant/workflow相关文件串行重跑后为31/31通过，证明它们是全量并发下的资源/时序波动而非稳定RED；不扩大修复范围。
   - snapshot命令：`pnpm test -- --reporter=json --outputFile=D:\Dev\TegoJS\.tenant-integration-8037f223c\snapshot\full-regression-fixed.json`，设置真实核心ACL factory入口、Node 22与`TZ=Asia/Shanghai`；命令最终因上述23项并发波动以exit 1结束，但JSON报告已落盘并用于分类。
   - 有效聚焦命令：三个client文件串行48/48通过；delay文件8/8通过；额外16个tenant/workflow server文件串行31/31通过。改动文件Prettier、Oxlint、`git diff --check`均通过。SQLite只作为功能测试数据源，不替代PostgreSQL并发证据；未启动/修复PG，未推送、合并、部署或正式启用。
+
+### §606 其余全量失败项的串行核验边界
+
+针对§605全量JSON中剩余的非目标失败项，批准snapshot串行复核 `packages/module-file/src/server/__tests__/action.test.ts`、`attachment.test.ts`、`packages/module-workflow/src/server/__tests__/execution-provenance.test.ts` 与 `instructions/query.test.ts` 共4文件30/30通过，未发现稳定RED。两个module-tenant client文件（`plugin.test.tsx`、`tenant-access-config-view.test.tsx`）在单文件、单worker运行时均停留在Vitest `queued`，没有进入测试体；清理本次中止命令遗留的两个Vitest子进程后重复仍相同，因此记录为批准snapshot client runner/Application加载环境阻塞，不通过增加超时或改业务逻辑掩盖。当前提交不修改这些无稳定RED的文件；其余可执行server回归已通过。
+  - 有效server命令：Node 22、`TENANT_ACCESS_CORE_ACL_FACTORY_ENTRY`与`TZ=Asia/Shanghai`下，4文件串行30/30通过；输出含既有Sequelize logging-option弃用警告，不影响断言。
+  - 未启动/修复PG，SQLite只作持久功能测试数据源，不替代PostgreSQL并发证据；未推送、合并、部署或正式启用。PR审核需将两个queued client suite作为环境前置条件单独重跑，而不是生产代码失败。

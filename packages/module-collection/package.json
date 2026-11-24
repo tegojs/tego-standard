@@ -28,9 +28,9 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "async-mutex": "^0.5.0",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "sequelize": "catalog:",
     "toposort": "^2.0.2"
   },

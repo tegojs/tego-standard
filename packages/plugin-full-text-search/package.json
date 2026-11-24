@@ -23,7 +23,7 @@
     "@tego/server": "catalog:",
     "@types/sequelize": "^4.28.20",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "sequelize": "catalog:"
   },
   "description.zh-CN": "提供全字段搜索能力",

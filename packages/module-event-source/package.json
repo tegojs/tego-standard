@@ -27,10 +27,10 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "antd": "catalog:",
     "dayjs": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "sequelize": "catalog:"
   },
   "description.zh-CN": "注册和管理自定义事件源",

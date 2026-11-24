@@ -25,10 +25,10 @@
     "@tachybase/schema": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "ahooks": "^3.9.0",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react": "catalog:"
   },
   "description.zh-CN": "将用户划分在树状的部门里,也可以给部门分配角色",

@@ -20,7 +20,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21"
+    "lodash": "4.18.1"
   },
   "description.zh-CN": "为文本字段添加复制按钮",
   "displayName.zh-CN": "文本复制"

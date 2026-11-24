@@ -12,6 +12,7 @@ interface HistoryProps {
   identity: { dataSourceKey: string; collectionName: string; collectionKey: string };
   baseRevision: number;
   onClose: () => void;
+  onSaved: (config: AccessConfig) => void;
 }
 
 function sameIdentity(value: HistoryProps['identity'], expected: HistoryProps['identity']) {
@@ -31,10 +32,10 @@ function errorMessage(error: unknown, fallback: string) {
     : fallback;
 }
 
-/** Mount a fresh history when the saved selection, role or refresh changes. Never writes configuration. */
-export function TenantAccessConfigHistory({ identity, baseRevision, onClose }: HistoryProps) {
+/** Mount a fresh history when the saved selection, role or refresh changes; writes only through an explicit restored draft save. */
+export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onSaved }: HistoryProps) {
   const api = useAPIClient();
-  const { t } = useTenantTranslation();
+  const { t, language } = useTenantTranslation();
   const role = api.auth?.role;
   const [page, setPage] = useState<AccessConfigRevisionPage>();
   const [draft, setDraft] = useState<{ sourceRevision: number; config: AccessConfig }>();
@@ -161,6 +162,10 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose }: H
               identity={identity}
               config={draft.config}
               onClose={() => setDraft(undefined)}
+              onSaved={(savedConfig) => {
+                setDraft(undefined);
+                onSaved(savedConfig);
+              }}
             />
           </>
         ) : (
@@ -185,7 +190,7 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose }: H
                       <Typography.Text type="secondary">
                         {t('Saved by {{user}} at {{time}}', {
                           user: item.actorUserId,
-                          time: new Date(item.savedAt).toLocaleString(),
+                          time: new Date(item.savedAt).toLocaleString(language),
                         })}
                       </Typography.Text>
                       <Button disabled={pending} onClick={() => void prepare(item.revision)}>

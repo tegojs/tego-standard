@@ -89,6 +89,20 @@ describe('administrator access configuration read HTTP boundary', () => {
     expect(metadata.getDataValue('options')).not.toHaveProperty('tenantAccess');
   });
 
+  it('accepts a stable collection key and rejects a recreated collection identity', async () => {
+    const metadata = await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName });
+    const current = { ...values, collectionKey: metadata.get('key') };
+    const response = await agent('config-manager').resource('tenants').readAccessConfig({ values: current });
+    expect(response.status).toBe(200);
+    expect(response.body.data.identity).toEqual(current);
+
+    const stale = await agent('config-manager')
+      .resource('tenants')
+      .readAccessConfig({ values: { ...current, collectionKey: 'recreated-collection' } });
+    expect(stale.status).toBe(409);
+    expect(stale.body).not.toHaveProperty('data.config');
+  });
+
   it.each(['config-reader', 'config-impersonator'])('denies %s without management permission', async (role) => {
     const response = await agent(role).resource('tenants').readAccessConfig({ values });
     expect(response.status).toBe(403);

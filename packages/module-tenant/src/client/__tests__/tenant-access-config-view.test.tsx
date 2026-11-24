@@ -9,7 +9,7 @@ import { TenantAccessConfigView } from '../TenantAccessConfigView';
 
 vi.setConfig({ testTimeout: 60000 });
 
-const collection = { name: 'documents', title: 'Documents' };
+const collection = { key: 'documents-key', name: 'documents', title: 'Documents' };
 const constant: AccessCondition = { type: 'constant', value: true };
 const rule: AccessRule = {
   id: 'visible',
@@ -135,6 +135,39 @@ describe('saved tenant access rules', () => {
     expect(getByRole('textbox', { name: 'Rule name' })).toHaveValue('Branch documents');
     fireEvent.click(getByRole('button', { name: 'Discard draft' }));
     expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+  });
+
+  it('returns to the saved view with the new revision after saving a draft', async () => {
+    const savedConfig = { ...config, revision: 8, rules: [{ ...rule, name: 'Saved rule' }] };
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(report())
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            identity: { dataSourceKey: 'main', collectionName: 'documents', collectionKey: 'documents-key' },
+            config: savedConfig,
+          },
+        },
+      });
+    const { view } = fixture(request);
+    const { findByText, getByRole, queryByRole, getByText } = render(view());
+
+    await findByText('Branch documents');
+    fireEvent.click(getByRole('button', { name: 'Edit rule draft' }));
+    fireEvent.change(getByRole('textbox', { name: 'Rule name' }), { target: { value: 'Saved rule' } });
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+
+    await findByText('Saved rule');
+    expect(getByRole('button', { name: 'Edit rule draft' })).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Refresh saved rules' })).toBeInTheDocument();
+    expect(queryByRole('textbox', { name: 'Rule name' })).not.toBeInTheDocument();
+    expect(getByText('8')).toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[1][0]).toMatchObject({
+      url: 'tenants:saveAccessConfig',
+      data: { config: { revision: 7 } },
+    });
   });
 
   it('reads saved rules and version without exposing save or activation controls', async () => {
@@ -305,6 +338,16 @@ describe('saved tenant access rules', () => {
     expect(queryByText('Branch documents')).not.toBeInTheDocument();
   });
 
+  it('rejects a response for a recreated same-name collection', async () => {
+    const mismatched = report();
+    mismatched.data.data.identity.collectionKey = 'replacement-key';
+    const { view } = fixture(vi.fn().mockResolvedValue(mismatched));
+    const { findByText, queryByText } = render(view());
+
+    await findByText('Unable to load saved rules. Refresh to try again.');
+    expect(queryByText('Branch documents')).not.toBeInTheDocument();
+  });
+
   it('ignores an older response after switching collections', async () => {
     let resolveOld!: (value: unknown) => void;
     const request = vi
@@ -314,7 +357,7 @@ describe('saved tenant access rules', () => {
     const { view } = fixture(request);
     const { rerender, findByText, queryByText } = render(view());
     await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    rerender(view({ name: 'other', title: 'Other' }));
+    rerender(view({ key: 'other-key', name: 'other', title: 'Other' }));
     await findByText('No access rules have been saved for this collection.');
     await act(async () => resolveOld(report()));
     expect(queryByText('Branch documents')).not.toBeInTheDocument();

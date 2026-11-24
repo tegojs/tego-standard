@@ -545,7 +545,10 @@ describe('PluginTenantClient', () => {
       resource: (name: string) => ({
         list: async () => ({
           data: {
-            data: name === 'tenants' ? [] : [{ name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
+            data:
+              name === 'tenants'
+                ? []
+                : [{ key: 'approval-key', name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
           },
         }),
         update,
@@ -586,7 +589,10 @@ describe('PluginTenantClient', () => {
       resource: (name: string) => ({
         list: async () => ({
           data: {
-            data: name === 'tenants' ? [] : [{ name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
+            data:
+              name === 'tenants'
+                ? []
+                : [{ key: 'approval-key', name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
           },
         }),
         update,

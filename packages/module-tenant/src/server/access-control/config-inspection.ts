@@ -103,5 +103,5 @@ export async function inspectAccessConfig(
     throw error;
   }
   if (!isDeepStrictEqual(config, latest)) conflict();
-  return { identity, config, validatedConfig, revisionPage, sourceRevision };
+  return { identity, config, validatedConfig, revisionPage, sourceRevision, store };
 }

@@ -101,7 +101,7 @@ await store.save(identity, { ...editedConfig, revision: config?.revision ?? 0 },
 ## 8. 管理员只读预览接口
 
 - [x] 先测试实际 ACL 对管理角色、普通角色、未登录用户的区别，以及服务端解析表身份、外部同名表、配置变更和错误响应。
-- [x] 注册 `POST /api/tenants:previewAccessMigration`，沿用租户管理权限。请求仅提供数据源名、表名和指定角色操作；稳定表键及运行时对象由服务端解析，不接受规则或保存参数。
+- [x] 注册 `POST /api/tenants:previewAccessMigration`，沿用租户管理权限。请求提供数据源名、表名和指定角色操作；新调用方可附带稳定表键，服务端校验后仍兼容旧三字段请求，不接受规则或保存参数。
 - [x] 调用已有只读预览服务，返回旧配置、规则草案和角色范围报告；请求期间数据源替换或配置变化时拒绝过期结果。已知错误保留状态与代码并翻译，未知异常直接抛出。
 - [x] 运行隔离数据库测试、已有预览回归、模块构建、类型、lint 和格式检查；完成独立审查。不增加保存或启用入口，不变更实际业务数据。
 
@@ -120,7 +120,7 @@ await store.save(identity, { ...editedConfig, revision: config?.revision ?? 0 },
 ## 10. 管理员读取已保存规则
 
 - [x] 先通过真实 HTTP 测试确认读取入口缺失；覆盖租户管理、普通查看、租户切换及未登录身份。
-- [x] 新建 `actions/read-access-config.ts`，注册只读 `POST /api/tenants:readAccessConfig`。仅接受数据源名和表名，稳定身份从主库及服务端登记的数据源解析；使用现有配置存储读取，未配置返回 `config: null`，不生成或保存规则。
+- [x] 新建 `actions/read-access-config.ts`，注册只读 `POST /api/tenants:readAccessConfig`。接受数据源名、表名及可选稳定表键；提供表键时服务端校验身份，缺省时兼容旧两字段请求。稳定身份从主库及服务端登记的数据源解析；使用现有配置存储读取，未配置返回 `config: null`，不生成或保存规则。
 - [x] 在 `__tests__/access-control/config-read-action.test.ts` 验证版本和身份、关联规则、外部同名表、无配置、非法参数、数据库及运行时身份变化、友好已知错误及未知异常。请求数据库与规则输入不能影响读取目标。
 - [x] 同步双语错误说明，运行聚焦 HTTP 和配置回归、构建、严格类型、lint 与格式检查；独立审查后签名提交。不注册业务适配器，不开放保存或启用。
 
@@ -6693,3 +6693,13 @@ Ruling: 个人资料写入`defaultTenantId:'C'`可持久化用户选择偏好，
 - 在核心仓库 `D:\Dev\TegoJS\tego` 新增真实 Node HTTP 回归测试，先 `writeHead`、发送完整响应并等待 `finish`，再断言 middleware completion 无错误；同时断言普通未发送响应仍有 `X-Request-Id`。先运行原实现得到 `ERR_HTTP_HEADERS_SENT`（RED），最小修复是在 `ctx.res.headersSent` 时跳过迟到的 header 写入。核心提交：`787ad50dc fix(logger): support responses sent by downstream middleware`。
 - 核心聚焦命令 `pnpm exec vitest run packages/logger/src/__tests__/request-logger.test.ts --reporter=default` 最终实际 exit 0，1文件1项通过。`pnpm exec oxlint` 两个改动文件0警告/0错误；`pnpm exec prettier --check`通过；全仓 `pnpm lint` exit 0、0 errors/45 warnings（既有仓库警告）。logger package 无单独build脚本，未运行全仓构建；Vitest 已实际编译并运行 middleware。提交前钩子运行 Prettier 与 oxlint并通过。
 - standard lockfile 仍解析 `@tachybase/logger@1.6.24`，故核心修复尚未进入 standard。必须等核心包发布后更新/引入该版本，并在标准 Koa 资源链中验证真实认证、最终 ACL、受控流、错误映射与完整中间件退出；在此之前不保留或启用正式下载执行器。公开文件 URL仍无法按用户/租户撤权。没有数据库测试、没有 PG 启动/修复、没有推送/合并/部署/正式启用；核心源码提交不等于租户下载功能完成。
+
+## 489. 管理员规则保存入口与清晰的编辑器布局
+
+- 现有规则草案只能本地编辑和服务端校验，没有可用保存入口；用户在页面尝试新增草案后无法保存。底层 `AccessConfigStore.save` 已提供版本比较、原子配置写入和审计，但未被 HTTP API 接入，且审计集合尚未在插件加载/升级路径注册。
+- 新增 `tenants:saveAccessConfig`，由 `pm.tenant.manage` 保护；请求在首个 await 前做严格快照并经服务端稳定表身份、元数据和统一校验器检查。使用同一 `AccessConfigStore.save` CAS revision、原子递增、写入不可变审计，保存后复核返回身份和规则。新增内部审计集合注册与升级迁移，保留已写入历史的回退语义。
+- 编辑器重新布局为规则导航、所选规则详情、实际归属开关和底部固定操作区；添加保存、校验、放弃三种明确操作，错误/冲突显示可重试解释，新 revision 保存后回到已保存只读视图。中英文文案强调保存只持久化与审计，不接入/启用运行时规则。
+- RED→GREEN：`config-save-http.test.ts` 初次运行时，三个保存路径都因缺少 action 定义得到真实 404；接入 action 后，保存正向进一步暴露审计集合未注册而得到 500。再新增通用元数据/审计 Repository 绕过测试，RED 证实集合规则能经普通更新直接改到 revision 99；插件加载时注册配置写保护后，普通元数据篡改以及审计修改/删除均被拒绝。最终管理者保存/读回成功、无权限 403、匿名拒绝、非法规则 400 无落库、旧 revision 409。
+- 验证：server `config-save-http.test.ts`、`config-read-http.test.ts`、`config-validation-http.test.ts`、`config-revisions-http.test.ts`、`config-mutation-plugin.test.ts` 最终组合54项全通过；编辑器、保存视图、历史和迁移预览4个客户端测试文件的完整批次69/69通过，之后新增的“保存后回到新revision视图”测试1/1通过，历史/迁移回调更新后的完整历史与预览套件33/33通过。首轮客户端回归暴露旧测试定位与loading名称假设，调整为新的可访问控件标签后全绿。客户端首次启动因旧 Node 26 及指向主仓库的 Junction 依赖失败；在该授权 worktree 内按锁文件安装后，以 Node 20 复测。未运行真实浏览器，也未启动 PostgreSQL；SQLite只作真实认证/ACL功能证据，不证明 PG 并发。
+- Oxlint覆盖本次11个源码/测试文件，0 warning/0 error；本地化 JSON Prettier格式通过。全仓 `tsc --noEmit` 因当前worktree依赖不全，出现缺失Vite/Monaco及测试全局类型等大量既有环境诊断；过滤结果未发现本次生产源码文件的类型诊断，测试文件仍受缺少测试全局类型影响。未据此声称全仓类型检查通过。
+- 该保存接口不自动启用业务请求。访问控制运行时集成、逐表迁移/发布与生产试点仍未完成；作者串行自审、非独立复核，不推送/合并/部署/正式启用。该配置更新阶段覆盖设计文档中此前“保存关闭”的描述，见设计 §规则编辑器保存阶段更新。

@@ -9,7 +9,7 @@ import { TenantMigrationPreview } from '../TenantMigrationPreview';
 
 vi.setConfig({ testTimeout: 60000 });
 
-const collection = { name: 'documents', title: 'Documents' };
+const collection = { key: 'document-key', name: 'documents', title: 'Documents' };
 const tenants = [{ id: 'B', name: 'Branch B' }];
 const report = (tenancy = 'tenantScoped', options: object = {}) => ({
   identity: { dataSourceKey: 'main', collectionName: 'documents', collectionKey: 'document-key' },
@@ -162,6 +162,19 @@ describe('tenant migration preview drawer', () => {
     }
   });
 
+  it('sends and verifies the stable collection identity for the selected table', async () => {
+    const { request, view } = fixture(
+      vi.fn().mockResolvedValue({
+        data: { data: { ...report(), identity: { ...report().identity, collectionKey: 'replacement-key' } } },
+      }),
+    );
+    const { findByText, queryByText } = render(view());
+
+    await findByText('Migration preview failed. Refresh to try again.');
+    expect(request.mock.calls[0][0].data.collectionKey).toBe(collection.key);
+    expect(queryByText('All records remain subject to role permissions.')).not.toBeInTheDocument();
+  });
+
   it('requests the authoritative preview and selected role actions without writing', async () => {
     const { request, view } = fixture();
     const { findByText, queryByRole } = render(view());
@@ -175,6 +188,7 @@ describe('tenant migration preview drawer', () => {
       data: {
         dataSourceKey: 'main',
         collectionName: 'documents',
+        collectionKey: 'document-key',
         roleActions: ['list', 'create', 'update', 'destroy'].map((action) => ({ role: 'manager', action })),
       },
     });
@@ -278,12 +292,17 @@ describe('tenant migration preview drawer', () => {
       .fn()
       .mockImplementationOnce(() => new Promise((resolve) => (resolveOld = resolve)))
       .mockResolvedValueOnce({
-        data: { data: { ...report('shared'), identity: { ...report().identity, collectionName: 'other' } } },
+        data: {
+          data: {
+            ...report('shared'),
+            identity: { dataSourceKey: 'main', collectionName: 'other', collectionKey: 'other-key' },
+          },
+        },
       });
     const { view } = fixture(request);
     const { rerender, findByText, queryByText } = render(view());
     await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    rerender(view({ name: 'other', title: 'Other' }));
+    rerender(view({ key: 'other-key', name: 'other', title: 'Other' }));
     await findByText('All records remain subject to role permissions.');
     await act(async () => resolveOld!({ data: { data: report() } }));
     expect(queryByText('Branch B (B)')).not.toBeInTheDocument();

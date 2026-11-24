@@ -6,7 +6,7 @@ import { createTenantApp } from '../utils';
 describe('administrator migration preview HTTP boundary', () => {
   let app: MockServer;
   let user: Model;
-  const values = {
+  let values: Record<string, unknown> = {
     dataSourceKey: 'main',
     collectionName: 'preview_documents',
     roleActions: [{ role: 'preview-reader', action: 'list' }],
@@ -39,6 +39,8 @@ describe('administrator migration preview HTTP boundary', () => {
       },
       context: {},
     });
+    const collection = await app.db.getRepository('collections').findOne({ filterByTk: 'preview_documents' });
+    values = { ...values, collectionKey: collection.get('key') };
   });
 
   afterAll(async () => {
@@ -92,6 +94,15 @@ describe('administrator migration preview HTTP boundary', () => {
   });
 
   it('uses the tenant management snippet and returns the normal data envelope', async () => {
+    const response = await agent('preview-manager')
+      .resource('tenants')
+      .previewAccessMigration({ values: { ...values, collectionKey: 'recreated-collection' } });
+
+    expect(response.status).toBe(409);
+    expect(response.body).not.toHaveProperty('data.draft');
+  });
+
+  it('uses the tenant management snippet and returns the normal data envelope', async () => {
     const response = await agent('preview-manager').resource('tenants').previewAccessMigration({ values });
     expect(response.status).toBe(200);
     const metadata = await app.db.getRepository('collections').findOne({ filterByTk: values.collectionName });
@@ -106,6 +117,15 @@ describe('administrator migration preview HTTP boundary', () => {
       roleScopes: [{ role: 'preview-reader', treatment: 'no-direct-resource-grant' }],
     });
     expect(app.db.getCollection(values.collectionName).options).not.toHaveProperty('tenantAccess');
+  });
+
+  it('keeps accepting legacy preview requests without a collection key', async () => {
+    const { collectionKey: _collectionKey, ...legacyValues } = values;
+    const response = await agent('preview-manager')
+      .resource('tenants')
+      .previewAccessMigration({ values: legacyValues });
+    expect(response.status).toBe(200);
+    expect(response.body.data.identity.collectionKey).toBe(values.collectionKey);
   });
 
   it.each(['preview-reader', 'preview-impersonator'])(

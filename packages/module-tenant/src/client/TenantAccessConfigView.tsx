@@ -105,12 +105,12 @@ function ConditionView({ condition }: { condition: AccessCondition }) {
   }
 }
 
-/** Read-only management view; persisted configuration is not evidence of runtime activation. */
+/** Management view for saved configuration; persistence is not evidence of runtime activation. */
 export function TenantAccessConfigView({
   collection,
   onClose,
 }: {
-  collection: { name: string; title?: string; template?: string };
+  collection: { key: string; name: string; title?: string; template?: string };
   onClose: () => void;
 }) {
   const api = useAPIClient();
@@ -119,7 +119,7 @@ export function TenantAccessConfigView({
   const [refresh, setRefresh] = useState(0);
   const [editingKey, setEditingKey] = useState<string>();
   const [historyKey, setHistoryKey] = useState<string>();
-  const key = JSON.stringify([collection.name, role, refresh]);
+  const key = JSON.stringify([collection.key, collection.name, role, refresh]);
   useEffect(() => setEditingKey(undefined), [key]);
   useEffect(() => setHistoryKey(undefined), [key]);
   const [result, setResult] = useState<{ key: string; report?: SavedConfig; error?: string }>();
@@ -139,12 +139,13 @@ export function TenantAccessConfigView({
           headers: { 'X-Data-Source': 'main' },
           skipNotify: true,
           signal: controller.signal,
-          data: { dataSourceKey: 'main', collectionName: collection.name },
+          data: { dataSourceKey: 'main', collectionName: collection.name, collectionKey: collection.key },
         });
         const next = response.data.data;
         if (
           next.identity.dataSourceKey !== 'main' ||
           next.identity.collectionName !== collection.name ||
+          next.identity.collectionKey !== collection.key ||
           next.config === undefined
         )
           throw new Error('Saved rule response does not match selection');
@@ -164,7 +165,7 @@ export function TenantAccessConfigView({
       active = false;
       controller.abort();
     };
-  }, [api, collection.name, role, key, failureMessage]);
+  }, [api, collection.key, collection.name, role, key, failureMessage]);
 
   return (
     <Drawer open width={720} title={t('View saved rules')} onClose={onClose}>
@@ -195,6 +196,10 @@ export function TenantAccessConfigView({
                 identity={current!.report!.identity}
                 config={{ schemaVersion: 1, revision: 0, ownership: { enabled: true }, rules: [] }}
                 onClose={() => setEditingKey(undefined)}
+                onSaved={(savedConfig) => {
+                  setResult({ key, report: { ...current!.report!, config: savedConfig } });
+                  setEditingKey(undefined);
+                }}
               />
             ) : (
               <Button onClick={() => setEditingKey(key)}>{t('Create rule draft')}</Button>
@@ -209,6 +214,10 @@ export function TenantAccessConfigView({
                 identity={current!.report!.identity}
                 baseRevision={config.revision}
                 onClose={() => setHistoryKey(undefined)}
+                onSaved={(savedConfig) => {
+                  setResult({ key, report: { ...current!.report!, config: savedConfig } });
+                  setHistoryKey(undefined);
+                }}
               />
             ) : editingKey === key ? (
               <TenantAccessConfigDraft
@@ -216,6 +225,10 @@ export function TenantAccessConfigView({
                 identity={current!.report!.identity}
                 config={config}
                 onClose={() => setEditingKey(undefined)}
+                onSaved={(savedConfig) => {
+                  setResult({ key, report: { ...current!.report!, config: savedConfig } });
+                  setEditingKey(undefined);
+                }}
               />
             ) : (
               <Space>

@@ -16,7 +16,8 @@ function previewRequest(input: unknown) {
     !input ||
     typeof input !== 'object' ||
     ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
-    Reflect.ownKeys(input).length !== 3
+    Reflect.ownKeys(input).length < 3 ||
+    Reflect.ownKeys(input).length > 4
   )
     return invalid();
   const fields = Object.getOwnPropertyDescriptors(input);
@@ -30,9 +31,24 @@ function previewRequest(input: unknown) {
     )
   )
     return invalid();
+  if (Object.hasOwn(fields, 'collectionKey')) {
+    if (
+      typeof fields.collectionKey.value !== 'string' ||
+      fields.collectionKey.value.length === 0 ||
+      fields.collectionKey.value.length > 255
+    )
+      return invalid();
+  }
+  if (
+    Reflect.ownKeys(fields).some(
+      (name) => !['dataSourceKey', 'collectionName', 'collectionKey', 'roleActions'].includes(name as string),
+    )
+  )
+    return invalid();
   return {
     dataSourceKey: fields.dataSourceKey.value as string,
     collectionName: fields.collectionName.value as string,
+    ...(typeof fields.collectionKey?.value === 'string' ? { collectionKey: fields.collectionKey.value } : {}),
     roleActions: snapshotRoleScopeSelections(fields.roleActions.value),
   };
 }
@@ -43,7 +59,7 @@ export function createAccessMigrationPreview(app: Application) {
     if (ctx.state.currentUser?.id == null) ctx.throw(401, translateTenantError(ctx, 'authenticationRequired'));
     if (ctx.method !== 'POST') ctx.throw(405);
     try {
-      const { dataSourceKey, collectionName, roleActions } = previewRequest(ctx.action.params.values);
+      const { dataSourceKey, collectionName, collectionKey, roleActions } = previewRequest(ctx.action.params.values);
       // Resolve from the trusted application, never ctx.db or request-provided runtime objects.
       const primaryDb = app.db;
       const manager = app.dataSourceManager;
@@ -77,6 +93,9 @@ export function createAccessMigrationPreview(app: Application) {
         throw new AccessConfigError('ACCESS_COLLECTION_NOT_FOUND', 'Collection identity is unavailable', 404);
       const identity = { dataSourceKey, collectionName, collectionKey: records[0].get('key') as string };
       accessCollectionKey(identity);
+      if (collectionKey && collectionKey !== identity.collectionKey) {
+        throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'The collection changed during preview', 409);
+      }
       const resolveCollectionKey = (collection: Collection) => {
         if (collection.options.key !== identity.collectionKey)
           throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'Runtime collection identity changed', 409);

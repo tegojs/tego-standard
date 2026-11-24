@@ -10,7 +10,7 @@ import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
 import { TenantFileAccessNotice } from './TenantFileAccessNotice';
 
 interface TenantMigrationPreviewProps {
-  collection: { name: string; title?: string; template?: string };
+  collection: { key: string; name: string; title?: string; template?: string };
   tenants: TenantRecord[];
   onClose: () => void;
 }
@@ -39,14 +39,14 @@ const modeDescriptions = {
   tenantInherited: 'Records owned by the current tenant or its descendants remain subject to role permissions.',
 };
 
-/** Preview and disposable editing only; no save, activation or business-record operation. */
+/** Preview and disposable editing; saving persists a revision but does not activate business enforcement. */
 export function TenantMigrationPreview({ collection, tenants, onClose }: TenantMigrationPreviewProps) {
   const api = useAPIClient();
   const { t } = useTenantTranslation();
   const role = api.auth?.role || undefined;
   const [refresh, setRefresh] = useState(0);
   const [editingKey, setEditingKey] = useState<string>();
-  const key = JSON.stringify([collection.name, role, refresh]);
+  const key = JSON.stringify([collection.key, collection.name, role, refresh]);
   useEffect(() => setEditingKey(undefined), [key]);
   const [result, setResult] = useState<PreviewState>();
   const current = result?.key === key ? result : undefined;
@@ -69,11 +69,16 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
           data: {
             dataSourceKey: 'main',
             collectionName: collection.name,
+            collectionKey: collection.key,
             roleActions: role ? actions.map((action) => ({ role, action })) : [],
           },
         });
         const next = response.data.data;
-        if (next.identity.dataSourceKey !== 'main' || next.identity.collectionName !== collection.name)
+        if (
+          next.identity.dataSourceKey !== 'main' ||
+          next.identity.collectionName !== collection.name ||
+          next.identity.collectionKey !== collection.key
+        )
           throw new Error('Migration preview identity changed');
         if (active) setResult({ key, report: next });
       } catch (error) {
@@ -91,7 +96,7 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
       active = false;
       controller.abort();
     };
-  }, [api, collection.name, role, key, failureMessage]);
+  }, [api, collection.key, collection.name, role, key, failureMessage]);
 
   const rules = report?.draft.rules.filter((rule) => rule.enabled) || [];
   const legacyTenantIds =
@@ -193,6 +198,7 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
                   identity={report.identity}
                   config={report.draft}
                   onClose={() => setEditingKey(undefined)}
+                  onSaved={onClose}
                 />
               </>
             ) : (

@@ -10,7 +10,7 @@ function invalid(): never {
 }
 
 /** Copy bounded JSON before the first await, without evaluating accessors or sharing rule objects. */
-function requestSnapshot(input: unknown) {
+export function snapshotAccessConfigRequest(input: unknown) {
   let nodes = 0;
   const seen = new Set<object>();
   const copy = (value: unknown, depth = 0): unknown => {
@@ -54,12 +54,25 @@ function requestSnapshot(input: unknown) {
   const values = copy(input);
   if (!values || typeof values !== 'object' || Array.isArray(values)) invalid();
   const params = values as Record<string, unknown>;
-  if (Object.keys(params).length !== 3 || !Object.hasOwn(params, 'config')) invalid();
+  const keys = Object.keys(params);
+  const allowed = ['config', 'dataSourceKey', 'collectionName', 'collectionKey'];
+  if (
+    !Object.hasOwn(params, 'config') ||
+    (keys.length !== 3 && keys.length !== 4) ||
+    keys.some((key) => !allowed.includes(key))
+  )
+    invalid();
   for (const key of ['dataSourceKey', 'collectionName'])
     if (typeof params[key] !== 'string' || params[key].length === 0 || params[key].length > 255) invalid();
+  if (
+    Object.hasOwn(params, 'collectionKey') &&
+    (typeof params.collectionKey !== 'string' || params.collectionKey.length === 0 || params.collectionKey.length > 255)
+  )
+    invalid();
   return {
     dataSourceKey: params.dataSourceKey as string,
     collectionName: params.collectionName as string,
+    ...(typeof params.collectionKey === 'string' ? { collectionKey: params.collectionKey } : {}),
     config: params.config,
   };
 }
@@ -70,7 +83,7 @@ export function createAccessConfigValidation(app: Application) {
     if (ctx.state.currentUser?.id == null) ctx.throw(401, translateTenantError(ctx, 'authenticationRequired'));
     if (ctx.method !== 'POST') ctx.throw(405);
     try {
-      const request = requestSnapshot(ctx.action.params.values);
+      const request = snapshotAccessConfigRequest(ctx.action.params.values);
       const { identity, validatedConfig } = await inspectAccessConfig(app, request, request.config);
       ctx.body = { identity, config: validatedConfig };
     } catch (error) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { APIClientProvider } from '@tachybase/client';
+import { APIClientProvider, i18n } from '@tachybase/client';
 import { act, fireEvent, render, waitFor } from '@tachybase/test/client';
 
 import { vi } from 'vitest';
@@ -42,7 +42,14 @@ function fixture(history: (request: Request) => unknown = () => response(page())
   // Only the remote API boundary is replaced; the drawer, history and draft editor are real.
   const request = vi.fn(async (input) => {
     if (input.url === 'tenants:readAccessConfig')
-      return response({ identity: { ...identity, collectionName: input.data.collectionName }, config });
+      return response({
+        identity: {
+          ...identity,
+          collectionName: input.data.collectionName,
+          collectionKey: `${input.data.collectionName}-key`,
+        },
+        config,
+      });
     if (input.url === 'tenants:validateAccessConfig') return response({ identity, config: input.data.config });
     if (input.url === 'tenants:previewAccessConfigRevision') return response(preview());
     return history(input);
@@ -50,13 +57,24 @@ function fixture(history: (request: Request) => unknown = () => response(page())
   const api = { auth: { role: 'manager' }, request };
   const view = (name = 'documents') => (
     <APIClientProvider apiClient={api as never}>
-      <TenantAccessConfigView collection={{ name }} onClose={() => {}} />
+      <TenantAccessConfigView collection={{ key: `${name}-key`, name }} onClose={() => {}} />
     </APIClientProvider>
   );
   return { request, api, view };
 }
 
 describe('access rule history in the management drawer', () => {
+  it('formats saved timestamps using the active application language', async () => {
+    const format = vi.spyOn(Date.prototype, 'toLocaleString').mockReturnValue('localized timestamp');
+    const { view } = fixture();
+    const { findByText, findByRole, getByRole } = render(view());
+    fireEvent.click(await findByRole('button', { name: 'View rule history' }));
+    await findByText(/Saved by 28 at localized timestamp/);
+
+    expect(format).toHaveBeenCalledWith(i18n.resolvedLanguage || i18n.language);
+    format.mockRestore();
+  });
+
   it('loads lazily, restores into the current editing base, and validates without saving', async () => {
     const { request, view } = fixture(() => response(page(3)));
     const { findByRole, getByRole, findByText, queryByRole } = render(view());

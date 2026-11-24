@@ -31,6 +31,7 @@ type UserListResponse = {
 };
 
 type TenantCollectionRecord = {
+  key: string;
   name: string;
   title?: string;
   template?: string;

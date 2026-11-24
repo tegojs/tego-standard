@@ -32,12 +32,13 @@ function fixture(
 ) {
   const api = { auth: { role: 'manager' }, request };
   const close = vi.fn();
+  const saved = vi.fn();
   const view = () => (
     <APIClientProvider apiClient={api as never}>
-      <TenantAccessConfigDraft identity={identity} config={initialConfig} onClose={close} />
+      <TenantAccessConfigDraft identity={identity} config={initialConfig} onClose={close} onSaved={saved} />
     </APIClientProvider>
   );
-  return { request, close, view };
+  return { request, close, saved, view };
 }
 
 describe('tenant access rule draft', () => {
@@ -76,6 +77,45 @@ describe('tenant access rule draft', () => {
     expect(initial.rules).toHaveLength(1);
   });
 
+  it('presents a clear rule list, selected rule editor, and save action', () => {
+    const { view } = fixture();
+    const { getByRole, getByText } = render(view());
+
+    expect(getByText('Rules')).toBeInTheDocument();
+    expect(getByText('Selected rule')).toBeInTheDocument();
+    expect(getByText('Ownership setting')).toBeInTheDocument();
+    expect(getByText('Controls whether this model manages the actual tenantId ownership field.')).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Save rules' })).toBeInTheDocument();
+    expect(getByText('Branch documents')).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Branch documents Enabled' })).toHaveAttribute('aria-pressed', 'true');
+    expect(getByRole('button', { name: 'Branch documents Enabled' })).toBeInTheDocument();
+  });
+
+  it('saves the draft through the audited action and reports the persisted revision', async () => {
+    const request = vi.fn().mockImplementation(async ({ data }) => ({
+      data: { data: { identity, config: { ...data.config, revision: data.config.revision + 1 } } },
+    }));
+    const { view, saved } = fixture(request);
+    const { getByRole, findByText } = render(view());
+
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+
+    await findByText('Rules saved as revision 8.');
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: 'tenants:saveAccessConfig' }));
+    expect(saved).toHaveBeenCalledWith({ ...config, revision: 8 });
+  });
+
+  it('keeps the save dialog open while the server write is pending', () => {
+    const request = vi.fn().mockReturnValue(new Promise(() => {}));
+    const { view } = fixture(request);
+    const { getByRole } = render(view());
+
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+
+    expect(getByRole('button', { name: 'Discard draft' })).toBeDisabled();
+    expect(getByRole('button', { name: 'loading Save rules' })).toBeDisabled();
+  });
+
   it('removes the last rule locally and validates an empty rule list', async () => {
     const { request, view } = fixture();
     const { getByRole, findByText, queryByRole } = render(view());
@@ -96,11 +136,12 @@ describe('tenant access rule draft', () => {
       condition: { type: 'constant' as const, value: false },
     }));
     const { request, view } = fixture(undefined, { ...config, rules });
-    const { container } = render(view());
+    const { container, getAllByRole, getByRole } = render(view());
     const add = () =>
       Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Add rule');
     expect(add()).toBeDisabled();
-    fireEvent.click(container.querySelector('button[aria-label="Remove rule rule-0"]')!);
+    fireEvent.click(getAllByRole('button', { name: 'Branch documents Enabled' })[0]);
+    fireEvent.click(getByRole('button', { name: 'Remove rule rule-0' }));
     expect(add()).not.toBeDisabled();
     fireEvent.click(add()!);
     expect(add()).toBeDisabled();
@@ -202,7 +243,8 @@ describe('tenant access rule draft', () => {
     expect(getByRole('textbox', { name: 'Record conditions / Field path' })).toBeDisabled();
     expect(getByRole('button', { name: 'Add rule' })).toBeDisabled();
     expect(getByRole('button', { name: 'Remove rule branch' })).toBeDisabled();
-    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    expect(getByRole('button', { name: 'Discard draft' })).not.toBeDisabled();
+    fireEvent.click(getByRole('button', { name: /Validate draft/ }));
     expect(request).toHaveBeenCalledOnce();
   });
 

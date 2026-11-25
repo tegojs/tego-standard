@@ -85,6 +85,8 @@ export function createAccessConfigValidation(app: Application) {
     try {
       const request = snapshotAccessConfigRequest(ctx.action.params.values);
       const { identity, validatedConfig } = await inspectAccessConfig(app, request, request.config);
+      if (request.collectionKey && request.collectionKey !== identity.collectionKey)
+        throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'The collection changed during validation', 409);
       ctx.body = { identity, config: validatedConfig };
     } catch (error) {
       if (error instanceof AccessConfigError) {

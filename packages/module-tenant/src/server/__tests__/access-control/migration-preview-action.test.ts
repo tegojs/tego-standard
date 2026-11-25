@@ -108,13 +108,22 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('migration previ
     expect(getCollection).not.toHaveBeenCalled();
   });
 
+  it('accepts a matching collection key and rejects a stale identity', async () => {
+    const ctx = context({ ...request(), collectionKey: mainIdentity.collectionKey });
+    await invoke(ctx);
+    expect(ctx.body).toMatchObject({ identity: mainIdentity });
+    const stale = context({ ...request(), collectionKey: 'forged' });
+    await expect(invoke(stale)).rejects.toMatchObject({ status: 409, code: 'ACCESS_CONFIG_CONFLICT' });
+    expect(stale.body).toBeUndefined();
+  });
+
   it.each([
     null,
     [],
     {},
     { ...request(), collectionName: '' },
     { ...request(), dataSourceKey: 123 },
-    { ...request(), collectionKey: 'forged' },
+    { ...request(), collectionKey: '' },
     { ...request(), tenantAccess: {} },
     { ...request(), roleActions: [{ role: 'member', action: 'list', params: {} }] },
     { ...request(), roleActions: Array(1) },

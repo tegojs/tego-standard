@@ -77,13 +77,22 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('configuration r
     await expect(invoke()).rejects.toMatchObject({ status: 400 });
   });
 
+  it('accepts a matching collection key and rejects a stale identity', async () => {
+    const ctx = context({ ...request(), collectionKey: mainIdentity.collectionKey });
+    await invoke(ctx);
+    expect(ctx.body).toMatchObject({ identity: mainIdentity });
+    const stale = context({ ...request(), collectionKey: 'forged' });
+    await expect(invoke(stale)).rejects.toMatchObject({ status: 409, code: 'ACCESS_CONFIG_CONFLICT' });
+    expect(stale.body).toBeUndefined();
+  });
+
   it.each([
     null,
     [],
     {},
     { ...request(), collectionName: '' },
     { ...request(), dataSourceKey: 1 },
-    { ...request(), collectionKey: 'forged' },
+    { ...request(), collectionKey: '' },
     { ...request(), tenantAccess: {} },
   ])('rejects malformed and write-like input before querying: %j', async (values) => {
     const read = vi.spyOn(db.getCollection('collections').model, 'findAll');

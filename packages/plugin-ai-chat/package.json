@@ -27,7 +27,7 @@
     "antd": "catalog:",
     "antd-style": "3.7.1",
     "axios": "1.13.0",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "openai": "^5.10.1",
     "react-i18next": "16.2.1"
   },

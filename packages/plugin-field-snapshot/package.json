@@ -27,7 +27,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "rc-tree-select": "^5.25.0",
     "react": "catalog:",
     "react-i18next": "16.2.1"

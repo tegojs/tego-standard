@@ -28,7 +28,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "@types/file-saver": "^2.0.7",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "ahooks": "^3.9.0",
     "antd": "catalog:",
     "antd-mobile": "^5.39.0",
@@ -36,7 +36,7 @@
     "dayjs": "catalog:",
     "file-saver": "^2.0.5",
     "jsonata": "^2.0.6",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1",
     "react-router-dom": "catalog:",
     "sequelize": "catalog:"

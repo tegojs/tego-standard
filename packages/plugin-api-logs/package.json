@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-api-logs",
   "displayName": "Api Logs",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Provides seamless tracking of API actions through enhanced user interface components, configuration panels, and dashboards",
   "keywords": [
     "Logging and monitoring"
@@ -24,7 +24,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1",
     "react-router-dom": "catalog:"
   },

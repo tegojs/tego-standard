@@ -99,6 +99,9 @@ export class OIDCAuth extends BaseAuth {
             }
           : {},
     });
+    // Verification applies only to the provider's original email, before field mapping.
+    const verifiedEmail =
+      userInfo.email_verified === true && typeof userInfo.email === 'string' ? userInfo.email : undefined;
     const mappedUserInfo = this.mapField(userInfo);
     const { nickname, username, name, sub, email, phone } = mappedUserInfo;
     const authenticator = this.authenticator as AuthModel;
@@ -109,6 +112,9 @@ export class OIDCAuth extends BaseAuth {
     // Bind existed user
     const { userBindField = 'email' } = this.getOptions();
     if (userBindField === 'email' && email) {
+      if (email !== verifiedEmail) {
+        throw new Error('Email is not verified by the OIDC provider');
+      }
       user = await this.userRepository.findOne({
         filter: { email },
       });
@@ -129,6 +135,9 @@ export class OIDCAuth extends BaseAuth {
     const { autoSignup } = this.options?.public || {};
     if (!autoSignup) {
       throw new Error('User not found');
+    }
+    if (email && email !== verifiedEmail) {
+      throw new Error('Email is not verified by the OIDC provider');
     }
     if (username && !this.validateUsername(username)) {
       throw new Error('Username must be 2-16 characters in length (excluding @.<>"\'/)');

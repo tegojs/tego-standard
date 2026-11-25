@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-workflow-test",
   "displayName": "Workflow: test kit",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Workflow Test Toolkit",
   "keywords": [
     "Workflow"
@@ -24,7 +24,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "dayjs": "catalog:",
-    "lodash": "4.17.21"
+    "lodash": "4.18.1"
   },
   "description.zh-CN": "工作流测试工具包",
   "displayName.zh-CN": "工作流：测试工具包"

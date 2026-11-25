@@ -59,7 +59,7 @@ tego-standard/
 ## Tech Stack / 技术栈
 
 ### Backend / 后端
-- **Runtime / 运行时**：Node.js (>=20.19.0)
+- **Runtime / 运行时**：Node.js (^22.23.4 || ^24.22.1 || >=26.12.1)
 - **Framework / 框架**：Based on Tego core framework / 基于 Tego 核心框架
 - **Database / 数据库**：Sequelize ORM (SQLite / PostgreSQL / MySQL)
 - **Language / 语言**：TypeScript

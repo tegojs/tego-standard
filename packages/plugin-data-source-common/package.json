@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-data-source-common",
   "displayName": "External DataSource Support",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Supports more data sources",
   "keywords": [
     "Data sources"
@@ -26,11 +26,11 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "antd": "catalog:",
     "axios": "1.13.0",
     "dayjs": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "mysql2": "^3.14.3",
     "pg": "^8.16.3",
     "react-i18next": "16.2.1",

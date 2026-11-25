@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-pagespy",
   "displayName": "PageSpy",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "PageSpy plugin for low-code platform, capturing user behavior and analytics",
   "keywords": [
     "Others"
@@ -27,7 +27,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "^4.17.21"
+    "lodash": "^4.18.1"
   },
   "description.zh-CN": "PageSpy 插件, 方便前端测试和记录",
   "displayName.zh-CN": "页面监控"

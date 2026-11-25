@@ -22,6 +22,7 @@ import { ProviderQuickApplyButton } from './QuickApplyButton.provider';
 import { QuickViewApplyButton } from './QuickApplyButton.view';
 
 export const QuickApplyButton = (props) => {
+  const { isCreate } = props;
   const record = useRecord();
   const context = useContext(SchemaComponentContext);
   const apiClient = useAPIClient();
@@ -57,10 +58,13 @@ export const QuickApplyButton = (props) => {
     },
     { manual: true },
   ) as any;
-  const approvalData = data?.data;
-  if (approvalData?.id && form.values?.voucherType) {
+  const approvalData = data?.data || { snapshot: record };
+  if ((approvalData?.id && form.values?.voucherType) || approvalData.snapshot) {
     delete approvalData?.['snapshot']?.['category'];
     delete approvalData?.['approval']?.['data']?.['category'];
+    if (!approvalData?.['approval']) {
+      approvalData['approval'] = {};
+    }
     approvalData['approval']['workflow'] = items.find((item) => item?.id === form.values?.voucherType);
   }
   const { approval, execution, ...approvalValue } = approvalData || {};
@@ -73,7 +77,9 @@ export const QuickApplyButton = (props) => {
   }, [visible]);
 
   useEffect(() => {
-    run();
+    if (!isCreate) {
+      run();
+    }
     apiClient
       .resource('workflows')
       .listApprovalFlows({ filter: { 'config.centralized': true, 'config.collection': record.collectionName } })
@@ -127,6 +133,7 @@ export const QuickApplyButton = (props) => {
             },
           },
         });
+
         setVisible(true);
         setCtxActionVisbile(true);
       }
@@ -150,7 +157,7 @@ export const QuickApplyButton = (props) => {
         <QuickCreateContext.Provider value={{ isQuickCreate: true }}>
           <ResubmitContext.Provider value={{ isResubmit: true }}>
             <ProviderQuickApplyButton {...{ visible, setVisible, items, context, onClick }}>
-              <QuickViewApplyButton schema={schema} approval={approval} workflow={workflow} />
+              <QuickViewApplyButton schema={schema} approval={approval} workflow={workflow} isCreate={isCreate} />
             </ProviderQuickApplyButton>
           </ResubmitContext.Provider>
         </QuickCreateContext.Provider>

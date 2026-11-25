@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-web",
   "displayName": "WEB client",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Provides a client interface for the TachyBase server",
   "keywords": [
     "System management"
@@ -37,7 +37,7 @@
     "express": "4.21.2",
     "koa-send": "^5.0.1",
     "koa-static": "^5.0.0",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "16.2.1",

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-comments",
   "displayName": "Comments",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Comments",
   "keywords": [
     "Others"
@@ -27,7 +27,7 @@
     "@tego/server": "catalog:",
     "antd": "catalog:",
     "dayjs": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1"
   },
   "description.zh-CN": "评论",

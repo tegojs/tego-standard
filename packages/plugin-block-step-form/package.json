@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-step-form",
   "displayName": "Card: Step form",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Provides Step form card.",
   "keywords": [
     "Blocks",
@@ -28,7 +28,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-beautiful-dnd": "^13.1.1",
     "react-i18next": "16.2.1"
   },

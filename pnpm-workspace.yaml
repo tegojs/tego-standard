@@ -18,13 +18,15 @@ catalog:
   '@tego/devkit': 1.6.25
   '@tego/server': 1.6.25
   '@types/express': 5.0.2
+  '@types/lodash': ^4.17.27
   '@types/node': 20.17.10
   '@types/react': 18.3.23
   '@types/react-dom': 18.3.7
   antd: 5.22.5
-  dayjs: 1.11.13
+  dayjs: 1.11.23
   docx-preview: ^0.3.7
   i18next: 25.10.10
+  lodash: 4.18.1
   node-sql-parser: 5.3.10
   react: 18.3.1
   react-dom: 18.3.1

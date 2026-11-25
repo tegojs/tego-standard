@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-text-copy",
   "displayName": "text-copy",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Add copy button to text fields",
   "homepage": "https://github.com/tegojs/tego-standard#readme",
   "bugs": {
@@ -20,7 +20,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21"
+    "lodash": "4.18.1"
   },
   "description.zh-CN": "为文本字段添加复制按钮",
   "displayName.zh-CN": "文本复制"

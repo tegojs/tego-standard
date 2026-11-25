@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-action-bulk-edit",
   "displayName": "Action: Batch edit",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Batch edit all records or selected records.",
   "keywords": [
     "Actions"
@@ -27,7 +27,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1",
     "react-router-dom": "catalog:"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-instrumentation",
   "displayName": "Custom instrumentation",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "A module for tracking and instrumentation in Tachybase.",
   "keywords": [
     "Logging and monitoring"
@@ -26,7 +26,7 @@
     "@tego/server": "catalog:",
     "antd": "catalog:",
     "dayjs": "catalog:",
-    "lodash": "4.17.21"
+    "lodash": "4.18.1"
   },
   "description.zh-CN": "Tachybase 应用的追踪和埋点模块",
   "displayName.zh-CN": "埋点追踪"

@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/module-data-source",
   "displayName": "Data source manager",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Manage data sources, including the built-in Master database, external databases, APIs, etc.",
   "keywords": [
     "Data model tools"
@@ -26,11 +26,11 @@
     "@tachybase/test": "catalog:",
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
-    "@types/lodash": "^4.17.20",
+    "@types/lodash": "^4.17.27",
     "ahooks": "^3.9.0",
     "antd": "catalog:",
     "file-saver": "^2.0.5",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1",
     "react-router-dom": "catalog:",
     "sequelize": "catalog:"

@@ -1,6 +1,6 @@
 {
   "name": "tachybase",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "private": true,
   "homepage": "https://github.com/tegojs/tego-standard#readme",
   "bugs": {
@@ -58,7 +58,7 @@
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
+    "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^19.8.1",
     "@commitlint/prompt-cli": "^19.8.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
@@ -88,6 +88,6 @@
   },
   "packageManager": "pnpm@10.13.1",
   "engines": {
-    "node": ">=20.19.0"
+    "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
   }
 }

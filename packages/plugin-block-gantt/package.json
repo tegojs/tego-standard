@@ -1,7 +1,7 @@
 {
   "name": "@tachybase/plugin-block-gantt",
   "displayName": "Block: Gantt",
-  "version": "1.6.63",
+  "version": "1.6.68",
   "description": "Provides Gantt block.",
   "keywords": [
     "Blocks"
@@ -28,7 +28,7 @@
     "@tego/client": "catalog:",
     "@tego/server": "catalog:",
     "antd": "catalog:",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react-i18next": "16.2.1"
   },
   "description.zh-CN": "提供甘特图卡片。",

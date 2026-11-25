@@ -1,5 +1,13 @@
 # syntax=docker/dockerfile:1.7
+FROM node:22.23.4-bookworm AS node-runtime
+
 FROM tegojs/tego-node-pg:latest AS base
+
+# Keep PostgreSQL tools, but remove old package managers before copying Node.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack
+COPY --from=node-runtime /usr/local/ /usr/local/
+ENV NODE_VERSION=22.23.4
+RUN test "$(node --version)" = "v${NODE_VERSION}"
 
 ARG NPM_REGISTRY=https://registry.npmjs.org
 ENV PNPM_HOME="/pnpm"

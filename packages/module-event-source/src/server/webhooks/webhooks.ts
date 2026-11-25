@@ -230,7 +230,7 @@ export class WebhookController {
         { httpContext: ctx },
       );
       if (!processor) {
-        return ctx.throw('Workflow should be sync.', 500);
+        return ctx.throw(500, 'Workflow should be sync.');
       }
       const { lastSavedJob } = processor;
       if (typeof ctx.body === 'undefined') {

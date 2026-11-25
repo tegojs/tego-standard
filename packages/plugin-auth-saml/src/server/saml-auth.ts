@@ -31,7 +31,7 @@ export class SAMLAuth extends BaseAuth {
       callbackUrl: `${protocol}://${ctx.host}${process.env.API_BASE_PATH}saml:redirect?authenticator=${name}&__appName=${ctx.tego.name}`,
       entryPoint: ssoUrl,
       issuer: name,
-      cert: certificate,
+      idpCert: certificate,
       idpIssuer,
       wantAssertionsSigned: false,
     };

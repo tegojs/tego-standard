@@ -1,9 +1,7 @@
 import { MockServer } from '@tachybase/test';
 import { Database } from '@tego/server';
 
-import UsersPlugin from 'packages/module-user/src';
-
-import { aclLightTestPlugins, prepareApp } from './prepare';
+import { aclCollectionManagerTestPlugins, prepareApp } from './prepare';
 
 describe('scope api', () => {
   let app: MockServer;
@@ -18,7 +16,7 @@ describe('scope api', () => {
 
   beforeEach(async () => {
     app = await prepareApp({
-      plugins: [...aclLightTestPlugins, 'tenant'],
+      plugins: [...aclCollectionManagerTestPlugins, 'tenant'],
     });
     db = app.db;
 
@@ -29,7 +27,6 @@ describe('scope api', () => {
       },
     });
 
-    const userPlugin = app.pm.get('users') as UsersPlugin;
     adminAgent = app.agent().login(admin);
   });
 

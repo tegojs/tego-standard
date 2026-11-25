@@ -10,6 +10,7 @@ export default class PluginActionLogs extends Plugin {
   private logsBuffer: any[] = []; // 用于存储消息的缓冲区
   private logsTimer: NodeJS.Timeout = null;
   private logsDebounce = 5_00;
+  private logsInFlight = new Set<Promise<void>>();
 
   async afterAdd() {
     if (!isMainThread) {
@@ -29,6 +30,7 @@ export default class PluginActionLogs extends Plugin {
     // The debounce timer may fire after app.destroy() closes the DB,
     // causing an unhandled rejection from Sequelize.
     this.app.on('beforeDestroy', async () => {
+      await Promise.all(this.logsInFlight);
       if (this.logsTimer) {
         clearTimeout(this.logsTimer);
         this.logsTimer = null;
@@ -101,7 +103,11 @@ export default class PluginActionLogs extends Plugin {
           return;
         }
         this.logsBuffer = []; // 清空缓冲区
-        this.handleBatchLogs(targetList); // 处理合并后的消息
+        const batch = this.handleBatchLogs(targetList).catch((error) => {
+          this.app.logger.warn('Failed to write audit log batch', { error, pendingCount: targetList.length });
+        });
+        this.logsInFlight.add(batch);
+        void batch.then(() => this.logsInFlight.delete(batch));
       }, this.logsDebounce); // 使用 debounce 时间或默认值
     }
   }

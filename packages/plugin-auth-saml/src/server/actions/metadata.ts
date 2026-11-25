@@ -1,5 +1,6 @@
-import { SAML } from '@node-saml/node-saml';
 import { Context, Next } from '@tego/server';
+
+import { SAML } from '@node-saml/node-saml';
 
 import { SAMLAuth } from '../saml-auth';
 
@@ -9,7 +10,8 @@ export const metadata = async (ctx: Context, next: Next) => {
   const saml = new SAML(options);
 
   ctx.type = 'text/xml';
-  ctx.body = saml.generateServiceProviderMetadata(options.cert as string);
+  // The configured certificate validates the IdP and is not an SP decryption certificate.
+  ctx.body = saml.generateServiceProviderMetadata(null);
   ctx.withoutDataWrapping = true;
 
   return next();

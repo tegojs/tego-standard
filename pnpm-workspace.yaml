@@ -12,7 +12,7 @@ catalog:
   '@tachybase/globals': 1.6.24
   '@tachybase/loader': 1.6.24
   '@tachybase/schema': 1.6.24
-  '@tachybase/test': 1.6.24
+  '@tachybase/test': 1.6.25
   '@tachybase/utils': 1.6.24
   '@tego/client': 1.6.24
   '@tego/devkit': 1.6.24

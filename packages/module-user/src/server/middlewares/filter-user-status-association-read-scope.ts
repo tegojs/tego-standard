@@ -12,12 +12,15 @@ const statusAssociations: Record<string, Record<string, string> | undefined> = {
 };
 
 export const filterUserStatusAssociationReadScope = async (ctx: Context, next: Next) => {
-  const { resourceName, actionName, appends } = ctx.action.params;
+  const { resourceName, actionName, appends, fields } = ctx.action.params;
   const associations = statusAssociations[resourceName];
-  if (!['list', 'get'].includes(actionName) || !Array.isArray(appends) || !associations) {
+  if (!['list', 'get'].includes(actionName) || !associations) {
     return next();
   }
-  const requestedAssociations = Object.entries(associations).filter(([name]) => appends.includes(name));
+  const requestedPaths = [appends, fields].flatMap((value) => (Array.isArray(value) ? value : []));
+  const requestedAssociations = Object.entries(associations).filter(([name]) =>
+    requestedPaths.some((path) => typeof path === 'string' && (path === name || path.startsWith(name + '.'))),
+  );
   if (!requestedAssociations.length) {
     return next();
   }

@@ -98,5 +98,18 @@ describe('authenticated user status association read scope', () => {
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0]).not.toHaveProperty('statusInfo');
     expect(response.body.data[0].previousStatusInfo).toMatchObject({ key: 'active', title: 'Active' });
+
+    for (const query of [
+      { fields: ['id', 'username', 'statusInfo'], pagination: false },
+      { fields: ['id', 'username', 'statusInfo'], appends: ['statusInfo.key'], pagination: false },
+    ]) {
+      const bypass = await agent.resource('users').list({
+        ...query,
+        filter: { id: target.id },
+      });
+
+      expect(bypass.status).toBe(200);
+      expect(bypass.body.data[0]).not.toHaveProperty('statusInfo');
+    }
   });
 });

@@ -1,12 +1,15 @@
+import { isDeepStrictEqual } from 'node:util';
 import { literal, Op, type Collection, type Database, type Transaction, type WhereOptions } from '@tego/server';
 
+import { TENANT_INHERITED_MODE, TENANT_SCOPED_MODE } from '../constants';
 import type { AccessAclScopeAdapter } from './acl-scope';
 import { compileAccessScopes } from './compile';
 import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
 import { requiresAccessContext, resolveAccessContext, type AccessIdentity } from './context';
+import { normalizeAccessContextValue } from './context-values';
 import { accessMetadataGuard } from './metadata-snapshot';
 import { resolveModelMetadata } from './model-metadata';
-import { AccessRuleError, type AccessConfig, type AccessScopes } from './types';
+import { AccessRuleError, type AccessCondition, type AccessConfig, type AccessScopes } from './types';
 
 export interface AccessPredicateQuery {
   where?: WhereOptions;
@@ -30,6 +33,44 @@ interface ResolveScopeOptions {
   rootAlias?: string;
   parameterPrefix?: string;
   transaction?: Transaction;
+}
+
+interface TenantBoundaryPolicy {
+  mode: typeof TENANT_SCOPED_MODE | typeof TENANT_INHERITED_MODE;
+  legacyDataTenantIds: string[];
+  allowEditingLegacyData: boolean;
+}
+
+function tenantBoundaryPolicy(collection: Collection): TenantBoundaryPolicy | undefined {
+  const mode = collection.options.tenancy;
+  if (mode !== TENANT_SCOPED_MODE && mode !== TENANT_INHERITED_MODE) return undefined;
+  const legacyDataTenantIds = collection.options.legacyDataTenantIds;
+  return {
+    mode,
+    legacyDataTenantIds:
+      legacyDataTenantIds == null
+        ? []
+        : (normalizeAccessContextValue('tenant.descendantIds', legacyDataTenantIds) as string[]),
+    allowEditingLegacyData: collection.options.allowEditingLegacyData === true,
+  };
+}
+
+function tenantBoundaries(policy: TenantBoundaryPolicy, tenantId: string) {
+  const tenant = { type: 'field', path: 'tenantId' } as const;
+  const owned: AccessCondition = {
+    type: 'tenantRelation',
+    tenant,
+    relation: policy.mode === TENANT_INHERITED_MODE ? 'ancestor' : 'same',
+    includeSelf: true,
+  };
+  const canReadLegacy = policy.legacyDataTenantIds.includes(tenantId);
+  const withLegacy: AccessCondition = canReadLegacy
+    ? { type: 'any', children: [owned, { type: 'isNull', operand: tenant }] }
+    : owned;
+  return {
+    ownership: canReadLegacy && policy.allowEditingLegacyData ? withLegacy : owned,
+    visibility: withLegacy,
+  };
 }
 
 /** Internal root predicate service; entry adapters remain responsible for associations and mutations. */
@@ -57,6 +98,7 @@ export class AccessQueryService {
     const collection = this.db.getCollection(identity.collectionName);
     if (!collection || !this.isCurrentCollection(identity, collection))
       throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query model identity does not match its configuration');
+    if (tenantBoundaryPolicy(collection)) return false;
     const metadata = resolveModelMetadata(collection, { resolveCollectionKey: this.resolveCollectionKey });
     const queryInterface = this.db.sequelize.getQueryInterface();
     const { ownership } = compileAccessScopes(config, {
@@ -113,7 +155,18 @@ export class AccessQueryService {
     }
     const { transaction, rootAlias = collection.model.name, parameterPrefix } = options;
     const metadataCurrent = native ? accessMetadataGuard(this.db, [{ model, config }]) : undefined;
-    const context = await resolveAccessContext(this.db, config, { ...authenticated }, { transaction });
+    const tenantPolicy = tenantBoundaryPolicy(collection);
+    const requiredContextPaths = tenantPolicy
+      ? tenantPolicy.mode === TENANT_INHERITED_MODE
+        ? (['tenant.id', 'tenant.descendantIds'] as const)
+        : (['tenant.id'] as const)
+      : undefined;
+    const context = await resolveAccessContext(
+      this.db,
+      config,
+      { ...authenticated },
+      { transaction, requiredContextPaths },
+    );
     if (native && transaction) {
       const state = transaction as Transaction & { finished?: string; sequelize: Database['sequelize'] };
       if (state.finished || state.sequelize !== this.db.sequelize)
@@ -131,6 +184,13 @@ export class AccessQueryService {
       throw new AccessRuleError('INVALID_ACCESS_RULE', 'Access query model identity changed during scope resolution');
     }
     metadataCurrent?.();
+    if (!isDeepStrictEqual(tenantBoundaryPolicy(collection), tenantPolicy)) {
+      throw new AccessRuleError('INVALID_ACCESS_RULE', 'Tenant collection policy changed during scope resolution');
+    }
+    if (tenantPolicy && typeof context['tenant.id'] !== 'string') {
+      throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Tenant identity is unavailable for collection boundary');
+    }
+    const boundaries = tenantPolicy ? tenantBoundaries(tenantPolicy, context['tenant.id'] as string) : undefined;
     const metadata = resolveModelMetadata(collection, { resolveCollectionKey: this.resolveCollectionKey });
     const queryInterface = this.db.sequelize.getQueryInterface();
     return {
@@ -140,6 +200,7 @@ export class AccessQueryService {
         context,
         rootAlias,
         parameterPrefix,
+        ...(boundaries ? { ownershipBoundary: boundaries.ownership, visibilityBoundary: boundaries.visibility } : {}),
         // The installed PostgreSQL ORM removes embedded quotes; native SQL must preserve physical names.
         quoteIdentifier: (name) => (native ? `"${name.replaceAll('"', '""')}"` : queryInterface.quoteIdentifier(name)),
         // Selected here by trusted server code, never forwarded from request/compiler options.

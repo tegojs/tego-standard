@@ -85,6 +85,9 @@ export interface CompileOptions {
   rootAlias?: string;
   /** Server-selected namespace when combining separately compiled query predicates. */
   parameterPrefix?: string;
+  /** Mandatory server-generated boundaries for the two independent access scopes. */
+  ownershipBoundary?: AccessCondition;
+  visibilityBoundary?: AccessCondition;
 }
 
 export interface SqlScope {

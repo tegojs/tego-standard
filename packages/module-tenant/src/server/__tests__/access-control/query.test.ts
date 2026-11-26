@@ -335,6 +335,12 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('tenant access r
       }
     });
 
+    it('does not treat tenant-scoped collections as unconditionally owned', async () => {
+      await prepare();
+      docs.options.tenancy = 'tenantScoped';
+
+      expect(service.hasUnconditionalOwnership(ctx, mainIdentity)).toBe(false);
+    });
     it('includes the effective model scope in the proof', async () => {
       await prepare();
       docs.model.addScope('defaultScope', { where: { amount: { [Op.gt]: 100 } } }, { override: true });

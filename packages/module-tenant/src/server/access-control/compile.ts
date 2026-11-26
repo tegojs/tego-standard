@@ -210,7 +210,13 @@ export function compileAccessScopes(input: unknown, options: CompileOptions): Ac
   const root = options.collection.constraints
     ? compile(options.collection.constraints, options.collection, rootAlias)
     : sqlScope('TRUE');
-  const g = join('AND', [root, join('OR', ownership)]);
-  const v = join('AND', [root, join('OR', visibility)]);
+  const ownershipBoundary = options.ownershipBoundary
+    ? compile(options.ownershipBoundary, options.collection, rootAlias)
+    : sqlScope('TRUE');
+  const visibilityBoundary = options.visibilityBoundary
+    ? compile(options.visibilityBoundary, options.collection, rootAlias)
+    : sqlScope('TRUE');
+  const g = join('AND', [root, ownershipBoundary, join('OR', ownership)]);
+  const v = join('AND', [root, visibilityBoundary, join('OR', visibility)]);
   return { ownership: g, visibility: v, read: join('OR', [g, v]) };
 }

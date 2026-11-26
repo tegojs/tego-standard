@@ -151,10 +151,10 @@ describe('explicit main-source workflow query runtime', () => {
       const b = await execute();
       expect(b.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
       expect(b.job.status).toBe(JOB_STATUS.RESOLVED);
-      expect(b.job.result).toEqual([{ name: 'Visible' }, { name: 'Owned B' }]);
+      expect(b.job.result).toEqual([{ name: 'Owned B' }]);
       const c = await execute('C');
       expect(c.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-      expect(c.job.result).toEqual([{ name: 'Visible' }, { name: 'Owned C' }]);
+      expect(c.job.result).toEqual([{ name: 'Owned C' }]);
     },
   );
 
@@ -189,7 +189,7 @@ describe('explicit main-source workflow query runtime', () => {
 
   it('extracts a select summary only from the current G or V rows', async () => {
     const direct = await execute();
-    expect(direct.job.result).toEqual([{ name: 'Visible' }, { name: 'Owned B' }]);
+    expect(direct.job.result).toEqual([{ name: 'Owned B' }]);
     const [node] = await workflow.getNodes();
     await node.update({
       type: 'select',
@@ -197,12 +197,12 @@ describe('explicit main-source workflow query runtime', () => {
     });
     const selected = await execute();
     expect(selected.execution.status).toBe(EXECUTION_STATUS.RESOLVED);
-    expect(selected.job.result).toEqual(['Visible', 'Owned B']);
+    expect(selected.job.result).toEqual(['Owned B']);
   });
 
   it.each([
-    { summary: undefined, expected: { name: 'Visible' } },
-    { summary: 'name', expected: 'Visible' },
+    { summary: undefined, expected: { name: 'Owned B' } },
+    { summary: 'name', expected: 'Owned B' },
   ])('reads one authorized select result with summary=$summary', async ({ summary, expected }) => {
     const node = await useInstruction('select');
     await node.update({
@@ -291,7 +291,7 @@ describe('explicit main-source workflow query runtime', () => {
       await useInstruction(type);
       const original = (await runtime.registry.store.read(source))!;
       const first = await execute();
-      expect(first.job.result).toEqual([{ name: 'Visible' }, { name: 'Owned B' }]);
+      expect(first.job.result).toEqual([{ name: 'Owned B' }]);
       try {
         await runtime.registry.store.save(
           source,

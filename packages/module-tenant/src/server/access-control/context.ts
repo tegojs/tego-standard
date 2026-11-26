@@ -103,7 +103,7 @@ export async function resolveAccessContext(
   db: Database,
   config: AccessConfig,
   identity: AccessIdentity,
-  options: { transaction?: Transaction } = {},
+  options: { transaction?: Transaction; requiredContextPaths?: readonly ContextPath[] } = {},
 ): Promise<CompileOptions['context']> {
   const { transaction } = options;
   // Sequelize exposes these runtime properties but omits them from its Transaction declarations.
@@ -114,6 +114,8 @@ export async function resolveAccessContext(
     throw new AccessRuleError('MISSING_ACCESS_CONTEXT', 'Invalid authorization transaction');
   }
   const paths = requiredPaths(config);
+  for (const path of options.requiredContextPaths ?? []) paths.add(path);
+  if (paths.has('tenant.ancestorIds') || paths.has('tenant.descendantIds')) paths.add('tenant.id');
   const context: CompileOptions['context'] = {};
   if (paths.has('user.id')) context['user.id'] = normalizeAccessContextValue('user.id', identity.userId);
   if (paths.has('role.name')) context['role.name'] = normalizeAccessContextValue('role.name', identity.roleName);

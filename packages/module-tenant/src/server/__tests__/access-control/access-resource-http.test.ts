@@ -134,6 +134,142 @@ describe.skipIf(!coreAvailable)('tenant access model over real HTTP resources', 
     await app?.destroy();
   });
 
+  it('fails closed when a selected tenant-scoped collection disables ownership enforcement', async () => {
+    const collection = app.db.getCollection('documents');
+    collection.options.tenancy = 'tenantScoped';
+    const target = identity(collection);
+    const current = (await store.read(target))!;
+    await store.save(target, { ...current, ownership: { enabled: false }, rules: [] }, { userId: 28 });
+
+    const response = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'] });
+
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('retains effective tenant ownership when saved ownership rules are unrestricted', async () => {
+    const collection = app.db.getCollection('documents');
+    collection.options.tenancy = 'tenantScoped';
+    const target = identity(collection);
+    const current = (await store.read(target))!;
+    await store.save(
+      target,
+      {
+        ...current,
+        ownership: { enabled: true },
+        rules: [
+          {
+            id: 'unrestricted-ownership',
+            name: 'Unrestricted ownership',
+            category: 'ownership',
+            enabled: true,
+            subject: { type: 'constant', value: true },
+            condition: { type: 'constant', value: true },
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+
+    const response = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'], sort: ['id'] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 3 }]);
+  });
+
+  it('includes descendants but excludes unrelated owners when inherited ownership rules are unrestricted', async () => {
+    const collection = app.db.getCollection('documents');
+    collection.options.tenancy = 'tenantInherited';
+    const target = identity(collection);
+    const current = (await store.read(target))!;
+    await app.db.getRepository('tenants').create({ values: { id: 'D', parentId: 'B', enabled: true } });
+    await app.db.getRepository('documents').create({
+      values: { id: 7, tenantId: 'D', amount: 700, name: 'D7' },
+    });
+    await store.save(
+      target,
+      {
+        ...current,
+        ownership: { enabled: true },
+        rules: [
+          {
+            id: 'unrestricted-ownership',
+            name: 'Unrestricted ownership',
+            category: 'ownership',
+            enabled: true,
+            subject: { type: 'constant', value: true },
+            condition: { type: 'constant', value: true },
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+
+    const response = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'], sort: ['id'] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 3 }, { id: 7 }]);
+  });
+
+  it('retains only explicitly allowed legacy rows within the tenant ownership boundary', async () => {
+    const collection = app.db.getCollection('documents');
+    collection.options.tenancy = 'tenantScoped';
+    collection.options.legacyDataTenantIds = ['B'];
+    const target = identity(collection);
+    const current = (await store.read(target))!;
+    await store.save(
+      target,
+      {
+        ...current,
+        ownership: { enabled: true },
+        rules: [
+          {
+            id: 'unrestricted-ownership',
+            name: 'Unrestricted ownership',
+            category: 'ownership',
+            enabled: true,
+            subject: { type: 'constant', value: true },
+            condition: { type: 'constant', value: true },
+          },
+          {
+            id: 'unrestricted-visibility',
+            name: 'Unrestricted visibility',
+            category: 'visibility',
+            enabled: true,
+            subject: { type: 'constant', value: true },
+            condition: { type: 'constant', value: true },
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+
+    const response = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'], sort: ['id'] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 3 }, { id: 5 }]);
+
+    principal = { ...principal, tenantId: 'C' };
+    const unrelatedTenant = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'], sort: ['id'] });
+    expect(unrelatedTenant.status).toBe(200);
+    expect(unrelatedTenant.body.data).toEqual([{ id: 4 }]);
+  });
+
   it('returns matching paginated, detail and count responses over actual resource routes', async () => {
     const list = await app
       .agent()

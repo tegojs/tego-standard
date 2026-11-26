@@ -152,7 +152,17 @@ export class AccessRootResourceRuntime {
     const capturedDates = Object.freeze({ now: new Date().toISOString(), timezone: ctx.get('x-timezone') || '+00:00' });
     const capturedIdentities = identities.map((value) => ({ ...value }));
     await this.prepared.withPrepared(ctx, capturedIdentities, async () => {
-      const configured = selected.filter((identity) => this.prepared.configuration(ctx, identity));
+      const configured: AccessCollectionIdentity[] = [];
+      for (const identity of selected) {
+        const config = this.prepared.configuration(ctx, identity);
+        if (!config) continue;
+        const selectedCollection = this.db.getCollection(identity.collectionName);
+        if (!selectedCollection) invalid('Selected collection is unavailable');
+        const tenancy = selectedCollection.options.tenancy;
+        if ((tenancy === 'tenantScoped' || tenancy === 'tenantInherited') && !config.ownership.enabled)
+          invalid('Selected tenant collections must enforce ownership');
+        configured.push(identity);
+      }
       if (!configured.length) {
         if (!legacyAction) return void (await next());
         if (!capturedIdentities.some((identity) => this.prepared.configuration(ctx, identity)))

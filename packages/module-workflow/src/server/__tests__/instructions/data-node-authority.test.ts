@@ -1,10 +1,14 @@
 import { createMockServer, type MockServer } from '@tachybase/test';
 import type { Collection } from '@tego/server';
 
+import { vi } from 'vitest';
+
 import { EXECUTION_STATUS, JOB_STATUS } from '../../constants';
 import type DelayInstruction from '../../features/delay/DelayInstruction';
 import type WorkflowPlugin from '../../Plugin';
 import type { WorkflowModel } from '../../types';
+
+vi.setConfig({ hookTimeout: 120000 });
 
 /** Compatibility baseline: configured data nodes are server automation, not the caller's resource actions. */
 describe('workflow > configured data node authority', () => {

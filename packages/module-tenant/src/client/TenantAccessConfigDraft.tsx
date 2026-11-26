@@ -12,6 +12,7 @@ interface DraftProps {
   config: AccessConfig;
   onClose: () => void;
   onSaved: (config: AccessConfig) => void;
+  onSavingChange?: (saving: boolean) => void;
 }
 
 /** Compare JSON response contents independently of object key order. */
@@ -29,7 +30,7 @@ function sameJson(left: unknown, right: unknown): boolean {
 }
 
 /** A disposable, audited editor. Persisting a revision does not activate business enforcement. */
-export function TenantAccessConfigDraft({ identity, config, onClose, onSaved }: DraftProps) {
+export function TenantAccessConfigDraft({ identity, config, onClose, onSaved, onSavingChange }: DraftProps) {
   const api = useAPIClient();
   const { t } = useTenantTranslation();
   const [draft, setDraft] = useState<AccessConfig>(() => JSON.parse(JSON.stringify(config)));
@@ -92,6 +93,7 @@ export function TenantAccessConfigDraft({ identity, config, onClose, onSaved }: 
     const role = api.auth?.role;
     setPending(true);
     setSaving(kind === 'save');
+    if (kind === 'save') onSavingChange?.(true);
     setResult(undefined);
     try {
       const response = await api.request<{ data: { identity: DraftProps['identity']; config: AccessConfig } }>({
@@ -133,6 +135,7 @@ export function TenantAccessConfigDraft({ identity, config, onClose, onSaved }: 
     } finally {
       if (!controller.signal.aborted) setPending(false);
       if (!controller.signal.aborted) setSaving(false);
+      if (kind === 'save') onSavingChange?.(false);
       if (request.current === controller) request.current = undefined;
     }
   };

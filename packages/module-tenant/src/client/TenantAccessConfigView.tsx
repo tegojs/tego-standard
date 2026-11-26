@@ -119,6 +119,7 @@ export function TenantAccessConfigView({
   const [refresh, setRefresh] = useState(0);
   const [editingKey, setEditingKey] = useState<string>();
   const [historyKey, setHistoryKey] = useState<string>();
+  const [saving, setSaving] = useState(false);
   const key = JSON.stringify([collection.key, collection.name, role, refresh]);
   useEffect(() => setEditingKey(undefined), [key]);
   useEffect(() => setHistoryKey(undefined), [key]);
@@ -168,7 +169,17 @@ export function TenantAccessConfigView({
   }, [api, collection.key, collection.name, role, key, failureMessage]);
 
   return (
-    <Drawer open width={720} title={t('View saved rules')} onClose={onClose}>
+    <Drawer
+      open
+      width={720}
+      title={t('View saved rules')}
+      closable={!saving}
+      maskClosable={!saving}
+      keyboard={!saving}
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+    >
       <Space direction="vertical" size={16} style={{ display: 'flex', overflowWrap: 'anywhere' }}>
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{collection.title || collection.name}</Typography.Text>
@@ -182,7 +193,7 @@ export function TenantAccessConfigView({
           )}
         />
         <TenantFileAccessNotice template={collection.template} />
-        <Button disabled={loading} onClick={() => setRefresh((value) => value + 1)}>
+        <Button disabled={loading || saving} onClick={() => setRefresh((value) => value + 1)}>
           {t('Refresh saved rules')}
         </Button>
         {loading ? <Spin aria-label={t('Loading saved rules')} /> : null}
@@ -195,6 +206,7 @@ export function TenantAccessConfigView({
                 key={key}
                 identity={current!.report!.identity}
                 config={{ schemaVersion: 1, revision: 0, ownership: { enabled: true }, rules: [] }}
+                onSavingChange={setSaving}
                 onClose={() => setEditingKey(undefined)}
                 onSaved={(savedConfig) => {
                   setResult({ key, report: { ...current!.report!, config: savedConfig } });
@@ -213,6 +225,7 @@ export function TenantAccessConfigView({
                 key={key}
                 identity={current!.report!.identity}
                 baseRevision={config.revision}
+                onSavingChange={setSaving}
                 onClose={() => setHistoryKey(undefined)}
                 onSaved={(savedConfig) => {
                   setResult({ key, report: { ...current!.report!, config: savedConfig } });
@@ -224,6 +237,7 @@ export function TenantAccessConfigView({
                 key={key}
                 identity={current!.report!.identity}
                 config={config}
+                onSavingChange={setSaving}
                 onClose={() => setEditingKey(undefined)}
                 onSaved={(savedConfig) => {
                   setResult({ key, report: { ...current!.report!, config: savedConfig } });

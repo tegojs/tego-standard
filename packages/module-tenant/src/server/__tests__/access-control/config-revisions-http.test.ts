@@ -90,6 +90,7 @@ describe('administrator configuration revision HTTP boundary', () => {
     expect(allowed.status).toBe(200);
     expect(allowed.body.data).toEqual({
       identity,
+      currentRevision: 2,
       revisions: [
         { revision: 2, actorUserId: String(user.get('id')), savedAt: expect.any(String) },
         { revision: 1, actorUserId: String(user.get('id')), savedAt: expect.any(String) },
@@ -178,6 +179,7 @@ describe('administrator configuration revision HTTP boundary', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
       identity,
+      currentRevision: 2,
       revisions: [{ revision: 2, actorUserId: String(user.get('id')), savedAt: expect.any(String) }],
       nextBefore: 2,
     });

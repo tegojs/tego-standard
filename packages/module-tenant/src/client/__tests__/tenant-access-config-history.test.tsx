@@ -25,12 +25,17 @@ const restored: AccessConfig = {
   ],
 };
 const response = (data: unknown) => ({ data: { data } });
-const page = (revision = 7, nextBefore: number | null = null) => ({
+const page = (revision = 7, nextBefore: number | null = null, currentRevision = 7) => ({
   identity,
+  currentRevision,
   revisions: [{ revision, actorUserId: '28', savedAt: '2026-11-02T07:00:00.000Z' }],
   nextBefore,
 });
-const preview = () => ({ identity, sourceRevision: 3, config: restored });
+const preview = (sourceRevision = 3, currentRevision = 7) => ({
+  identity,
+  sourceRevision,
+  config: { ...restored, revision: currentRevision },
+});
 
 interface Request {
   url: string;
@@ -38,7 +43,10 @@ interface Request {
   signal: AbortSignal;
 }
 
-function fixture(history: (request: Request) => unknown = () => response(page())) {
+function fixture(
+  history: (request: Request) => unknown = () => response(page()),
+  historicalPreview: (request: Request) => unknown = () => response(preview()),
+) {
   // Only the remote API boundary is replaced; the drawer, history and draft editor are real.
   const request = vi.fn(async (input) => {
     if (input.url === 'tenants:readAccessConfig')
@@ -51,7 +59,7 @@ function fixture(history: (request: Request) => unknown = () => response(page())
         config,
       });
     if (input.url === 'tenants:validateAccessConfig') return response({ identity, config: input.data.config });
-    if (input.url === 'tenants:previewAccessConfigRevision') return response(preview());
+    if (input.url === 'tenants:previewAccessConfigRevision') return historicalPreview(input);
     return history(input);
   });
   const api = { auth: { role: 'manager' }, request };
@@ -119,6 +127,42 @@ describe('access rule history in the management drawer', () => {
     expect(request.mock.calls[3][0].data).not.toHaveProperty('beforeRevision');
   });
 
+  it('accepts newer saved revisions while the history drawer is open', async () => {
+    const { request, view } = fixture(
+      ({ data }) => response(page(data.beforeRevision ? 3 : 8, null, 8)),
+      ({ data }) => response(preview(data.revision, 9)),
+    );
+    const { findByRole, getByRole, findByText } = render(view());
+    fireEvent.click(await findByRole('button', { name: 'View rule history' }));
+    fireEvent.click(await findByRole('button', { name: 'Create draft from revision 8' }));
+
+    await findByText('Draft from revision 8, based on current revision 9. Changes have not been saved or enabled.');
+    expect(getByRole('textbox', { name: 'Rule name' })).toHaveValue('Historical rule');
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    const previewRequest = request.mock.calls.find(([input]) => input.url === 'tenants:previewAccessConfigRevision');
+    const validationRequest = request.mock.calls.find(([input]) => input.url === 'tenants:validateAccessConfig');
+    expect(previewRequest?.[0].data.revision).toBe(8);
+    expect(validationRequest?.[0].data.config.revision).toBe(9);
+  });
+
+  it('reloads the history page when a preview discovers a newer saved revision', async () => {
+    let historyCalls = 0;
+    const { request, view } = fixture(
+      () => response(++historyCalls === 1 ? page(8, null, 8) : page(9, null, 9)),
+      ({ data }) => response(preview(data.revision, 9)),
+    );
+    const { findByRole, getByRole, findByText } = render(view());
+
+    fireEvent.click(await findByRole('button', { name: 'View rule history' }));
+    fireEvent.click(await findByRole('button', { name: 'Create draft from revision 8' }));
+    await findByText('Draft from revision 8, based on current revision 9. Changes have not been saved or enabled.');
+    fireEvent.click(getByRole('button', { name: 'Discard draft' }));
+
+    await findByRole('button', { name: 'Create draft from revision 9' });
+    expect(historyCalls).toBe(2);
+  });
+
   it('shows a safe load failure and retries without displaying another collection history', async () => {
     let calls = 0;
     const { view } = fixture(() => {
@@ -159,7 +203,7 @@ describe('access rule history in the management drawer', () => {
       const data = preview();
       if (kind === 'identity') data.identity = { ...identity, collectionKey: 'replacement' };
       if (kind === 'source') data.sourceRevision = 4;
-      if (kind === 'base') data.config = { ...restored, revision: 8 };
+      if (kind === 'base') data.config = { ...restored, revision: 6 };
       return response(data);
     });
     const { findByRole, getByRole, findByText, queryByRole } = render(view());

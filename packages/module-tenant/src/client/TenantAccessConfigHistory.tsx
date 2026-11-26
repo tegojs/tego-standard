@@ -13,6 +13,7 @@ interface HistoryProps {
   baseRevision: number;
   onClose: () => void;
   onSaved: (config: AccessConfig) => void;
+  onSavingChange?: (saving: boolean) => void;
 }
 
 function sameIdentity(value: HistoryProps['identity'], expected: HistoryProps['identity']) {
@@ -33,25 +34,27 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 /** Mount a fresh history when the saved selection, role or refresh changes; writes only through an explicit restored draft save. */
-export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onSaved }: HistoryProps) {
+export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onSaved, onSavingChange }: HistoryProps) {
   const api = useAPIClient();
   const { t, language } = useTenantTranslation();
   const role = api.auth?.role;
   const [page, setPage] = useState<AccessConfigRevisionPage>();
+  const [currentRevision, setCurrentRevision] = useState(baseRevision);
   const [draft, setDraft] = useState<{ sourceRevision: number; config: AccessConfig }>();
   const [pending, setPending] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const request = useRef<AbortController>();
   const loadFailure = t('Unable to load rule history. Try again.');
   const draftFailure = t('Unable to prepare this revision. Refresh saved rules and try again.');
 
   const load = useCallback(
-    async (beforeRevision?: number) => {
+    async (beforeRevision?: number, preserveDraft = false) => {
       request.current?.abort();
       const controller = new AbortController();
       request.current = controller;
       setPage(undefined);
-      setDraft(undefined);
+      if (!preserveDraft) setDraft(undefined);
       setError(undefined);
       setPending(true);
       try {
@@ -72,13 +75,19 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onS
         );
         const next = response.data.data;
         let previous = beforeRevision;
-        if (!sameIdentity(next?.identity, identity) || !Array.isArray(next.revisions) || next.revisions.length > 20)
+        if (
+          !sameIdentity(next?.identity, identity) ||
+          !Number.isSafeInteger(next.currentRevision) ||
+          next.currentRevision < baseRevision ||
+          !Array.isArray(next.revisions) ||
+          next.revisions.length > 20
+        )
           throw new Error('History response does not match selection');
         for (const item of next.revisions) {
           if (
             !Number.isSafeInteger(item.revision) ||
             item.revision < 1 ||
-            item.revision > baseRevision ||
+            item.revision > next.currentRevision ||
             (previous !== undefined && item.revision >= previous) ||
             typeof item.actorUserId !== 'string' ||
             !item.actorUserId ||
@@ -90,7 +99,10 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onS
         }
         if (next.nextBefore !== null && (!next.revisions.length || next.nextBefore !== previous))
           throw new Error('Invalid history cursor');
-        if (!controller.signal.aborted && api.auth?.role === role) setPage(next);
+        if (!controller.signal.aborted && api.auth?.role === role) {
+          setCurrentRevision(next.currentRevision);
+          setPage(next);
+        }
       } catch (failure) {
         if (!controller.signal.aborted && api.auth?.role === role) setError(errorMessage(failure, loadFailure));
       } finally {
@@ -128,12 +140,18 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onS
       if (
         !sameIdentity(next?.identity, identity) ||
         next.sourceRevision !== revision ||
-        next.config?.revision !== baseRevision ||
+        !Number.isSafeInteger(next.config?.revision) ||
+        next.config.revision < Math.max(currentRevision, revision) ||
         next.config.schemaVersion !== 1 ||
         !Array.isArray(next.config.rules)
       )
         throw new Error('Historical draft does not match selection and current editing base');
-      if (!controller.signal.aborted && api.auth?.role === role) setDraft(next);
+      if (!controller.signal.aborted && api.auth?.role === role) {
+        const revisionAdvanced = next.config.revision > currentRevision;
+        setCurrentRevision(next.config.revision);
+        setDraft(next);
+        if (revisionAdvanced) void load(undefined, true);
+      }
     } catch (failure) {
       if (!controller.signal.aborted && api.auth?.role === role) setError(errorMessage(failure, draftFailure));
     } finally {
@@ -143,7 +161,15 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onS
   };
 
   return (
-    <Card size="small" title={t('Rule history')} extra={<Button onClick={onClose}>{t('Close rule history')}</Button>}>
+    <Card
+      size="small"
+      title={t('Rule history')}
+      extra={
+        <Button disabled={saving} onClick={onClose}>
+          {t('Close rule history')}
+        </Button>
+      }
+    >
       <Space direction="vertical" style={{ display: 'flex' }}>
         {error ? <Alert type="error" showIcon message={error} /> : null}
         {pending ? <Spin aria-label={t('Loading rule history')} /> : null}
@@ -154,13 +180,17 @@ export function TenantAccessConfigHistory({ identity, baseRevision, onClose, onS
               showIcon
               message={t(
                 'Draft from revision {{source}}, based on current revision {{base}}. Changes have not been saved or enabled.',
-                { source: draft.sourceRevision, base: baseRevision },
+                { source: draft.sourceRevision, base: draft.config.revision },
               )}
             />
             <TenantAccessConfigDraft
               key={draft.sourceRevision}
               identity={identity}
               config={draft.config}
+              onSavingChange={(value) => {
+                setSaving(value);
+                onSavingChange?.(value);
+              }}
               onClose={() => setDraft(undefined)}
               onSaved={(savedConfig) => {
                 setDraft(undefined);

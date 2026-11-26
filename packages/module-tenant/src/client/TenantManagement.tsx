@@ -863,6 +863,11 @@ const TenantCollectionIsolation = ({ tenants }: { tenants: TenantRecord[] }) => 
           collection={previewCollection}
           tenants={tenants}
           onClose={() => setPreviewCollection(null)}
+          onSaved={() => {
+            if (!previewCollection) return;
+            setSavedRulesCollection(previewCollection);
+            setPreviewCollection(null);
+          }}
         />
       ) : null}
       {savedRulesCollection ? (

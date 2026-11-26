@@ -1,4 +1,3 @@
-import { isDeepStrictEqual } from 'node:util';
 import type { Application, Context, Next } from '@tego/server';
 
 import { AccessConfigError } from '../access-control/config-errors';
@@ -24,15 +23,7 @@ export function createAccessConfigSave(app: Application) {
       const config = await inspected.store.save(inspected.identity, inspected.validatedConfig, {
         userId: ctx.state.currentUser.id,
       });
-      const saved = await inspectAccessConfig(app, request);
-      if (!isDeepStrictEqual(saved.identity, inspected.identity) || !isDeepStrictEqual(saved.config, config)) {
-        throw new AccessConfigError(
-          'ACCESS_CONFIG_CONFLICT',
-          'Configuration changed while saving; reload before editing',
-          409,
-        );
-      }
-      ctx.body = { identity: saved.identity, config };
+      ctx.body = { identity: inspected.identity, config };
     } catch (error) {
       if (error instanceof AccessConfigError) {
         const key =

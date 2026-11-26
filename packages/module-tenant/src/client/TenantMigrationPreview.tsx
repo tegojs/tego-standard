@@ -4,6 +4,7 @@ import { useAPIClient } from '@tachybase/client';
 import { Alert, Button, Descriptions, Drawer, Space, Spin, Table, Tag, Typography } from 'antd';
 
 import type { AccessMigrationPreview } from '../server/access-control/migration-preview';
+import type { AccessConfig } from '../server/access-control/types';
 import { useTenantTranslation } from './locale';
 import type { TenantRecord } from './tenant-tree';
 import { TenantAccessConfigDraft } from './TenantAccessConfigDraft';
@@ -13,6 +14,7 @@ interface TenantMigrationPreviewProps {
   collection: { key: string; name: string; title?: string; template?: string };
   tenants: TenantRecord[];
   onClose: () => void;
+  onSaved: (config: AccessConfig) => void;
 }
 
 interface PreviewState {
@@ -40,12 +42,13 @@ const modeDescriptions = {
 };
 
 /** Preview and disposable editing; saving persists a revision but does not activate business enforcement. */
-export function TenantMigrationPreview({ collection, tenants, onClose }: TenantMigrationPreviewProps) {
+export function TenantMigrationPreview({ collection, tenants, onClose, onSaved }: TenantMigrationPreviewProps) {
   const api = useAPIClient();
   const { t } = useTenantTranslation();
   const role = api.auth?.role || undefined;
   const [refresh, setRefresh] = useState(0);
   const [editingKey, setEditingKey] = useState<string>();
+  const [saving, setSaving] = useState(false);
   const key = JSON.stringify([collection.key, collection.name, role, refresh]);
   useEffect(() => setEditingKey(undefined), [key]);
   const [result, setResult] = useState<PreviewState>();
@@ -103,7 +106,17 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
     report?.legacy.tenancy === 'shared' ? [] : [...new Set(report?.legacy.legacyDataTenantIds.map(String) || [])];
 
   return (
-    <Drawer open width={680} title={t('Preview migration')} onClose={onClose}>
+    <Drawer
+      open
+      width={680}
+      title={t('Preview migration')}
+      closable={!saving}
+      maskClosable={!saving}
+      keyboard={!saving}
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+    >
       <Space direction="vertical" size={16} style={{ display: 'flex' }}>
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{collection.title || collection.name}</Typography.Text>
@@ -115,7 +128,7 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
           message={t('This is a migration draft. No new rules have been saved or enabled.')}
         />
         <TenantFileAccessNotice template={collection.template} />
-        <Button disabled={loading} onClick={() => setRefresh((value) => value + 1)}>
+        <Button disabled={loading || saving} onClick={() => setRefresh((value) => value + 1)}>
           {t('Refresh preview')}
         </Button>
         {loading ? <Spin aria-label={t('Loading preview')} /> : null}
@@ -197,8 +210,9 @@ export function TenantMigrationPreview({ collection, tenants, onClose }: TenantM
                   key={key}
                   identity={report.identity}
                   config={report.draft}
+                  onSavingChange={setSaving}
                   onClose={() => setEditingKey(undefined)}
-                  onSaved={onClose}
+                  onSaved={onSaved}
                 />
               </>
             ) : (

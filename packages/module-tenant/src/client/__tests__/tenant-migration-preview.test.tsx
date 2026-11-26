@@ -11,6 +11,7 @@ vi.setConfig({ testTimeout: 60000 });
 
 const collection = { key: 'document-key', name: 'documents', title: 'Documents' };
 const tenants = [{ id: 'B', name: 'Branch B' }];
+const response = (data: unknown) => ({ data: { data } });
 const report = (tenancy = 'tenantScoped', options: object = {}) => ({
   identity: { dataSourceKey: 'main', collectionName: 'documents', collectionKey: 'document-key' },
   legacy: { tenancy, legacyDataTenantIds: ['B'], allowEditingLegacyData: true, ...options },
@@ -59,12 +60,13 @@ const report = (tenancy = 'tenantScoped', options: object = {}) => ({
 function fixture(request = vi.fn().mockResolvedValue({ data: { data: report() } })) {
   const api = { auth: { role: 'manager' as string | undefined }, request };
   const close = vi.fn();
+  const saved = vi.fn();
   const view = (selected = collection) => (
     <APIClientProvider apiClient={api as never}>
-      <TenantMigrationPreview collection={selected} tenants={tenants} onClose={close} />
+      <TenantMigrationPreview collection={selected} tenants={tenants} onClose={close} onSaved={saved} />
     </APIClientProvider>
   );
-  return { api, request, close, view };
+  return { api, request, close, saved, view };
 }
 
 describe('tenant migration preview drawer', () => {
@@ -173,6 +175,65 @@ describe('tenant migration preview drawer', () => {
     await findByText('Migration preview failed. Refresh to try again.');
     expect(request.mock.calls[0][0].data.collectionKey).toBe(collection.key);
     expect(queryByText('All records remain subject to role permissions.')).not.toBeInTheDocument();
+  });
+
+  it('returns to saved rules after saving the migration draft', async () => {
+    const migration = report();
+    const request = vi.fn(async ({ url, data }) => {
+      if (url === 'tenants:previewAccessMigration') return response(migration);
+      if (url === 'tenants:validateAccessConfig')
+        return response({ identity: migration.identity, config: data.config });
+      if (url === 'tenants:saveAccessConfig')
+        return response({
+          identity: migration.identity,
+          config: { ...data.config, revision: data.config.revision + 1 },
+        });
+      throw new Error('Unexpected request: ' + url);
+    });
+    const { request: calls, close, saved, view } = fixture(request);
+    const { findByText, getByRole } = render(view());
+
+    await findByText('Ownership rules');
+    fireEvent.click(getByRole('button', { name: 'Edit migration draft' }));
+    fireEvent.click(getByRole('button', { name: 'Validate draft' }));
+    await findByText('Draft validation passed. Changes have not been saved or enabled.');
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+
+    await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.objectContaining({ revision: 1 })));
+    expect(close).not.toHaveBeenCalled();
+    expect(calls.mock.calls.map(([input]) => input.url)).toEqual([
+      'tenants:previewAccessMigration',
+      'tenants:validateAccessConfig',
+      'tenants:saveAccessConfig',
+    ]);
+  });
+
+  it('keeps migration preview refresh disabled while saving a draft', async () => {
+    const migration = report();
+    let resolveSave!: (value: unknown) => void;
+    const request = vi.fn(async ({ url, data }) => {
+      if (url === 'tenants:previewAccessMigration') return response(migration);
+      if (url === 'tenants:saveAccessConfig') return await new Promise((resolve) => (resolveSave = resolve));
+      throw new Error('Unexpected request: ' + url);
+    });
+    const { request: calls, saved, view } = fixture(request);
+    const { findByText, getByRole } = render(view());
+
+    await findByText('Ownership rules');
+    fireEvent.click(getByRole('button', { name: 'Edit migration draft' }));
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+    await waitFor(() => expect(calls).toHaveBeenCalledTimes(2));
+    const refreshDisabled = getByRole('button', { name: 'Refresh preview' }).hasAttribute('disabled');
+    const submitted = calls.mock.calls[1][0].data.config as AccessConfig;
+
+    await act(async () =>
+      resolveSave(
+        response({ identity: migration.identity, config: { ...submitted, revision: submitted.revision + 1 } }),
+      ),
+    );
+    await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.objectContaining({ revision: 1 })));
+
+    expect(refreshDisabled).toBe(true);
   });
 
   it('requests the authoritative preview and selected role actions without writing', async () => {

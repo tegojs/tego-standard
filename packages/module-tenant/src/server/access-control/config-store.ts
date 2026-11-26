@@ -18,6 +18,7 @@ type MetadataResolver = (identity: AccessCollectionIdentity) => CollectionMetada
 export { registerAccessConfigGuards } from './config-mutation-guard';
 
 export interface AccessConfigRevisionPage {
+  readonly currentRevision: number;
   readonly revisions: readonly { readonly revision: number; readonly actorUserId: string; readonly savedAt: string }[];
   readonly nextBefore: number | null;
 }
@@ -123,7 +124,7 @@ export class AccessConfigStore {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
       throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid revision page size');
     if (beforeRevision !== undefined) positiveRevision(beforeRevision);
-    await this.record(identity);
+    const current = await this.read(identity);
     const model = this.db.getCollection('tenantAccessRevisions')?.model;
     if (!model) throw new AccessConfigError('ACCESS_COLLECTION_NOT_FOUND', 'Configuration history is unavailable', 404);
     const query = {
@@ -136,7 +137,10 @@ export class AccessConfigStore {
       hooks: false,
     };
     const rows = await model.unscoped().findAll(query);
-    await this.record(identity);
+    const latest = await this.read(identity);
+    if (!isDeepStrictEqual(current, latest)) {
+      throw new AccessConfigError('ACCESS_CONFIG_CONFLICT', 'Access configuration changed; reload history', 409);
+    }
     const revisions = rows.slice(0, limit).map((row) => {
       const revision = positiveRevision(Number(row.getDataValue('revision')));
       const actorUserId = normalizeAccessContextValue('user.id', row.getDataValue('actorUserId')) as string;
@@ -145,7 +149,11 @@ export class AccessConfigStore {
         throw new AccessConfigError('INVALID_ACCESS_CONFIG_WRITE', 'Invalid configuration history timestamp');
       return { revision, actorUserId, savedAt: savedAt.toISOString() };
     });
-    return immutable({ revisions, nextBefore: rows.length > limit ? revisions.at(-1)!.revision : null });
+    return immutable({
+      currentRevision: current?.revision ?? 0,
+      revisions,
+      nextBefore: rows.length > limit ? revisions.at(-1)!.revision : null,
+    });
   }
 
   /** Restore content into a disposable current-base draft; this never saves or enables it. */

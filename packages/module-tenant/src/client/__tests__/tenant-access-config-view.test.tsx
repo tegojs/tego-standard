@@ -170,6 +170,37 @@ describe('saved tenant access rules', () => {
     });
   });
 
+  it('keeps saved-rule refresh disabled while a save request is in flight', async () => {
+    const savedConfig = { ...config, revision: 8 };
+    let resolveSave!: (value: unknown) => void;
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(report())
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSave = resolve)));
+    const { view } = fixture(request);
+    const { findByText, getByRole } = render(view());
+
+    await findByText('Branch documents');
+    fireEvent.click(getByRole('button', { name: 'Edit rule draft' }));
+    fireEvent.click(getByRole('button', { name: 'Save rules' }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    const refreshDisabled = getByRole('button', { name: 'Refresh saved rules' }).hasAttribute('disabled');
+
+    await act(async () =>
+      resolveSave({
+        data: {
+          data: {
+            identity: { dataSourceKey: 'main', collectionName: 'documents', collectionKey: 'documents-key' },
+            config: savedConfig,
+          },
+        },
+      }),
+    );
+    await findByText('8');
+
+    expect(refreshDisabled).toBe(true);
+  });
+
   it('reads saved rules and version without exposing save or activation controls', async () => {
     const { request, view } = fixture();
     const { findByText, getByText, queryByRole } = render(view());

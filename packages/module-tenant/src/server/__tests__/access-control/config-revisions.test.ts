@@ -77,7 +77,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('read-only acces
   });
 
   it('returns an empty history for a valid unconfigured collection', async () => {
-    expect(await store.listRevisions(mainIdentity)).toEqual({ revisions: [], nextBefore: null });
+    expect(await store.listRevisions(mainIdentity)).toEqual({ currentRevision: 0, revisions: [], nextBefore: null });
     await expect(store.revisionDraft(mainIdentity, 1)).rejects.toMatchObject({ status: 404 });
   });
 
@@ -160,6 +160,7 @@ describe.each(['sqlite', ...(postgresUrl ? ['postgres'] : [])])('read-only acces
     await expect(store.listRevisions(mainIdentity)).rejects.toMatchObject({ code: 'ACCESS_COLLECTION_NOT_FOUND' });
     await expect(store.revisionDraft(mainIdentity, 1)).rejects.toMatchObject({ code: 'ACCESS_COLLECTION_NOT_FOUND' });
     expect(await store.listRevisions({ ...mainIdentity, collectionKey: 'replacement' })).toEqual({
+      currentRevision: 0,
       revisions: [],
       nextBefore: null,
     });

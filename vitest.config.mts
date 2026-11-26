@@ -253,6 +253,8 @@ for (const project of config.test.projects || []) {
   project.test.alias = [...projectAliases, ...(project.test.alias || [])];
   project.test.onConsoleLog = withConsoleOutputFilter(project.test.onConsoleLog);
   if (project.test.name === 'server') {
+    // Server fixtures mutate process-wide Gateway and AppSupervisor singletons; isolate each worker in a child process.
+    project.test.pool = 'forks';
     // @tachybase/test ESM entry (es/index.mjs) uses createRequire which fails in vitest ESM context.
     // Force CJS entry for server tests.
     const testCjsEntry = testRequire.resolve('@tachybase/test');

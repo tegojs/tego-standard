@@ -17,7 +17,7 @@ describe('authenticated API key tenant membership revocation', () => {
   it('rechecks the key owner membership before accessing tenant business data', async () => {
     app = await createTenantApp({
       extraPlugins: [
-        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }],
+        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys', workspaceSource: true }],
         [ExportPlugin, { name: 'action-export' }],
         [ImportPlugin, { name: 'action-import' }],
       ],
@@ -119,18 +119,17 @@ describe('authenticated API key tenant membership revocation', () => {
       },
     });
 
-    const signIn = async (username: string, roleName: string) => {
+    const signIn = async (username: string) => {
       const response = await app
         .agent()
         .post('/auth:signIn')
         .set('X-Authenticator', 'basic')
-        .set('X-Role', roleName)
         .send({ account: username, password });
       expect(response.status, JSON.stringify(response.body)).toBe(200);
       return response.body.data.token as string;
     };
-    const ownerSession = await signIn(owner.username, issuerRole);
-    const managerToken = await signIn(manager.username, managerRole);
+    const ownerSession = await signIn(owner.username);
+    const managerToken = await signIn(manager.username);
     const issue = await app
       .agent()
       .set('Authorization', `Bearer ${ownerSession}`)

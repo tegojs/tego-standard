@@ -17,7 +17,7 @@ describe('authenticated API key role revocation', () => {
   it('rechecks the key owner role membership before tenant business access', async () => {
     app = await createTenantApp({
       extraPlugins: [
-        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys' }],
+        [PluginAPIKeysServer, { name: 'api-keys', packageName: '@tachybase/plugin-api-keys', workspaceSource: true }],
         [ExportPlugin, { name: 'action-export' }],
         [ImportPlugin, { name: 'action-import' }],
       ],
@@ -77,7 +77,6 @@ describe('authenticated API key role revocation', () => {
       .agent()
       .post('/auth:signIn')
       .set('X-Authenticator', 'basic')
-      .set('X-Role', issuerRole)
       .send({ account: owner.username, password });
     expect(signedIn.status, JSON.stringify(signedIn.body)).toBe(200);
     expect(signedIn.body.data.user).toMatchObject({ id: owner.id, hasPassword: true });

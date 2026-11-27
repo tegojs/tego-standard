@@ -91,8 +91,8 @@ describe('cron static schedule tenant context', () => {
     Object.assign(service as any, {
       app: {
         pm: {
-          get: (plugin) =>
-            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+          get: (name) =>
+            name === 'workflow' ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
         },
         dataSourceManager: {
           dataSources: new Map([
@@ -163,8 +163,8 @@ describe('cron static schedule tenant context', () => {
     Object.assign(service as any, {
       app: {
         pm: {
-          get: (plugin) =>
-            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+          get: (name) =>
+            name === 'workflow' ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
         },
         dataSourceManager: {
           dataSources: new Map([

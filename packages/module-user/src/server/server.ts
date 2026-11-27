@@ -4,6 +4,12 @@ import { isMainThread } from 'node:worker_threads';
 import { Cache, Collection, Op, parse, Plugin } from '@tego/server';
 
 import * as actions from './actions/users';
+import { checkRoleUserAssociationTargetScope } from './middlewares/check-role-user-association-target-scope';
+import { checkUserRoleTargetScope } from './middlewares/check-user-role-target-scope';
+import { checkUserStatusHistoryAssociationTargetScope } from './middlewares/check-user-status-history-association-target-scope';
+import { checkUserStatusTargetScope } from './middlewares/check-user-status-target-scope';
+import { denyUserStatusHistoryCreate } from './middlewares/deny-user-status-history-create';
+import { filterUserStatusAssociationReadScope } from './middlewares/filter-user-status-association-read-scope';
 import { UserModel } from './models/UserModel';
 
 export default class PluginUsersServer extends Plugin {
@@ -194,6 +200,32 @@ export default class PluginUsersServer extends Plugin {
     // 初始化系统状态
     this.app.on('afterLoad', async () => {
       await this.initSystemStatuses();
+    });
+
+    this.app.resourcer.use(checkRoleUserAssociationTargetScope, {
+      tag: 'checkRoleUserAssociationTargetScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
+    this.app.resourcer.use(checkUserRoleTargetScope, {
+      tag: 'checkUserRoleTargetScope',
+      after: 'acl',
+    });
+    this.app.resourcer.use(checkUserStatusTargetScope, {
+      tag: 'checkUserStatusTargetScope',
+      after: 'acl',
+    });
+    this.app.resourcer.use(checkUserStatusHistoryAssociationTargetScope, {
+      tag: 'checkUserStatusHistoryAssociationTargetScope',
+      after: 'acl',
+    });
+    this.app.resourcer.use(denyUserStatusHistoryCreate, {
+      tag: 'denyUserStatusHistoryCreate',
+      after: 'acl',
+    });
+    this.app.resourcer.use(filterUserStatusAssociationReadScope, {
+      tag: 'filterUserStatusAssociationReadScope',
+      after: 'acl',
     });
 
     this.app.resourcer.use(

@@ -75,11 +75,11 @@ export class CronJobLock {
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error(`Failed to acquire lock for cron job ${cronJobId}: ${error.message}`);
-        return true;
+        return false;
       }
 
       this.logger.error(`Failed to acquire lock for cron job ${cronJobId} due to unknown error type`, { error });
-      return true;
+      return false;
     }
   }
 

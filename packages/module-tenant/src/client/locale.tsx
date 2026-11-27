@@ -26,7 +26,10 @@ export function useTenantTranslation() {
   const translator = app?.i18n || i18n;
   const t = (key: string, props = {}) => translator.t(key, { ns: [NAMESPACE, 'client'], nsMode: 'fallback', ...props });
 
-  return { t };
+  return {
+    t,
+    language: translator.resolvedLanguage || translator.language || i18n.resolvedLanguage || i18n.language || 'en-US',
+  };
 }
 
 /**

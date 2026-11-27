@@ -13,9 +13,11 @@ import {
 } from '@tego/server';
 
 import { LRUCache } from 'lru-cache';
+import type { TransactionOptions } from 'sequelize';
 
 import initActions from './actions';
 import { EXECUTION_STATUS, JOB_STATUS } from './constants';
+import { captureWorkflowDataOperationAuthority } from './data-operation-authority';
 import {
   getWorkflowExecutionOrigin,
   markEventSourceWorkflowExecution,
@@ -23,15 +25,18 @@ import {
 } from './execution-provenance';
 import PluginWorkflowJSParseServer from './features/_deprecated-js-parse/plugin';
 import PluginWorkflowJSONParseServer from './features/_deprecated-json-parse/plugin';
+import type { WorkflowAggregateReadGuard } from './features/aggregate/AggregateInstruction';
 import { PluginAggregate } from './features/aggregate/Plugin';
 import { PluginDelay } from './features/delay/Plugin';
 import { PluginDynamicCalculation } from './features/dynamic-calculation/Plugin';
 import { PluginExitBranch } from './features/exit-branch';
 import { PluginInterception } from './features/interception';
 import { PluginLoop } from './features/loop/Plugin';
+import type { WorkflowManualFormGuard } from './features/manual/ManualInstruction';
 import { PluginManual } from './features/manual/Plugin';
 import PluginWorkflowNoticeServer from './features/notice/plugin';
 import { PluginOmniTrigger } from './features/omni-trigger';
+import type { WorkflowOmniReadGuard } from './features/omni-trigger/CustomActionTrigger';
 import { PluginParallel } from './features/parallel/Plugin';
 import { PluginRequest } from './features/request/Plugin';
 import { PluginResponse } from './features/response';
@@ -44,16 +49,25 @@ import { Instruction, InstructionInterface } from './instructions';
 import CalculationInstruction from './instructions/CalculationInstruction';
 import ConditionInstruction from './instructions/ConditionInstruction';
 import CreateInstruction from './instructions/CreateInstruction';
-import DestroyInstruction from './instructions/DestroyInstruction';
+import DestroyInstruction, {
+  type WorkflowDestroyResolver,
+  type WorkflowDestroyTransactionOptionsResolver,
+  type WorkflowDestroyTransactionPlanner,
+} from './instructions/DestroyInstruction';
 import EndInstruction from './instructions/EndInstruction';
-import QueryInstruction from './instructions/QueryInstruction';
+import QueryInstruction, { type WorkflowQueryResolver } from './instructions/QueryInstruction';
 import SelectInstruction from './instructions/SelectInstruction';
 import UpdateInstruction from './instructions/UpdateInstruction';
-import UpdateOrCreateInstruction from './instructions/UpdateOrCreateInstruction';
+import UpdateOrCreateInstruction, { type WorkflowUpdateOrCreateGuard } from './instructions/UpdateOrCreateInstruction';
+import type {
+  WorkflowCreateResolver,
+  WorkflowUpdateResolver,
+  WorkflowWriteTransactionPlanner,
+} from './instructions/write-resolver';
 import Processor from './Processor';
 import { WorkflowRemoteCodeFetcher } from './services/remote-code-fetcher';
 import Trigger from './triggers';
-import CollectionTrigger from './triggers/CollectionTrigger';
+import CollectionTrigger, { type WorkflowCollectionReadGuard } from './triggers/CollectionTrigger';
 import ScheduleTrigger from './triggers/ScheduleTrigger';
 import type { ExecutionModel, JobModel, WorkflowModel } from './types';
 
@@ -62,6 +76,35 @@ type ID = number | string;
 type Pending = [ExecutionModel, JobModel?, Transactionable?];
 
 type CachedEvent = [WorkflowModel, any, { context?: any } & Transactionable];
+
+export interface WorkflowPluginOptions extends PluginOptions {
+  /** Server bootstrap only; selected executors own the complete write and response projection. */
+  createResolver?: WorkflowCreateResolver;
+  updateResolver?: WorkflowUpdateResolver;
+  /** Server bootstrap only; veto unsupported upserts before attachment or business I/O. */
+  updateOrCreateGuard?: WorkflowUpdateOrCreateGuard;
+  /** Server bootstrap only; veto unadapted manual form writes before business I/O. */
+  manualFormGuard?: WorkflowManualFormGuard;
+  /** Target-only async planning for new node transactions; caller transactions remain unchanged. */
+  createTransactionPlanner?: WorkflowWriteTransactionPlanner;
+  updateTransactionPlanner?: WorkflowWriteTransactionPlanner;
+  /** Server bootstrap only; selected executors own read authorization and querying. */
+  queryResolver?: WorkflowQueryResolver;
+  /** Explicit select-list execution, before the instruction extracts its summary. */
+  selectResolver?: WorkflowQueryResolver;
+  /** Server bootstrap only; veto unadapted aggregate reads before repository I/O. */
+  aggregateGuard?: WorkflowAggregateReadGuard;
+  /** Server bootstrap only; veto collection-event repository reads before business I/O. */
+  collectionReadGuard?: WorkflowCollectionReadGuard;
+  /** Server bootstrap only; veto workflows-resource Omni business reloads before repository I/O. */
+  omniWorkflowReadGuard?: WorkflowOmniReadGuard;
+  /** Server bootstrap only; selected executors own delete authorization and transactional writes. */
+  destroyResolver?: WorkflowDestroyResolver;
+  /** Server bootstrap only; plans new delete-node transaction settings without granting delete access. */
+  destroyTransactionOptions?: WorkflowDestroyTransactionOptionsResolver;
+  /** Server bootstrap only; asynchronously loads target policy before new transactions, mutually exclusive with sync options. */
+  destroyTransactionPlanner?: WorkflowDestroyTransactionPlanner;
+}
 
 function extractTenantContext(context: any, options: any = {}) {
   const state = [options.context?.state, options.httpContext?.state].find(
@@ -97,13 +140,20 @@ function extractAuthContext(context: any, options: any = {}) {
   Services: [WorkflowRemoteCodeFetcher],
 })
 export default class PluginWorkflowServer extends Plugin {
+  declare options: WorkflowPluginOptions;
   instructions: Registry<InstructionInterface> = new Registry();
   triggers: Registry<Trigger> = new Registry();
   functions: Registry<CustomFunction> = new Registry();
   enabledCache: Map<number, WorkflowModel> = new Map();
 
+  private registrationChanges = new Map<string, object>();
+
+  private registrationLifecycle = {};
+
   private ready = false;
   private executing: Promise<void> | null = null;
+
+  private preparing: Promise<void> | null = null;
   private pending: Pending[] = [];
   private events: CachedEvent[] = [];
   private eventsCount = 0;
@@ -111,7 +161,7 @@ export default class PluginWorkflowServer extends Plugin {
   private loggerCache: LRUCache<string, Logger>;
   private meter = null;
 
-  constructor(app: Application, options?: PluginOptions) {
+  constructor(app: Application, options?: WorkflowPluginOptions) {
     super(app, options);
     this.addFeature(PluginSql);
     this.addFeature(PluginRequest);
@@ -243,12 +293,26 @@ export default class PluginWorkflowServer extends Plugin {
     this.registerInstruction('calculation', CalculationInstruction);
     this.registerInstruction('condition', ConditionInstruction);
     this.registerInstruction('end', EndInstruction);
-    this.registerInstruction('create', CreateInstruction);
-    this.registerInstruction('updateorcreate', UpdateOrCreateInstruction);
-    this.registerInstruction('destroy', DestroyInstruction);
-    this.registerInstruction('query', QueryInstruction);
-    this.registerInstruction('select', SelectInstruction);
-    this.registerInstruction('update', UpdateInstruction);
+    this.registerInstruction(
+      'create',
+      new CreateInstruction(this, this.options.createResolver, this.options.createTransactionPlanner),
+    );
+    this.registerInstruction('updateorcreate', new UpdateOrCreateInstruction(this, this.options.updateOrCreateGuard));
+    this.registerInstruction(
+      'destroy',
+      new DestroyInstruction(
+        this,
+        this.options.destroyResolver,
+        this.options.destroyTransactionOptions,
+        this.options.destroyTransactionPlanner,
+      ),
+    );
+    this.registerInstruction('query', new QueryInstruction(this, this.options.queryResolver));
+    this.registerInstruction('select', new SelectInstruction(this, this.options.selectResolver));
+    this.registerInstruction(
+      'update',
+      new UpdateInstruction(this, this.options.updateResolver, this.options.updateTransactionPlanner),
+    );
 
     for (const [name, instruction] of Object.entries({ ...more })) {
       this.registerInstruction(name, instruction);
@@ -312,13 +376,20 @@ export default class PluginWorkflowServer extends Plugin {
     //   * add all hooks for enabled workflows
     //   * add hooks for create/update[enabled]/delete workflow to add/remove specific hooks
     this.app.on('beforeStart', async () => {
+      const lifecycle = this.registrationLifecycle;
+      const registrationChanges = new Map(this.registrationChanges);
       const collection = db.getCollection('workflows');
       const workflows = await collection.repository.find({
+        useMaster: true,
+        transaction: null,
         filter: { enabled: true },
       });
+      if (this.registrationLifecycle !== lifecycle) return;
 
       workflows.forEach((workflow: WorkflowModel) => {
-        this.toggle(workflow);
+        if (this.registrationChanges.get(`${workflow.id}`) === registrationChanges.get(`${workflow.id}`)) {
+          this.toggle(workflow);
+        }
       });
     });
 
@@ -330,17 +401,13 @@ export default class PluginWorkflowServer extends Plugin {
     });
 
     this.app.on('beforeStop', async () => {
-      const repository = db.getRepository('workflows');
-      const workflows = await repository.find({
-        filter: { enabled: true },
-      });
-
-      workflows.forEach((workflow: WorkflowModel) => {
+      this.registrationLifecycle = {};
+      for (const workflow of Array.from(this.enabledCache.values())) {
         this.toggle(workflow, false);
-      });
+      }
 
       this.ready = false;
-      if (this.events.length) {
+      if (this.events.length || this.preparing) {
         await this.prepare();
       }
       if (this.executing) {
@@ -358,22 +425,25 @@ export default class PluginWorkflowServer extends Plugin {
   }
 
   toggle(workflow: WorkflowModel, enable?: boolean) {
+    this.registrationChanges.set(`${workflow.id}`, {});
     const type = workflow.get('type');
     const trigger = this.triggers.get(type);
     if (!trigger) {
       this.getLogger(workflow.id).error(`trigger type ${workflow.type} of workflow ${workflow.id} is not implemented`);
       return;
     }
+    const prev = workflow.previous();
+    const previousTrigger = prev.type ? this.triggers.get(prev.type) : trigger;
+    const previousWorkflow = prev.config || prev.type ? { ...workflow.get(), ...prev } : workflow;
     if (enable ?? workflow.get('enabled')) {
-      // NOTE: remove previous listener if config updated
-      const prev = workflow.previous();
-      if (prev.config) {
-        trigger.off({ ...workflow.get(), ...prev });
+      // NOTE: remove the previous registration if its type or config changed.
+      if (prev.config || prev.type) {
+        previousTrigger?.off(previousWorkflow);
       }
       trigger.on(workflow);
       this.enabledCache.set(workflow.id, workflow);
     } else {
-      trigger.off(workflow);
+      previousTrigger?.off(previousWorkflow);
       this.enabledCache.delete(workflow.id);
     }
   }
@@ -444,9 +514,7 @@ export default class PluginWorkflowServer extends Plugin {
   }
 
   public async resume(job: JobModel) {
-    if (!job.execution) {
-      job.execution = await job.getExecution();
-    }
+    job.execution = await job.getExecution({ useMaster: true, transaction: null });
     this.getLogger(job.execution.workflowId).info(
       `execution (${job.execution.id}) resuming from job (${job.id}) added to pending list`,
     );
@@ -459,20 +527,25 @@ export default class PluginWorkflowServer extends Plugin {
     return new Processor(execution, { ...executionOptions, plugin: this });
   }
 
+  /** Use the installed plugin instance so loaders cannot create a separate authority registry. */
+  public captureDataOperationAuthority(request: unknown) {
+    return captureWorkflowDataOperationAuthority(request, this);
+  }
+
   private async createExecution(workflow: WorkflowModel, context, options): Promise<ExecutionModel | null> {
     const { transaction = await this.db.sequelize.transaction() } = options;
     const sameTransaction = options.transaction === transaction;
     const trigger = this.triggers.get(workflow.type);
-    const valid = await trigger.validateEvent(workflow, context, { ...options, transaction });
-    if (!valid) {
-      if (!sameTransaction) {
-        await transaction.commit();
-      }
-      return null;
-    }
-
     let execution;
     try {
+      const valid = await trigger.validateEvent(workflow, context, { ...options, transaction });
+      if (!valid) {
+        if (!sameTransaction) {
+          await transaction.commit();
+        }
+        return null;
+      }
+
       const tenantContext = extractTenantContext(context, options);
       const authContext = extractAuthContext(context, options);
       const executionOrigin = getWorkflowExecutionOrigin(options);
@@ -506,35 +579,35 @@ export default class PluginWorkflowServer extends Plugin {
         },
         executionOptions,
       );
-    } catch (err) {
+
+      this.getLogger(workflow.id).info(`execution of workflow ${workflow.id} created as ${execution.id}`);
+
+      await workflow.increment(['executed', 'allExecuted'], { transaction });
+      // NOTE: https://sequelize.org/api/v6/class/src/model.js~model#instance-method-increment
+      if (this.db.options.dialect !== 'postgres') {
+        await workflow.reload({ transaction });
+      }
+
+      await (<typeof WorkflowModel>workflow.constructor).update(
+        {
+          allExecuted: workflow.allExecuted,
+        },
+        {
+          where: {
+            key: workflow.key,
+          },
+          transaction,
+        },
+      );
+
       if (!sameTransaction) {
+        await transaction.commit();
+      }
+    } catch (err) {
+      if (!sameTransaction && !transaction.finished) {
         await transaction.rollback();
       }
       throw err;
-    }
-
-    this.getLogger(workflow.id).info(`execution of workflow ${workflow.id} created as ${execution.id}`);
-
-    await workflow.increment(['executed', 'allExecuted'], { transaction });
-    // NOTE: https://sequelize.org/api/v6/class/src/model.js~model#instance-method-increment
-    if (this.db.options.dialect !== 'postgres') {
-      await workflow.reload({ transaction });
-    }
-
-    await (<typeof WorkflowModel>workflow.constructor).update(
-      {
-        allExecuted: workflow.allExecuted,
-      },
-      {
-        where: {
-          key: workflow.key,
-        },
-        transaction,
-      },
-    );
-
-    if (!sameTransaction) {
-      await transaction.commit();
     }
 
     execution.workflow = workflow;
@@ -542,40 +615,47 @@ export default class PluginWorkflowServer extends Plugin {
     return execution;
   }
 
-  private prepare = async () => {
-    if (this.executing && this.db.options.dialect === 'sqlite') {
-      await this.executing;
+  private prepare = () => {
+    if (this.preparing) {
+      return this.preparing;
     }
 
-    const event = this.events.shift();
-    this.eventsCount = this.events.length;
-    if (!event) {
-      this.getLogger('dispatcher').warn(`events queue is empty, no need to prepare`);
-      return;
-    }
+    this.preparing = Promise.resolve().then(async () => {
+      try {
+        if (this.executing && this.db.options.dialect === 'sqlite') {
+          await this.executing;
+        }
 
-    const logger = this.getLogger(event[0].id);
-    logger.info(`preparing execution for event`);
+        while (this.events.length) {
+          const event = this.events.shift();
+          this.eventsCount = this.events.length;
+          const logger = this.getLogger(event[0].id);
+          logger.info(`preparing execution for event`);
 
-    try {
-      const execution = await this.createExecution(...event);
-      // NOTE: cache first execution for most cases
-      if (execution && !this.executing && !this.pending.length) {
-        this.pending.push([execution, undefined, event[2]]);
+          try {
+            const execution = await this.createExecution(...event);
+            // NOTE: cache first execution for most cases
+            if (execution && !this.executing && !this.pending.length) {
+              this.pending.push([execution, undefined, event[2]]);
+            }
+          } catch (err) {
+            logger.error(`failed to create execution: ${err.message}`, err);
+          }
+        }
+      } finally {
+        this.preparing = null;
       }
-    } catch (err) {
-      logger.error(`failed to create execution: ${err.message}`, err);
-      // this.events.push(event); // NOTE: retry will cause infinite loop
-    }
-
-    if (this.events.length) {
-      await this.prepare();
-    } else {
       this.dispatch();
-    }
+    });
+
+    return this.preparing;
   };
 
   private dispatch() {
+    if (this.preparing) {
+      return this.preparing;
+    }
+
     if (!this.ready) {
       this.getLogger('dispatcher').warn(`app is not ready, new dispatching will be ignored`);
       return;
@@ -597,24 +677,39 @@ export default class PluginWorkflowServer extends Plugin {
         next = this.pending.shift() as Pending;
         this.getLogger(next[0].workflowId).info(`pending execution (${next[0].id}) ready to process`);
       } else {
-        const execution = (await this.db.getRepository('executions').findOne({
-          filter: {
-            status: EXECUTION_STATUS.QUEUEING,
-            'workflow.enabled': true,
-            'workflow.id': {
-              [Op.not]: null,
+        let execution: ExecutionModel;
+        try {
+          execution = (await this.db.getRepository('executions').findOne({
+            useMaster: true,
+            transaction: null,
+            filter: {
+              status: EXECUTION_STATUS.QUEUEING,
+              'workflow.enabled': true,
+              'workflow.id': {
+                [Op.not]: null,
+              },
             },
-          },
-          appends: ['workflow'],
-          sort: 'createdAt',
-        })) as ExecutionModel;
+            appends: ['workflow'],
+            sort: 'createdAt',
+          })) as ExecutionModel;
+        } catch (error) {
+          this.getLogger('dispatcher').error('failed to discover queued workflow executions', error);
+          this.executing = null;
+          return;
+        }
         if (execution) {
           this.getLogger(execution.workflowId).info(`execution (${execution.id}) fetched from db`);
           next = [execution];
         }
       }
       if (next) {
-        await this.process(...next);
+        try {
+          await this.process(...next);
+        } catch (error) {
+          this.getLogger(next[0].workflowId).error('failed to process queued workflow execution', error);
+          this.executing = null;
+          return;
+        }
       }
 
       this.executing = null;
@@ -650,10 +745,15 @@ export default class PluginWorkflowServer extends Plugin {
         // 根据parentId找到parent
         const { database } = <typeof ExecutionModel>execution.constructor;
         const { model } = database.getCollection('executions');
-        const parent = (await model.findByPk(execution.parentId, options)) as ExecutionModel;
-        const jobs = await parent.getJobs();
+        const parent = (await model.findByPk(execution.parentId, {
+          ...options,
+          useMaster: true,
+          transaction: options.transaction ?? null,
+        })) as ExecutionModel;
+        const jobs = await parent.getJobs({ useMaster: true, transaction: options.transaction ?? null });
         const job = jobs.find((v) => v.status === JOB_STATUS.PENDING && v.nodeId === execution.parentNode);
         if (job) {
+          job.execution = parent;
           const lastSavedJob = processor.lastSavedJob;
           // 为了防止没有返回值导致错误, 取默认输入值
           job.set({
@@ -671,6 +771,8 @@ export default class PluginWorkflowServer extends Plugin {
       }
     } catch (err) {
       logger.error(`execution (${execution.id}) error: ${err.message}`, err);
+      // Only the caller can roll back its transaction after a fatal persistence failure.
+      if (options.transaction) throw err;
     }
 
     // this.emit('afterProcess', processor);
@@ -678,7 +780,12 @@ export default class PluginWorkflowServer extends Plugin {
     return processor;
   }
 
-  useDataSourceTransaction(dataSourceName = 'main', transaction, create = false) {
+  useDataSourceTransaction(
+    dataSourceName = 'main',
+    transaction,
+    create = false,
+    options?: Pick<TransactionOptions, 'type' | 'isolationLevel'>,
+  ) {
     // @ts-ignore
     const { db } = this.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager;
     if (!db) {
@@ -688,7 +795,13 @@ export default class PluginWorkflowServer extends Plugin {
       return transaction;
     }
     if (create) {
-      return db.sequelize.transaction();
+      // Server callers may request stronger isolation; inherited transactions remain untouched.
+      return options === undefined
+        ? db.sequelize.transaction()
+        : db.sequelize.transaction({
+            ...(options.type === undefined ? {} : { type: options.type }),
+            ...(options.isolationLevel === undefined ? {} : { isolationLevel: options.isolationLevel }),
+          });
     }
   }
 }

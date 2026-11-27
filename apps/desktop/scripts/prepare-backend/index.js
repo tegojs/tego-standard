@@ -5,7 +5,7 @@
  * 复制文件、处理依赖、构建原生模块
  */
 
-const path = require('path');
+const path = require('node:path');
 const { getProjectRoot, getDesktopDir } = require('../utils/paths');
 const { createLogPrefix, title, success, error } = require('../utils/logger');
 const { createTaskList, runTasks } = require('../utils/task-runner');

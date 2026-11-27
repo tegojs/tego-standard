@@ -4,15 +4,28 @@ import { isArray } from 'lodash';
 
 import Instruction from '.';
 import { JOB_STATUS } from '../constants';
+import { bindWorkflowDataOperationRequest } from '../data-operation-authority';
 import { applyTenantFilterToContext } from '../helpers/tenant-context';
+import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
+import type { WorkflowQueryRequest, WorkflowQueryResolver } from './QueryInstruction';
 
 /**
  * Runs the select instruction workflow instruction.
  */
 export class SelectInstruction extends Instruction {
+  constructor(
+    workflow: Plugin,
+    private readonly resolve?: WorkflowQueryResolver,
+  ) {
+    super(workflow);
+    if (resolve !== undefined && typeof resolve !== 'function') {
+      throw new TypeError('Select resolver must be a function');
+    }
+  }
+
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, multiple, isTree, params = {}, failOnEmpty = false } = node.config;
 
@@ -46,7 +59,7 @@ export class SelectInstruction extends Instruction {
 
     let pageArgs = paginate ? utils.pageArgsToLimitArgs(page || DEFAULT_PAGE, pageSize || DEFAULT_PER_PAGE) : {};
     const repositoryContext = processor.getRepositoryContext();
-    const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'list', {
+    const query = {
       ...options,
       ...otherOptions,
       ...pageArgs,
@@ -54,15 +67,40 @@ export class SelectInstruction extends Instruction {
         .filter((item) => item.field)
         .map((item) => `${item.direction?.toLowerCase() === 'desc' ? '-' : ''}${item.field}`),
       appends,
-    });
-    const data = await (multiple ? repository.find : repository.findOne).call(repository, {
-      ...repositoryOptions,
+    };
+    const { summary: summaryOption, ...readQuery } = query;
+    const request: WorkflowQueryRequest = Object.freeze({
+      dataSourceName,
+      collectionName,
+      collection: targetCollection,
+      multiple: !!multiple,
+      query: readQuery,
       context: repositoryContext,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, processor.transaction),
     });
+    if (this.resolve) bindWorkflowDataOperationRequest(request, 'list', processor, node);
+    const execute = this.resolve?.(request);
+    let data;
+    if (execute === undefined) {
+      const repositoryOptions = applyTenantFilterToContext(repositoryContext, targetCollection, 'list', query);
+      data = await (multiple ? repository.find : repository.findOne).call(repository, {
+        ...repositoryOptions,
+        context: repositoryContext,
+        transaction: request.transaction,
+      });
+    } else {
+      if (typeof execute !== 'function') {
+        await execute;
+        throw new TypeError('Select resolver must select an executor or undefined');
+      }
+      data = await execute(request);
+      if (multiple ? !Array.isArray(data) : data !== null && (typeof data !== 'object' || Array.isArray(data))) {
+        throw new TypeError('Invalid select executor result');
+      }
+    }
 
     let result;
-    const summary = options.summary?.length ? options.summary.split('.') : null;
+    const summary = summaryOption?.length ? summaryOption.split('.') : null;
     if (summary) {
       if (isArray(data)) {
         result = [];

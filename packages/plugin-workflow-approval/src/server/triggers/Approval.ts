@@ -1,11 +1,12 @@
 import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
 import { EXECUTION_STATUS, JOB_STATUS, Trigger } from '@tachybase/module-workflow';
-import { modelAssociationByKey, parseCollectionName } from '@tego/server';
+import { modelAssociationByKey, parseCollectionName, type Collection, type Context, type Next } from '@tego/server';
 
 import { get } from 'lodash';
 import { BelongsTo, HasOne, Op, type Transaction } from 'sequelize';
 
+import { captureApprovalBusinessWriteGuard, type ApprovalBusinessWriteGuard } from '../business-write-guard';
 import { APPROVAL_STATUS } from '../constants/status';
 import {
   deferUntilTransactionCommitSucceeds,
@@ -34,6 +35,8 @@ type ApprovalTriggerTransaction = Transaction & {
 
 export default class ApprovalTrigger extends Trigger {
   static TYPE = 'approval';
+  private readonly assertBusinessWrite?: ReturnType<typeof captureApprovalBusinessWriteGuard>;
+  private readonly businessWriteErrorMiddleware?: (ctx: Context, next: Next) => Promise<void>;
   sync = false;
   prepareExecution = restoreLegacyApprovalTenant;
   triggerHandler = async (
@@ -258,8 +261,15 @@ export default class ApprovalTrigger extends Trigger {
     }
     this.collectionTriggerAction(ctx, triggerWorkflows);
   };
-  constructor(workflow) {
+  constructor(workflow, businessWriteGuard?: ApprovalBusinessWriteGuard) {
     super(workflow);
+    this.assertBusinessWrite =
+      businessWriteGuard === undefined ? undefined : captureApprovalBusinessWriteGuard(businessWriteGuard);
+    if (this.assertBusinessWrite) {
+      const errorHandler = workflow.app.pm.get('error-handler')?.errorHandler;
+      if (!errorHandler) throw new Error('Approval business write guard requires the error-handler plugin');
+      this.businessWriteErrorMiddleware = errorHandler.middleware();
+    }
     const { db } = workflow.app;
     db.on('approvals.afterSave', this.triggerHandler);
     db.on('executions.afterCreate', this.onExecutionCreate);
@@ -281,20 +291,39 @@ export default class ApprovalTrigger extends Trigger {
         enabled: true,
       },
     });
-    ctx.status = 202;
-    await next();
-    workflows.forEach(async (workflow) => {
+    const creates = [];
+    for (const workflow of workflows) {
       const trigger = triggers.find((trigger2) => trigger2[0] === workflow.key);
       const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
       const collecton = this.workflow.app.dataSourceManager.dataSources
         .get(dataSourceName)
         .collectionManager.getCollection(collectionName);
+      const createValues = { ...(trigger[1] ? get(values, trigger[1]) : values) };
+      if (this.assertBusinessWrite) {
+        let checked = false;
+        await this.businessWriteErrorMiddleware(ctx, async () => {
+          await this.assertBusinessWrite({
+            actionName: 'create',
+            dataSourceName,
+            collectionName,
+            collection: collecton,
+            params: {
+              values: createValues,
+              appends: getWorkflowAppends(workflow.config, collecton as Collection, this.workflow.app),
+            },
+            context: ctx,
+          });
+          checked = true;
+        });
+        if (!checked) return;
+      }
+      creates.push({ workflow, collecton, createValues });
+    }
+    ctx.status = 202;
+    await next();
+    creates.forEach(async ({ workflow, collecton, createValues }) => {
       const data = await collecton.repository.create({
-        values: {
-          ...(trigger[1] ? get(values, trigger[1]) : values),
-          // createdBy: currentUser.id,
-          // updatedById: currentUser.id,
-        },
+        values: createValues,
         context: ctx,
       });
       const approvalRepo = this.workflow.db.getRepository('approvals');

@@ -5,8 +5,8 @@
  * 统一管理构建过程中的临时目录
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { getDesktopDir } = require('./paths');
 const { ensureDirectory, removeDirectory } = require('./file-operations');
 const { createLogPrefix, log, success } = require('./logger');

@@ -1,5 +1,7 @@
 import type { Context } from '@tego/server';
 
+import type { TransactionOptions } from 'sequelize';
+
 type TenantFilterContext = {
   state?: Record<string, any>;
   [key: string]: any;
@@ -1208,19 +1210,20 @@ export async function resolveTenantDestroyOptions(
   return destroyOptions;
 }
 
-/** Uses the request transaction when possible, otherwise owns a node transaction. */
+/** Uses the request transaction unchanged; explicit server options only affect a new node transaction. */
 export async function withWorkflowDataSourceTransaction<T>(
   workflow: any,
   dataSourceName: string,
   processorTransaction: any,
   callback: (transaction: any) => Promise<T>,
+  options?: Pick<TransactionOptions, 'type' | 'isolationLevel'>,
 ): Promise<T> {
   const inheritedTransaction = workflow.useDataSourceTransaction(dataSourceName, processorTransaction);
   if (inheritedTransaction) {
     return callback(inheritedTransaction);
   }
 
-  const transaction = await workflow.useDataSourceTransaction(dataSourceName, undefined, true);
+  const transaction = await workflow.useDataSourceTransaction(dataSourceName, undefined, true, options);
   if (!transaction) {
     return callback(undefined);
   }
@@ -1230,7 +1233,7 @@ export async function withWorkflowDataSourceTransaction<T>(
     await transaction.commit();
     return result;
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction.finished) await transaction.rollback();
     throw error;
   }
 }
@@ -1527,7 +1530,7 @@ export function applyTenantFilterToContext<TOptions extends Record<string, any>>
 export async function getDescendantTenantIds(
   db: any,
   tenantId: string,
-  options: { enabledOnly?: boolean; transaction?: any } = {},
+  options: { enabledOnly?: boolean; transaction?: any; useMaster?: boolean } = {},
 ): Promise<string[]> {
   const repo = db?.getRepository?.('tenants');
   if (!repo) {
@@ -1537,6 +1540,7 @@ export async function getDescendantTenantIds(
   const tenant = await repo.findOne({
     filter: { id: tenantId },
     fields: ['path'],
+    ...(options.useMaster ? { useMaster: true } : {}),
     transaction: options.transaction,
   });
   const path = tenant?.get('path') as string;
@@ -1550,6 +1554,7 @@ export async function getDescendantTenantIds(
       ...buildPathPrefixFilter(path),
     },
     fields: ['id', 'path'],
+    ...(options.useMaster ? { useMaster: true } : {}),
     transaction: options.transaction,
   });
 

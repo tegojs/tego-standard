@@ -55,6 +55,10 @@ export const addConversionJob = async (ctx: Context) => {
     // 返回作业 ID 和 PDF 文件路径
     ctx.body = { jobId: job.id };
   } catch (error) {
+    if ((error as { status?: number } | null)?.status === 403) {
+      throw error;
+    }
+
     console.error('Error adding conversion job:', error);
     ctx.status = 500;
     ctx.body = 'Error adding conversion job: ' + error.message;

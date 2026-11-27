@@ -5,7 +5,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import https from 'https';
+import https from 'node:https';
 
 // 翻译缓存
 const translationCache = new Map();

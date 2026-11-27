@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto';
-
 import { Context, Next } from '@tego/server';
 
 import { cookieName } from '../../constants';

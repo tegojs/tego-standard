@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 const { createLogPrefix, success, log, warn } = require('../utils/logger');
 
 const logPrefix = createLogPrefix('prepare-backend');

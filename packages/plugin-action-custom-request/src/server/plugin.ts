@@ -1,10 +1,20 @@
 import { resolve } from 'node:path';
-import { InstallOptions, Logger, LoggerOptions, Plugin } from '@tego/server';
+import { InstallOptions, Logger, LoggerOptions, Plugin, type PluginOptions } from '@tego/server';
 
 import { listByCurrentRole } from './actions/listByCurrentRole';
 import { send } from './actions/send';
+import { captureCurrentRecordReadGuard, type CustomRequestCurrentRecordReadGuard } from './current-record-read-guard';
+import { captureCurrentUserReadGuard, type CustomRequestCurrentUserReadGuard } from './current-user-read-guard';
+
+export interface CustomRequestPluginOptions extends PluginOptions {
+  /** Server bootstrap only; veto unadapted reads before business or outbound I/O. */
+  currentRecordReadGuard?: CustomRequestCurrentRecordReadGuard;
+  /** Server bootstrap only; veto template-driven user association reads. */
+  currentUserReadGuard?: CustomRequestCurrentUserReadGuard;
+}
 
 export class CustomRequestPlugin extends Plugin {
+  declare options: CustomRequestPluginOptions;
   logger: Logger;
 
   afterAdd() {}
@@ -24,10 +34,12 @@ export class CustomRequestPlugin extends Plugin {
   }
 
   async load() {
+    const currentRecordReadGuard = captureCurrentRecordReadGuard(this.options.currentRecordReadGuard);
+    const currentUserReadGuard = captureCurrentUserReadGuard(this.options.currentUserReadGuard);
     this.app.resourcer.define({
       name: 'customRequests',
       actions: {
-        send: send.bind(this),
+        send: send.bind(this, currentRecordReadGuard, currentUserReadGuard),
         listByCurrentRole,
       },
     });

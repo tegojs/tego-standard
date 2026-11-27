@@ -1,4 +1,4 @@
-import { Gateway, parseCollectionName, uid } from '@tego/server';
+import { Gateway, parseCollectionName, uid, type Transaction } from '@tego/server';
 
 import axios, { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
@@ -15,15 +15,33 @@ import {
   withWorkflowDataSourceTransaction,
   workflowTenantRecordMutationMissError,
 } from '../helpers/tenant-context';
+import type Plugin from '../Plugin';
 import type Processor from '../Processor';
 import type { FlowNodeModel } from '../types';
 import { toJSON } from '../utils';
 import { buildAttachmentUploadHeaders } from './attachment-upload-headers';
+import {
+  runWorkflowWriteResolver,
+  type WorkflowUpdateResolver,
+  type WorkflowWriteTransactionPlanner,
+} from './write-resolver';
 
 /**
  * Runs the update instruction workflow instruction.
  */
 export class UpdateInstruction extends Instruction {
+  constructor(
+    workflow: Plugin,
+    private readonly resolve?: WorkflowUpdateResolver,
+    private readonly transactionPlanner?: WorkflowWriteTransactionPlanner,
+  ) {
+    super(workflow);
+    if (resolve !== undefined && typeof resolve !== 'function')
+      throw new TypeError('Update resolver must be a function');
+    if (transactionPlanner !== undefined && typeof transactionPlanner !== 'function')
+      throw new TypeError('Update transaction planner must be a function');
+  }
+
   async run(node: FlowNodeModel, input, processor: Processor) {
     const { collection, params = {} } = node.config;
 
@@ -39,229 +57,247 @@ export class UpdateInstruction extends Instruction {
     const includesFields = fields.filter((field) => fieldNames.includes(field.options.name));
     const repositoryContext = processor.getRepositoryContext();
 
-    const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
-    const token = this.workflow.app.authManager.jwt.sign({ userId });
+    const runDefault = async (inheritedTransaction?: Transaction) => {
+      const userId = _.get(processor.getScope(node.id), '$context.user.id', '');
+      const token = this.workflow.app.authManager.jwt.sign({ userId });
 
-    const isJSON = (str) => {
-      try {
-        return JSON.parse(str);
-      } catch (e) {
-        return false;
-      }
-    };
-    // 目前可处理 base64, json 请求对象，url; 专用于方便处理存储附件字段
-    const handleResource = async (resource) => {
-      if (typeof resource === 'object' && resource?.url && resource?.filename) {
-        // 证明是系统原本的附件类型;
-        // NOTE: 这里是为了取出普通字段, 排除名称不定的中间表关联字段
-        const {
-          id,
-          createdAt,
-          updatedAt,
-          title,
-          filename,
-          extname,
-          size,
-          mimetype,
-          path,
-          meta,
-          url,
-          createById,
-          updatedById,
-          storageId,
-        } = resource || {};
-
-        return {
-          id,
-          createdAt,
-          updatedAt,
-          title,
-          filename,
-          extname,
-          size,
-          mimetype,
-          path,
-          meta,
-          url,
-          createById,
-          updatedById,
-          storageId,
-        };
-      }
-
-      const parseRes = isJSON(resource);
-      const config: AxiosRequestConfig<any> = {
-        method: 'get',
-        url: resource,
-        responseType: 'stream',
+      const isJSON = (str) => {
+        try {
+          return JSON.parse(str);
+        } catch (e) {
+          return false;
+        }
       };
-      const form = new FormData();
+      // 目前可处理 base64, json 请求对象，url; 专用于方便处理存储附件字段
+      const handleResource = async (resource) => {
+        if (typeof resource === 'object' && resource?.url && resource?.filename) {
+          // 证明是系统原本的附件类型;
+          // NOTE: 这里是为了取出普通字段, 排除名称不定的中间表关联字段
+          const {
+            id,
+            createdAt,
+            updatedAt,
+            title,
+            filename,
+            extname,
+            size,
+            mimetype,
+            path,
+            meta,
+            url,
+            createById,
+            updatedById,
+            storageId,
+          } = resource || {};
 
-      if (resource.startsWith('data:')) {
-        // base64
-        const matches = resource.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          const contentType = matches[1];
-          const base64Data = matches[2];
-          const buffer = Buffer.from(base64Data, 'base64');
+          return {
+            id,
+            createdAt,
+            updatedAt,
+            title,
+            filename,
+            extname,
+            size,
+            mimetype,
+            path,
+            meta,
+            url,
+            createById,
+            updatedById,
+            storageId,
+          };
+        }
+
+        const parseRes = isJSON(resource);
+        const config: AxiosRequestConfig<any> = {
+          method: 'get',
+          url: resource,
+          responseType: 'stream',
+        };
+        const form = new FormData();
+
+        if (resource.startsWith('data:')) {
+          // base64
+          const matches = resource.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            const contentType = matches[1];
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            const ext = mime.extension(contentType);
+            const filename = `${uid()}.${ext}`;
+
+            form.append('file', buffer, {
+              filename,
+              contentType,
+            });
+          } else {
+            throw new Error('Invalid data URL format');
+          }
+        } else if (parseRes) {
+          // json 请求对象
+          /**
+           * XXX: 这个 API 不合适, 没有明确显然的指出用法
+           */
+          const {
+            url: resourceUrl,
+            params: resourceParams,
+            headers: resourceHeaders,
+            body: resourceBody,
+            filename,
+          } = parseRes;
+          config.url = resourceUrl;
+          config.params = resourceParams;
+          config.headers = resourceHeaders;
+          if (resourceHeaders['content-type'] === 'multipart/form-data') {
+            const formData = new FormData();
+            Object.entries(resourceBody).forEach(([key, value]) => {
+              formData.append(key, value);
+            });
+            config.data = formData;
+          } else {
+            config.data = resourceBody;
+          }
+          const response = await axios(config);
+          const contentType = response.headers['content-type'];
+          // 根据 MIME 类型获取文件扩展名
+          const ext = mime.extension(contentType);
+          const fullFilename = `${filename || uid()}.${ext}`;
+          // 创建 FormData 实例
+          form.append('file', response.data, {
+            filename: fullFilename,
+            contentType: response.headers['content-type'],
+          });
+        } else {
+          // 处理 url
+          // 下载指定 URL 的内容
+          const response = await axios(config);
+          // 获取文件的 MIME 类型
+          const contentType = response.headers['content-type'];
+          // 根据 MIME 类型获取文件扩展名
           const ext = mime.extension(contentType);
           const filename = `${uid()}.${ext}`;
-
-          form.append('file', buffer, {
+          // 创建 FormData 实例
+          form.append('file', response.data, {
             filename,
-            contentType,
+            contentType: response.headers['content-type'],
           });
-        } else {
-          throw new Error('Invalid data URL format');
         }
-      } else if (parseRes) {
-        // json 请求对象
-        /**
-         * XXX: 这个 API 不合适, 没有明确显然的指出用法
-         */
-        const {
-          url: resourceUrl,
-          params: resourceParams,
-          headers: resourceHeaders,
-          body: resourceBody,
-          filename,
-        } = parseRes;
-        config.url = resourceUrl;
-        config.params = resourceParams;
-        config.headers = resourceHeaders;
-        if (resourceHeaders['content-type'] === 'multipart/form-data') {
-          const formData = new FormData();
-          Object.entries(resourceBody).forEach(([key, value]) => {
-            formData.append(key, value);
-          });
-          config.data = formData;
-        } else {
-          config.data = resourceBody;
-        }
-        const response = await axios(config);
-        const contentType = response.headers['content-type'];
-        // 根据 MIME 类型获取文件扩展名
-        const ext = mime.extension(contentType);
-        const fullFilename = `${filename || uid()}.${ext}`;
-        // 创建 FormData 实例
-        form.append('file', response.data, {
-          filename: fullFilename,
-          contentType: response.headers['content-type'],
+        // 发送 multipart 请求
+        // NOTE: 怎么用系统内置的 API, 完成附件的新建逻辑
+        const origin = Gateway.getInstance().runAtLoop;
+        const uploadResponse = await axios({
+          method: 'post',
+          url: origin + '/api/attachments:create',
+          data: form,
+          headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
         });
-      } else {
-        // 处理 url
-        // 下载指定 URL 的内容
-        const response = await axios(config);
-        // 获取文件的 MIME 类型
-        const contentType = response.headers['content-type'];
-        // 根据 MIME 类型获取文件扩展名
-        const ext = mime.extension(contentType);
-        const filename = `${uid()}.${ext}`;
-        // 创建 FormData 实例
-        form.append('file', response.data, {
-          filename,
-          contentType: response.headers['content-type'],
-        });
-      }
-      // 发送 multipart 请求
-      // NOTE: 怎么用系统内置的 API, 完成附件的新建逻辑
-      const origin = Gateway.getInstance().runAtLoop;
-      const uploadResponse = await axios({
-        method: 'post',
-        url: origin + '/api/attachments:create',
-        data: form,
-        headers: buildAttachmentUploadHeaders(form.getHeaders(), token, repositoryContext),
-      });
 
-      return uploadResponse.data.data;
-    };
-    // 处理文件类型
-    for (const attachmentField of includesFields) {
-      if (attachmentField.options.interface === 'attachment') {
-        let targetField = options.values[attachmentField.options.name];
+        return uploadResponse.data.data;
+      };
+      // 处理文件类型
+      for (const attachmentField of includesFields) {
+        if (attachmentField.options.interface === 'attachment') {
+          let targetField = options.values[attachmentField.options.name];
 
-        if (Array.isArray(targetField)) {
-          for (const i in targetField) {
-            targetField[i] = await handleResource(targetField[i]);
+          if (Array.isArray(targetField)) {
+            for (const i in targetField) {
+              targetField[i] = await handleResource(targetField[i]);
+            }
+          } else {
+            // NOTE: targetField 此时可能是字符串, 因此赋值用原字段
+            options.values[attachmentField.options.name] = [await handleResource(targetField)];
           }
-        } else {
-          // NOTE: targetField 此时可能是字符串, 因此赋值用原字段
-          options.values[attachmentField.options.name] = [await handleResource(targetField)];
         }
       }
-    }
 
-    const result = await withWorkflowDataSourceTransaction(
-      this.workflow,
-      dataSourceName,
-      processor.transaction,
-      async (transaction) => {
-        const verificationOptions = applyTenantFilterToContext(repositoryContext, c, 'update', {
-          ...options,
-          values: _.cloneDeep(options.values),
-        });
-        const sourceRecords = await findWorkflowTenantReadableRecords(
-          repositoryContext,
-          c,
-          repository,
-          options,
-          transaction,
-        );
-        await guardWorkflowTenantAssociationValues(
-          repositoryContext,
-          dataSource.collectionManager.db,
-          c,
-          options.values,
-          options,
-          transaction,
-          '',
-          sourceRecords,
-        );
-        const plans = await resolveTenantUpdatePlans(repositoryContext, c, repository, options, transaction);
-        const updated = [];
-        let updatedCount = 0;
-        for (const repositoryOptions of plans) {
-          const records = await repository.update({
-            ...repositoryOptions,
-            context: repositoryContext,
-            transaction,
+      const result = await withWorkflowDataSourceTransaction(
+        this.workflow,
+        dataSourceName,
+        inheritedTransaction ?? processor.transaction,
+        async (transaction) => {
+          const verificationOptions = applyTenantFilterToContext(repositoryContext, c, 'update', {
+            ...options,
+            values: _.cloneDeep(options.values),
           });
-          const count = records?.length ?? records;
-          if (count === 0) {
-            const mutationVerificationOptions = {
+          const sourceRecords = await findWorkflowTenantReadableRecords(
+            repositoryContext,
+            c,
+            repository,
+            options,
+            transaction,
+          );
+          await guardWorkflowTenantAssociationValues(
+            repositoryContext,
+            dataSource.collectionManager.db,
+            c,
+            options.values,
+            options,
+            transaction,
+            '',
+            sourceRecords,
+          );
+          const plans = await resolveTenantUpdatePlans(repositoryContext, c, repository, options, transaction);
+          const updated = [];
+          let updatedCount = 0;
+          for (const repositoryOptions of plans) {
+            const records = await repository.update({
               ...repositoryOptions,
-              values: { ...verificationOptions.values, ...repositoryOptions.values },
-            };
-            const mutationError = await workflowTenantRecordMutationMissError(
-              repositoryContext,
-              c,
-              repository,
-              repositoryOptions,
+              context: repositoryContext,
               transaction,
-              'update',
-              dataSource.collectionManager.db,
-              mutationVerificationOptions,
-            );
-            if (mutationError) {
-              throw mutationError;
+            });
+            const count = records?.length ?? records;
+            if (count === 0) {
+              const mutationVerificationOptions = {
+                ...repositoryOptions,
+                values: { ...verificationOptions.values, ...repositoryOptions.values },
+              };
+              const mutationError = await workflowTenantRecordMutationMissError(
+                repositoryContext,
+                c,
+                repository,
+                repositoryOptions,
+                transaction,
+                'update',
+                dataSource.collectionManager.db,
+                mutationVerificationOptions,
+              );
+              if (mutationError) {
+                throw mutationError;
+              }
+            }
+            updatedCount += count;
+            if (Array.isArray(records)) {
+              updated.push(...records);
             }
           }
-          updatedCount += count;
-          if (Array.isArray(records)) {
-            updated.push(...records);
-          }
-        }
-        return { data: updated, length: updatedCount };
-      },
-    );
+          return { data: updated, length: updatedCount };
+        },
+      );
 
-    return {
-      result: {
-        length: result.length,
-        data: toJSON(result.data) ?? [],
-      },
-      status: JOB_STATUS.RESOLVED,
+      return {
+        result: {
+          length: result.length,
+          data: toJSON(result.data) ?? [],
+        },
+        status: JOB_STATUS.RESOLVED,
+      };
     };
+    return runWorkflowWriteResolver(
+      'update',
+      this.workflow,
+      processor,
+      node,
+      {
+        dataSourceName,
+        collectionName,
+        collection: c,
+        context: repositoryContext,
+        params: options,
+      },
+      this.resolve,
+      runDefault,
+      this.transactionPlanner,
+    );
   }
 }
 

@@ -5,7 +5,7 @@
  * 负责编译 TypeScript 代码和复制资源文件
  */
 
-const path = require('path');
+const path = require('node:path');
 const { getProjectRoot, getDesktopDir } = require('../utils/paths');
 const { createLogPrefix, title, success, error } = require('../utils/logger');
 const { createTaskList, createCommandTask, runTasks } = require('../utils/task-runner');

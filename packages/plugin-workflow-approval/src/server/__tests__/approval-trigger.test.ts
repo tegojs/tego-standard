@@ -2,6 +2,8 @@ import { Model } from '@tego/server';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { ErrorHandler } from '../../../../module-error-handler/src/server/error-handler';
+import type { ApprovalBusinessWriteGuard } from '../business-write-guard';
 import { APPROVAL_STATUS } from '../constants/status';
 import ApprovalTrigger from '../triggers/Approval';
 
@@ -261,6 +263,157 @@ describe('ApprovalTrigger.collectionTriggerAction', () => {
       expect.objectContaining({
         values: expect.objectContaining({ data: brokenAssociationData }),
       }),
+    );
+  });
+});
+
+function createDirectWriteHarness(guard?: ApprovalBusinessWriteGuard, targets = ['orders']) {
+  const writes: Array<{ collection: string; values: Record<string, unknown>; context: object }> = [];
+  const approvals: Record<string, any>[] = [];
+  const effects: string[] = [];
+  const collections = new Map(
+    targets.map((name) => [
+      name,
+      {
+        filterTargetKey: 'id',
+        getField: () => undefined,
+        repository: {
+          async create({ values, context }) {
+            writes.push({ collection: name, values: { ...values }, context });
+            return new TriggerRecord({ id: writes.length, ...values });
+          },
+        },
+      },
+    ]),
+  );
+  const workflows = targets.map((collection, index) => ({
+    id: index + 1,
+    key: `approval-${index + 1}`,
+    config: { collection, summary: [], appends: [] },
+  }));
+  const errorHandler = new ErrorHandler();
+  const workflowPlugin = {
+    app: {
+      db: { on: () => effects.push('hook') },
+      use: () => effects.push('middleware'),
+      pm: { get: () => ({ errorHandler }) },
+      dataSourceManager: {
+        dataSources: new Map([['main', { collectionManager: { getCollection: (name) => collections.get(name) } }]]),
+      },
+    },
+    db: {
+      getRepository(name: string) {
+        if (name === 'workflows') return { find: async () => workflows };
+        if (name === 'approvals') return { create: async ({ values }) => approvals.push(values) };
+        throw new Error(`Unexpected repository ${name}`);
+      },
+    },
+  };
+  const trigger = new ApprovalTrigger(workflowPlugin as any, guard);
+  const ctx = {
+    action: { params: { triggerWorkflows: 'approval-1', values: { title: 'draft' } } },
+    state: { currentUser: { id: 17 }, currentRole: 'editor' },
+    status: 0,
+    body: undefined,
+    logger: { error() {} },
+    i18n: { t: (_key, options) => options.defaultValue },
+  };
+  const next = async () => {
+    effects.push('next');
+  };
+  effects.length = 0;
+  return { approvals, collections, ctx, effects, next, trigger, workflowPlugin, writes };
+}
+
+describe('ApprovalTrigger.workflowTriggerAction business write boundary', () => {
+  it('checks the resolved nested create values with the original context before writing', async () => {
+    const requests = [];
+    const harness = createDirectWriteHarness((request) => {
+      expect(Object.isFrozen(request)).toBe(true);
+      expect(harness.writes).toEqual([]);
+      expect(harness.effects).toEqual([]);
+      requests.push(request);
+    });
+    const values = { form: { draft: { title: 'nested draft' } } };
+    Object.assign(harness.ctx.action.params, { triggerWorkflows: 'approval-1!form.draft', values });
+
+    await harness.trigger.workflowTriggerAction(harness.ctx, harness.next);
+    await vi.waitFor(() => expect(harness.approvals).toHaveLength(1));
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toEqual({
+      actionName: 'create',
+      dataSourceName: 'main',
+      collectionName: 'orders',
+      collection: harness.collections.get('orders'),
+      params: { values: { title: 'nested draft' }, appends: [] },
+      context: harness.ctx,
+    });
+    expect(requests[0].params.values).not.toBe(values.form.draft);
+    expect(harness.writes).toEqual([{ collection: 'orders', values: { title: 'nested draft' }, context: harness.ctx }]);
+    expect(harness.ctx.status).toBe(202);
+    expect(harness.effects).toEqual(['next']);
+  });
+
+  it('preflights every workflow before the first business write or downstream handler', async () => {
+    const checked: string[] = [];
+    const harness = createDirectWriteHarness(
+      (request) => {
+        checked.push(request.collectionName);
+        if (request.collectionName === 'protectedOrders') throw Object.assign(new Error('refused'), { status: 400 });
+      },
+      ['orders', 'protectedOrders'],
+    );
+    harness.ctx.action.params.triggerWorkflows = 'approval-1,approval-2';
+
+    await harness.trigger.workflowTriggerAction(harness.ctx, harness.next);
+
+    expect(checked).toEqual(['orders', 'protectedOrders']);
+    expect(harness.ctx.status).toBe(400);
+    expect(harness.ctx.body).toEqual({ errors: [{ message: 'refused', code: undefined }] });
+    expect(harness.writes).toEqual([]);
+    expect(harness.approvals).toEqual([]);
+    expect(harness.effects).toEqual([]);
+  });
+
+  it.each([
+    {
+      label: 'a synchronous refusal',
+      guard: () => {
+        throw Object.assign(new Error('refused'), { status: 403 });
+      },
+      status: 403,
+    },
+    { label: 'a resolved promise', guard: () => Promise.resolve(), status: 500 },
+    {
+      label: 'a rejected promise',
+      guard: () => Promise.reject(Object.assign(new Error('refused'), { status: 403 })),
+      status: 403,
+    },
+    { label: 'a non-void result', guard: () => true, status: 500 },
+  ])('renders $label without continuing or writing', async ({ guard, status }) => {
+    const harness = createDirectWriteHarness(guard);
+
+    await harness.trigger.workflowTriggerAction(harness.ctx, harness.next);
+
+    expect(harness.ctx.status).toBe(status);
+    expect(harness.ctx.body.errors).toHaveLength(1);
+    expect(harness.writes).toEqual([]);
+    expect(harness.approvals).toEqual([]);
+    expect(harness.effects).toEqual([]);
+  });
+
+  it('rejects a non-function guard before registering hooks', () => {
+    expect(() => createDirectWriteHarness(true as unknown as ApprovalBusinessWriteGuard)).toThrow(
+      'Approval business write guard must be a function',
+    );
+  });
+
+  it('requires the error renderer before installing a configured guard', () => {
+    const { workflowPlugin } = createDirectWriteHarness();
+    workflowPlugin.app.pm.get = () => undefined;
+    expect(() => new ApprovalTrigger(workflowPlugin as any, () => {})).toThrow(
+      'Approval business write guard requires the error-handler plugin',
     );
   });
 });

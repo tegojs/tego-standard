@@ -270,7 +270,7 @@ export const useInsertSchema = () => {
         insertAfterBegin(_.cloneDeep(ss));
       }
     },
-    [pageDetailsViewer],
+    [fieldSchema, insertAfterBegin],
   );
   return insert;
 };
@@ -374,8 +374,15 @@ export const useCreateActionProps = () => {
 
         if (pageMode) {
           await resetFormCorrectly(form);
-          // FIXME primary key
-          jumpDetails(data?.data?.data?.id);
+          const result = data?.data?.data;
+          const key =
+            result?.id ??
+            (result?.affected === 1 && Array.isArray(result.keys) && result.keys.length === 1
+              ? result.keys[0]
+              : undefined);
+          if ((typeof key === 'string' && key.length > 0) || (typeof key === 'number' && Number.isFinite(key))) {
+            jumpDetails(String(key));
+          }
           return;
         }
 
@@ -1251,6 +1258,8 @@ export const useAssociationFilterBlockProps = () => {
 
   valueKey = collectionField?.target ? cm.getCollection(collectionField.target)?.getPrimaryKey() : 'id';
   labelKey = fieldSchema['x-component-props']?.fieldNames?.label || valueKey;
+  const serializedParams = JSON.stringify(field.componentProps?.params || {});
+  const optionalField = isOptionalField(fieldSchema);
 
   // eslint-disable-next-line prefer-const
   ({ data, params, run } = useRequest<{
@@ -1276,10 +1285,10 @@ export const useAssociationFilterBlockProps = () => {
 
   useEffect(() => {
     // 由于 选项字段不需要触发当前请求，所以请求单独在 关系字段的时候触发
-    if (!isOptionalField(fieldSchema)) {
+    if (!optionalField) {
       run();
     }
-  }, [labelKey, valueKey, JSON.stringify(field.componentProps?.params || {}), isOptionalField(fieldSchema)]);
+  }, [labelKey, valueKey, serializedParams, optionalField, run]);
 
   if (!collectionField) {
     return {};

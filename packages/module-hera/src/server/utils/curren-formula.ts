@@ -7,6 +7,8 @@ export const currentPoint = (number, tofixed = 2) => {
    * 如果后面的数字是0、5、6、7、8，则应向前一位数字进位；
    * 如果后面的数字是1、2、3、4，则舍去。
    * */
+  // Preserve the legacy distinction: values coercively equal to zero are formatted, other falsy values are blank.
+  // eslint-disable-next-line eqeqeq -- Coercive zero detection is part of the formula input contract.
   if (!number && number != 0) return '';
   return Number(number).toFixed(tofixed);
 };

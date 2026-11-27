@@ -55,6 +55,8 @@ export function getJsonLogic() {
       return a === b;
     },
     $ne: function (a, b) {
+      // JSON Logic's `$ne` follows JavaScript's coercive `!=` semantics.
+      // eslint-disable-next-line eqeqeq -- This operator intentionally mirrors JSON Logic.
       return a != b;
     },
     '!==': function (a, b) {
@@ -367,7 +369,7 @@ export function getJsonLogic() {
     }
 
     // 'if', 'and', and 'or' violate the normal rule of depth-first calculating consequents, let each manage recursion as needed.
-    if (op === 'if' || op == '?:') {
+    if (op === 'if' || op === '?:') {
       /* 'if' should be called with a odd number of parameters, 3 or greater
         This works on the pattern:
         if( 0 ){ 1 }else{ 2 };

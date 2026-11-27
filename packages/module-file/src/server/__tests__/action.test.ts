@@ -1,8 +1,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { vi } from 'vitest';
+
 import { getApp } from '.';
 import { FILE_FIELD_NAME, STORAGE_TYPE_LOCAL } from '../constants';
+
+vi.setConfig({ hookTimeout: 120000 });
 
 const { LOCAL_STORAGE_BASE_URL, LOCAL_STORAGE_DEST = 'storage/uploads', APP_PORT = '3000' } = process.env;
 

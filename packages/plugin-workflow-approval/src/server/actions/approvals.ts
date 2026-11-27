@@ -3,6 +3,7 @@ import { EXECUTION_STATUS, JOB_STATUS } from '@tachybase/module-workflow';
 import { actions, parseCollectionName, traverseJSON, utils } from '@tego/server';
 
 import { NAMESPACE } from '../../common/constants';
+import type { ApprovalBusinessWriteRequest } from '../business-write-guard';
 import { APPROVAL_STATUS } from '../constants/status';
 import { cleanCopyAssociationData, CopyAssociationError } from '../copy-associations';
 import {
@@ -383,7 +384,7 @@ async function createAcrossSequelize(options: CrossSequelizeCreationOptions) {
  * Handles the approvals resource action.
  */
 export const approvals = {
-  async create(ctx, next) {
+  async create(ctx, next, assertBusinessWrite?: (request: ApprovalBusinessWriteRequest) => Promise<void>) {
     const { status, collectionName, data, workflowId, workflowKey, isCopy, copyAssociationValues } =
       ctx.action.params.values ?? {};
     const [dataSourceName, cName] = parseCollectionName(collectionName);
@@ -449,6 +450,17 @@ export const approvals = {
         throw error;
       }
     }
+    await assertBusinessWrite?.({
+      actionName: 'create',
+      dataSourceName,
+      collectionName: cName,
+      collection,
+      params: {
+        values: createData,
+        appends: getWorkflowAppends(workflow.config, collection, ctx.tego),
+      },
+      context: ctx,
+    });
     const createBusinessRecord = async (transaction?) => {
       const values = await repository.create({
         values: {
@@ -539,7 +551,7 @@ export const approvals = {
     ctx.body = approval;
     await next();
   },
-  async update(ctx, next) {
+  async update(ctx, next, assertBusinessWrite?: (request: ApprovalBusinessWriteRequest) => Promise<void>) {
     const { collectionName, data, status, updateAssociationValues, summaryConfig } = ctx.action.params.values ?? {};
     const approvalTransaction = getApprovalTransaction(ctx);
     const approval = await utils.getRepositoryFromParams(ctx).findOne({
@@ -583,6 +595,20 @@ export const approvals = {
     if (targetKey === undefined || !matchesApprovalTarget(approval, targetKey, targetKeys)) {
       return ctx.throw(400);
     }
+
+    await assertBusinessWrite?.({
+      actionName: 'update',
+      dataSourceName: persistedDataSourceName,
+      collectionName: persistedCollectionNameOnly,
+      collection,
+      params: {
+        filterByTk: targetKey,
+        values: data,
+        updateAssociationValues,
+        appends: getWorkflowAppends({ summary: summaryConfig }, collection, ctx.tego),
+      },
+      context: ctx,
+    });
 
     const updateBusinessRecord = async (transaction?) => {
       const updateOptions = applyTenantFilterToContext({ state: ctx.state }, collection, 'update', {

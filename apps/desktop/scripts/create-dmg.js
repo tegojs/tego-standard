@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 const { getDesktopDir, getAppBundlePath, getDmgPath, getAppResourcesPath } = require('./utils/paths');
 const { detectAppName, getPackageInfo } = require('./utils/app-detector');
 const { createLogPrefix, success, warn, error, step } = require('./utils/logger');

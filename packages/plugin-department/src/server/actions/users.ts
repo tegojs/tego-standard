@@ -2,6 +2,14 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, type Context, type Next } from '@tego/s
 
 export const listExcludeDept = async (ctx: Context, next: Next) => {
   const { departmentId, page = DEFAULT_PAGE, pageSize = DEFAULT_PER_PAGE } = ctx.action.params;
+  const permission = ctx.can({ resource: 'users', action: 'list' });
+  if (!permission) {
+    ctx.body = { count: 0, rows: [], page: Number(page), pageSize: Number(pageSize), totalPage: 0 };
+    await next();
+    return;
+  }
+  const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission.params || {});
+  const { filter: listFilter = {}, fields } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
   const repo = ctx.db.getRepository('users');
   const members = await repo.find({
     fields: ['id'],
@@ -24,7 +32,10 @@ export const listExcludeDept = async (ctx: Context, next: Next) => {
     context: ctx,
     offset: (page - 1) * pageSize,
     limit: pageSize,
-    filter,
+    filter: {
+      $and: [listFilter, filter || {}],
+    },
+    fields,
   });
   ctx.body = {
     count,
@@ -86,6 +97,30 @@ export const setDepartments = async (ctx: Context, next: Next) => {
 };
 export const setMainDepartment = async (ctx: Context, next: Next) => {
   const { userId, departmentId } = ctx.action.params.values || {};
+  const permission = ctx.can({ resource: 'users', action: 'setMainDepartment' });
+  const aclParams = ctx.tego.acl.filterParams(ctx, 'users', permission?.params || {});
+  const { filter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+  const user = await ctx.db.getRepository('users').findOne({ filterByTk: userId, filter });
+  if (!user) {
+    await next();
+    return;
+  }
+
+  if (departmentId !== undefined && departmentId !== null) {
+    const departmentPermission = ctx.can({ resource: 'departments', action: 'list' });
+    if (!departmentPermission) {
+      ctx.throw(403);
+    }
+    const departmentAclParams = ctx.tego.acl.filterParams(ctx, 'departments', departmentPermission.params || {});
+    const { filter: departmentFilter = {} } = await ctx.tego.acl.parseJsonTemplate(departmentAclParams, ctx);
+    const department = await ctx.db
+      .getRepository('departments')
+      .findOne({ filterByTk: departmentId, filter: departmentFilter });
+    if (!department) {
+      ctx.throw(403);
+    }
+  }
+
   const throughRepo = ctx.db.getRepository('departmentsUsers');
   await ctx.db.sequelize.transaction(async (t) => {
     await throughRepo.update({

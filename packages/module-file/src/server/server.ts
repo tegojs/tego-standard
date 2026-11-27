@@ -1,13 +1,21 @@
 import { resolve } from 'node:path';
-import { Plugin } from '@tego/server';
+import { Plugin, type PluginOptions } from '@tego/server';
 
 import initActions from './actions';
+import type { AttachmentActionResolver } from './actions/attachment-entry';
 import { FileModel } from './FileModel';
 import { getStorageConfig } from './storages';
 
 export { default as storageTypes } from './storages';
 
+export interface FileManagerPluginOptions extends PluginOptions {
+  /** Bootstrap only. Selected requests skip legacy storage effects and execute after final ACL. */
+  attachmentResolver?: AttachmentActionResolver;
+}
+
 export default class PluginFileManager extends Plugin {
+  declare options: FileManagerPluginOptions;
+
   storageType() {
     return 'local';
   }

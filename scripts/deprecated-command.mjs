@@ -13,7 +13,7 @@ console.error('╚════════════════════�
 console.error('\x1b[0m');
 
 // Execute the new command using pnpm run
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 const isWindows = process.platform === 'win32';
 

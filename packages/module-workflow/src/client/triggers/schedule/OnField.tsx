@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { css } from '@tachybase/client';
 
 import { InputNumber, Select } from 'antd';
@@ -15,6 +15,14 @@ export function OnField({ value: propsValue, onChange }) {
   const value = propsValue ?? {};
   const { t } = useTranslation();
   const [dir, setDir] = useState(value.offset ? value.offset / Math.abs(value.offset) : 0);
+
+  useEffect(() => {
+    if (!value.field) {
+      setDir(0);
+    } else if (value.offset) {
+      setDir(value.offset / Math.abs(value.offset));
+    }
+  }, [value.field, value.offset]);
 
   return (
     <fieldset
@@ -35,7 +43,7 @@ export function OnField({ value: propsValue, onChange }) {
           value={dir}
           onChange={(v) => {
             setDir(v);
-            onChange({ ...value, offset: Math.abs(value.offset) * v });
+            onChange({ ...value, offset: Math.abs(value.offset ?? 0) * v });
           }}
           options={[
             { value: 0, label: lang('Exactly at') },
@@ -52,7 +60,7 @@ export function OnField({ value: propsValue, onChange }) {
             onChange={(v) => onChange({ ...value, offset: (v ?? 0) * dir })}
           />
           <Select
-            value={value.unit || 86400000}
+            value={value.unit || 1000}
             onChange={(unit) => onChange({ ...value, unit })}
             options={[
               { value: 86400000, label: lang('Days') },

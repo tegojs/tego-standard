@@ -1,0 +1,490 @@
+import { Op, Transaction, type Collection, type Database, type Model, type WhereOptions } from '@tego/server';
+
+import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureUserAuditFields } from './audit-fields';
+import type { AccessCollectionIdentity } from './config-store';
+import { resolveActiveAccessTenant, type AccessIdentity } from './context';
+import { accessMetadataGuard } from './metadata-snapshot';
+import { AccessMutationError } from './mutation-errors';
+import type { AccessQueryService } from './query';
+import {
+  cloneDeep,
+  hasPersistedChanges,
+  internalQuery,
+  invalid,
+  normalizeKeys,
+  requiresSerializable,
+  snapshotProtectedValues,
+  unavailable,
+  validateRootValues,
+  validateWriteTransaction,
+} from './write-support';
+
+export interface ExistingAccessMutation {
+  operation: 'update' | 'destroy';
+  keys: Array<string | number>;
+  /** Already sanitized by the entry's role/field permissions. No associations in this phase. */
+  values?: Record<string, unknown>;
+  /** Server-parsed intersection of role and request conditions; not a replacement for action permission. */
+  where?: WhereOptions;
+  bind?: Record<string, unknown>;
+}
+
+export type MatchingAccessMutation = Omit<ExistingAccessMutation, 'keys' | 'where'> & { where: WhereOptions };
+
+export type AccessMutationSelection = (
+  transaction: Transaction,
+) => Promise<{ where: WhereOptions; bind?: Record<string, unknown> }>;
+
+export interface ExistingAccessWritePlan {
+  readonly records: readonly Model[];
+  readonly transaction: Transaction;
+  valuesFor(record: Model): Record<string, unknown>;
+}
+
+/** Internal root-write adapter. Construction does not register hooks or change existing repositories. */
+export class AccessMutationService {
+  constructor(
+    private readonly db: Database,
+    private readonly prepared: AccessAclScopeAdapter,
+    private readonly queries: AccessQueryService,
+  ) {}
+
+  private configuration(ctx: object, identity: AccessCollectionIdentity) {
+    const config = this.prepared.configuration(ctx, identity);
+    if (!config) invalid('Collection has not migrated to access control');
+    const collection = this.db.getCollection(identity.collectionName);
+    if (!collection || collection.db !== this.db) invalid('Mutation collection identity is unavailable');
+    return { config, collection, template: collection.options.template };
+  }
+
+  private validateValues(
+    request: Pick<ExistingAccessMutation, 'operation' | 'values'>,
+    collection: Collection,
+    managedOwnership: boolean,
+  ) {
+    if (!['update', 'destroy'].includes(request.operation)) invalid('Unsupported existing mutation');
+    if (request.operation === 'destroy') {
+      if (request.values !== undefined) invalid('Deletion cannot supply update values');
+      if (
+        (this.db.referenceMap.getReferences(collection.name) ?? []).some(
+          (reference) => !['NO ACTION', 'RESTRICT'].includes(reference.onDelete),
+        )
+      )
+        throw new AccessMutationError('UNSUPPORTED_ACCESS_MUTATION', 'Cascaded writes require their own adapters', 400);
+      return;
+    }
+    validateRootValues(this.db, request.values, collection, 'update', managedOwnership);
+  }
+
+  async authorizeExisting(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    transaction: Transaction | undefined,
+    selection?: AccessMutationSelection,
+  ): Promise<ExistingAccessWritePlan> {
+    return this.authorize(ctx, identity, authenticated, request, transaction, false, selection);
+  }
+
+  /** Internal relation-source primitive: authorizes/locks roots and produces only the claim patch. */
+  async authorizeReferenceSource(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: Pick<ExistingAccessMutation, 'keys' | 'where' | 'bind'>,
+    transaction: Transaction,
+    selection?: AccessMutationSelection,
+  ): Promise<ExistingAccessWritePlan> {
+    return this.authorize(
+      ctx,
+      identity,
+      authenticated,
+      {
+        operation: 'update',
+        keys: request.keys,
+        where: request.where,
+        bind: request.bind,
+      },
+      transaction,
+      true,
+      selection,
+    );
+  }
+
+  private async authorize(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    transaction: Transaction | undefined,
+    referenceOnly: boolean,
+    selection?: AccessMutationSelection,
+  ): Promise<ExistingAccessWritePlan> {
+    identity = { ...identity };
+    authenticated = { ...authenticated };
+    request = cloneDeep(request);
+    const { config, collection, template } = this.configuration(ctx, identity);
+    const model = collection.model;
+    const current = () => {
+      if (
+        this.prepared.configuration(ctx, identity) !== config ||
+        collection.options.template !== template ||
+        !this.queries.isCurrentCollection(identity, collection, model)
+      )
+        invalid('Mutation collection identity changed');
+    };
+    if (!referenceOnly) this.validateValues(request, collection, config.ownership.enabled);
+    const keys = normalizeKeys(request.keys, collection);
+    if (!transaction) invalid('An active root write transaction is required');
+    await validateWriteTransaction(
+      this.db,
+      transaction,
+      selection !== undefined || requiresSerializable(config, request, collection),
+    );
+    if (selection) {
+      request = await this.select(request, selection, transaction);
+      current();
+    }
+    const activeTenant =
+      !config.ownership.enabled || authenticated.tenantId === undefined
+        ? undefined
+        : await resolveActiveAccessTenant(this.db, authenticated, { transaction, lock: true });
+    current();
+    const primary = model.primaryKeyAttribute;
+    const targetWhere = { [primary]: { [Op.in]: keys } };
+    // Internal selection is not returned on failure. Lock all selected roots before checking any G.
+    const records = await model.unscoped().findAll(
+      internalQuery({
+        where: targetWhere,
+        order: [[primary, 'ASC'] as [string, string]],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      }),
+    );
+    if (records.length !== keys.length) unavailable();
+    const predicate = {
+      where: request.where === undefined ? targetWhere : { [Op.and]: [targetWhere, request.where] },
+      bind: request.bind,
+      transaction,
+    };
+    const scoped = await this.queries.scopeQuery(ctx, identity, authenticated, predicate, 'ownership');
+    if (!scoped || scoped.config !== config) invalid('Mutation access phase changed');
+    const allowed = await model.findAll(internalQuery({ ...scoped.query, attributes: [primary] }));
+    current();
+    if (allowed.length !== records.length) {
+      if (config.ownership.enabled && records.some((record) => record.getDataValue('tenantId') == null)) {
+        const readable = await this.queries.scopeQuery(ctx, identity, authenticated, predicate, 'read');
+        if (!readable) invalid('Mutation access phase changed');
+        const visible = await model.findAll(
+          internalQuery({
+            ...readable.query,
+            attributes: [primary, 'tenantId'],
+          }),
+        );
+        if (visible.length === records.length && visible.some((record) => record.getDataValue('tenantId') == null))
+          throw new AccessMutationError('LEGACY_DATA_READ_ONLY', 'Legacy record is visible but cannot be edited');
+      }
+      unavailable();
+    }
+    const values = new Map<Model, Record<string, unknown>>();
+    for (const record of records) {
+      const patch = cloneDeep(request.values ?? {});
+      if (config.ownership.enabled) {
+        const storedTenant = record.getDataValue('tenantId');
+        if (storedTenant == null && request.operation === 'destroy')
+          throw new AccessMutationError('LEGACY_DATA_READ_ONLY', 'Unassigned legacy records cannot be deleted');
+        const expectedTenant =
+          storedTenant ??
+          activeTenant ??
+          (await resolveActiveAccessTenant(this.db, authenticated, { transaction, lock: true }));
+        // Full edit forms commonly submit null for legacy data. The server owns the actual claim.
+        if (
+          Object.hasOwn(patch, 'tenantId') &&
+          patch.tenantId !== expectedTenant &&
+          !(storedTenant == null && patch.tenantId == null)
+        )
+          throw new AccessMutationError(
+            'ACCESS_OWNERSHIP_CHANGE_FORBIDDEN',
+            'Ordinary edits cannot transfer ownership',
+          );
+        if (storedTenant == null) patch.tenantId = expectedTenant;
+        else delete patch.tenantId;
+      }
+      values.set(record, patch);
+    }
+    current();
+    return Object.freeze({
+      records: Object.freeze(records),
+      transaction,
+      valuesFor(record: Model) {
+        if (!values.has(record)) invalid('Record is not part of this write plan');
+        return cloneDeep(values.get(record)!);
+      },
+    });
+  }
+
+  async withExistingRecords(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent);
+  }
+
+  /** Selects a bounded ownership-scoped set inside the same transaction as the existing write checks. */
+  async withMatchingRecords(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: MatchingAccessMutation,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (Object.hasOwn(request, 'keys') || request.where === undefined)
+      invalid('Matching mutations require conditions without explicit keys');
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent);
+  }
+
+  /** Resolves relational selection inside the owned SERIALIZABLE write transaction. */
+  async withSelectedRecords(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation | MatchingAccessMutation,
+    selection: AccessMutationSelection,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (typeof selection !== 'function') invalid('Mutation selection is unavailable');
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent, undefined, selection);
+  }
+
+  /** The caller owns commit/rollback, including rollback after any authorization or post-write error. */
+  async withExistingRecordsInTransaction(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation,
+    transaction: Transaction,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    if (!transaction) invalid('An active root write transaction is required');
+    return this.writeExisting(ctx, identity, authenticated, request, writer, assertEntryCurrent, transaction);
+  }
+
+  private async writeExisting(
+    ctx: object,
+    identity: AccessCollectionIdentity,
+    authenticated: AccessIdentity,
+    request: ExistingAccessMutation | MatchingAccessMutation,
+    writer: (plan: ExistingAccessWritePlan) => Promise<unknown>,
+    assertEntryCurrent?: () => void,
+    inheritedTransaction?: Transaction,
+    selection?: AccessMutationSelection,
+  ): Promise<{ keys: Array<string | number>; affected: number }> {
+    identity = { ...identity };
+    authenticated = { ...authenticated };
+    request = cloneDeep(request);
+    const { config, collection, template } = this.configuration(ctx, identity);
+    const model = collection.model;
+    const serializable = selection !== undefined || requiresSerializable(config, request, collection);
+    const metadata = accessMetadataGuard(this.db, [{ model, config }]);
+    try {
+      const execute = async (transaction: Transaction) => {
+        metadata();
+        assertEntryCurrent?.();
+        if (selection) {
+          this.validateValues(request, collection, config.ownership.enabled);
+          await validateWriteTransaction(this.db, transaction, true);
+          request = await this.select(request, selection, transaction);
+          assertEntryCurrent?.();
+        }
+        let selected: ExistingAccessMutation;
+        if ('keys' in request) selected = request;
+        else {
+          // Validate even an empty match: it must not bypass unsupported writes or transaction requirements.
+          this.validateValues(request, collection, config.ownership.enabled);
+          if (model.primaryKeyAttributes.length !== 1) invalid('Existing mutations require a single primary key');
+          await validateWriteTransaction(this.db, transaction, serializable);
+          if (config.ownership.enabled && authenticated.tenantId !== undefined)
+            await resolveActiveAccessTenant(this.db, authenticated, { transaction, lock: true });
+          const scoped = await this.queries.scopeQuery(
+            ctx,
+            identity,
+            authenticated,
+            { where: request.where, bind: request.bind, transaction },
+            'ownership',
+          );
+          assertEntryCurrent?.();
+          if (
+            !scoped ||
+            scoped.config !== config ||
+            collection.options.template !== template ||
+            !this.queries.isCurrentCollection(identity, collection, model)
+          )
+            invalid('Mutation access phase changed during selection');
+          const records = await model.findAll(
+            internalQuery({
+              ...scoped.query,
+              attributes: [model.primaryKeyAttribute],
+              order: [[model.primaryKeyAttribute, 'ASC']],
+              limit: 1001,
+              lock: transaction.LOCK.UPDATE,
+            }),
+          );
+          assertEntryCurrent?.();
+          if (
+            this.prepared.configuration(ctx, identity) !== config ||
+            collection.options.template !== template ||
+            !this.queries.isCurrentCollection(identity, collection, model)
+          )
+            invalid('Mutation access phase changed during selection');
+          if (records.length > 1000) invalid('Mutation exceeds the 1000-record write limit');
+          if (!records.length) {
+            await validateWriteTransaction(this.db, transaction, serializable);
+            assertEntryCurrent?.();
+            if (
+              this.prepared.configuration(ctx, identity) !== config ||
+              collection.options.template !== template ||
+              !this.queries.isCurrentCollection(identity, collection, model)
+            )
+              invalid('Mutation access phase changed during selection');
+            return { keys: [], affected: 0 };
+          }
+          selected = {
+            ...request,
+            keys: normalizeKeys(
+              records.map((record) => record.getDataValue(model.primaryKeyAttribute)),
+              collection,
+            ),
+          };
+        }
+        const authorized = await this.authorizeExisting(ctx, identity, authenticated, selected, transaction);
+        metadata();
+        assertEntryCurrent?.();
+        // Check every selected root's G before excluding no-ops; ownership is not a business edit.
+        // 先核全部选中来源的 G 再排除无变化行，归属补丁本身不算业务编辑。
+        const scalarValues = Object.fromEntries(
+          Object.entries(selected.values ?? {}).filter(
+            ([field]) => !(config.ownership.enabled && field === 'tenantId'),
+          ),
+        );
+        const audit =
+          request.operation === 'update' ? captureUserAuditFields(this.db, collection, authenticated) : undefined;
+        const plan: ExistingAccessWritePlan =
+          request.operation === 'update'
+            ? Object.freeze({
+                ...authorized,
+                records: Object.freeze(
+                  authorized.records.filter(
+                    (record) =>
+                      hasPersistedChanges(record, scalarValues) ||
+                      (audit?.has('updatedById') && !audit.isCurrentUser(record.getDataValue('updatedById'))),
+                  ),
+                ),
+              })
+            : authorized;
+        const primary = model.primaryKeyAttribute;
+        const keys = plan.records.map((record) => record.getDataValue(primary) as string | number);
+        const expected = plan.records.map(
+          (record) => plan.valuesFor(record).tenantId ?? record.getDataValue('tenantId'),
+        );
+        const protectedValues =
+          request.operation === 'update'
+            ? snapshotProtectedValues(
+                this.db,
+                collection,
+                plan.records,
+                config.ownership.enabled ? ['tenantId'] : [],
+                audit,
+              )
+            : undefined;
+        await writer(plan);
+        await validateWriteTransaction(this.db, transaction, serializable);
+        if (
+          this.prepared.configuration(ctx, identity) !== config ||
+          collection.options.template !== template ||
+          !this.queries.isCurrentCollection(identity, collection, model)
+        )
+          invalid('Mutation access phase changed during write');
+        metadata();
+        audit?.assertCurrent();
+        const after = await model.unscoped().findAll(
+          internalQuery({
+            where: { [primary]: { [Op.in]: keys } },
+            transaction,
+            attributes: [
+              ...new Set([
+                primary,
+                ...(config.ownership.enabled ? ['tenantId'] : []),
+                ...(protectedValues?.fields ?? []),
+              ]),
+            ],
+          }),
+        );
+        metadata();
+        if (
+          this.prepared.configuration(ctx, identity) !== config ||
+          collection.options.template !== template ||
+          !this.queries.isCurrentCollection(identity, collection, model)
+        )
+          invalid('Mutation collection identity changed');
+        if (request.operation === 'destroy') {
+          if (after.length) invalid('Writer did not delete all authorized targets');
+        } else {
+          if (after.length !== keys.length) invalid('Writer removed an update target');
+          protectedValues!.verify(after);
+          if (config.ownership.enabled) {
+            const owners = new Map(keys.map((key, i) => [String(key), expected[i]]));
+            if (
+              after.some(
+                (record) => record.getDataValue('tenantId') !== owners.get(String(record.getDataValue(primary))),
+              )
+            )
+              throw new AccessMutationError('ACCESS_OWNERSHIP_CHANGE_FORBIDDEN', 'Writer changed record ownership');
+          }
+        }
+        assertEntryCurrent?.();
+        return { keys, affected: keys.length };
+      };
+      if (inheritedTransaction !== undefined) return await execute(inheritedTransaction);
+      return await this.db.sequelize.transaction(
+        {
+          type: Transaction.TYPES.IMMEDIATE,
+          ...(serializable ? { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE } : {}),
+        },
+        execute,
+      );
+    } catch (error) {
+      const conflict = error as { original?: { code?: string }; parent?: { code?: string } };
+      if ((conflict?.original?.code ?? conflict?.parent?.code) === '40001')
+        throw new AccessMutationError(
+          'ACCESS_MUTATION_CONFLICT',
+          'Concurrent authorization changed; retry the operation',
+          409,
+        );
+      throw error;
+    }
+  }
+
+  private async select<T extends Pick<ExistingAccessMutation, 'where' | 'bind'>>(
+    request: T,
+    selection: AccessMutationSelection,
+    transaction: Transaction,
+  ): Promise<T> {
+    const scoped = await selection(transaction);
+    if (Object.keys(scoped.bind ?? {}).some((name) => Object.hasOwn(request.bind ?? {}, name)))
+      invalid('Mutation selection SQL bindings conflict');
+    return {
+      ...request,
+      where: request.where === undefined ? scoped.where : { [Op.and]: [request.where, scoped.where] },
+      bind: { ...request.bind, ...scoped.bind },
+    };
+  }
+}

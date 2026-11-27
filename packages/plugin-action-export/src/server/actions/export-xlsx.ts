@@ -1,13 +1,8 @@
 import { Application, Context, Next, Repository } from '@tego/server';
 
-import dayjs from 'dayjs';
-import xlsx from 'node-xlsx';
-
 import ExportPlugin from '..';
 import { BULK_EXPORT_THRESHOLD, EXPORT_LENGTH_MAX } from '../constants';
-import render from '../renders';
 import {
-  buildExportDownloadName,
   columns2Appends,
   emitSecurityViolation,
   ExportColumnsError,
@@ -15,6 +10,7 @@ import {
   getExportTenantId,
   normalizeExportColumns,
 } from '../utils';
+import { renderExportXlsx } from './render-xlsx';
 
 function uniqueTenantIds(ids?: Array<string | number>) {
   return Array.from(new Set(ids || []));
@@ -125,37 +121,7 @@ export async function exportXlsx(ctx: Context, next: Next) {
     sort,
     context: ctx,
   });
-  const collectionFields = columns.map((col) => collection.fields.get(col.dataIndex[0]));
-  const { rows, ranges } = await render(
-    { columns, fields: collectionFields, data, utcOffset: ctx.get('X-Timezone') },
-    ctx.db,
-  );
-  const timezone = ctx.get('x-timezone');
-  // TODO: 合并到render中处理
-  if (timezone) {
-    for (const data of rows) {
-      for (const key in data) {
-        if (data[key] instanceof Date) {
-          data[key] = dayjs(data[key]).utcOffset(timezone).format('YYYY-MM-DD HH:mm:ss');
-        }
-      }
-    }
-  }
-  ctx.body = xlsx.build([
-    {
-      name: 'Sheet 1',
-      data: rows,
-      options: {
-        '!merges': ranges,
-      },
-    },
-  ]);
-
-  ctx.set({
-    'Content-Type': 'application/octet-stream',
-    // to avoid "invalid character" error in header (RFC)
-    'Content-Disposition': `attachment; filename=${encodeURI(buildExportDownloadName(title, currentTenantId))}.xlsx`,
-  });
+  await renderExportXlsx(ctx, { collection, columns, data, title, tenantId: currentTenantId });
 
   await next();
 }

@@ -5,10 +5,10 @@
  * 基于 git commits 和 conventional commits 格式生成更新日志
  */
 
-import { execSync } from 'child_process';
-import { readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { execSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import {
   parseCommit,
   parseGitLogOutput,

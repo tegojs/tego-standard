@@ -1,7 +1,13 @@
 import { Registry } from '@tego/server';
 
 import WorkflowPlugin, { Instruction, JOB_STATUS, Processor } from '../..';
+import type { WorkflowWriteRequest } from '../../instructions/write-resolver';
 import initFormTypes, { FormHandler } from './forms';
+
+/** Synchronous refusal only; this does not authorize a manual form write. */
+export type WorkflowManualFormGuard = (
+  request: Omit<WorkflowWriteRequest, 'transaction'> & { readonly actionName: 'create' | 'update' },
+) => void;
 
 type FormType = {
   type: 'custom' | 'create' | 'update';
@@ -84,11 +90,25 @@ function getMode(mode) {
 
 export default class extends Instruction {
   formTypes = new Registry<FormHandler>();
+  private readonly formGuard?: WorkflowManualFormGuard;
 
   constructor(public workflow: WorkflowPlugin) {
     super(workflow);
 
+    this.formGuard = workflow.options.manualFormGuard;
+    if (this.formGuard !== undefined && typeof this.formGuard !== 'function')
+      throw new TypeError('Manual form guard must be a function');
+
     initFormTypes(this);
+  }
+
+  async assertFormWrite(request: Parameters<WorkflowManualFormGuard>[0]) {
+    if (!this.formGuard) return;
+    const result: unknown = this.formGuard(Object.freeze(request));
+    if (result !== undefined) {
+      await result;
+      throw new TypeError('Manual form guard must return undefined synchronously');
+    }
   }
 
   async run(node, prevJob, processor: Processor) {

@@ -1,0 +1,607 @@
+import { Op, type Collection, type Database, type Transaction } from '@tego/server';
+
+import type { AccessAclScopeAdapter } from './acl-scope';
+import { captureAssociationLinkInput, captureAssociationSourcePermission } from './association-link-input';
+import { resolveBelongsTo } from './association-metadata';
+import { AccessBelongsToService, MAX_REFERENCE_UPDATES } from './belongs-to';
+import { accessCollectionKey, type AccessCollectionIdentity } from './config-store';
+import type { AccessIdentity } from './context';
+import { captureAccessFilter } from './filter-input';
+import { captureFinalActionPermission, type AccessFinalActionPermission } from './final-action-permission';
+import { AccessManyToManyService } from './many-to-many';
+import { resolveManyToMany } from './many-to-many-metadata';
+import { accessMetadataGuard } from './metadata-snapshot';
+import { AccessMutationService } from './mutation';
+import type { AccessQueryService } from './query';
+import { AccessReadGrantAdapter } from './read-grants';
+import { AccessReferenceService } from './references';
+import { prepareRelationalMutationFilter } from './relational-mutation-filter';
+import { AccessRoleFilterCompiler } from './role-filter';
+import { captureRelatedReadPermission, type AccessRootReadContext } from './root-read-context';
+import { prepareScalarMutationFilter } from './scalar-mutation-filter';
+import {
+  cloneDeep,
+  internalQuery,
+  invalid,
+  normalizeKeys,
+  plain,
+  unavailable,
+  validateRootValues,
+} from './write-support';
+
+function data(input: object, key: PropertyKey): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(input, key);
+  if (!descriptor) return;
+  if (!Object.hasOwn(descriptor, 'value')) invalid('Reference context cannot contain accessors');
+  return descriptor.value;
+}
+
+function shape(input: unknown, keys: readonly string[]): asserts input is Record<string, unknown> {
+  if (!plain(input) || Reflect.ownKeys(input).some((key) => typeof key !== 'string' || !keys.includes(key)))
+    invalid('Unsupported reference mutation parameters');
+  for (const key of Reflect.ownKeys(input)) data(input, key);
+}
+
+/** Internal reference mutations; never edit targets or register routes. */
+export class AccessReferenceMutationHandler {
+  constructor(
+    private readonly db: Database,
+    private readonly prepared: AccessAclScopeAdapter,
+    private readonly queries: AccessQueryService,
+    private readonly resolveIdentity: (collection: Collection) => AccessCollectionIdentity | undefined,
+  ) {}
+
+  async handle(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
+  ): Promise<void> {
+    if (ctx.db !== this.db || !ctx.action || typeof ctx.action !== 'object' || !plain(authenticated))
+      invalid('Reference database or authenticated context is unavailable');
+    const resourceName = data(ctx.action, 'resourceName');
+    if (
+      typeof resourceName !== 'string' ||
+      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(resourceName) ||
+      ['_', '__proto__', 'constructor', 'prototype'].includes(resourceName) ||
+      data(ctx.action, 'actionName') !== 'update' ||
+      data(ctx.action, 'sourceId') !== undefined ||
+      data(ctx.action, 'resourceOf') !== undefined
+    )
+      invalid('Only root reference updates are supported');
+    const actor = Object.freeze(cloneDeep(authenticated));
+    if (typeof actor.roleName !== 'string') invalid('Reference updates require an authenticated role');
+    const permission = captureFinalActionPermission(ctx.permission, {
+      resourceName,
+      actionName: 'update',
+      roleName: actor.roleName,
+    });
+    if (!permission.allowed || !plain(ctx.permission)) invalid('Reference update is not authorized');
+    const raw = data(ctx.permission, 'rawParams');
+    shape(raw, [
+      'resourceName',
+      'actionName',
+      'associatedName',
+      'associatedIndex',
+      'resourceIndex',
+      'filterByTk',
+      'values',
+      'filter',
+    ]);
+    const rawFilter = data(raw, 'filter');
+    const requestFilter = rawFilter === undefined ? {} : captureAccessFilter(rawFilter);
+    if (!plain(requestFilter)) invalid('Mutation request filters must be plain objects');
+    const params = cloneDeep(raw);
+    for (const [key, expected] of [
+      ['resourceName', resourceName],
+      ['actionName', 'update'],
+      ['associatedName', undefined],
+      ['associatedIndex', undefined],
+    ] as const)
+      if (Object.hasOwn(params, key) && params[key] !== expected)
+        invalid('Reference transport metadata does not match');
+    if (
+      !(
+        (typeof params.filterByTk === 'string' && params.filterByTk.length > 0 && params.filterByTk.length <= 255) ||
+        (typeof params.filterByTk === 'number' && Number.isSafeInteger(params.filterByTk))
+      ) ||
+      (params.resourceIndex !== undefined &&
+        (!['string', 'number'].includes(typeof params.resourceIndex) ||
+          String(params.resourceIndex) !== String(params.filterByTk)))
+    )
+      invalid('Reference update requires a single matching source key');
+    if (!plain(params.values) || Reflect.ownKeys(params.values).some((key) => typeof key !== 'string'))
+      invalid('Reference updates require named field values');
+    const submitted = params.values;
+    const source = this.db.getCollection(resourceName);
+    const names = Object.keys(submitted).filter((key) => Object.hasOwn(source?.model.associations ?? {}, key));
+    if (!names.length || names.length > MAX_REFERENCE_UPDATES)
+      invalid('Reference updates require between 1 and 20 associations');
+    if (
+      names.some((name) => !['BelongsTo', 'BelongsToMany'].includes(source!.model.associations[name].associationType))
+    )
+      invalid('Reference updates require BelongsTo or BelongsToMany associations');
+    const name = names[0];
+    if (typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) invalid('Invalid association name');
+    const value = data(submitted, name);
+    const rawValues = data(raw, 'values');
+    return this.execute(
+      ctx,
+      actor,
+      {
+        resourceName,
+        name,
+        value,
+        sourceKey: params.filterByTk,
+        requestFilter,
+        originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
+        references: names.map((name) => ({
+          name,
+          value: data(submitted, name),
+          originalValue: plain(rawValues) ? data(rawValues, name) : undefined,
+        })),
+        sourceValues: Object.fromEntries(Object.entries(submitted).filter(([key]) => !names.includes(key))),
+      },
+      authorizeTarget,
+      permission,
+    );
+  }
+
+  async handleAssociation(
+    ctx: AccessRootReadContext,
+    authenticated: AccessIdentity,
+    authorizeSource: (
+      collection: Collection,
+      operation: 'add' | 'remove' | 'set',
+    ) => Promise<AccessRootReadContext | null>,
+    authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
+  ): Promise<void> {
+    const captured = captureAssociationLinkInput(this.db, ctx, authenticated, 'BelongsToMany');
+    return this.execute(
+      ctx,
+      captured.actor,
+      captured,
+      authorizeTarget,
+      undefined,
+      authorizeSource,
+      captured.permission,
+    );
+  }
+
+  private async execute(
+    ctx: AccessRootReadContext,
+    actor: AccessIdentity,
+    input: {
+      resourceName: string;
+      name: string;
+      value: unknown;
+      sourceKey: string | number;
+      requestFilter?: Record<PropertyKey, unknown>;
+      originalValue?: unknown;
+      operation?: 'add' | 'remove' | 'set';
+      targetName?: string;
+      sourceValues?: Record<string, unknown>;
+      references?: Array<{ name: string; value: unknown; originalValue?: unknown }>;
+    },
+    authorizeTarget: (collection: Collection) => Promise<AccessRootReadContext | null>,
+    sourcePermission?: Readonly<AccessFinalActionPermission>,
+    authorizeSource?: (
+      collection: Collection,
+      operation: 'add' | 'remove' | 'set',
+    ) => Promise<AccessRootReadContext | null>,
+    targetPermission?: Readonly<AccessFinalActionPermission>,
+  ): Promise<void> {
+    const { resourceName, name, value } = input;
+    const roleName = actor.roleName!;
+    const source = this.db.getCollection(resourceName);
+    const field = source?.getField(name);
+    const association = source?.model.associations[name];
+    const target = association && this.db.modelCollection.get(association.target);
+    if (
+      !source ||
+      !field ||
+      !target ||
+      field.target !== target.name ||
+      !['BelongsTo', 'BelongsToMany'].includes(association.associationType) ||
+      (input.operation !== undefined &&
+        (association.associationType !== 'BelongsToMany' || target.name !== input.targetName))
+    )
+      invalid('Reference requires a registered reference field');
+    // Fix the submitted relation types before identity callbacks can change model metadata.
+    const selectedReferences = (input.references ?? [{ name, value, originalValue: input.originalValue }]).map(
+      (reference) => ({ ...reference, type: source.model.associations[reference.name]?.associationType }),
+    );
+    const entryMetadata = accessMetadataGuard(
+      this.db,
+      [],
+      selectedReferences.map(({ name }) => ({ model: source.model, path: [name] })),
+    );
+    const multiple = selectedReferences.some(({ type }) => type === 'BelongsToMany');
+    const firstMultiple = association.associationType === 'BelongsToMany';
+    const sourceIdentity = cloneDeep(this.resolveIdentity(source));
+    const targetIdentity = cloneDeep(this.resolveIdentity(target));
+    if (
+      !sourceIdentity ||
+      !targetIdentity ||
+      sourceIdentity.collectionName !== source.name ||
+      targetIdentity.collectionName !== target.name
+    )
+      invalid('Reference collection identity is unavailable');
+    const throughModel = (association as unknown as { through?: { model?: Collection['model'] } }).through?.model;
+    const through = throughModel && this.db.modelCollection.get(throughModel);
+    const throughIdentity = firstMultiple && through ? cloneDeep(this.resolveIdentity(through)) : undefined;
+    if (firstMultiple && (!through || !throughIdentity || throughIdentity.collectionName !== through.name))
+      invalid('Reference join identity is unavailable');
+    const relation = firstMultiple
+      ? resolveManyToMany(
+          this.db,
+          this.prepared,
+          this.queries,
+          ctx,
+          sourceIdentity,
+          targetIdentity,
+          throughIdentity!,
+          name,
+        )
+      : resolveBelongsTo(this.db, this.prepared, this.queries, ctx, sourceIdentity, targetIdentity, name, true);
+    const keys = normalizeKeys([input.sourceKey], source);
+    const linkReferences = multiple
+      ? selectedReferences
+          .filter(({ type }) => type === 'BelongsToMany')
+          .map(({ name: selectedName, value, originalValue }) => {
+            const field = source.getField(selectedName);
+            const association = source.model.associations[selectedName];
+            const target = association && this.db.modelCollection.get(association.target);
+            const identity = target && cloneDeep(this.resolveIdentity(target));
+            const throughModel = (association as unknown as { through?: { model?: Collection['model'] } })?.through
+              ?.model;
+            const through = throughModel && this.db.modelCollection.get(throughModel);
+            const throughIdentity = through && cloneDeep(this.resolveIdentity(through));
+            if (
+              !target ||
+              !field ||
+              field.target !== target.name ||
+              !identity ||
+              identity.collectionName !== target.name ||
+              !through ||
+              !throughIdentity ||
+              throughIdentity.collectionName !== through.name
+            )
+              invalid('Reference link identity is unavailable');
+            const relation = resolveManyToMany(
+              this.db,
+              this.prepared,
+              this.queries,
+              ctx,
+              sourceIdentity,
+              identity,
+              throughIdentity,
+              selectedName,
+            );
+            const original = input.operation ? value : originalValue;
+            if (
+              !Array.isArray(original) ||
+              Object.getPrototypeOf(original) !== Array.prototype ||
+              !Array.isArray(value) ||
+              value.length > 1000 ||
+              Reflect.ownKeys(value).length !== value.length + 1 ||
+              Array.from({ length: value.length }, (_, index) => index).some((index) => !Object.hasOwn(value, index))
+            )
+              invalid('Reference values must be a bounded dense key array');
+            const targetKeys = value.length ? normalizeKeys(value, target) : [];
+            return { name: selectedName, field, target, identity, through, throughIdentity, relation, targetKeys };
+          })
+      : [];
+    // Capture every selected reference before any asynchronous permission callback or source lock.
+    const references = selectedReferences
+      .filter(({ type }) => type === 'BelongsTo')
+      .map(({ name: selectedName, value }) => {
+        const field = source.getField(selectedName);
+        const association = source.model.associations[selectedName];
+        const target = association && this.db.modelCollection.get(association.target);
+        const identity = target && cloneDeep(this.resolveIdentity(target));
+        if (!target || !field || field.target !== target.name || !identity || identity.collectionName !== target.name)
+          invalid('Reference collection identity is unavailable');
+        const relation = resolveBelongsTo(
+          this.db,
+          this.prepared,
+          this.queries,
+          ctx,
+          sourceIdentity,
+          identity,
+          selectedName,
+          true,
+        );
+        if (value !== null && typeof value !== 'string' && typeof value !== 'number')
+          invalid('Reference values must be a target key or null');
+        const targetKey = value === null ? null : normalizeKeys([value], target)[0];
+        return { name: selectedName, field, target, identity, relation, targetKey };
+      });
+    const compiler = new AccessRoleFilterCompiler(this.db, this.resolveIdentity);
+    const relational =
+      input.operation === undefined && Reflect.ownKeys(input.requestFilter ?? {}).length
+        ? prepareRelationalMutationFilter(
+            this.db,
+            this.prepared,
+            this.queries,
+            ctx,
+            source,
+            sourceIdentity,
+            actor,
+            input.requestFilter!,
+            this.resolveIdentity,
+          )
+        : undefined;
+    const selection = relational
+      ? undefined
+      : prepareScalarMutationFilter(
+          this.db,
+          source,
+          sourceIdentity,
+          relation.sourceConfig,
+          input.requestFilter ?? {},
+          roleName,
+          compiler,
+          this.resolveIdentity,
+        );
+    let role: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
+    let targetRole: ReturnType<AccessRoleFilterCompiler['compile']> | undefined;
+    entryMetadata();
+    const metadata = accessMetadataGuard(
+      this.db,
+      [
+        { model: source.model, config: relation.sourceConfig },
+        ...linkReferences.map(({ target, identity }) => ({
+          model: target.model,
+          config: this.prepared.configuration(ctx, identity)!,
+        })),
+        ...references.map(({ relation }) => ({ model: relation.targetModel, config: relation.targetConfig })),
+      ],
+      [...linkReferences, ...references].map(({ name }) => ({ model: source.model, path: [name] })),
+    );
+    const targetGuards = new Map<number, () => void>();
+    const assertCurrent = () => {
+      relation.current();
+      for (const reference of linkReferences) {
+        reference.relation.current();
+        if (source.getField(reference.name) !== reference.field || reference.field.target !== reference.target.name)
+          invalid('Reference source field changed');
+      }
+      for (const reference of references) {
+        reference.relation.current();
+        if (source.getField(reference.name) !== reference.field || reference.field.target !== reference.target.name)
+          invalid('Reference source field changed');
+      }
+      metadata();
+      role?.assertCurrent();
+      targetRole?.assertCurrent();
+      selection?.assertCurrent();
+      relational?.assertCurrent();
+      for (const guard of targetGuards.values()) guard();
+      if (
+        source.getField(name) !== field ||
+        field.target !== target.name ||
+        source.filterTargetKey !== source.model.primaryKeyAttribute
+      )
+        invalid('Reference source field or locator changed');
+      const identities: Array<readonly [Collection, AccessCollectionIdentity]> = [
+        [source, sourceIdentity],
+        [target, targetIdentity],
+      ];
+      for (const reference of linkReferences)
+        identities.push([reference.target, reference.identity], [reference.through, reference.throughIdentity]);
+      for (const reference of references) identities.push([reference.target, reference.identity]);
+      for (const [collection, expected] of identities) {
+        const actual = this.resolveIdentity(collection);
+        if (
+          !actual ||
+          actual.collectionName !== expected.collectionName ||
+          accessCollectionKey(actual) !== accessCollectionKey(expected)
+        )
+          invalid('Reference entry identity changed');
+      }
+    };
+    assertCurrent();
+    const checkFields = (
+      permission: Readonly<AccessFinalActionPermission>,
+      collection: Collection,
+      required: readonly string[],
+      aliases: readonly string[] = [],
+    ) => {
+      shape(
+        permission.params,
+        input.operation
+          ? ['fields', 'whitelist', 'blacklist', 'filter', 'own']
+          : ['whitelist', 'blacklist', 'filter', 'own'],
+      );
+      if (permission.params.own !== undefined && permission.params.own !== false)
+        invalid('Own-record mutation permissions must be finalized');
+      for (const kind of ['fields', 'whitelist', 'blacklist']) {
+        const value = permission.params[kind];
+        if (value === undefined) continue;
+        const fields = captureAccessFilter(value);
+        if (
+          !Array.isArray(fields) ||
+          fields.some((field) => typeof field !== 'string') ||
+          new Set(fields).size !== fields.length
+        )
+          invalid('Reference field grants must be distinct field names');
+        for (const field of fields)
+          if (
+            !Object.hasOwn(collection.model.rawAttributes, field) &&
+            !Object.hasOwn(collection.model.associations, field)
+          )
+            invalid('Reference permission contains unsupported fields');
+        if (
+          kind === 'blacklist'
+            ? [...required, ...aliases].some((field) => fields.includes(field))
+            : required.some((field) => !fields.includes(field))
+        )
+          invalid('Reference field is not authorized');
+      }
+      return compiler.compile(
+        collection === source ? sourceIdentity : targetIdentity,
+        captureAccessFilter(permission.params.filter ?? {}),
+      );
+    };
+    // Retain the finalized target decision before awaiting independent source authorization.
+    if (targetPermission) targetRole = checkFields(targetPermission, target, [target.model.primaryKeyAttribute]);
+    assertCurrent();
+    if (authorizeSource) {
+      const related = await authorizeSource(source, input.operation!);
+      assertCurrent();
+      sourcePermission = captureAssociationSourcePermission(this.db, source, roleName, input.operation!, related);
+    }
+    if (!sourcePermission?.allowed) invalid('Reference source permission is unavailable');
+    role = checkFields(
+      sourcePermission,
+      source,
+      [...linkReferences, ...references].map(({ name }) => name),
+      references.map(({ relation }) => relation.foreignKey),
+    );
+    let sourceValues: Record<string, unknown> | undefined;
+    if (input.sourceValues && Reflect.ownKeys(input.sourceValues).length) {
+      validateRootValues(this.db, input.sourceValues, source, 'update', relation.sourceConfig.ownership.enabled);
+      const { whitelist, blacklist } = sourcePermission.params as { whitelist?: string[]; blacklist?: string[] };
+      const values = Object.fromEntries(
+        Object.entries(input.sourceValues).filter(
+          ([field]) =>
+            ((whitelist === undefined || whitelist.includes(field)) && !blacklist?.includes(field)) ||
+            (relation.sourceConfig.ownership.enabled && field === 'tenantId'),
+        ),
+      );
+      if (Object.keys(values).length) sourceValues = values;
+    }
+    assertCurrent();
+    const requested = selection ? await selection.resolve(authorizeTarget, assertCurrent) : undefined;
+    const sourceScope = relational ? await relational.resolve(authorizeTarget, assertCurrent) : undefined;
+    const sourceWhere = requested
+      ? { [Op.and]: [role.rootWhere ?? role.where, requested] }
+      : (role.rootWhere ?? role.where);
+    const entry = {
+      assertCurrent,
+      ...(sourceScope ? { sourceScope } : {}),
+      ...(targetRole
+        ? {
+            authorizeChanges: async (keys: string[], transaction: Transaction) => {
+              assertCurrent();
+              const primary = target.model.primaryKeyAttribute;
+              const records = await target.model.unscoped().findAll(
+                internalQuery({
+                  attributes: [primary],
+                  where: { [Op.and]: [{ [primary]: { [Op.in]: keys } }, targetRole!.rootWhere ?? targetRole!.where] },
+                  transaction,
+                  limit: keys.length,
+                }),
+              );
+              assertCurrent();
+              // Actual additions plus removals can exceed the request's individual key limit.
+              const actual = new Set(records.map((record) => normalizeKeys([record.getDataValue(primary)], target)[0]));
+              if (actual.size !== keys.length || keys.some((key) => !actual.has(key))) unavailable();
+            },
+          }
+        : {}),
+      targetScope: async (index = 0) => {
+        assertCurrent();
+        const selected = [...linkReferences, ...references][index];
+        const selectedTarget = selected.target;
+        const selectedIdentity = selected.identity;
+        const related = await authorizeTarget(selectedTarget);
+        assertCurrent();
+        if (!related) invalid('Reference target is not authorized');
+        const decision = captureRelatedReadPermission(this.db, selectedTarget, roleName, related);
+        const plan = new AccessReadGrantAdapter(this.db, (collection) => {
+          const resolved = this.resolveIdentity(collection);
+          return resolved && accessCollectionKey(resolved);
+        }).capturePlan(selectedIdentity, decision, compiler);
+        if (!plan || !plan.grant.fields.includes(selectedTarget.model.primaryKeyAttribute))
+          invalid('Reference target key is not readable');
+        targetGuards.set(index, plan.assertCurrent);
+        assertCurrent();
+        return { where: plan.grant.where };
+      },
+    };
+    if (multiple) {
+      ctx.body = await new AccessManyToManyService(
+        this.db,
+        this.prepared,
+        this.queries,
+        new AccessMutationService(this.db, this.prepared, this.queries),
+        new AccessReferenceService(this.db, this.prepared, this.queries),
+      ).withLinkSets(
+        ctx,
+        sourceIdentity,
+        actor,
+        {
+          sourceKeys: keys,
+          sourceWhere,
+          sourceValues,
+          links: linkReferences.map(({ name, identity, throughIdentity, targetKeys }) => ({
+            association: name,
+            target: identity,
+            through: throughIdentity,
+            operation: input.operation ?? 'set',
+            targetKeys,
+          })),
+          ...(references.length
+            ? {
+                references: references.map(({ name, identity, targetKey }) => ({
+                  association: name,
+                  target: identity,
+                  targetKey,
+                })),
+              }
+            : {}),
+        },
+        {
+          assertCurrent: entry.assertCurrent,
+          ...(entry.sourceScope ? { sourceScope: entry.sourceScope } : {}),
+          targetScope: entry.targetScope,
+          referenceScope: (index: number) => entry.targetScope(linkReferences.length + index),
+          ...(entry.authorizeChanges
+            ? {
+                authorizeChanges: (_index: number, keys: string[], transaction: Transaction) =>
+                  entry.authorizeChanges!(keys, transaction),
+              }
+            : {}),
+        },
+      );
+      return;
+    }
+    const links = new AccessBelongsToService(
+      this.db,
+      this.prepared,
+      this.queries,
+      new AccessMutationService(this.db, this.prepared, this.queries),
+      new AccessReferenceService(this.db, this.prepared, this.queries),
+    );
+    const result = await links.withReferences(
+      ctx,
+      sourceIdentity,
+      actor,
+      {
+        sourceKeys: keys,
+        sourceWhere,
+        sourceValues,
+        references: references.map(({ name, identity, targetKey }) => ({
+          association: name,
+          target: identity,
+          targetKey,
+        })),
+      },
+      async (plan) => {
+        assertCurrent();
+        for (const record of plan.records) {
+          await source.repository.update({
+            filterByTk: record.getDataValue(source.model.primaryKeyAttribute),
+            values: plan.valuesFor(record),
+            transaction: plan.transaction,
+            context: ctx,
+          });
+          assertCurrent();
+        }
+      },
+      entry,
+    );
+    ctx.body = result;
+  }
+}

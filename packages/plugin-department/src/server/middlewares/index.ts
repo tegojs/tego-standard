@@ -4,3 +4,5 @@ export * from './set-department-owners';
 export * from './update-department-isleaf';
 export * from './set-departments-roles';
 export * from './set-main-department';
+export * from './check-role-department-association-target-scope';
+export * from './check-department-member-association-target-scope';

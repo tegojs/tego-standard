@@ -2,22 +2,10 @@ import path from 'node:path';
 import { Context, koaMulter as multer, Next } from '@tego/server';
 
 import { DEFAULT_MAX_FILE_SIZE, FILE_FIELD_NAME, LIMIT_FILES } from '../constants';
-import * as Rules from '../rules';
 import PluginFileManager from '../server';
 import { getStorageConfig } from '../storages';
 import { getCurrentTenantId, getTenantStoragePath } from '../utils';
-
-// TODO(optimize): 需要优化错误处理，计算失败后需要抛出对应错误，以便程序处理
-function getFileFilter(storage) {
-  return (req, file, cb) => {
-    // size 交给 limits 处理
-    const { size, ...rules } = storage.rules;
-    const ruleKeys = Object.keys(rules);
-    const result =
-      !ruleKeys.length || !ruleKeys.some((key) => typeof Rules[key] !== 'function' || !Rules[key](file, rules[key]));
-    cb(null, result);
-  };
-}
+import { createUploadFileFilter } from './upload-rules';
 
 function getFileData(ctx: Context) {
   const { [FILE_FIELD_NAME]: file, storage } = ctx;
@@ -63,7 +51,7 @@ async function multipart(ctx: Context, next: Next) {
   }
 
   const multerOptions = {
-    fileFilter: getFileFilter(storage),
+    fileFilter: createUploadFileFilter(() => storage.rules),
     limits: {
       fileSize: storage.rules.size ?? DEFAULT_MAX_FILE_SIZE,
       // 每次只允许提交一个文件

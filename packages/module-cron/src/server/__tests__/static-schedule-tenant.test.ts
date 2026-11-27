@@ -23,7 +23,7 @@ describe('cron static schedule tenant context', () => {
     'counts accepted triggers with ready=$ready sync=$sync status=$status',
     async ({ ready, sync, status, successful }) => {
       const workflow = { id: 1, key: 'test-workflow', getNodes: vi.fn().mockResolvedValue([]) };
-      const cronJob = model({ id: 3, workflowKey: workflow.key });
+      const cronJob = model({ id: 3, workflowKey: workflow.key, enabled: true });
       Object.assign(cronJob, { increment: vi.fn(), update: vi.fn() });
       const plugin = Object.assign(Object.create(PluginWorkflow.prototype), {
         ready,
@@ -64,6 +64,7 @@ describe('cron static schedule tenant context', () => {
     };
     const cronJob = model({
       id: 1,
+      enabled: true,
       workflowKey: workflow.key,
       repeat: null,
       limit: null,
@@ -90,8 +91,8 @@ describe('cron static schedule tenant context', () => {
     Object.assign(service as any, {
       app: {
         pm: {
-          get: (plugin) =>
-            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+          get: (name) =>
+            name === 'workflow' ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
         },
         dataSourceManager: {
           dataSources: new Map([
@@ -118,7 +119,11 @@ describe('cron static schedule tenant context', () => {
 
     await service.trigger(cronJob.id, Date.now());
 
-    expect(repositories.tenants.find).toHaveBeenCalledWith({ filter: { enabled: true } });
+    expect(repositories.tenants.find).toHaveBeenCalledWith({
+      filter: { enabled: true },
+      useMaster: true,
+      transaction: null,
+    });
     expect(triggerWorkflow).toHaveBeenCalledTimes(2);
     const states = Object.fromEntries(
       triggerWorkflow.mock.calls.map((call) => [call[2].context.state.currentTenantId, call[2].context.state]),
@@ -141,6 +146,7 @@ describe('cron static schedule tenant context', () => {
     };
     const cronJob = model({
       id: 2,
+      enabled: true,
       workflowKey: workflow.key,
       repeat: null,
       limit: null,
@@ -157,8 +163,8 @@ describe('cron static schedule tenant context', () => {
     Object.assign(service as any, {
       app: {
         pm: {
-          get: (plugin) =>
-            plugin === PluginWorkflow ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
+          get: (name) =>
+            name === 'workflow' ? { isReady: true, isWorkflowSync: () => true, trigger: triggerWorkflow } : null,
         },
         dataSourceManager: {
           dataSources: new Map([

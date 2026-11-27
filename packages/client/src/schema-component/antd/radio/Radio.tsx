@@ -28,7 +28,11 @@ Radio.Group = connect(
     },
     (props: any, field: any) => {
       useEffect(() => {
-        const defaultOption = field.dataSource?.find((option) => option.value == props.value);
+        // The radio demo pairs a number field with string enum values, so matching must allow this type difference.
+        const defaultOption = field.dataSource?.find(
+          // eslint-disable-next-line eqeqeq -- Preserve matching across serialized enum value types.
+          (option) => option.value == props.value,
+        );
         if (defaultOption) {
           field.setValue(defaultOption.value);
         }
@@ -49,7 +53,10 @@ Radio.Group = connect(
     return (
       <div>
         {dataSource
-          .filter((option) => option.value == value)
+          .filter(
+            // eslint-disable-next-line eqeqeq -- Preserve matching across serialized enum value types.
+            (option) => option.value == value,
+          )
           .map((option, key) => (
             <Tag key={key} color={option.color} icon={option.icon}>
               {option.label}

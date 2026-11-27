@@ -1,5 +1,13 @@
 import PluginErrorHandler from '@tachybase/module-error-handler';
-import { Context, joinCollectionName, Model, modelAssociationByKey, Next, parseCollectionName } from '@tego/server';
+import {
+  Context,
+  ICollection,
+  joinCollectionName,
+  Model,
+  modelAssociationByKey,
+  Next,
+  parseCollectionName,
+} from '@tego/server';
 
 import _, { get, isArray } from 'lodash';
 
@@ -7,6 +15,17 @@ import { EXECUTION_STATUS } from '../../constants';
 import { applyTenantFilterToContext } from '../../helpers/tenant-context';
 import Trigger from '../../triggers';
 import { toJSON } from '../../utils';
+
+export interface WorkflowOmniReadRequest {
+  readonly dataSourceName: string;
+  readonly collectionName: string;
+  readonly collection: ICollection;
+  readonly params: object;
+  readonly context: object;
+}
+
+/** Synchronous refusal only; triggering a workflow does not grant business read authority. */
+export type WorkflowOmniReadGuard = (request: WorkflowOmniReadRequest) => void;
 
 class CustomActionInterceptionError extends Error {
   status = 400;
@@ -36,8 +55,13 @@ function mergeFormData(data: any, formData: any) {
  */
 export class OmniTrigger extends Trigger {
   static TYPE = 'general-action';
+  private readonly workflowReadGuard?: WorkflowOmniReadGuard;
+
   constructor(workflow) {
     super(workflow);
+    this.workflowReadGuard = workflow.options?.omniWorkflowReadGuard;
+    if (this.workflowReadGuard !== undefined && typeof this.workflowReadGuard !== 'function')
+      throw new TypeError('Workflow omni business read guard must be a function');
     const errorHandlerPlugin = (this.workflow.app.pm.get('error-handler') ||
       this.workflow.app.pm.get(PluginErrorHandler)) as InstanceType<typeof PluginErrorHandler> | undefined;
     if (!errorHandlerPlugin?.errorHandler) {
@@ -273,6 +297,21 @@ export class OmniTrigger extends Trigger {
                 filterByTk: payload.get(model.primaryKeyAttribute),
                 appends,
               });
+              if (this.workflowReadGuard) {
+                const result: unknown = this.workflowReadGuard(
+                  Object.freeze({
+                    dataSourceName,
+                    collectionName,
+                    collection: model.collection,
+                    params: findOptions,
+                    context: ctx,
+                  }),
+                );
+                if (result !== undefined) {
+                  await result;
+                  throw new TypeError('Workflow omni business read guard must return undefined synchronously');
+                }
+              }
               payload = await model.collection.repository.findOne({
                 ...findOptions,
                 context: ctx,
@@ -297,6 +336,21 @@ export class OmniTrigger extends Trigger {
             filterByTk: pk,
             appends,
           });
+          if (this.workflowReadGuard) {
+            const result: unknown = this.workflowReadGuard(
+              Object.freeze({
+                dataSourceName,
+                collectionName,
+                collection: targetCollection,
+                params: findOptions,
+                context: ctx,
+              }),
+            );
+            if (result !== undefined) {
+              await result;
+              throw new TypeError('Workflow omni business read guard must return undefined synchronously');
+            }
+          }
           data = await repository.findOne({
             ...findOptions,
             context: ctx,

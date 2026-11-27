@@ -59,7 +59,7 @@ export const useTransformers = (field: any) => {
 export const useTransformersDecimal = (field: any) => {
   const selectedType = field.query('.type').get('value');
   const selectedFormat = field.query('.format').get('value');
-  if (!selectedFormat || !selectedType || selectedFormat != 'Decimal') {
+  if (!selectedFormat || !selectedType || selectedFormat !== 'Decimal') {
     field.dataSource = [];
   } else {
     const options = Object.keys(transformers[selectedType][selectedFormat] || {}).map((key) => ({
@@ -75,7 +75,7 @@ export const useFieldTransformer = (transform: ChartRendererProps['transform'], 
     .filter((item) => {
       if (item.format) {
         //对小数做了判断
-        if (item.format == 'Decimal') {
+        if (item.format === 'Decimal') {
           if (item.specific) {
             return item.field && item.type && item.format && item.specific;
           }

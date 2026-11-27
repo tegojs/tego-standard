@@ -5,7 +5,7 @@
  * 若被占用则退出并报错，避免 dev-server 启动失败而 Electron 仍误判「API 就绪」
  */
 
-const net = require('net');
+const net = require('node:net');
 
 const webPort = parseInt(process.env.WEB_PORT || process.env.PORT || '31000', 10);
 const appPort = parseInt(process.env.APP_PORT || '30000', 10);

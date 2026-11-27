@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs');
 const path = '/Users/bai/Library/Logs/Tachybase/tachybase.log';
 
 // 读取日志文件

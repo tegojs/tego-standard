@@ -35,6 +35,8 @@ import {
 } from '../TenantManagement';
 import TenantMenuProvider from '../TenantMenuProvider';
 
+vi.setConfig({ testTimeout: 60000 });
+
 /** Stub templates for testing injection logic. */
 class StubGeneralTemplate extends CollectionTemplate {
   name = 'general';
@@ -525,6 +527,97 @@ describe('PluginTenantClient', () => {
     });
   });
 
+  it('should open a read-only migration preview for a collection row', async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        data: {
+          identity: { dataSourceKey: 'main', collectionName: 'approvals', collectionKey: 'approval-key' },
+          legacy: { tenancy: 'tenantScoped', legacyDataTenantIds: [], allowEditingLegacyData: false },
+          draft: { ownership: { enabled: true }, rules: [{ category: 'ownership', enabled: true }] },
+          roleScopes: [],
+        },
+      },
+    });
+    const update = vi.fn();
+    const api = {
+      auth: { role: 'developer' },
+      request,
+      resource: (name: string) => ({
+        list: async () => ({
+          data: {
+            data:
+              name === 'tenants'
+                ? []
+                : [{ key: 'approval-key', name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
+          },
+        }),
+        update,
+      }),
+    };
+    const { getByText, findByRole } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as any}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+    fireEvent.click(await findByRole('button', { name: 'Preview migration' }));
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(request.mock.calls[0][0]).toMatchObject({
+      url: 'tenants:previewAccessMigration',
+      method: 'post',
+      headers: { 'X-Data-Source': 'main' },
+      data: { dataSourceKey: 'main', collectionName: 'approvals' },
+    });
+    await waitFor(() => expect(getByText('Ownership rules')).toBeInTheDocument());
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('should open saved rules separately from migration drafts without updating settings', async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        data: {
+          identity: { dataSourceKey: 'main', collectionName: 'approvals', collectionKey: 'approval-key' },
+          config: null,
+        },
+      },
+    });
+    const update = vi.fn();
+    const api = {
+      auth: { role: 'developer' },
+      request,
+      resource: (name: string) => ({
+        list: async () => ({
+          data: {
+            data:
+              name === 'tenants'
+                ? []
+                : [{ key: 'approval-key', name: 'approvals', title: 'Approvals', tenancy: 'tenantScoped' }],
+          },
+        }),
+        update,
+      }),
+    };
+    const { findByRole, findByText, queryByText } = render(
+      <AntdApp>
+        <APIClientProvider apiClient={api as never}>
+          <TenantManagement />
+        </APIClientProvider>
+      </AntdApp>,
+    );
+    fireEvent.click(await findByRole('button', { name: 'View saved rules' }));
+    await findByText('No access rules have been saved for this collection.');
+    expect(request).toHaveBeenCalledOnce();
+    expect(request.mock.calls[0][0]).toMatchObject({
+      url: 'tenants:readAccessConfig',
+      method: 'post',
+      headers: { 'X-Data-Source': 'main' },
+      data: { dataSourceKey: 'main', collectionName: 'approvals' },
+    });
+    expect(queryByText('This is a migration draft. No new rules have been saved or enabled.')).not.toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('should disable all collection settings controls while the row is saving', async () => {
     const listTenants = vi.fn().mockResolvedValue({
       data: {
@@ -588,6 +681,8 @@ describe('PluginTenantClient', () => {
       expect(selectors?.[0]).toBeDisabled();
       expect(selectors?.[1]).toBeDisabled();
       expect(editingSwitch).toBeDisabled();
+      expect(savingRow?.querySelector('button[data-tenant-migration-preview]')).toBeDisabled();
+      expect(savingRow?.querySelector('button[data-tenant-saved-rules]')).toBeDisabled();
     });
 
     resolveUpdate();

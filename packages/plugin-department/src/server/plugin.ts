@@ -10,6 +10,9 @@ import {
 } from './actions';
 import { departmentsField, mainDepartmentField } from './collections/users';
 import {
+  checkDepartmentMemberAssociationTargetScope,
+  checkRoleDepartmentAssociationTargetScope,
+  checkUserDepartmentAssociationScope,
   destroyDepartmentCheck,
   loadDepartmentsInfo,
   resetUserDepartmentsCache,
@@ -57,7 +60,6 @@ export class PluginDepartmentServer extends Plugin {
         removeOwner: removeOwner,
       },
     });
-    this.app.acl.allow('users', ['setMainDepartment', 'listExcludeDept'], 'loggedIn');
     this.app.acl.registerSnippet({
       name: `pm.${this.name}`,
       actions: [
@@ -82,8 +84,27 @@ export class PluginDepartmentServer extends Plugin {
     this.app.resourcer.use(destroyDepartmentCheck, { tag: 'destroyDepartmentCheck' });
     this.app.resourcer.use(updateDepartmentIsLeaf, { tag: 'updateDepartmentIsLeaf' });
     this.app.resourcer.use(resetUserDepartmentsCache, { tag: 'resetUserDepartmentsCache' });
+    this.app.resourcer.use(checkUserDepartmentAssociationScope, {
+      tag: 'checkUserDepartmentAssociationScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
+    this.app.resourcer.use(checkRoleDepartmentAssociationTargetScope, {
+      tag: 'checkRoleDepartmentAssociationTargetScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
+    this.app.resourcer.use(checkDepartmentMemberAssociationTargetScope, {
+      tag: 'checkDepartmentMemberAssociationTargetScope',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
     this.app.resourcer.use(setMainDepartment, { tag: 'setMainDepartment' });
-    this.app.resourcer.use(listUsersIncludeChildDepartment, { tag: 'listUsersIncludeChildDepartment' });
+    this.app.resourcer.use(listUsersIncludeChildDepartment, {
+      tag: 'listUsersIncludeChildDepartment',
+      after: 'setCurrentRole',
+      before: 'acl',
+    });
     this.app.db.on('departmentsUsers.afterSave', async (model) => {
       const cache = this.app.cache;
       await cache.del(`departments:${model.get('userId')}`);

@@ -555,7 +555,11 @@ export class PluginACL extends Plugin {
             collection = ctx.db.getCollection(resourceName);
           }
 
-          if (collection && collection.hasField('createdById')) {
+          if (
+            collection &&
+            collection.hasField('createdById') &&
+            !ctx.permission.can.params.fields.includes('createdById')
+          ) {
             ctx.permission.can.params.fields.push('createdById');
           }
         }

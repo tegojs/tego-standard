@@ -3,9 +3,17 @@ import { Plugin, uid } from '@tego/server';
 
 import packageJson from '../../package.json';
 import { NAMESPACE, TENANT_IMPERSONATION_SNIPPET } from '../constants';
+import { accessConfigHistory } from './access-control/config-history';
+import { registerAccessConfigGuards } from './access-control/config-mutation-guard';
+import { hasPreservedAccessResourceAction } from './access-control/preserved-resource-action';
+import { createAccessConfigRevisions } from './actions/access-config-revisions';
 import availableTenants from './actions/available-tenants';
 import currentTenant from './actions/current-tenant';
+import { createAccessMigrationPreview } from './actions/preview-access-migration';
+import { createAccessConfigRead } from './actions/read-access-config';
+import { createAccessConfigSave } from './actions/save-access-config';
 import switchTenant from './actions/switch-tenant';
+import { createAccessConfigValidation } from './actions/validate-access-config';
 import tenantsCollection from './collections/tenants';
 import tenantUsersCollection from './collections/tenantUsers';
 import usersCollection from './collections/users';
@@ -130,6 +138,7 @@ function getAssociationTargetCollection(db: any, association: any) {
 }
 
 function normalizeAssociationReadPlaceholder(ctx: any, db: any) {
+  if (hasPreservedAccessResourceAction(ctx)) return;
   if (ctx.action?.sourceId !== '_' || !['get', 'list'].includes(ctx.action?.actionName)) {
     return;
   }
@@ -685,6 +694,8 @@ export class PluginTenantServer extends Plugin {
   async loadCollections() {
     this.db.collection(tenantsCollection);
     this.db.collection(tenantUsersCollection);
+    this.db.collection(accessConfigHistory);
+    registerAccessConfigGuards(this.db);
     this.db.extendCollection(usersCollection.collectionOptions, usersCollection.mergeOptions);
   }
 
@@ -785,6 +796,18 @@ export class PluginTenantServer extends Plugin {
     this.app.resourcer.registerActionHandler('tenants:available', availableTenants);
     this.app.resourcer.registerActionHandler('tenants:current', currentTenant);
     this.app.resourcer.registerActionHandler('tenants:switch', switchTenant);
+    this.app.resourcer.registerActionHandler('tenants:previewAccessMigration', createAccessMigrationPreview(this.app));
+    this.app.resourcer.registerActionHandler('tenants:readAccessConfig', createAccessConfigRead(this.app));
+    this.app.resourcer.registerActionHandler('tenants:saveAccessConfig', createAccessConfigSave(this.app));
+    this.app.resourcer.registerActionHandler('tenants:validateAccessConfig', createAccessConfigValidation(this.app));
+    this.app.resourcer.registerActionHandler(
+      'tenants:listAccessConfigRevisions',
+      createAccessConfigRevisions(this.app, 'list'),
+    );
+    this.app.resourcer.registerActionHandler(
+      'tenants:previewAccessConfigRevision',
+      createAccessConfigRevisions(this.app, 'draft'),
+    );
 
     this.app.use(
       async (ctx, next) => {

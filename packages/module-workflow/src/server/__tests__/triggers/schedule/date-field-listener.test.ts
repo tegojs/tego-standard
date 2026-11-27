@@ -30,7 +30,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-    vi.spyOn(trigger, 'inspect').mockImplementation(() => undefined);
+    vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
     const workflow = {
       id: 42,
       config: {
@@ -74,7 +74,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-    vi.spyOn(trigger, 'inspect').mockImplementation(() => {
+    vi.spyOn(trigger, 'inspect').mockImplementation(async () => {
       calls.push('inspect');
     });
     const workflow = {
@@ -111,6 +111,12 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     const workflowPlugin = {
       app: {
         on: vi.fn(),
+        db: {
+          getRepository: (name: string) => {
+            if (name !== 'workflows') throw new Error('Unexpected authority repository');
+            return { findOne: vi.fn().mockResolvedValue({ id: 42, config: { collection: 'posts' } }) };
+          },
+        },
         dataSourceManager: {
           dataSources: new Map([
             [
@@ -203,7 +209,7 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
         },
       } as any;
       const trigger = new DateFieldScheduleTrigger(workflowPlugin);
-      vi.spyOn(trigger, 'inspect').mockImplementation(() => undefined);
+      vi.spyOn(trigger, 'inspect').mockResolvedValue(undefined);
       const schedule = vi.spyOn(trigger, 'schedule').mockImplementation(() => undefined);
       const workflow = {
         id: 42,
@@ -260,6 +266,9 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       app: {
         on: vi.fn(),
         db,
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: db.getCollection } }]]),
+        },
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
@@ -276,6 +285,8 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     );
 
     expect(tenantRepo.find).toHaveBeenCalledWith({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: [0],
         enabled: true,
@@ -320,6 +331,9 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
       app: {
         on: vi.fn(),
         db,
+        dataSourceManager: {
+          dataSources: new Map([['main', { collectionManager: { getCollection: db.getCollection } }]]),
+        },
       },
     } as any;
     const trigger = new DateFieldScheduleTrigger(workflowPlugin);
@@ -336,6 +350,8 @@ describe('DateFieldScheduleTrigger listener lifecycle', () => {
     );
 
     expect(tenantRepo.find).toHaveBeenCalledWith({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: ['tenant-a'],
         enabled: true,

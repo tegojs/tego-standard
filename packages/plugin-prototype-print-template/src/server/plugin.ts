@@ -73,8 +73,6 @@ export class PluginPrintTemplateServer extends Plugin {
         readPDF,
       },
     });
-    this.app.acl.allow('printTemplates', '*', 'public');
-
     this.app.use(require('koa-bodyparser')());
 
     const worker = new Worker(

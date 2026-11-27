@@ -8,8 +8,8 @@
 
 // 设置 NODE_PATH 以确保能找到模块
 // wrapper 脚本在 backend/scripts/ 目录，需要找到 backend/node_modules 中的模块
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 const {
   resolveBaseModule,
   resolveSubPath,
@@ -144,7 +144,7 @@ if (fs.existsSync(packagesPath)) {
 
   // 安装模块解析 hook，拦截所有 @tachybase/* 的 require 请求
   // 这可以确保即使在 pnpm isolated 模式下或符号链接路径下也能找到模块
-  const Module = require('module');
+  const Module = require('node:module');
   const originalResolveFilename = Module._resolveFilename;
 
   // 在闭包中保存路径变量，确保在 hook 中可用

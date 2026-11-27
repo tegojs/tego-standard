@@ -8,20 +8,35 @@ const MAX_SAFE_INTERVAL = 2147483647;
 export default class StaticScheduleTrigger {
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
 
+  private cancellations = new Map<string, object>();
+
+  private lifecycle = {};
+
   constructor(public workflow: Plugin) {
     workflow.app.on('afterStart', async () => {
+      const lifecycle = this.lifecycle;
+      const cancellations = new Map(this.cancellations);
       const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
       const workflows = await WorkflowRepo.find({
+        useMaster: true,
+        transaction: null,
         filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
       });
+      if (this.lifecycle !== lifecycle) return;
 
-      this.inspect(workflows);
+      this.inspect(
+        workflows.filter(
+          (workflow) => this.cancellations.get(`${workflow.id}`) === cancellations.get(`${workflow.id}`),
+        ),
+      );
     });
 
     workflow.app.on('beforeStop', () => {
+      this.lifecycle = {};
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
+      this.timers.clear();
     });
   }
 
@@ -51,21 +66,21 @@ export default class StaticScheduleTrigger {
     currentDate.setMilliseconds(nextSecond ? 1000 : 0);
     const timestamp = currentDate.getTime();
     const startTime = parseDateWithoutMs(config.startsOn);
+    const endTime = config.repeat && config.endsOn ? parseDateWithoutMs(config.endsOn) : null;
     if (startTime > timestamp) {
-      return startTime;
+      return endTime != null && startTime > endTime ? null : startTime;
     }
     if (config.repeat) {
-      const endTime = config.endsOn ? parseDateWithoutMs(config.endsOn) : null;
       if (endTime && endTime < timestamp) {
         return null;
       }
       if (typeof config.repeat === 'string') {
         const interval = parser.parseExpression(config.repeat, { currentDate });
-        const next = interval.next();
-        return next.getTime();
+        const next = interval.next().getTime();
+        return endTime != null && next > endTime ? null : next;
       } else if (typeof config.repeat === 'number') {
         const next = timestamp + config.repeat - ((timestamp - startTime) % config.repeat);
-        return next;
+        return endTime != null && next > endTime ? null : next;
       } else {
         return null;
       }
@@ -91,7 +106,20 @@ export default class StaticScheduleTrigger {
             }, MAX_SAFE_INTERVAL),
           );
         } else {
-          this.timers.set(key, setTimeout(this.trigger.bind(this, workflow, nextTime), interval));
+          this.timers.set(
+            key,
+            setTimeout(() => {
+              if (Date.now() < nextTime) {
+                this.timers.delete(key);
+                this.schedule(workflow, nextTime);
+                return;
+              }
+
+              this.trigger(workflow, nextTime).catch((error) => {
+                this.workflow.getLogger(workflow.id).error('failed to trigger static schedule', error);
+              });
+            }, interval),
+          );
         }
       }
     } else {
@@ -105,17 +133,32 @@ export default class StaticScheduleTrigger {
   }
 
   async trigger(workflow, time) {
+    const repeatFrom = new Date(Math.max(Date.now(), new Date(time).getTime()));
     this.timers.delete(`${workflow.id}@${time}`);
 
-    this.workflow.trigger(workflow, { date: new Date(time) });
-
-    if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {
+    const cancellation = this.cancellations.get(`${workflow.id}`);
+    const lifecycle = this.lifecycle;
+    const current = await this.workflow.app.db.getRepository('workflows').findOne({
+      useMaster: true,
+      transaction: null,
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.STATIC },
+    });
+    if (!current || this.lifecycle !== lifecycle || this.cancellations.get(`${workflow.id}`) !== cancellation) {
+      return;
+    }
+    if (this.getNextTime(current, new Date(time - 1)) !== time) {
       return;
     }
 
-    const nextTime = this.getNextTime(workflow, new Date(), true);
+    this.workflow.trigger(current, { date: new Date(time) });
+
+    if (!current.config.repeat || (current.config.limit && current.allExecuted >= current.config.limit - 1)) {
+      return;
+    }
+
+    const nextTime = this.getNextTime(current, repeatFrom, true);
     if (nextTime) {
-      this.schedule(workflow, nextTime);
+      this.schedule(current, nextTime);
     }
   }
 
@@ -124,6 +167,7 @@ export default class StaticScheduleTrigger {
   }
 
   off(workflow) {
+    this.cancellations.set(`${workflow.id}`, {});
     this.schedule(workflow, null, false);
   }
 }

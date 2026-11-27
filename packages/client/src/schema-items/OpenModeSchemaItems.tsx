@@ -61,7 +61,7 @@ export const SchemaInitializerOpenModeSchemaItems: React.FC<Options> = (options)
               ]}
               value={
                 fieldSchema?.['x-component-props']?.['openSize'] ??
-                (fieldSchema?.['x-component-props']?.['openMode'] == 'modal' ? 'large' : 'middle')
+                (fieldSchema?.['x-component-props']?.['openMode'] === 'modal' ? 'large' : 'middle')
               }
               onChange={(value) => {
                 field.componentProps.openSize = value;
@@ -132,7 +132,7 @@ export const SchemaSettingOpenModeSchemaItems: React.FC<Options> = (options) => 
           ]}
           value={
             fieldSchema?.['x-component-props']?.['openSize'] ??
-            (fieldSchema?.['x-component-props']?.['openMode'] == 'modal' ? 'large' : 'middle')
+            (fieldSchema?.['x-component-props']?.['openMode'] === 'modal' ? 'large' : 'middle')
           }
           onChange={(value) => {
             field.componentProps.openSize = value;

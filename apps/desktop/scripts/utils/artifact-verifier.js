@@ -5,8 +5,8 @@
  * 统一验证所有必需的构建产物
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { getDesktopDir } = require('./paths');
 const { detectAppName } = require('./app-detector');
 const { createLogPrefix, success, error, warn } = require('./logger');

@@ -4,8 +4,8 @@
  * 测试 wrapper 脚本的模块查找逻辑
  */
 
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 
 // 模拟 wrapper 脚本的环境
 const backendDir = path.join(__dirname, '..', 'backend-temp');

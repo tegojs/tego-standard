@@ -4,9 +4,9 @@
  * 完整测试 wrapper 脚本的功能
  */
 
-const path = require('path');
-const fs = require('fs');
-const { spawn } = require('child_process');
+const path = require('node:path');
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 
 // 模拟构建后的应用包环境
 const backendDir = path.join(__dirname, '..', 'backend-temp');

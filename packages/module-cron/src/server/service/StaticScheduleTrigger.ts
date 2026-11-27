@@ -1,4 +1,4 @@
-import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
+import { EXECUTION_STATUS, Processor, type PluginWorkflow } from '@tachybase/module-workflow';
 import { App, Application, Database, Db, Inject, InjectLog, Logger, parseCollectionName, Service } from '@tego/server';
 
 import parser from 'cron-parser';
@@ -39,9 +39,11 @@ export class StaticScheduleTrigger {
   private readonly cronJobLock: CronJobLock;
 
   private timers: Map<string, NodeJS.Timeout | null> = new Map();
+  private lifecycle = {};
+  private cancellations = new Map<string, object>();
 
   private async getTenantContexts(workflow) {
-    const nodes = await workflow.getNodes();
+    const nodes = await workflow.getNodes({ useMaster: true, transaction: null });
     const collectionNames = new Set<string>();
     if (workflow.config?.collection) {
       collectionNames.add(workflow.config.collection);
@@ -66,6 +68,8 @@ export class StaticScheduleTrigger {
 
     const tenants = await this.db.getRepository('tenants').find({
       filter: { enabled: true },
+      useMaster: true,
+      transaction: null,
     });
     tenants.sort((left, right) => `${left.get('id')}`.localeCompare(`${right.get('id')}`));
     const legacyDataTenant = tenants.find((tenant) => tenant.get('parentId') == null) ?? tenants[0];
@@ -89,16 +93,26 @@ export class StaticScheduleTrigger {
 
   async load() {
     this.app.on('afterStart', async (app) => {
+      const lifecycle = this.lifecycle;
+      const cancellations = new Map(this.cancellations);
       const cronJobs = await app.db.getRepository('cronJobs').find({
         filter: { mode: SCHEDULE_MODE.STATIC, enabled: true },
+        useMaster: true,
+        transaction: null,
       });
-      this.inspect(cronJobs);
+      if (lifecycle !== this.lifecycle) return;
+      this.inspect(
+        cronJobs.filter((cronJob) => cancellations.get(`${cronJob.id}`) === this.cancellations.get(`${cronJob.id}`)),
+      );
     });
 
     this.app.on('beforeStop', () => {
+      this.lifecycle = {};
+      this.cancellations.clear();
       for (const timer of this.timers.values()) {
         clearInterval(timer);
       }
+      this.timers.clear();
     });
 
     this.db.on(`${DATABASE_CRON_JOBS}.beforeSave`, async (cronjob: CronJobModel, options) => {
@@ -194,12 +208,12 @@ export class StaticScheduleTrigger {
       }
       if (cronJob.repeat && isNaN(+cronJob.repeat)) {
         const interval = parser.parseExpression(cronJob.repeat, { currentDate });
-        const next = interval.next();
-        return next.getTime();
+        const next = interval.next().getTime();
+        return endTime != null && next > endTime ? null : next;
       } else if (!isNaN(+cronJob.repeat)) {
         const repeat = +cronJob.repeat;
         const next = timestamp + repeat - ((timestamp - startTime) % repeat);
-        return next;
+        return endTime != null && next > endTime ? null : next;
       } else {
         return null;
       }
@@ -240,47 +254,63 @@ export class StaticScheduleTrigger {
 
   async trigger(cronJobId: number, time: number) {
     const eventKey = `${cronJobId}@${time}`;
+    const timer = this.timers.get(eventKey);
+    const retireTimer = () => {
+      if (this.timers.get(eventKey) === timer) this.timers.delete(eventKey);
+    };
+    const lifecycle = this.lifecycle;
+    const cancellation = this.cancellations.get(`${cronJobId}`);
+    const isCurrent = () => lifecycle === this.lifecycle && cancellation === this.cancellations.get(`${cronJobId}`);
+    let lockAcquired = false;
 
     try {
       // 尝试获取分布式锁，防止多节点重复执行
-      const lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      lockAcquired = await this.cronJobLock.acquire(cronJobId, time);
+      if (!isCurrent()) return;
       if (!lockAcquired) {
         this.logger.info(
           `cronJobs [${cronJobId}] skipped: lock not acquired (another node is executing this job at ${new Date(time).toISOString()})`,
         );
-        this.timers.delete(eventKey);
+        retireTimer();
         return;
       }
 
       const cronJob = (await this.db
         .getRepository(DATABASE_CRON_JOBS)
-        .findOne({ filterByTk: cronJobId })) as CronJobModel;
+        .findOne({ filterByTk: cronJobId, useMaster: true, transaction: null })) as CronJobModel;
+      if (!isCurrent()) return;
 
-      if (!cronJob) {
-        this.logger.warn(`Scheduled cron job ${cronJobId} no longer exists`);
-        this.timers.delete(eventKey);
-        await this.cronJobLock.release(cronJobId, time);
+      if (!cronJob || !cronJob.enabled) {
+        this.logger.warn(`Scheduled cron job ${cronJobId} is missing or disabled`);
+        retireTimer();
         return;
       }
 
-      this.timers.delete(eventKey);
+      retireTimer();
 
       // TODO: 保存pluginWorkflow
-      const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
+      const pluginWorkflow = this.app.pm.get('workflow') as PluginWorkflow;
 
       const workflow = await this.db.getRepository('workflows').findOne({
         filter: { key: cronJob.workflowKey, enabled: true },
+        useMaster: true,
+        transaction: null,
       });
-      if (!workflow) {
-        await this.cronJobLock.release(cronJobId, time);
+      if (!workflow || !isCurrent()) {
         return;
       }
 
       let error = null;
       const successes: boolean[] = [];
+      let cancelled = false;
       try {
         const tenantContexts = await this.getTenantContexts(workflow);
+        if (!isCurrent()) {
+          cancelled = true;
+          return;
+        }
         for (const context of tenantContexts) {
+          if (!isCurrent()) break;
           const tenantId = context?.state?.currentTenantId;
           const tenantEventKey = tenantId == null ? eventKey : `${eventKey}@${tenantId}`;
           try {
@@ -302,24 +332,29 @@ export class StaticScheduleTrigger {
         error = e;
         this.logger.error(`cronJobs [${cronJob.id}] workflow [${cronJob.workflowKey}] failed: ${e.message}`);
       } finally {
-        const allProcessesSucceeded = successes.length > 0 && successes.every(Boolean);
-        if (!error && allProcessesSucceeded) {
-          await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
-          await cronJob.update({
-            lastTime: new Date(time),
-          });
-        } else {
-          await cronJob.increment(['limitExecuted', 'allExecuted']);
-          await cronJob.update({
-            lastTime: new Date(time),
-          });
+        if (!cancelled) {
+          const allProcessesSucceeded = successes.length > 0 && successes.every(Boolean);
+          if (!error && allProcessesSucceeded) {
+            await cronJob.increment(['limitExecuted', 'allExecuted', 'successExecuted']);
+            await cronJob.update({
+              lastTime: new Date(time),
+            });
+          } else {
+            await cronJob.increment(['limitExecuted', 'allExecuted']);
+            await cronJob.update({
+              lastTime: new Date(time),
+            });
+          }
+          if (isCurrent()) this.scheduleNextIfNeeded(cronJob);
         }
-        this.scheduleNextIfNeeded(cronJob);
-        // 释放锁
-        await this.cronJobLock.release(cronJobId, time);
       }
     } catch (e) {
       this.logger.error(`cronJobs [${cronJobId}] failed: ${e?.message ?? String(e)}`);
+    } finally {
+      if (lockAcquired) {
+        retireTimer();
+        await this.cronJobLock.release(cronJobId, time);
+      }
     }
   }
 
@@ -345,6 +380,7 @@ export class StaticScheduleTrigger {
   }
 
   off(cronJob: CronJobModel) {
+    this.cancellations.set(`${cronJob.id}`, {});
     this.schedule(cronJob, null, false);
   }
 }

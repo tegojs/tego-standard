@@ -43,10 +43,11 @@ export async function create(ctx: Context, next: Next) {
 
 export async function destroy(ctx: Context, next: Next) {
   const repo = ctx.db.getRepository(ctx.action.resourceName);
-  const { filterByTk } = ctx.action.params;
+  const { filterByTk, filter } = ctx.action.params;
 
   const data = await repo.findById(filterByTk);
-  const token = data?.get('token');
+  const authorized = data && (await repo.findOne({ filterByTk, filter, fields: ['id'] }));
+  const token = authorized && data.get('token');
   if (token) {
     await ctx.tego.authManager.jwt.block(token);
   }

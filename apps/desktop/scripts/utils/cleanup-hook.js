@@ -6,8 +6,8 @@
  * 在构建完成后清理临时文件
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { getDesktopDir } = require('./paths');
 const { cleanupAllTempDirs } = require('./temp-manager');
 const { removeDirectory } = require('./file-operations');

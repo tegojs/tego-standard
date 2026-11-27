@@ -1,8 +1,9 @@
-import { Action, Context, Controller, Next } from '@tego/server';
+import { Action, Context, Controller, Next, type Filter, type Repository } from '@tego/server';
 
 import { getDailyActiveUser } from '../hooks/getActiveUser';
 import { getDataByEventFrequency } from '../hooks/getQueryResult';
 import { countDataByEventFrequency, groupDataByTime } from '../hooks/getStatistics';
+import { ModuleInstrumentationServer } from '../plugin';
 
 @Controller('instrumentation')
 export class TrackingController {
@@ -44,6 +45,14 @@ export class TrackingController {
     let customDataByTime = {};
     for (const config of configs) {
       if (config.statisticsOptions?.collection) {
+        const countFailed = (error: Error) => {
+          console.error(
+            `Error fetching count for collection "${config.statisticsOptions?.collection}":`,
+            error.message,
+          );
+          customData[config.title] = 0;
+        };
+        let target: { collectionName: string; repository: Repository; filter: Filter };
         try {
           const collectionName = config.statisticsOptions.collection.trim();
           if (!collectionName) {
@@ -55,17 +64,28 @@ export class TrackingController {
             throw new Error('Collection filter is invalid. It must be an object.');
           }
 
-          const count = await ctx.db.getRepository(collectionName).count({
-            filter: collectionFilter || {},
-          });
-
-          customData[config.title] = count;
+          target = { collectionName, repository: ctx.db.getRepository(collectionName), filter: collectionFilter || {} };
         } catch (error) {
-          console.error(
-            `Error fetching count for collection "${config.statisticsOptions?.collection}":`,
-            error.message,
-          );
-          customData[config.title] = 0;
+          countFailed(error);
+          continue;
+        }
+        // Authorization failures must escape the legacy SQL-error-to-zero fallback.
+        // 授权拒绝必须向上传播，不能被原 SQL 错误回退吞成零。
+        const plugin = ctx.tego.getPlugin(ModuleInstrumentationServer) as ModuleInstrumentationServer;
+        const guarded = plugin.assertCollectionCount(
+          Object.freeze({
+            dataSourceName: 'main',
+            collectionName: target.collectionName,
+            collection: target.repository.collection,
+            params: Object.freeze({ filter: target.filter }),
+            context: ctx,
+          }),
+        );
+        if (guarded !== undefined) await guarded;
+        try {
+          customData[config.title] = await target.repository.count({ filter: target.filter });
+        } catch (error) {
+          countFailed(error);
         }
       } else {
         // if (config.statisticsOptions?.timeGroup) {

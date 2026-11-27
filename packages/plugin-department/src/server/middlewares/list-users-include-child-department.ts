@@ -20,12 +20,15 @@ function getChildIds(ids: number[], departmentIds: Set<number>, departments: Dep
   }
 }
 
-async function getAllDepartmentIds(repo: Repository, parentId: number): Promise<number[]> {
-  // 查找所有部门,在内存里递归
+async function getAllDepartmentIds(repo: Repository, parentId: number, filter: Record<string, any>): Promise<number[]> {
   const departments = (await repo.find({
     fields: ['id', 'parentId', 'isLeaf'],
+    filter,
     raw: true,
   })) as DepartmentInfo[];
+  if (!departments.some((department) => Number(department.id) === parentId)) {
+    return [];
+  }
   const departmentIds = new Set<number>([parentId]);
   getChildIds([parentId], departmentIds, departments);
   return [...departmentIds];
@@ -40,7 +43,21 @@ export const listUsersIncludeChildDepartment = async (ctx: Context, next: Next) 
       delete filter.showChildren;
       const departmentId = filter['departments.id'] || filter?.departments?.id;
       if (showChildren && departmentId) {
-        const departmentIds = await getAllDepartmentIds(repo, departmentId);
+        const permission = ctx.tego.acl.can({
+          role: ctx.state.currentRole,
+          resource: 'departments',
+          action: 'list',
+        });
+        if (!permission) {
+          ctx.throw(403);
+        }
+
+        const aclParams = ctx.tego.acl.filterParams(ctx, 'departments', permission.params || {});
+        const { filter: departmentFilter = {} } = await ctx.tego.acl.parseJsonTemplate(aclParams, ctx);
+        const departmentIds = await getAllDepartmentIds(repo, Number(departmentId), departmentFilter);
+        if (!departmentIds.length) {
+          ctx.throw(403);
+        }
         if (departmentIds.length > 1) {
           if (filter?.departments?.id) {
             delete filter.departments.id;

@@ -34,6 +34,14 @@ export default async function (
       updatedBy: instance.userId,
     },
   });
+  await this.assertFormWrite({
+    actionName: 'create',
+    dataSourceName: dataSource,
+    collectionName: collection,
+    collection: c,
+    params: repositoryOptions,
+    context: repositoryContext,
+  });
   await repo.create({
     ...repositoryOptions,
     context: repositoryContext,

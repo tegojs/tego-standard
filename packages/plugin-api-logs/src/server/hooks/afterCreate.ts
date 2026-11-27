@@ -1,4 +1,4 @@
-import { Application, Context } from '@tego/server';
+import { Application, Context, Model } from '@tego/server';
 
 export async function handleCreate(ctx: Context, next) {
   await next();
@@ -10,7 +10,19 @@ export async function handleCreate(ctx: Context, next) {
   const app = ctx.tego as Application;
   const collection = app.mainDataSource.collectionManager.getCollection(ctx.action.resourceName);
 
-  const currentRecordId = ctx.body?.[collection.filterTargetKey];
+  // Selected creates return a minimal receipt instead of the created model.
+  // 选中入口的新增响应是最小回执，而非完整业务模型。
+  const receiptKey =
+    !(ctx.body instanceof Model) &&
+    ctx.body?.affected === 1 &&
+    Array.isArray(ctx.body.keys) &&
+    ctx.body.keys.length === 1
+      ? ctx.body.keys[0]
+      : undefined;
+  const validReceiptKey =
+    (typeof receiptKey === 'string' && receiptKey.length > 0) ||
+    (typeof receiptKey === 'number' && Number.isFinite(receiptKey));
+  const currentRecordId = validReceiptKey ? receiptKey : ctx.body?.[collection.filterTargetKey];
   const changes = [];
   const changed = {
     ...params.values,

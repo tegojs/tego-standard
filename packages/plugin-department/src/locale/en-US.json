@@ -44,6 +44,7 @@
   "The department has members, please remove them first": "The department has members, please remove them first",
   "The department has sub-departments, please delete them first": "The department has sub-departments, please delete them first",
   "This field is currently not supported for use in form blocks.": "This field is currently not supported for use in form blocks.",
+  "User and department are required": "User and department are required",
   "component": "component",
   "default": "default",
   "error": "error",

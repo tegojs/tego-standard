@@ -5,8 +5,8 @@
  * 包括 loading.html 和 i18n 语言包文件
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const electronDir = path.join(__dirname, '..', 'electron');
 const appDir = path.join(__dirname, '..', 'app');

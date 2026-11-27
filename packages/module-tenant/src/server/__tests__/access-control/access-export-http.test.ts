@@ -1,0 +1,1591 @@
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { mockServer, supertest, type MockServer } from '@tachybase/test';
+import { ACL, RelationField, Resourcer, type Collection, type Context } from '@tego/server';
+
+import ExportPlugin from '../../../../../plugin-action-export/src/server';
+import {
+  createExportXlsx,
+  type ExportXlsxResolver,
+} from '../../../../../plugin-action-export/src/server/actions/export-entry';
+import { AccessAclScopeAdapter } from '../../access-control/acl-scope';
+import { accessCollectionKey, AccessConfigStore } from '../../access-control/config-store';
+import { AccessEntryReadService } from '../../access-control/entry-reads';
+import { resolveModelMetadata } from '../../access-control/model-metadata';
+import { AccessQueryService } from '../../access-control/query';
+import type { AccessRelatedReadAuthorizer } from '../../access-control/related-read-contexts';
+import { AccessRootReadHandler } from '../../access-control/root-read-handler';
+import { seedAclScopes } from './acl-database';
+import { mainIdentity, seedConfigStore } from './config-database';
+import { seedDatabase } from './database';
+import { configFor, exampleConfig } from './fixtures';
+
+const coreEntry = process.env.TENANT_ACCESS_CORE_ACL_ENTRY;
+const coreAvailable = coreEntry || 'registerActionParamsResolver' in ACL.prototype;
+const xlsx = createRequire(new URL('../../../../../plugin-action-export/package.json', import.meta.url))(
+  'node-xlsx',
+) as {
+  parse(data: Buffer): Array<{ data: unknown[][] }>;
+};
+
+/** Internal export rows over real HTTP/ACL; no production authentication or XLSX activation. */
+describe.skipIf(!coreAvailable)('export rows over real HTTP resources', () => {
+  let app: MockServer;
+  let acl: ACL;
+  let adapter: AccessAclScopeAdapter;
+  let store: AccessConfigStore;
+  let unregister: (() => void) | undefined;
+  let principal: { tenantId: string; roleName: string; userId: number };
+  let beforeRelated: (() => Promise<void>) | undefined;
+  let beforeFileRead: ((ctx: Context & { permission: unknown }) => Promise<void>) | undefined;
+  let exportEntry: ReturnType<typeof createExportXlsx> | undefined;
+  let read: (ctx: Context & { permission: unknown }) => Promise<void>;
+  let readFile: (
+    ctx: Context & { permission: unknown },
+  ) => ReturnType<AccessRootReadHandler['readExportWithRelatedContexts']>;
+  let exportFile: (ctx: Context & { permission: unknown }) => Promise<void>;
+  let extraCollections: string[];
+  const identity = (collection: Collection) => ({
+    ...mainIdentity,
+    collectionName: collection.name,
+    collectionKey: `${collection.name}-key`,
+  });
+  const identities = () =>
+    ['documents', 'participants', ...extraCollections].map((name) => identity(app.db.getCollection(name)));
+
+  async function grant(resource: string, action: string, fields: string[], filter: object = {}) {
+    const scope = await app.db.getRepository('dataSourcesRolesResourcesScopes').create({
+      values: { key: 'custom', dataSourceKey: 'main', resourceName: resource, scope: filter },
+    });
+    const stored = await app.db.getRepository('dataSourcesRolesResourcesScopesActions').create({
+      values: { name: action, fields, scopeId: scope.get('id') },
+    });
+    await stored.writeToACL({
+      acl,
+      role: acl.getRole('reader'),
+      resourceName: resource,
+      associationFieldsActions: {},
+      grantHelper: {},
+    });
+  }
+
+  beforeEach(async () => {
+    beforeRelated = undefined;
+    beforeFileRead = undefined;
+    exportEntry = undefined;
+    extraCollections = [];
+    app = mockServer({
+      acl: false,
+      registerActions: true,
+      database: { dialect: 'sqlite', storage: ':memory:' },
+      resourcer: { prefix: '/api' },
+    });
+    const db = app.db;
+    await seedConfigStore(db);
+    await seedAclScopes(db);
+    await seedDatabase(db);
+    db.collection({
+      name: 'documents',
+      tableName: 'access_documents',
+      timestamps: false,
+      fields: [
+        { name: 'id', type: 'integer', primaryKey: true },
+        { name: 'tenantId', type: 'string', field: 'tenant_id' },
+        { name: 'name', type: 'string' },
+        { name: 'amount', type: 'integer' },
+      ],
+    });
+    db.collection({
+      name: 'participants',
+      tableName: 'access_participants',
+      timestamps: false,
+      fields: [
+        { name: 'id', type: 'integer', primaryKey: true },
+        { name: 'documentId', type: 'integer', field: 'document_id' },
+        { name: 'businessTenant', type: 'string', field: 'business_tenant' },
+        { name: 'canView', type: 'boolean', field: 'can_view' },
+      ],
+    });
+    db.getCollection('documents').setField('participants', {
+      type: 'hasMany',
+      target: 'participants',
+      foreignKey: 'documentId',
+    });
+    db.collection({
+      name: 'tenants',
+      timestamps: false,
+      autoGenId: false,
+      fields: [
+        { name: 'id', type: 'string', primaryKey: true },
+        { name: 'enabled', type: 'boolean' },
+      ],
+    });
+    await db.getCollection('tenants').model.sync();
+    await db.getCollection('tenants').model.bulkCreate(['H', 'B', 'C'].map((id) => ({ id, enabled: true })));
+    const CoreACL = coreEntry ? (await import(/* @vite-ignore */ pathToFileURL(coreEntry).href)).ACL : ACL;
+    acl = new CoreACL();
+    app.mainDataSource.acl = acl;
+    acl.setAvailableAction('export', {});
+    acl.setAvailableAction('list', {});
+    acl.define({ role: 'reader' });
+    acl.beforeGrantAction((ctx) => {
+      const collection = db.getCollection(ctx.resourceName);
+      const fields = ctx.params.fields as string[] | undefined;
+      if (!collection || !fields) return;
+      const appends = fields.filter((name) => collection.getField(name) instanceof RelationField);
+      ctx.params = { ...ctx.params, fields: fields.filter((name) => !appends.includes(name)), appends };
+    });
+    await grant('documents', 'export', ['id', 'name', 'amount', 'participants']);
+    await grant('documents', 'list', ['id'], { id: 3 });
+    await grant('participants', 'list', ['id', 'businessTenant', 'canView']);
+    store = new AccessConfigStore(db, (key) =>
+      resolveModelMetadata(db.getCollection(key.collectionName), {
+        resolveCollectionKey: (collection) => accessCollectionKey(identity(collection)),
+      }),
+    );
+    await store.save(mainIdentity, { ...exampleConfig, revision: 0 }, { userId: 28 });
+    await db.getRepository('collections').create({ values: { key: 'participants-key', name: 'participants' } });
+    await store.save(
+      identity(db.getCollection('participants')),
+      {
+        ...configFor({
+          type: 'compare',
+          operator: 'eq',
+          left: { type: 'field', path: 'canView' },
+          right: { type: 'literal', value: true },
+        }),
+        revision: 0,
+        ownership: { enabled: false },
+      },
+      { userId: 28 },
+    );
+    adapter = new AccessAclScopeAdapter(acl, 'main', store, db);
+    unregister = adapter.register();
+    const reader = new AccessRootReadHandler(
+      db,
+      adapter,
+      new AccessQueryService(db, adapter, (collection) => accessCollectionKey(identity(collection))),
+      identity,
+    );
+    principal = { tenantId: 'B', roleName: 'reader', userId: 28 };
+    app.resourcer.use(
+      async (ctx, next) => {
+        ctx.state.currentRole = principal.roleName;
+        ctx.state.currentTenant = { id: principal.tenantId };
+        ctx.state.accessTestActor = { ...principal };
+        await adapter.prepare(ctx, identities());
+        try {
+          await next();
+        } finally {
+          adapter.release(ctx);
+        }
+      },
+      { tag: 'access-export-preparation', after: 'auth' },
+    );
+    app.resourcer.use(acl.middleware(), { tag: 'access-export-acl', after: 'access-export-preparation' });
+    const withRelated = async <T>(
+      resourceContext: Context & { permission: unknown },
+      execute: (authorize: AccessRelatedReadAuthorizer) => Promise<T>,
+    ) => {
+      const decisions: Array<Context & { permission: unknown }> = [];
+      try {
+        return await execute(async (collection) => {
+          await beforeRelated?.();
+          const resourcer = new Resourcer();
+          resourcer.define({ name: collection.name, actions: { list: {} } });
+          const target = resourcer.getAction(collection.name, 'list').clone();
+          Object.assign(target, { resourceName: collection.name, actionName: 'list' });
+          target.mergeParams({ resourceName: collection.name, actionName: 'list', filterByTk: undefined });
+          const ctx = Object.assign(Object.create(resourceContext), {
+            action: target,
+            permission: undefined,
+            getCurrentRepository: () => db.getRepository(collection.name),
+          });
+          decisions.push(ctx);
+          await adapter.prepare(ctx, identities());
+          await acl.middleware()(ctx, async () => {});
+          return ctx;
+        });
+      } finally {
+        for (const decision of decisions) adapter.release(decision);
+      }
+    };
+    read = (ctx) =>
+      withRelated(ctx, (authorize) =>
+        reader.handleResourceWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize),
+      );
+    readFile = (ctx) =>
+      withRelated(ctx, (authorize) => reader.readExportWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize));
+    exportFile = (ctx) =>
+      withRelated(ctx, (authorize) =>
+        reader.handleExportWithRelatedContexts(ctx, ctx.state.accessTestActor, authorize),
+      );
+    app.resourcer.define({
+      name: 'documents',
+      actions: Object.fromEntries(
+        ['list', 'export'].map((action) => [
+          action,
+          async (ctx: Context & { permission: unknown }, next) => {
+            if (action === 'export' && exportEntry) await exportEntry(ctx, next);
+            else await read(ctx);
+          },
+        ]),
+      ),
+    });
+  });
+
+  afterEach(async () => {
+    unregister?.();
+    unregister = undefined;
+    await app?.destroy();
+  });
+
+  const runExport = (params: Record<string, unknown> = {}) =>
+    app
+      .agent()
+      .resource('documents')
+      .export({ fields: ['id'], sort: ['id'], ...params });
+
+  /** The caller chooses file rendering; the prepared read handler owns row authorization. */
+  async function scopedFile(ctx: Context & { permission: unknown }) {
+    await beforeFileRead?.(ctx);
+    await exportFile(ctx);
+  }
+
+  function fileRequest(params: Record<string, unknown> = {}) {
+    const { fields = ['id'], sort = ['id'], columns = ['id'], filter, ...rest } = params;
+    return supertest(app.callback())
+      .get('/api/documents:export')
+      .query({
+        title: 'Scoped export',
+        ...rest,
+        'fields[]': fields,
+        'sort[]': sort,
+        columns: JSON.stringify(columns),
+        ...(filter === undefined ? {} : { filter: JSON.stringify(filter) }),
+      })
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+        response.on('error', done);
+      });
+  }
+
+  function pageFileRequest(
+    body: Record<string, unknown>,
+    query: Record<string, unknown> = {},
+    path = '/api/documents:export',
+  ) {
+    return supertest(app.callback())
+      .post(path)
+      .query({ title: '页面导出', sort: 'id', ...query })
+      .send(body)
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+        response.on('error', done);
+      });
+  }
+
+  async function duringNameFormatting(
+    change: (ctx: Context & { permission: unknown }) => Promise<void>,
+    collection = 'documents',
+    field = 'name',
+  ) {
+    const schemas = app.db.collection({
+      name: 'uiSchemas',
+      timestamps: false,
+      autoGenId: false,
+      fields: [
+        { name: 'uid', type: 'string', primaryKey: true },
+        { name: 'enum', type: 'json' },
+      ],
+    });
+    await schemas.model.sync();
+    await schemas.repository.create({
+      values: {
+        uid: 'export-names',
+        enum: [
+          { value: 'D1', label: 'First' },
+          { value: 'D3', label: 'Third' },
+        ],
+      },
+    });
+    app.db.getCollection(collection).setField(field, {
+      ...app.db.getCollection(collection).getField(field).options,
+      type: 'string',
+      interface: 'select',
+      uiSchemaUid: 'export-names',
+    });
+    let active: Context & { permission: unknown };
+    beforeFileRead = async (ctx) => {
+      active = ctx;
+    };
+    const repository = schemas.repository;
+    const findById = repository.findById;
+    // Preserve the real metadata read and change the lifecycle while the formatter is suspended.
+    return vi.spyOn(repository, 'findById').mockImplementationOnce(async function (...args) {
+      const schema = await findById.apply(this, args);
+      await change(active);
+      return schema;
+    });
+  }
+
+  describe('page export request adaptation', () => {
+    beforeEach(async () => {
+      app.resourcer.define({ name: 'documents', actions: { export: {} } });
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+    });
+
+    it('exports requested nested columns from the real page POST without explicit fields', async () => {
+      const response = await pageFileRequest(
+        {
+          columns: [
+            { dataIndex: ['id'], title: '编号' },
+            { dataIndex: ['participants', 'id'], title: '参与方' },
+          ],
+        },
+        { appends: 'participants', filter: JSON.stringify({ id: 1 }) },
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['编号', '参与方'],
+        [1, '1,2'],
+      ]);
+    });
+
+    it('uses the original prepared rule snapshot and loads changed rules only on the next request', async () => {
+      beforeFileRead = async () => {
+        beforeFileRead = undefined;
+        const config = (await store.read(mainIdentity))!;
+        await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+      };
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+      const next = await pageFileRequest({ columns: ['id'] });
+      expect(next.status).toBe(200);
+      expect(xlsx.parse(next.body)[0].data).toEqual([['id']]);
+    });
+
+    it('cannot resurrect a request whose prepared phase has already ended', async () => {
+      beforeFileRead = async (ctx) => adapter.release(ctx);
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not publish a file after the original phase ends during related authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => adapter.release(ctx);
+      };
+      const response = await pageFileRequest({ columns: [{ dataIndex: ['participants', 'id'] }] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not publish a file when its prepared phase ends during cell formatting', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => adapter.release(ctx));
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('does not publish a file when its prepared phase is replaced during cell formatting', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => {
+        adapter.release(ctx);
+        await adapter.prepare(ctx, identities());
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('rechecks participating association metadata after asynchronous cell formatting', async () => {
+      const formatting = await duringNameFormatting(async () => {
+        Object.assign(app.db.getCollection('documents').model.associations.participants, { scope: { canView: false } });
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name', { dataIndex: ['participants', 'id'] }] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('keeps the real response untouched until the rendered file passes its final lifecycle check', async () => {
+      const formatting = await duringNameFormatting(async (ctx) => adapter.release(ctx));
+      const original = { marker: 'not a file' };
+      let observed: { body: unknown; disposition: string } | undefined;
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          ctx.body = original;
+          try {
+            await scopedFile(ctx);
+          } catch (error) {
+            observed = { body: ctx.body, disposition: ctx.response.get('content-disposition') };
+            throw error;
+          }
+        },
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(response.status).toBe(400);
+        expect(observed?.body).toBe(original);
+        expect(observed?.disposition).toBe('');
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('preserves the original formatting failure without publishing a partial file', async () => {
+      const failure = new Error('Formatting metadata failed');
+      const formatting = await duringNameFormatting(async () => {
+        throw failure;
+      });
+      let caught: unknown;
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          try {
+            await scopedFile(ctx);
+          } catch (error) {
+            caught = error;
+            throw error;
+          }
+        },
+      });
+      try {
+        const response = await pageFileRequest({ columns: ['name'] });
+        expect(caught).toBe(failure);
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('captures the file timezone before asynchronous related authorization', async () => {
+      await app.db.sequelize.query('ALTER TABLE access_documents ADD COLUMN occurred_at DATETIME');
+      app.db.getCollection('documents').setField('occurredAt', {
+        type: 'date',
+        field: 'occurred_at',
+        interface: 'datetime',
+        uiSchema: {
+          'x-component-props': { dateFormat: 'YYYY-MM-DD', timeFormat: 'HH:mm:ss', showTime: true },
+        },
+      });
+      await app.db.getCollection('documents').model.update(
+        { occurredAt: new Date('2026-10-21T00:00:00Z') },
+        {
+          where: { id: 1 },
+        },
+      );
+      await grant('documents', 'export', ['id', 'occurredAt', 'participants']);
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          ctx.req.headers['x-timezone'] = '+00:00';
+        };
+      };
+      const response = await pageFileRequest(
+        { columns: [{ dataIndex: ['occurredAt'] }, { dataIndex: ['participants', 'id'] }] },
+        { filter: JSON.stringify({ id: 1 }) },
+      ).set('x-timezone', '+08:00');
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['occurredAt', 'id'],
+        ['2026-10-21 08:00:00', '1,2'],
+      ]);
+    });
+
+    it('captures file options, final permission and filename tenant before related authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          const permission = ctx.permission as {
+            rawParams: { title: string; values: { columns: Array<{ dataIndex: string[] }> } };
+            parsedParams: { filter: unknown };
+          };
+          permission.rawParams.title = 'Changed title';
+          permission.rawParams.values.columns[0].dataIndex[0] = 'amount';
+          permission.parsedParams.filter = { id: 4 };
+          ctx.state.accessTestActor.tenantId = 'C';
+        };
+      };
+      const response = await pageFileRequest({
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'id'],
+        [1, '1,2'],
+        [3, ''],
+      ]);
+    });
+
+    it('returns authorized rows without writing an intermediate HTTP body', async () => {
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          const originalBody = ctx.body;
+          const result = await readFile(ctx);
+          ctx.body = { unchanged: ctx.body === originalBody, rows: result.data, tenant: result.tenantId };
+        },
+      });
+      const response = await pageFileRequest({ columns: ['id'] });
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.toString())).toEqual({
+        data: [{ id: 1 }, { id: 3 }],
+        meta: { unchanged: true, tenant: 'B' },
+      });
+    });
+
+    it('does not export a forbidden column merely because fields only requests a permitted one', async () => {
+      await grant('documents', 'export', ['id']);
+      const response = await pageFileRequest({ columns: ['amount'] }, { 'fields[]': ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('checks the related permission needed only by a POST column', async () => {
+      acl.getRole('reader').revokeAction('participants:list');
+      const response = await pageFileRequest({ columns: [{ dataIndex: ['participants', 'id'] }] });
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('uses body columns and query title with the existing exporter precedence', async () => {
+      const response = await pageFileRequest(
+        { columns: [{ dataIndex: ['amount'], defaultTitle: '金额' }], title: 'Body title' },
+        { columns: JSON.stringify(['id']), filter: JSON.stringify({ id: 3 }) },
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([['金额'], [300]]);
+    });
+
+    it.each([
+      { columns: ['id'], tenantId: 'C' },
+      { columns: ['id'], permission: { skip: true } },
+    ])('rejects unsupported body values rather than discarding them: %j', async (body) => {
+      const response = await pageFileRequest(body);
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+  });
+
+  describe('placeholder association file exports', () => {
+    const request = (body: Record<string, unknown> = { columns: ['id'] }, query: Record<string, unknown> = {}) =>
+      pageFileRequest(body, query, '/api/documents/_/participants:export');
+
+    function replaceSourceRelation() {
+      const associations = app.db.getCollection('documents').model.associations;
+      const relation = associations.participants;
+      associations.participants = Object.assign(Object.create(Object.getPrototypeOf(relation)), relation);
+    }
+
+    beforeEach(async () => {
+      app.resourcer.define({ name: 'documents.participants', actions: { export: {} } });
+      await grant('participants', 'export', ['id', 'businessTenant', 'canView']);
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+    });
+
+    it('exports the independently scoped target including rows without a visible source link', async () => {
+      acl.getRole('reader').revokeAction('documents:list');
+      acl.getRole('reader').revokeAction('documents:export');
+      acl.getRole('reader').revokeAction('participants:list');
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [4]]);
+    });
+
+    it('retains target export role and request filters instead of target list permissions', async () => {
+      await grant('participants', 'export', ['id'], { businessTenant: 'C' });
+      const response = await request({ columns: ['id'] }, { filter: JSON.stringify({ id: { $in: [2, 4] } }) });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [4]]);
+    });
+
+    it('uses the current authenticated tenant for the target visibility model', async () => {
+      const key = identity(app.db.getCollection('participants'));
+      const config = (await store.read(key))!;
+      await store.save(
+        key,
+        {
+          ...config,
+          rules: configFor({
+            type: 'compare',
+            operator: 'eq',
+            left: { type: 'field', path: 'businessTenant' },
+            right: { type: 'context', path: 'tenant.id' },
+          }).rules,
+        },
+        { userId: 28 },
+      );
+      const first = await request();
+      expect(first.status).toBe(200);
+      expect(xlsx.parse(first.body)[0].data).toEqual([['id'], [1], [2], [3]]);
+      principal = { ...principal, tenantId: 'C' };
+      const next = await request().set('x-tenant-id', 'B');
+      expect(next.status).toBe(200);
+      expect(xlsx.parse(next.body)[0].data).toEqual([['id'], [4]]);
+      expect(next.headers['content-disposition']).toContain(encodeURI('页面导出_C.xlsx'));
+    });
+
+    it('resolves the actual target collection even when its association alias differs', async () => {
+      app.db.getCollection('documents').setField('people', {
+        type: 'hasMany',
+        target: 'participants',
+        foreignKey: 'documentId',
+      });
+      app.resourcer.define({ name: 'documents.people', actions: { export: {} } });
+      const response = await pageFileRequest({ columns: ['id'] }, {}, '/api/documents/_/people:export');
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [4]]);
+    });
+
+    it('rejects columns outside the target export permission', async () => {
+      await grant('participants', 'export', ['id']);
+      const response = await request({ columns: ['businessTenant'] }, { 'fields[]': ['id'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not borrow source export or target list permission when target export is denied', async () => {
+      acl.getRole('reader').revokeAction('participants:export');
+      const response = await request();
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('authorizes nested target columns independently while preserving readable target roots', async () => {
+      app.db.getCollection('participants').setField('document', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+      });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name'], { id: 1 });
+      const response = await request({ columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id', 'name'], [1, 'D1'], [2, 'D1'], [4]]);
+    });
+
+    it('cannot use target export permission to expand an unauthorized related collection', async () => {
+      app.db.getCollection('participants').setField('document', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+      });
+      await grant('participants', 'export', ['id', 'document']);
+      acl.getRole('reader').revokeAction('documents:list');
+      const response = await request({ columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rechecks the original placeholder relation after asynchronous nested authorization', async () => {
+      app.db.getCollection('participants').setField('document', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+      });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name']);
+      beforeRelated = async () => replaceSourceRelation();
+      const response = await request({ columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rechecks the placeholder relation after cell formatting even when no source row is queried', async () => {
+      const formatter = await duringNameFormatting(
+        async () => replaceSourceRelation(),
+        'participants',
+        'businessTenant',
+      );
+      try {
+        const response = await request({ columns: ['id', 'businessTenant'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatter.mockRestore();
+      }
+    });
+
+    it('rejects mismatched association transport instead of stripping arbitrary source metadata', async () => {
+      beforeFileRead = async (ctx) => {
+        (ctx.permission as { rawParams: Record<string, unknown> }).rawParams.associatedIndex = 1;
+      };
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not treat a concrete association export without source authorization as a direct target export', async () => {
+      const response = await pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/participants:export');
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each(['get', 'list'])('preserves the existing placeholder %s protocol alongside exports', async (action) => {
+      acl.setAvailableAction(action, {});
+      await grant('participants', action, ['id']);
+      acl.getRole('reader').revokeAction('documents:list');
+      app.resourcer.define({ name: 'documents.participants', actions: { [action]: read } });
+      const response = await supertest(app.callback())
+        .get(`/api/documents/_/participants:${action}`)
+        .query({ 'fields[]': ['id'], ...(action === 'get' ? { filterByTk: 4 } : { sort: 'id' }) });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(action === 'get' ? { id: 4 } : [{ id: 1 }, { id: 2 }, { id: 4 }]);
+      if (action === 'list') expect(response.body.meta.count).toBe(3);
+    });
+
+    it('exports the complete target bound but refuses overflow without publishing a truncated file', async () => {
+      await app.db
+        .getCollection('participants')
+        .model.bulkCreate(
+          Array.from({ length: 997 }, (_, index) => ({ id: 100 + index, documentId: 1, canView: true })),
+        );
+      const complete = await request();
+      expect(complete.status).toBe(200);
+      expect(xlsx.parse(complete.body)[0].data).toHaveLength(1001);
+      expect(xlsx.parse(complete.body)[0].data.at(-1)).toEqual([1096]);
+      await app.db.getCollection('participants').model.create({ id: 1097, documentId: 1, canView: true });
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+  });
+
+  describe('concrete association file exports', () => {
+    const request = (
+      source = 1,
+      body: Record<string, unknown> = { columns: ['id'] },
+      query: Record<string, unknown> = {},
+    ) => pageFileRequest(body, query, `/api/documents/${source}/participants:export`);
+
+    beforeEach(async () => {
+      app.resourcer.define({ name: 'documents.participants', actions: { export: {} } });
+      await grant('documents', 'list', ['id', 'participants']);
+      await grant('participants', 'export', ['id', 'businessTenant', 'canView']);
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+    });
+
+    it('exports only linked visible targets without borrowing source export or target list permission', async () => {
+      acl.getRole('reader').revokeAction('documents:export');
+      acl.getRole('reader').revokeAction('participants:list');
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2]]);
+    });
+
+    it('preserves an empty relation instead of exporting every visible target', async () => {
+      const response = await request(3);
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+    });
+
+    it('intersects the target export role filter with the request and the source relation', async () => {
+      await grant('participants', 'export', ['id', 'canView'], { id: { $in: [2, 4] } });
+      const response = await request(1, { columns: ['id'] }, { filter: JSON.stringify({ canView: true }) });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [2]]);
+    });
+
+    it.each([2, 4, 6, 999])(
+      'rejects an inaccessible or missing source %s even when targets are readable',
+      async (source) => {
+        const response = await request(source);
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it.each(['documents:list', 'participants:export'])('requires the independent %s action', async (action) => {
+      acl.getRole('reader').revokeAction(action);
+      const response = await request();
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('requires the source association field even when source rows are visible', async () => {
+      await grant('documents', 'list', ['id']);
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('retains source role row restrictions independently of target export permission', async () => {
+      await grant('documents', 'list', ['id', 'participants'], { id: 3 });
+      const response = await request();
+      expect(response.status).toBe(403);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rejects target columns outside the final export field permission', async () => {
+      await grant('participants', 'export', ['id']);
+      const response = await request(1, { columns: ['businessTenant'] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('keeps source, actor, columns and target permission captured before asynchronous source authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => {
+          beforeRelated = undefined;
+          Object.assign(ctx.action, { sourceId: '_', resourceName: 'documents.other' });
+          const permission = ctx.permission as {
+            rawParams: { values: { columns: string[] }; title: string };
+            parsedParams: { filter: unknown };
+          };
+          permission.rawParams.values.columns[0] = 'businessTenant';
+          permission.rawParams.title = 'Changed';
+          permission.parsedParams.filter = { id: 4 };
+          ctx.state.accessTestActor.tenantId = 'C';
+        };
+      };
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain(encodeURI('页面导出_B.xlsx'));
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2]]);
+    });
+
+    it('does not publish a file when the original phase ends during source authorization', async () => {
+      beforeFileRead = async (ctx) => {
+        beforeRelated = async () => adapter.release(ctx);
+      };
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('rechecks the source relation after asynchronous formatting', async () => {
+      const formatting = await duringNameFormatting(
+        async () => {
+          const associations = app.db.getCollection('documents').model.associations;
+          const relation = associations.participants;
+          associations.participants = Object.assign(Object.create(Object.getPrototypeOf(relation)), relation);
+        },
+        'participants',
+        'businessTenant',
+      );
+      try {
+        const response = await request(1, { columns: ['id', 'businessTenant'] });
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      } finally {
+        formatting.mockRestore();
+      }
+    });
+
+    it('does not publish a file when the original phase ends during nested authorization', async () => {
+      app.db
+        .getCollection('participants')
+        .setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name', 'participants']);
+      beforeFileRead = async (ctx) => {
+        let decisions = 0;
+        beforeRelated = async () => {
+          if (++decisions === 2) adapter.release(ctx);
+        };
+      };
+      const response = await request(1, { columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('returns association export rows without writing an intermediate response', async () => {
+      await registerExportPlugin({
+        exportResolver: () => async (ctx: Context & { permission: unknown }) => {
+          const originalBody = ctx.body;
+          const result = await readFile(ctx);
+          ctx.body = { unchanged: ctx.body === originalBody, rows: result.data };
+        },
+      });
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body.toString())).toEqual({ data: [{ id: 1 }, { id: 2 }], meta: { unchanged: true } });
+    });
+
+    it('rejects mismatched concrete transport metadata', async () => {
+      beforeFileRead = async (ctx) => {
+        (ctx.permission as { rawParams: Record<string, unknown> }).rawParams.associatedIndex = '_';
+      };
+      const response = await request();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each(['hasOne', 'belongsTo'])(
+      'does not expand concrete %s exports into a target collection export',
+      async (type) => {
+        app.db
+          .getCollection('documents')
+          .setField('singleParticipant', { type, target: 'participants', foreignKey: 'documentId' });
+        app.resourcer.define({ name: 'documents.singleParticipant', actions: { export: {} } });
+        const response = await pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/singleParticipant:export');
+        expect(response.status).toBe(400);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it.each(['list', 'get', 'count'])(
+      'preserves ordinary concrete association %s after sharing preparation',
+      async (action) => {
+        acl.setAvailableAction(action, {});
+        await grant('participants', action, ['id']);
+        app.resourcer.define({ name: 'documents.participants', actions: { [action]: read } });
+        const response = await supertest(app.callback())
+          .get(`/api/documents/1/participants:${action}`)
+          .query(
+            action === 'count'
+              ? {}
+              : { 'fields[]': ['id'], ...(action === 'get' ? { filterByTk: 1 } : { sort: 'id' }) },
+          );
+        expect(response.status).toBe(200);
+        expect(response.body.data).toEqual(
+          action === 'count' ? 2 : action === 'get' ? { id: 1 } : [{ id: 1 }, { id: 2 }],
+        );
+        if (action === 'list') expect(response.body.meta.count).toBe(2);
+      },
+    );
+
+    it('rechecks ordinary association authorization immediately before publishing after the shared async read', async () => {
+      app.resourcer.define({ name: 'documents.participants', actions: { list: read } });
+      const fromResource = AccessEntryReadService.prototype.fromResource;
+      // Keep the actual query; end the original phase between helper completion and response publication.
+      const query = vi.spyOn(AccessEntryReadService.prototype, 'fromResource').mockImplementationOnce(async function (
+        ...args
+      ) {
+        const result = await fromResource.apply(this, args);
+        queueMicrotask(() => queueMicrotask(() => adapter.release(args[0])));
+        return result;
+      });
+      try {
+        const response = await supertest(app.callback())
+          .get('/api/documents/1/participants:list')
+          .query({ 'fields[]': ['id'] });
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      } finally {
+        query.mockRestore();
+      }
+    });
+
+    it('authorizes nested target expansion independently while preserving the concrete connection set', async () => {
+      app.db
+        .getCollection('participants')
+        .setField('document', { type: 'belongsTo', target: 'documents', foreignKey: 'documentId' });
+      await grant('participants', 'export', ['id', 'document']);
+      await grant('documents', 'list', ['id', 'name', 'participants']);
+      const response = await request(1, { columns: ['id', { dataIndex: ['document', 'name'] }] });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'name'],
+        [1, 'D1'],
+        [2, 'D1'],
+      ]);
+    });
+
+    it('refuses complete exports over the bound without returning a truncated file', async () => {
+      await app.db
+        .getCollection('participants')
+        .model.bulkCreate(
+          Array.from({ length: 998 }, (_, index) => ({ id: 100 + index, documentId: 1, canView: true })),
+        );
+      const complete = await request();
+      expect(complete.status).toBe(200);
+      expect(xlsx.parse(complete.body)[0].data).toHaveLength(1001);
+      await app.db.getCollection('participants').model.create({ id: 1098, documentId: 1, canView: true });
+      const overflow = await request();
+      expect(overflow.status).toBe(400);
+      expect(overflow.headers).not.toHaveProperty('content-disposition');
+    });
+
+    describe('many-to-many connections', () => {
+      const members = () => pageFileRequest({ columns: ['id'] }, {}, '/api/documents/1/members:export');
+      beforeEach(async () => {
+        const links = app.db.collection({
+          name: 'memberships',
+          timestamps: false,
+          fields: [
+            { name: 'id', type: 'integer', primaryKey: true },
+            { name: 'documentId', type: 'integer' },
+            { name: 'participantId', type: 'integer' },
+            { name: 'canView', type: 'boolean' },
+          ],
+        });
+        app.db.getCollection('documents').setField('members', {
+          type: 'belongsToMany',
+          target: 'participants',
+          through: 'memberships',
+          foreignKey: 'documentId',
+          otherKey: 'participantId',
+          constraints: false,
+          throughUnique: false,
+        });
+        await links.model.sync();
+        await links.model.bulkCreate([
+          { id: 1, documentId: 1, participantId: 1, canView: true },
+          { id: 2, documentId: 1, participantId: 1, canView: true },
+          { id: 3, documentId: 1, participantId: 2, canView: false },
+          { id: 4, documentId: 1, participantId: 3, canView: true },
+          { id: 5, documentId: 3, participantId: 4, canView: true },
+        ]);
+        extraCollections.push('memberships');
+        const key = identity(links);
+        await app.db.getRepository('collections').create({ values: { key: key.collectionKey, name: links.name } });
+        await store.save(
+          key,
+          {
+            ...configFor({
+              type: 'compare',
+              operator: 'eq',
+              left: { type: 'field', path: 'canView' },
+              right: { type: 'literal', value: true },
+            }),
+            revision: 0,
+            ownership: { enabled: false },
+          },
+          { userId: 28 },
+        );
+        await grant('memberships', 'list', []);
+        await grant('documents', 'list', ['id', 'participants', 'members']);
+        app.resourcer.define({ name: 'documents.members', actions: { export: {} } });
+      });
+
+      it('requires independently visible targets and connections, deduplicating repeated links', async () => {
+        const response = await members();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1]]);
+      });
+
+      it('does not use target export permission as through list permission', async () => {
+        acl.getRole('reader').revokeAction('memberships:list');
+        const response = await members();
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      });
+
+      it('retains independent through role filters', async () => {
+        await grant('memberships', 'list', [], { participantId: 2 });
+        const response = await members();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+      });
+    });
+  });
+
+  async function registerExportPlugin(options: { exportResolver?: ExportXlsxResolver } = {}) {
+    const plugin = new ExportPlugin(app, { name: 'export', ...options });
+    await plugin.beforeLoad();
+    await plugin.load();
+    return plugin;
+  }
+
+  describe('plugin registered XLSX entry', () => {
+    beforeEach(() => {
+      app.resourcer.define({ name: 'documents', actions: { export: {} } });
+    });
+
+    it('uses the server-selected scoped exporter with independent export permission', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      acl.getRole('reader').revokeAction('documents:list');
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_B.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it.each([{}, { exportResolver: () => undefined }])(
+      'preserves the original exporter when startup configuration does not select it: %j',
+      async (options) => {
+        await registerExportPlugin(options);
+        const response = await fileRequest();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+      },
+    );
+
+    it('keeps the registered resolver after startup options are replaced', async () => {
+      const plugin = await registerExportPlugin({ exportResolver: () => scopedFile });
+      plugin.options.exportResolver = () => undefined;
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it('does not enable a resolver added after registration', async () => {
+      const plugin = await registerExportPlugin();
+      plugin.options.exportResolver = () => scopedFile;
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+    });
+
+    it.each(['documents:export', 'participants:list'])(
+      'does not publish a file after revoking %s',
+      async (permission) => {
+        await registerExportPlugin({ exportResolver: () => scopedFile });
+        acl.getRole('reader').revokeAction(permission);
+        const response = await fileRequest({
+          fields: ['id', 'participants.id'],
+          columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+        });
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('retains the independent export role filter', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      await grant('documents', 'export', ['id'], { id: 1 });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1]]);
+    });
+
+    it('rechecks rules for each file after registration', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      expect(xlsx.parse((await fileRequest()).body)[0].data).toEqual([['id'], [1], [3]]);
+      const config = (await store.read(mainIdentity))!;
+      await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id']]);
+    });
+
+    it('uses the current server tenant instead of the client header', async () => {
+      await registerExportPlugin({ exportResolver: () => scopedFile });
+      principal = { ...principal, tenantId: 'C' };
+      const response = await fileRequest().set('x-tenant-id', 'B');
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_C.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [4], [6]]);
+    });
+
+    it.each(['selection', 'execution', 'async selection'])(
+      'does not fall back to the old exporter on registered %s failure',
+      async (phase) => {
+        await registerExportPlugin({
+          exportResolver: (() => {
+            if (phase === 'selection') throw new Error('Selection failed');
+            if (phase === 'async selection') return Promise.reject(new Error('Async selection failed'));
+            return async () => {
+              throw new Error('Execution failed');
+            };
+          }) as ExportXlsxResolver,
+        });
+        const response = await fileRequest();
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('does not fall back when the registered executor produces no response', async () => {
+      await registerExportPlugin({ exportResolver: () => async () => {} });
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+      expect(JSON.parse(response.body.toString())).toEqual({});
+    });
+
+    it.each([null, false, 'export', {}])(
+      'rejects invalid startup configuration before replacing the registered exporter: %j',
+      async (resolve) => {
+        await registerExportPlugin({ exportResolver: () => scopedFile });
+        await expect(
+          registerExportPlugin({ exportResolver: resolve as unknown as ExportXlsxResolver }),
+        ).rejects.toThrow(TypeError);
+        const response = await fileRequest();
+        expect(response.status).toBe(200);
+        expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+      },
+    );
+  });
+
+  describe('optional XLSX entry', () => {
+    it('renders only scoped rows through the real exporter and keeps download headers', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      acl.getRole('reader').revokeAction('documents:list');
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('application/octet-stream');
+      expect(response.headers['content-disposition']).toContain('Scoped%20export_B.xlsx');
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [3]]);
+    });
+
+    it('uses independently readable association rows in the Excel cells', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id', 'participants.id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'id'],
+        [1, '1,2'],
+        [3, ''],
+      ]);
+    });
+
+    it('renders authorized relations under any registered alias without hard-coded includes', async () => {
+      app.db.getCollection('documents').setField('viewers', {
+        type: 'hasMany',
+        target: 'participants',
+        foreignKey: 'documentId',
+      });
+      await grant('documents', 'export', ['id', 'viewers']);
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['viewers', 'businessTenant'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'businessTenant'],
+        [1, 'B,B'],
+        [3, ''],
+      ]);
+    });
+
+    it('renders nested authorized association values without requiring their primary keys', async () => {
+      app.db.getCollection('participants').setField('document', {
+        type: 'belongsTo',
+        target: 'documents',
+        foreignKey: 'documentId',
+      });
+      await grant('participants', 'list', ['businessTenant', 'document']);
+      await grant('documents', 'list', ['name']);
+      exportEntry = createExportXlsx(() => scopedFile);
+      const response = await fileRequest({
+        fields: ['id'],
+        columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'document', 'name'] }],
+      });
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([
+        ['id', 'name'],
+        [1, 'D1,D1'],
+        [3, ''],
+      ]);
+    });
+
+    it('keeps the existing exporter when the server explicitly leaves the request unhandled', async () => {
+      exportEntry = createExportXlsx(() => undefined);
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(xlsx.parse(response.body)[0].data).toEqual([['id'], [1], [2], [3], [4], [5], [6]]);
+    });
+
+    it.each(['documents:export', 'participants:list'])(
+      'does not publish a file without the independent permission %s',
+      async (permission) => {
+        exportEntry = createExportXlsx(() => scopedFile);
+        acl.getRole('reader').revokeAction(permission);
+        const response = await fileRequest({
+          fields: ['id', 'participants.id'],
+          columns: [{ dataIndex: ['id'] }, { dataIndex: ['participants', 'id'] }],
+        });
+        expect(response.status).toBe(403);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('rejects overflow before rendering instead of falling back to a worker or old query', async () => {
+      exportEntry = createExportXlsx(() => scopedFile);
+      await app.db
+        .getCollection('documents')
+        .model.bulkCreate(
+          Array.from({ length: 999 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+        );
+      const response = await fileRequest();
+      expect(response.status).toBe(400);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it('does not run the old query when a selected executor produces no response', async () => {
+      exportEntry = createExportXlsx(() => async () => {});
+      const response = await fileRequest();
+      expect(response.status).toBe(200);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+      expect(JSON.parse(response.body.toString())).toEqual({});
+    });
+
+    it.each(['selection', 'execution'])('propagates %s failures without publishing an old file', async (phase) => {
+      exportEntry = createExportXlsx(() => {
+        if (phase === 'selection') throw new Error('Export selection failed');
+        return async () => {
+          throw new Error('Export execution failed');
+        };
+      });
+      const response = await fileRequest();
+      expect(response.status).toBe(500);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each([null, {}, Promise.resolve(undefined), Promise.resolve(scopedFile)])(
+      'rejects invalid or asynchronous selection without falling back: %j',
+      async (selected) => {
+        exportEntry = createExportXlsx((() => selected) as unknown as Parameters<typeof createExportXlsx>[0]);
+        const response = await fileRequest();
+        expect(response.status).toBe(500);
+        expect(response.headers).not.toHaveProperty('content-disposition');
+      },
+    );
+
+    it('consumes an asynchronous selection rejection without falling back or masking its error', async () => {
+      exportEntry = createExportXlsx((async () => {
+        throw new Error('Async export selection failed');
+      }) as unknown as Parameters<typeof createExportXlsx>[0]);
+      const response = await fileRequest();
+      expect(response.status).toBe(500);
+      expect(response.headers).not.toHaveProperty('content-disposition');
+    });
+
+    it.each(['selection', 'execution', 'async selection'])(
+      'preserves the original %s error at the execution boundary',
+      async (phase) => {
+        const error = new Error('Export failed');
+        const handler = createExportXlsx((() => {
+          if (phase === 'selection') throw error;
+          if (phase === 'async selection') return Promise.reject(error);
+          return async () => {
+            throw error;
+          };
+        }) as Parameters<typeof createExportXlsx>[0]);
+        await expect(handler({} as Context, async () => {})).rejects.toBe(error);
+      },
+    );
+  });
+
+  it('exports all owned or visible roots once using export permission rather than list scope', async () => {
+    const list = await app
+      .agent()
+      .resource('documents')
+      .list({ fields: ['id'] });
+    expect(list.status).toBe(200);
+    expect(list.body.data).toEqual([{ id: 3 }]);
+    const response = await runExport();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [{ id: 1 }, { id: 3 }] });
+    expect(response.body).not.toHaveProperty('meta');
+  });
+
+  it('does not require root list permission when export is independently allowed', async () => {
+    acl.getRole('reader').revokeAction('documents:list');
+    const response = await runExport();
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 1 }, { id: 3 }]);
+  });
+
+  it('retains the export role filter and request filter', async () => {
+    await grant('documents', 'export', ['id', 'name', 'amount'], { amount: { $gte: 200 } });
+    const response = await runExport({ filter: { id: { $in: [1, 3, 4] } } });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 3 }]);
+  });
+
+  it('scopes expanded targets independently without dropping readable roots', async () => {
+    const response = await runExport({ fields: ['id', 'participants.id'] });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      { id: 1, participants: [{ id: 1 }, { id: 2 }] },
+      { id: 3, participants: [] },
+    ]);
+  });
+
+  it('exports all matching roots instead of silently stopping at the ordinary default page size', async () => {
+    await app.db
+      .getCollection('documents')
+      .model.bulkCreate(
+        Array.from({ length: 25 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+      );
+    const response = await runExport();
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(27);
+    expect(response.body.data.at(-1)).toEqual({ id: 124 });
+  });
+
+  it('does not use root list permission to authorize export', async () => {
+    acl.getRole('reader').revokeAction('documents:export');
+    const response = await runExport();
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('uses the trusted tenant and ignores a different client tenant header', async () => {
+    principal = { ...principal, tenantId: 'C' };
+    const response = await supertest(app.callback())
+      .get('/api/documents:export')
+      .set('x-tenant-id', 'B')
+      .query({ fields: ['id'], sort: ['id'] });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 4 }, { id: 6 }]);
+  });
+
+  it('rechecks rules on each independent export request', async () => {
+    expect((await runExport()).body.data).toEqual([{ id: 1 }, { id: 3 }]);
+    const config = (await store.read(mainIdentity))!;
+    await store.save(mainIdentity, { ...config, rules: [] }, { userId: 28 });
+    const response = await runExport();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ data: [] });
+  });
+
+  it('preserves requested sort and excluded fields', async () => {
+    const response = await runExport({ fields: undefined, except: ['name'], sort: '-amount' });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      { id: 3, amount: 300 },
+      { id: 1, amount: 100 },
+    ]);
+  });
+
+  it('rejects requested physical fields excluded by the export permission', async () => {
+    await grant('documents', 'export', ['id']);
+    const response = await runExport({ fields: ['id', 'amount'] });
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it('does not use export permission to authorize an inaccessible related collection', async () => {
+    acl.getRole('reader').revokeAction('participants:list');
+    const response = await runExport({ fields: ['id', 'participants.id'] });
+    expect(response.status).toBe(403);
+    expect(response.body).not.toHaveProperty('data');
+    const unexpanded = await runExport();
+    expect(unexpanded.status).toBe(200);
+    expect(unexpanded.body.data).toEqual([{ id: 1 }, { id: 3 }]);
+  });
+
+  it('matches related filters against independently readable targets without duplicating roots', async () => {
+    const response = await runExport({ filter: { participants: { businessTenant: 'B' } } });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 1 }]);
+    principal = { ...principal, tenantId: 'H' };
+    const hidden = await runExport({ filter: { participants: { canView: false } } });
+    expect(hidden.status).toBe(200);
+    expect(hidden.body.data).toEqual([]);
+  });
+
+  it('reads explicitly visible legacy data without claiming or changing it', async () => {
+    const config = (await store.read(mainIdentity))!;
+    await store.save(
+      mainIdentity,
+      {
+        ...config,
+        rules: [
+          ...config.rules,
+          {
+            ...configFor({ type: 'isNull', operand: { type: 'field', path: 'tenantId' } }, 'visibility').rules[0],
+            id: 'legacy-visible',
+          },
+        ],
+      },
+      { userId: 28 },
+    );
+    const response = await runExport({ filter: { id: 5 } });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 5 }]);
+    expect((await app.db.getCollection('documents').model.findByPk(5))!.get('tenantId')).toBeNull();
+  });
+
+  it.each([{ fields: ['id'] }, { fields: ['id', 'participants.id'] }])(
+    'returns exactly the complete-row bound but refuses a larger authorized result: %j',
+    async ({ fields }) => {
+      await app.db
+        .getCollection('documents')
+        .model.bulkCreate(
+          Array.from({ length: 998 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+        );
+      const complete = await runExport({ fields });
+      expect(complete.status).toBe(200);
+      expect(complete.body.data).toHaveLength(1000);
+      expect(complete.body.data.at(-1)).toEqual(fields.length === 1 ? { id: 1097 } : { id: 1097, participants: [] });
+      await app.db.getCollection('documents').model.create({ id: 2000, tenantId: 'B', name: 'Overflow', amount: 1 });
+      const overflow = await runExport({ fields });
+      expect(overflow.status).toBe(400);
+      expect(overflow.body).not.toHaveProperty('data');
+    },
+  );
+
+  it('does not include inaccessible roots in the completeness bound', async () => {
+    await app.db
+      .getCollection('documents')
+      .model.bulkCreate(
+        Array.from({ length: 1001 }, (_, index) => ({ id: 100 + index, tenantId: 'C', name: 'Hidden', amount: 1 })),
+      );
+    const response = await runExport();
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([{ id: 1 }, { id: 3 }]);
+  });
+
+  it.each([{ fields: ['id'] }, { fields: ['id', 'participants.id'] }])(
+    'rejects root-query overflow even when a returned row is deleted before a later count: %j',
+    async ({ fields }) => {
+      const model = app.db.getCollection('documents').model;
+      await model.bulkCreate(
+        Array.from({ length: 999 }, (_, index) => ({ id: 100 + index, tenantId: 'B', name: 'Owned', amount: 1 })),
+      );
+      const findAll = model.findAll;
+      // Preserve the real query, inserting a real concurrent delete before the consumer resumes.
+      const query = vi.spyOn(model, 'findAll').mockImplementationOnce(async function (options) {
+        const rows = await findAll.call(this, options);
+        await model.destroy({ where: { id: 1 } });
+        return rows;
+      });
+      try {
+        const response = await runExport({ fields });
+        expect(await model.findByPk(1)).toBeNull();
+        expect(response.status).toBe(400);
+        expect(response.body).not.toHaveProperty('data');
+      } finally {
+        query.mockRestore();
+      }
+    },
+  );
+
+  it('does not publish data when relation metadata changes during target authorization', async () => {
+    beforeRelated = async () => {
+      Object.assign(app.db.getCollection('documents').model.associations.participants, { scope: { canView: false } });
+    };
+    const response = await runExport({ fields: ['id', 'participants.id'] });
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+  });
+
+  it.each([
+    { page: 2 },
+    { pageSize: 1 },
+    { paginate: false },
+    { limit: 1 },
+    { offset: 1 },
+    { filterByTk: 1 },
+    { where: { id: 1 } },
+    { transaction: { id: 1 } },
+    { columns: [{ dataIndex: ['id'] }] },
+    { values: { tenantId: 'C' } },
+    { permission: { skip: true } },
+    { now: '2026-01-01' },
+  ])('rejects unsupported export parameters without a partial response: %j', async (extra) => {
+    const response = await runExport(extra);
+    expect(response.status).toBe(400);
+    expect(response.body).not.toHaveProperty('data');
+  });
+});

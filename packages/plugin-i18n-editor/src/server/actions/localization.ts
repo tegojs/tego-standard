@@ -1,5 +1,5 @@
 import { UiSchemaRepository } from '@tachybase/module-ui-schema';
-import { Context, Database, Model, Next, Op } from '@tego/server';
+import { Context, Database, Model, Next, Op, type Collection } from '@tego/server';
 
 import { NAMESPACE_COLLECTIONS, NAMESPACE_MENUS } from '../constans';
 import LocalizationManagementPlugin from '../plugin';
@@ -68,7 +68,10 @@ const getTextsFromUISchemas = async (db: Database) => {
   return result;
 };
 
-export const getTextsFromDB = async (db: Database) => {
+export const getTextsFromDB = async (
+  db: Database,
+  beforeRead?: (collection: Collection, params: { fields: string[] }) => void | Promise<never>,
+) => {
   const result = {};
   const collections = Array.from(db.collections.values());
   for (const collection of collections) {
@@ -79,6 +82,8 @@ export const getTextsFromDB = async (db: Database) => {
       continue;
     }
     const repo = db.getRepository(collection.name);
+    const guarded = beforeRead?.(collection, { fields: [...fields] });
+    if (guarded !== undefined) await guarded;
     const records = await repo.find({ fields });
     records.forEach((record) => {
       const texts = getTextsFromDBRecord(fields, record);
@@ -151,7 +156,12 @@ const sync = async (ctx: Context, next: Next) => {
     };
   }
   if (type.includes('db')) {
-    const dbTexts = await getTextsFromDB(ctx.db);
+    const plugin = ctx.tego.getPlugin(LocalizationManagementPlugin) as LocalizationManagementPlugin;
+    const dbTexts = await getTextsFromDB(ctx.db, (collection, params) =>
+      plugin.assertDatabaseTextRead(
+        Object.freeze({ collectionName: collection.name, collection, params: Object.freeze(params), context: ctx }),
+      ),
+    );
     resources[NAMESPACE_COLLECTIONS] = {
       ...dbTexts,
     };

@@ -1,13 +1,13 @@
 import { createMockServer, MockServer } from '@tachybase/test';
-import { AppSupervisor, Plugin } from '@tego/server';
+import { AppSupervisor, Plugin, type ACL } from '@tego/server';
 
 import PluginTenantServer from '..';
 import PluginAuditLogs from '../../../../plugin-audit-logs/src/server';
 
-async function cleanupPreviousApp(): Promise<void> {
+async function cleanupPreviousApp(name = 'main'): Promise<void> {
   try {
     const supervisor = AppSupervisor.getInstance();
-    const existing = await supervisor.getApp('main', { withOutBootStrap: true } as any);
+    const existing = await supervisor.getApp(name, { withOutBootStrap: true } as any);
     if (existing) {
       await existing.destroy({ logging: false }).catch(() => {});
     }
@@ -83,8 +83,16 @@ async function ensureExtraActionPluginsLoaded(app: MockServer, extraPlugins: any
   }
 }
 
-export async function createTenantApp(options: { extraPlugins?: any[] } = {}): Promise<MockServer> {
-  const { extraPlugins = [] } = options;
+export async function createTenantApp(
+  options: {
+    extraPlugins?: any[];
+    aclFactory?: () => ACL;
+    database?: NonNullable<Parameters<typeof createMockServer>[0]>['database'];
+    name?: string;
+    skipInstall?: boolean;
+  } = {},
+): Promise<MockServer> {
+  const { extraPlugins = [], aclFactory, database, name = 'main', skipInstall = false } = options;
   const normalizedExtraPlugins = extraPlugins.map((plugin) => {
     if (plugin !== 'audit-logs') {
       return plugin;
@@ -100,7 +108,16 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
     ];
   });
 
-  await cleanupPreviousApp();
+  await cleanupPreviousApp(name);
+
+  // Choose the actual ACL implementation before any plugin registers permissions.
+  // The default core middleware is disabled only when this explicit factory is supplied.
+  class TestAclRuntimePlugin extends Plugin {
+    async beforeLoad() {
+      this.app.mainDataSource.acl = aclFactory!();
+      this.app.resourcer.use(this.app.acl.middleware(), { tag: 'acl', after: 'auth' });
+    }
+  }
 
   class TestAuthStatusPlugin extends Plugin {
     async load() {
@@ -138,24 +155,37 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   let app: MockServer;
   try {
     app = await createMockServer({
+      name,
+      skipInstall,
       registerActions: true,
-      acl: true,
-      database: { dialect: 'sqlite' },
+      acl: !aclFactory,
+      database: database ?? { dialect: 'sqlite' },
       plugins: [
-        'acl',
-        'error-handler',
-        'users',
-        'ui-schema-storage',
-        'collection-manager',
-        'auth',
-        'data-source-manager',
-        [PluginTenantServer, { name: 'tenant', packageName: '@tachybase/module-tenant', workspaceSource: true }],
+        ...(aclFactory ? [TestAclRuntimePlugin] : []),
+        ...[
+          'acl',
+          'error-handler',
+          'users',
+          'ui-schema-storage',
+          'collection-manager',
+          'auth',
+          'data-source-manager',
+        ].map((plugin) => (name === 'main' ? plugin : [plugin, { subView: true }])),
+        [
+          PluginTenantServer,
+          {
+            name: 'tenant',
+            packageName: '@tachybase/module-tenant',
+            workspaceSource: true,
+            ...(name === 'main' ? {} : { subView: true }),
+          },
+        ],
         ...normalizedExtraPlugins,
         TestAuthStatusPlugin,
       ],
     });
   } catch (err) {
-    await cleanupPreviousApp();
+    await cleanupPreviousApp(name);
     throw err;
   }
 
@@ -165,8 +195,10 @@ export async function createTenantApp(options: { extraPlugins?: any[] } = {}): P
   //      no afterDefine/afterSync hooks, no FK ordering issues)
   //   2. Running load hooks for any unloaded plugins (ExportPlugin.load
   //      registers the 'export' action handler)
-  const check = await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'");
-  if ((check[0] as any[]).length === 0) {
+  const check = app.db.inDialect('sqlite')
+    ? await app.db.sequelize.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'")
+    : undefined;
+  if (check && (check[0] as any[]).length === 0) {
     const qi = app.db.sequelize.getQueryInterface();
     for (const model of Object.values(app.db.sequelize.models) as any[]) {
       try {

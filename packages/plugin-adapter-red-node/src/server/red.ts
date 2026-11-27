@@ -1,6 +1,6 @@
 // Ensure ipv4 results are returned first: https://github.com/node-red/node-red/issues/4010
-import dns from 'dns';
-import path from 'path';
+import dns from 'node:dns';
+import path from 'node:path';
 
 import api from '@node-red/editor-api';
 import runtime from '@node-red/runtime';

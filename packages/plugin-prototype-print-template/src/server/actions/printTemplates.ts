@@ -12,16 +12,90 @@ import Docxtemplater from 'docxtemplater'; //用于处理word文版模板
 import InspectModule from 'docxtemplater/js/inspect-module'; //Docxtemplater使用它来处理Word文档。
 import PizZip from 'pizzip'; //导入PizZip库，用于处理ZIP文件，Docxtemplater使用它来处理word文档
 
-export const generate = async (ctx: Context) => {
-  const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: { id },
-    appends: ['template'],
+function getCollectionReadFilter(
+  ctx: Context,
+  resource: string,
+  action: string,
+  filter: Record<string, any>,
+  requiredFields: string[],
+) {
+  const permission = ctx.can?.({ resource, action });
+  if (!permission) {
+    ctx.throw(403);
+  }
+
+  const allowedFields = permission.params?.fields;
+  const allowedAppends = permission.params?.appends;
+  if (
+    Array.isArray(allowedFields) &&
+    requiredFields.some(
+      (field) => !allowedFields.includes(field) && !(Array.isArray(allowedAppends) && allowedAppends.includes(field)),
+    )
+  ) {
+    ctx.throw(403);
+  }
+
+  const accessFilter = permission.params?.filter;
+  const collection = ctx.db.getCollection?.(resource);
+  const tenancyMode = collection?.options?.tenancy;
+  let tenantFilter;
+
+  if (tenancyMode === 'tenantScoped' || tenancyMode === 'tenantInherited') {
+    const state = ctx.state;
+    const tenantId = state?.currentTenant?.id ?? state?.currentTenantId;
+
+    if (tenantId === null || tenantId === undefined) {
+      tenantFilter = { id: -1 };
+    } else {
+      const tenantFilterValue =
+        tenancyMode === 'tenantInherited'
+          ? { tenantId: { $in: [tenantId, ...(state?.currentTenantDescendantIds || [])] } }
+          : { tenantId };
+      const legacyDataTenantIds = collection.options?.legacyDataTenantIds ?? state?.currentLegacyDataTenantIds ?? [];
+      const canReadLegacyData = legacyDataTenantIds.some((legacyTenantId) => `${legacyTenantId}` === `${tenantId}`);
+      tenantFilter = canReadLegacyData ? { $or: [tenantFilterValue, { tenantId: null }] } : tenantFilterValue;
+    }
+  }
+
+  const filters = [filter, ...(accessFilter ? [accessFilter] : []), ...(tenantFilter ? [tenantFilter] : [])];
+  return filters.length === 1 ? filters[0] : { $and: filters };
+}
+
+async function findTemplateManageRecord(ctx: Context, id: number | string, requiredFields: string[]) {
+  const template = await ctx.db.getRepository('templateManage').findOne({
+    filter: getCollectionReadFilter(ctx, 'templateManage', 'get', { id }, requiredFields),
+    context: ctx,
   });
 
+  if (!template) {
+    ctx.throw(404);
+  }
+
+  return template;
+}
+
+async function getTemplateFilePath(ctx: Context, template: Model) {
+  const templateFile = await ctx.db.getRepository('printTemplateFiles').findOne({
+    filter: getCollectionReadFilter(ctx, 'printTemplateFiles', 'list', { templateManageId: template.get('id') }, [
+      'url',
+    ]),
+    context: ctx,
+  });
+  const templateUrl = templateFile?.get?.('url');
+
+  if (typeof templateUrl !== 'string' || !templateUrl) {
+    ctx.throw(404);
+  }
+
+  return path.join(process.env.PWD, templateUrl);
+}
+
+export const generate = async (ctx: Context) => {
+  const id = ctx.action.params.id;
+  const template: Model = await findTemplateManageRecord(ctx, id, ['testData', 'template']);
+
   const rawTemplate = template.get();
-  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
+  const templatePath = await getTemplateFilePath(ctx, template);
   const data = rawTemplate.testData;
 
   try {
@@ -40,15 +114,8 @@ export const generate = async (ctx: Context) => {
 //用于获取文档中的所有占位符标签
 export const getTags = async (ctx: Context) => {
   const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: {
-      id,
-    },
-    appends: ['template'],
-  });
-  const rawTemplate = template.get();
-  const templatePath = path.join(process.env.PWD, rawTemplate.template[0].get().url);
+  const template: Model = await findTemplateManageRecord(ctx, id, ['template']);
+  const templatePath = await getTemplateFilePath(ctx, template);
 
   try {
     const content = fs.readFileSync(templatePath, 'binary'); //同步读取模板文件的内容
@@ -102,11 +169,7 @@ function generateDocxFromTemplate(templatePath, data): Buffer {
 
 export const readPDF = async (ctx: Context) => {
   const id = ctx.action.params.id;
-  const repo = ctx.db.getRepository('templateManage');
-  const template: Model = await repo.findOne({
-    filter: { id },
-    appends: ['template'],
-  });
+  const template: Model = await findTemplateManageRecord(ctx, id, ['pdf_SavePath']);
 
   const rawTemplate = template.get();
   const path = rawTemplate.pdf_SavePath;

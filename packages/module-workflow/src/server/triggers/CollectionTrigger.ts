@@ -2,6 +2,7 @@ import { ICollection, Model, parseCollectionName, Transactionable } from '@tego/
 
 import Trigger from '.';
 import { getCurrentTenantIdFromState } from '../helpers/tenant-context';
+import type WorkflowPlugin from '../Plugin';
 import type { WorkflowModel } from '../types';
 import { toJSON } from '../utils';
 
@@ -10,6 +11,29 @@ export interface CollectionChangeTriggerConfig {
   mode: number;
   // TODO: ICondition
   condition: any;
+}
+
+export interface WorkflowCollectionReadRequest {
+  readonly dataSourceName: string;
+  readonly collectionName: string;
+  readonly collection: ICollection;
+  readonly params: object;
+  readonly context: object;
+}
+
+/** Synchronous refusal only; an event does not grant business read authority. */
+export type WorkflowCollectionReadGuard = (request: WorkflowCollectionReadRequest) => void;
+
+async function assertReadBoundary(
+  guard: WorkflowCollectionReadGuard | undefined,
+  request: WorkflowCollectionReadRequest,
+) {
+  if (!guard) return;
+  const result: unknown = guard(Object.freeze(request));
+  if (result !== undefined) {
+    await result;
+    throw new TypeError('Workflow collection read guard must return undefined synchronously');
+  }
 }
 
 const MODE_BITMAP = {
@@ -52,7 +76,17 @@ function pickTenantState(state: Record<string, any> = {}, fallbackTenantId?: str
 }
 
 // async function, should return promise
-async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: Model, options) {
+async function handler(
+  this: CollectionTrigger,
+  readGuard: WorkflowCollectionReadGuard | undefined,
+  workflow: WorkflowModel,
+  isCurrent: () => boolean,
+  data: Model,
+  options,
+) {
+  if (!isCurrent()) {
+    return;
+  }
   const { condition, changed, mode, appends, blacklist } = workflow.config;
   const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
   const collection = this.workflow.app.dataSourceManager?.dataSources
@@ -96,10 +130,14 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
   if (condition && condition.$and?.length) {
     // TODO: change to map filter format to calculation format
     // const calculation = toCalculation(condition);
-    const count = await repository.count({
+    const params = {
       filter: {
         $and: [condition, { [filterTargetKey]: data[filterTargetKey] }],
       },
+    };
+    await assertReadBoundary(readGuard, { dataSourceName, collectionName, collection, params, context });
+    const count = await repository.count({
+      ...params,
       context,
       transaction,
     });
@@ -117,12 +155,20 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
       set.add(field);
       return set;
     }, new Set());
-    result = await repository.findOne({
+    const params = {
       filterByTk: data[filterTargetKey],
       appends: Array.from(includeFields),
+    };
+    await assertReadBoundary(readGuard, { dataSourceName, collectionName, collection, params, context });
+    result = await repository.findOne({
+      ...params,
       context,
       transaction,
     });
+  }
+
+  if (!isCurrent()) {
+    return;
   }
 
   // TODO: `result.toJSON()` throws error
@@ -144,6 +190,14 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
       ...triggerOptions,
       transaction: this.workflow.useDataSourceTransaction(dataSourceName, transaction),
     });
+  } else if (transaction) {
+    // Publish only committed changes; asynchronous executions own a separate transaction.
+    // 异步执行拥有独立事务，只发布来源事务已提交的变化。
+    transaction.afterCommit(() => {
+      if (isCurrent()) {
+        this.workflow.trigger(workflow, triggerContext, triggerOptions);
+      }
+    });
   } else {
     this.workflow.trigger(workflow, triggerContext, triggerOptions);
   }
@@ -151,6 +205,14 @@ async function handler(this: CollectionTrigger, workflow: WorkflowModel, data: M
 
 export default class CollectionTrigger extends Trigger {
   events = new Map();
+  private readonly readGuard?: WorkflowCollectionReadGuard;
+
+  constructor(workflow: WorkflowPlugin) {
+    super(workflow);
+    this.readGuard = workflow.options.collectionReadGuard;
+    if (this.readGuard !== undefined && typeof this.readGuard !== 'function')
+      throw new TypeError('Workflow collection read guard must be a function');
+  }
 
   on(workflow: WorkflowModel) {
     const { collection, mode } = workflow.config;
@@ -169,7 +231,7 @@ export default class CollectionTrigger extends Trigger {
       const name = getHookId(workflow, `${collection}.${type}`);
       if (mode & key) {
         if (!this.events.has(name)) {
-          const listener = handler.bind(this, workflow);
+          const listener = handler.bind(this, this.readGuard, workflow, () => this.events.get(name) === listener);
           this.events.set(name, listener);
           db.on(event, listener);
         }

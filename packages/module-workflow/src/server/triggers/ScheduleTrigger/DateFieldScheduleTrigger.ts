@@ -61,10 +61,10 @@ function getDataOptionTime(record, on, dir = 1) {
 
 const DialectTimestampFnMap: { [key: string]: (col: string) => string } = {
   postgres(col) {
-    return `CAST(FLOOR(extract(epoch from "${col}")) AS INTEGER)`;
+    return `CAST(FLOOR(extract(epoch from ${col})) AS BIGINT)`;
   },
   mysql(col) {
-    return `CAST(FLOOR(UNIX_TIMESTAMP(\`${col}\`)) AS SIGNED INTEGER)`;
+    return `CAST(FLOOR(UNIX_TIMESTAMP(${col})) AS SIGNED INTEGER)`;
   },
   sqlite(col) {
     return `CAST(FLOOR(unixepoch(${col})) AS INTEGER)`;
@@ -109,7 +109,10 @@ async function buildTenantContext(db, collection, record, tenant?, descendantIds
   if (tenancyMode === 'tenantInherited' && db.getRepository('tenants')) {
     const cacheKey = `${tenantId}`;
     if (!descendantIdsCache.has(cacheKey)) {
-      descendantIdsCache.set(cacheKey, await getDescendantTenantIds(db, cacheKey, { enabledOnly: true }));
+      descendantIdsCache.set(
+        cacheKey,
+        await getDescendantTenantIds(db, cacheKey, { enabledOnly: true, useMaster: true, transaction: null }),
+      );
     }
     descendantIds = descendantIdsCache.get(cacheKey) || [];
   }
@@ -136,6 +139,8 @@ async function buildEnabledTenantContext(db, collection, record) {
   }
 
   const tenant = await db.getRepository('tenants').findOne({
+    useMaster: true,
+    transaction: null,
     filter: {
       id: tenantId,
       enabled: true,
@@ -162,9 +167,26 @@ function getBoundTenantContext(record) {
 export default class ScheduleTrigger {
   events = new Map();
 
+  private eventCleanups = new Map<string, () => void>();
+
   private timer: NodeJS.Timeout | null = null;
 
   private cache: Map<string, any> = new Map();
+
+  private cancellations = new Map<string, object>();
+
+  private inspections = new Map<string, object>();
+
+  private discovery = {};
+
+  private lifecycle = {};
+
+  private captureCurrent(workflow: WorkflowModel) {
+    const key = `${workflow.id}`;
+    const token = this.cancellations.get(key);
+    const lifecycle = this.lifecycle;
+    return () => this.lifecycle === lifecycle && this.cancellations.get(key) === token;
+  }
 
   // caching workflows in range, default to 5min
   cacheCycle = 300_000;
@@ -181,8 +203,10 @@ export default class ScheduleTrigger {
     });
 
     workflow.app.on('beforeStop', () => {
+      this.lifecycle = {};
       if (this.timer) {
         clearInterval(this.timer);
+        this.timer = null;
       }
 
       for (const [key, timer] of this.cache.entries()) {
@@ -193,27 +217,64 @@ export default class ScheduleTrigger {
   }
 
   async reload() {
-    const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
-    const workflows = await WorkflowRepo.find({
-      filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
-    });
+    const lifecycle = this.lifecycle;
+    const discovery = (this.discovery = {});
+    const cancellations = new Map(this.cancellations);
+    try {
+      const WorkflowRepo = this.workflow.app.db.getRepository('workflows');
+      const workflows = await WorkflowRepo.find({
+        useMaster: true,
+        transaction: null,
+        filter: { enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+      });
+      if (this.lifecycle !== lifecycle || this.discovery !== discovery) return;
 
-    // NOTE: clear cached jobs in last cycle
-    this.cache = new Map();
-
-    this.inspect(workflows);
+      // Keep live handles cancellable; schedule deduplicates and fired callbacks retire them.
+      await this.inspect(
+        workflows.filter(
+          (workflow) => this.cancellations.get(`${workflow.id}`) === cancellations.get(`${workflow.id}`),
+        ),
+      );
+    } catch (error) {
+      this.workflow.getLogger('dispatcher').error('failed to reload date-field schedules', error);
+    }
   }
 
-  inspect(workflows: WorkflowModel[]) {
+  async inspect(workflows: WorkflowModel[]): Promise<void> {
     const now = new Date();
 
-    workflows.forEach(async (workflow) => {
-      const records = await this.loadRecordsToSchedule(workflow, now);
-      records.forEach((record) => {
-        const nextTime = this.getRecordNextTime(workflow, record, false, now);
-        this.schedule(workflow, record, nextTime, Boolean(nextTime));
-      });
-    });
+    await Promise.all(
+      workflows.map(async (workflow) => {
+        const isCurrent = this.captureCurrent(workflow);
+        const key = `${workflow.id}`;
+        const inspection = {};
+        this.inspections.set(key, inspection);
+        try {
+          const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
+          const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+          const collection = dataSource?.collectionManager.getCollection(collectionName);
+          const records = await this.loadRecordsToSchedule(workflow, now);
+          for (const record of records) {
+            if (
+              !isCurrent() ||
+              this.inspections.get(key) !== inspection ||
+              this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
+              dataSource?.collectionManager.getCollection(collectionName) !== collection
+            ) {
+              return;
+            }
+            const nextTime = this.getRecordNextTime(workflow, record, false, now);
+            // Refresh only successfully discovered records; failed scans keep their live handles.
+            this.schedule(workflow, record, nextTime, false);
+            if (nextTime) await this.schedule(workflow, record, nextTime, true);
+          }
+        } catch (error) {
+          this.workflow.getLogger(workflow.id).error('failed to inspect scheduled records', error);
+        } finally {
+          if (this.inspections.get(key) === inspection) this.inspections.delete(key);
+        }
+      }),
+    );
   }
 
   // 1. startsOn in range -> yes
@@ -242,6 +303,13 @@ export default class ScheduleTrigger {
     }
 
     const range = this.cacheCycle * 2;
+    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const targetCollection = this.workflow.app.dataSourceManager.dataSources
+      .get(dataSourceName)
+      ?.collectionManager.getCollection(collectionName);
+    if (!targetCollection) {
+      throw new Error('Scheduled collection is unavailable in its configured data source');
+    }
 
     const conditions: any[] = [
       {
@@ -254,16 +322,23 @@ export default class ScheduleTrigger {
 
     if (repeat) {
       // when repeat is number, means repeat after startsOn
-      // (now - startsOn) % repeat <= cacheCycle
       if (typeof repeat === 'number') {
-        const tsFn = DialectTimestampFnMap[db.options.dialect];
+        const tsFn = DialectTimestampFnMap[targetCollection.model.sequelize.getDialect()];
         if (repeat > range && tsFn) {
+          const column = targetCollection.model.rawAttributes[startsOn.field]?.field ?? startsOn.field;
+          const quotedField = targetCollection.model.sequelize.getQueryInterface().quoteIdentifier(column);
           const modExp = fn(
             'MOD',
-            literal(`${Math.round(timestamp / 1000)} - ${tsFn(startsOn.field)}`),
+            literal(`${Math.floor(startTimestamp / 1000)} - ${tsFn(quotedField)}`),
             Math.round(repeat / 1000),
           );
-          conditions.push(where(modExp, { [Op.lt]: Math.round(range / 1000) }));
+          // Keep future first starts and repeats approaching their next cycle. / 保留未来首次开始及临近下一周期的记录。
+          conditions.push({
+            [Op.or]: [
+              { [startsOn.field]: { [Op.gte]: new Date(Math.floor(startTimestamp / 1000) * 1000) } },
+              where(modExp, { [Op.gte]: Math.round((repeat - range) / 1000) }),
+            ],
+          });
         }
       } else if (typeof repeat === 'string') {
         if (!matchCronNextTime(repeat, currentDate, range)) {
@@ -273,7 +348,8 @@ export default class ScheduleTrigger {
 
       if (endsOn) {
         const now = new Date();
-        const endTimestamp = getOnTimestampWithOffset(endsOn, now);
+        const endTimestamp =
+          typeof endsOn === 'string' ? parseDateWithoutMs(endsOn) : getOnTimestampWithOffset(endsOn, now);
         if (!endTimestamp) {
           return [];
         }
@@ -297,9 +373,9 @@ export default class ScheduleTrigger {
       });
     }
 
-    const targetCollection = db.getCollection(collection);
     const { model } = targetCollection;
     const records = await model.findAll({
+      ...(isTenantCollection(targetCollection) ? { useMaster: true, transaction: null } : {}),
       where: {
         [Op.and]: conditions,
       },
@@ -324,6 +400,8 @@ export default class ScheduleTrigger {
     }
 
     const tenants = await db.getRepository('tenants').find({
+      useMaster: true,
+      transaction: null,
       filter: {
         id: tenantIds,
         enabled: true,
@@ -375,10 +453,10 @@ export default class ScheduleTrigger {
       return null;
     }
     if (startTime >= timestamp) {
-      return !endTime || (endTime >= startTime && endTime < timestamp + range) ? startTime : null;
+      return !endTime || endTime >= startTime ? startTime : null;
     } else {
       if (savedAt && startTime >= new Date(savedAt).setMilliseconds(0)) {
-        return startTime;
+        return !endTime || endTime >= startTime ? startTime : null;
       }
       if (!repeat) {
         return null;
@@ -410,24 +488,42 @@ export default class ScheduleTrigger {
 
   schedule(workflow: WorkflowModel, record, nextTime, toggle = true, options = {}) {
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
-    const { filterTargetKey } = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const { filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
+    const recordKey = JSON.stringify(`${recordPk}`);
     if (toggle) {
       const nextInterval = Math.max(0, nextTime - Date.now());
-      const key = `${workflow.id}:${recordPk}@${nextTime}`;
+      const key = `${workflow.id}:${recordKey}@${nextTime}`;
 
       if (!this.cache.has(key)) {
         if (nextInterval) {
-          this.cache.set(key, setTimeout(this.trigger.bind(this, workflow, record, nextTime), nextInterval));
+          const isCurrent = this.captureCurrent(workflow);
+          const timer = setTimeout(async () => {
+            try {
+              const currentSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+              if (
+                isCurrent() &&
+                currentSource === dataSource &&
+                currentSource.collectionManager.getCollection(collectionName) === collection
+              ) {
+                await this.trigger(workflow, record, nextTime);
+              }
+            } catch (error) {
+              this.workflow.getLogger(workflow.id).error('failed to trigger scheduled record', error);
+            } finally {
+              if (this.cache.get(key) === timer) this.cache.delete(key);
+            }
+          }, nextInterval);
+          this.cache.set(key, timer);
         } else {
           return this.trigger(workflow, record, nextTime, options);
         }
       }
     } else {
       for (const [key, timer] of this.cache.entries()) {
-        if (key.startsWith(`${workflow.id}:${recordPk}@`)) {
+        if (key.startsWith(`${workflow.id}:${recordKey}@`)) {
           clearTimeout(timer);
           this.cache.delete(key);
         }
@@ -436,26 +532,46 @@ export default class ScheduleTrigger {
   }
 
   async trigger(workflow: WorkflowModel, record, nextTime, { transaction }: Transactionable = {}) {
+    const repeatFrom = new Date(Math.max(Date.now(), new Date(nextTime).getTime()));
+    const isWorkflowCurrent = this.captureCurrent(workflow);
     const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
-    const collection = this.workflow.app.dataSourceManager.dataSources
-      .get(dataSourceName)
-      .collectionManager.getCollection(collectionName);
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
+    const isCurrent = () =>
+      isWorkflowCurrent() &&
+      this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) === dataSource &&
+      dataSource.collectionManager.getCollection(collectionName) === collection;
     const { repository, filterTargetKey } = collection;
     const recordPk = record.get(filterTargetKey);
+    const tenantAware = isTenantCollection(collection);
+    // Savepoints keep the root connection; useMaster cannot move a read-pool transaction.
+    type RoutedTransaction = Transactionable['transaction'] & {
+      sequelize: typeof collection.model.sequelize;
+      options?: { readOnly?: boolean };
+      parent?: RoutedTransaction;
+    };
+    let rootTransaction = transaction as RoutedTransaction;
+    while (rootTransaction?.parent) rootTransaction = rootTransaction.parent;
+    if (tenantAware && rootTransaction && rootTransaction.sequelize !== collection.model?.sequelize) return;
+    if (tenantAware && rootTransaction?.options?.readOnly && collection.model?.sequelize.options.replication) return;
+    const recordedOwner = tenantAware ? (record.get?.('tenantId') ?? record.tenantId ?? null) : undefined;
     let context = getBoundTenantContext(record);
-    if (isTenantCollection(collection)) {
-      const tenantId = context?.state?.currentTenantId ?? record.get?.('tenantId') ?? record.tenantId;
+    if (tenantAware) {
+      // Inherited visibility at save time does not make the operator the task owner.
+      const tenantId = recordedOwner ?? context?.state?.currentTenantId;
       if (tenantId === null || tenantId === undefined) {
         return;
       }
 
       const tenant = await this.workflow.app.db.getRepository('tenants').findOne({
+        useMaster: true,
+        transaction: null,
         filter: {
           id: tenantId,
           enabled: true,
         },
       });
-      if (!tenant) {
+      if (!tenant || !isCurrent()) {
         return;
       }
 
@@ -463,18 +579,68 @@ export default class ScheduleTrigger {
     } else {
       context = context || (await buildTenantContext(this.workflow.app.db, collection, record));
     }
+    if (!isCurrent()) return;
+    const sourceWorkflow = await this.workflow.app.db.getRepository('workflows').findOne({
+      fields: ['config'],
+      useMaster: true,
+      transaction: null,
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+    });
+    if (!sourceWorkflow || !isCurrent() || typeof sourceWorkflow.config?.collection !== 'string') return;
+    const [sourceName, sourceCollectionName] = parseCollectionName(sourceWorkflow.config.collection);
+    if (sourceName !== dataSourceName || sourceCollectionName !== collectionName) return;
     const data = await repository.findOne({
       filterByTk: recordPk,
-      appends: workflow.config.appends,
+      appends: sourceWorkflow.config.appends,
       context,
-      transaction,
+      transaction: tenantAware ? (transaction ?? null) : transaction,
+      ...(tenantAware ? { useMaster: true } : {}),
     });
-    if (!data) {
+    if (!data || !isCurrent()) {
+      return;
+    }
+    const scheduledStartTime = getDataOptionTime(record, workflow.config.startsOn);
+    if (workflow.config.startsOn) {
+      const startTime = getDataOptionTime(data, workflow.config.startsOn);
+      if (!startTime) return;
+      if (scheduledStartTime && scheduledStartTime <= nextTime && startTime > nextTime) return;
+    }
+    const endTime = getDataOptionTime(data, workflow.config.endsOn);
+    if (endTime && endTime < nextTime) return;
+    if (tenantAware) {
+      const currentOwner = data.get?.('tenantId') ?? data.tenantId ?? null;
+      // A completed claim or ownership change invalidates the cached dispatch context.
+      if ((currentOwner === null ? null : `${currentOwner}`) !== (recordedOwner === null ? null : `${recordedOwner}`)) {
+        return;
+      }
+    }
+    const enabled = await this.workflow.app.db.getRepository('workflows').findOne({
+      useMaster: true,
+      transaction: null,
+      filter: { id: workflow.id, enabled: true, type: 'schedule', 'config.mode': SCHEDULE_MODE.DATE_FIELD },
+    });
+    if (!enabled || !isCurrent()) return;
+    if (enabled.config?.limit && enabled.allExecuted >= enabled.config.limit) return;
+    if (typeof enabled.config?.collection !== 'string') return;
+    const [currentDataSourceName, currentCollectionName] = parseCollectionName(enabled.config.collection);
+    if (currentDataSourceName !== dataSourceName || currentCollectionName !== collectionName) return;
+    const currentStartTime = getDataOptionTime(data, enabled.config.startsOn);
+    if (workflow.config.startsOn) {
+      if (!currentStartTime) return;
+      if (scheduledStartTime && scheduledStartTime <= nextTime && currentStartTime > nextTime) return;
+    }
+    const currentEndTime = getDataOptionTime(data, enabled.config?.endsOn);
+    if (currentEndTime && currentEndTime < nextTime) return;
+    if (
+      ((workflow.config.repeat || null) !== (enabled.config.repeat || null) ||
+        scheduledStartTime !== currentStartTime) &&
+      scheduledStartTime &&
+      scheduledStartTime <= nextTime &&
+      this.getRecordNextTime(enabled, data, false, new Date(nextTime - 1)) !== nextTime
+    ) {
       return;
     }
     bindTenantContext(data, context);
-    const key = `${workflow.id}:${recordPk}@${nextTime}`;
-    this.cache.delete(key);
     this.workflow.trigger(
       workflow,
       {
@@ -485,19 +651,19 @@ export default class ScheduleTrigger {
       { context, transaction },
     );
 
-    if (!workflow.config.repeat || (workflow.config.limit && workflow.allExecuted >= workflow.config.limit - 1)) {
+    if (!enabled.config.repeat || (enabled.config.limit && enabled.allExecuted >= enabled.config.limit - 1)) {
       return;
     }
 
-    const n = this.getRecordNextTime(workflow, data, true);
+    const n = this.getRecordNextTime(enabled, data, true, repeatFrom);
     if (n) {
-      this.schedule(workflow, data, n, true);
+      this.schedule(enabled, data, n, true);
     }
   }
 
   on(workflow: WorkflowModel) {
-    const { collection } = workflow.config;
-    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const isCurrent = this.captureCurrent(workflow);
+    const [dataSourceName, collectionName] = parseCollectionName(workflow.config.collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
@@ -505,13 +671,19 @@ export default class ScheduleTrigger {
       return;
     }
 
+    const dataSource = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName);
+    const collection = dataSource.collectionManager.getCollection(collectionName);
     const listener = async (data, { transaction, context }) => {
       const eventTime = new Date();
       const savedAt = data.get?.('updatedAt') ?? data.updatedAt ?? eventTime;
-      const collection = this.workflow.app.dataSourceManager.dataSources
-        .get(dataSourceName)
-        .collectionManager.getCollection(collectionName);
       const tenantContext = context || (await buildEnabledTenantContext(this.workflow.app.db, collection, data));
+      if (
+        !isCurrent() ||
+        this.workflow.app.dataSourceManager.dataSources.get(dataSourceName) !== dataSource ||
+        dataSource.collectionManager.getCollection(collectionName) !== collection
+      ) {
+        return;
+      }
       if (isTenantCollection(collection) && !tenantContext) {
         return;
       }
@@ -522,11 +694,15 @@ export default class ScheduleTrigger {
 
     this.events.set(name, listener);
     // @ts-ignore
-    this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager.db.on(event, listener);
+    const { db } = dataSource.collectionManager;
+    db.on(event, listener);
+    this.eventCleanups.set(name, () => db.off(event, listener));
     this.inspect([workflow]);
   }
 
   off(workflow: WorkflowModel) {
+    // Invalidate calls already waiting on discovery, tenant facts or business data.
+    this.cancellations.set(`${workflow.id}`, {});
     for (const [key, timer] of this.cache.entries()) {
       if (key.startsWith(`${workflow.id}:`)) {
         clearTimeout(timer);
@@ -535,14 +711,12 @@ export default class ScheduleTrigger {
     }
 
     const { collection } = workflow.config;
-    const [dataSourceName, collectionName] = parseCollectionName(collection);
+    const [, collectionName] = parseCollectionName(collection);
     const event = `${collectionName}.afterSaveWithAssociations`;
     const name = getHookId(workflow, event);
     if (this.events.has(name)) {
-      const listener = this.events.get(name);
-      // @ts-ignore
-      const { db } = this.workflow.app.dataSourceManager.dataSources.get(dataSourceName).collectionManager;
-      db.off(event, listener);
+      this.eventCleanups.get(name)?.();
+      this.eventCleanups.delete(name);
       this.events.delete(name);
     }
   }

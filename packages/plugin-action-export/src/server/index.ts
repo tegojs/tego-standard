@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { InstallOptions, Plugin, Repository } from '@tego/server';
+import { InstallOptions, Plugin, Repository, type PluginOptions } from '@tego/server';
 
 import dayjs from 'dayjs';
 import xlsx from 'node-xlsx';
 
-import { exportXlsx } from './actions';
+import { createExportXlsx, exportXlsx, type ExportXlsxResolver } from './actions';
 import { EXPORT_WORKER_PAGESIZE } from './constants';
 import render from './renders';
 import {
@@ -16,6 +16,24 @@ import {
   getExportTenantId,
   normalizeExportColumns,
 } from './utils';
+
+export {
+  captureExportXlsxRequest,
+  createExportXlsx,
+  renderExportXlsx,
+  renderExportXlsxRows,
+  ExportXlsxRequestError,
+} from './actions';
+export type {
+  ExportXlsxExecutor,
+  ExportXlsxResolver,
+  ExportXlsxRenderInput,
+  ExportXlsxRenderContext,
+  ExportXlsxRowsInput,
+  ExportXlsxColumn,
+  ExportXlsxRequest,
+} from './actions';
+export { columns2Appends, ExportColumnsError, filterExportColumnsByCollection, normalizeExportColumns } from './utils';
 
 type ExportTenantContext = {
   currentTenant?: any;
@@ -174,14 +192,23 @@ function applyTenantScopeToWorkerFindOptions(options: any, collection: any, tena
   };
 }
 
-/**
- * Provides the export plugin helper for this module.
- */
+export interface ExportPluginOptions extends PluginOptions {
+  /** Server bootstrap only; selected executors own authorization, data and the response. */
+  exportResolver?: ExportXlsxResolver;
+}
+
+/** Provides the export plugin helper for this module. */
 export class ExportPlugin extends Plugin {
+  declare options: ExportPluginOptions;
+
   beforeLoad() {}
 
   async load() {
-    this.app.resourcer.registerActionHandler('export', exportXlsx);
+    // Capture at registration: later option mutations must not replace this authorization entry.
+    const resolve = this.options.exportResolver;
+    if (resolve !== undefined && typeof resolve !== 'function')
+      throw new TypeError('Export resolver must be a server function');
+    this.app.resourcer.registerActionHandler('export', resolve === undefined ? exportXlsx : createExportXlsx(resolve));
     this.app.acl.setAvailableAction('export', {
       displayName: '{{t("Export")}}',
       allowConfigureFields: true,

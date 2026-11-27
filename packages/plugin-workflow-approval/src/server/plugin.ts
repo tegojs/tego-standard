@@ -1,12 +1,14 @@
 import path from 'node:path';
 import { redactSensitiveAuthenticationData } from '@tachybase/module-auth';
 import { PluginWorkflow } from '@tachybase/module-workflow';
-import { Plugin } from '@tego/server';
+import { Plugin, type PluginOptions } from '@tego/server';
 
 import { COLLECTION_NAME_APPROVAL_CARBON_COPY } from '../common/constants';
 import { init } from './actions';
+import type { ApprovalBusinessWriteGuard } from './business-write-guard';
 import ApprovalInstruction from './instructions/Approval';
 import ApprovalCarbonCopyInstruction from './instructions/ApprovalCarbonCopy';
+import type { ApprovalSnapshotReadGuard } from './snapshot-read-guard';
 import ApprovalTrigger from './triggers/Approval';
 
 const SENSITIVE_APPROVAL_RESOURCES = new Set([
@@ -37,7 +39,15 @@ function isWorkflowResultResource(resourceName: unknown) {
   );
 }
 
+export interface ApprovalPluginOptions extends PluginOptions {
+  /** Server bootstrap only; veto unadapted writes before business I/O. */
+  businessWriteGuard?: ApprovalBusinessWriteGuard;
+  /** Server bootstrap only; veto unadapted snapshot refreshes before business reads. */
+  snapshotReadGuard?: ApprovalSnapshotReadGuard;
+}
+
 export class PluginWorkflowApproval extends Plugin {
+  declare options: ApprovalPluginOptions;
   workflow;
   afterAdd() {}
   beforeLoad() {
@@ -46,8 +56,8 @@ export class PluginWorkflowApproval extends Plugin {
         return;
       }
       this.workflow = plugin;
-      plugin.triggers.register('approval', new ApprovalTrigger(plugin));
-      plugin.instructions.register('approval', new ApprovalInstruction(plugin));
+      plugin.triggers.register('approval', new ApprovalTrigger(plugin, this.options.businessWriteGuard));
+      plugin.instructions.register('approval', new ApprovalInstruction(plugin, this.options.snapshotReadGuard));
       plugin.instructions.register(COLLECTION_NAME_APPROVAL_CARBON_COPY, new ApprovalCarbonCopyInstruction(plugin));
     });
   }

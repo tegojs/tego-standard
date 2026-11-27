@@ -1,0 +1,151 @@
+import type { Database } from '@tego/server';
+
+import { accessMetadataGuard } from '../../access-control/metadata-snapshot';
+import { sqliteDatabase } from './database';
+import { configFor, ownerCondition } from './fixtures';
+
+describe('access metadata dependencies', () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = sqliteDatabase();
+    for (const name of ['documents', 'children', 'tenants', 'tags', 'links', 'unrelated'])
+      db.collection({
+        name,
+        key: `${name}-key`,
+        timestamps: false,
+        fields: [
+          { name: 'id', type: 'integer', primaryKey: true },
+          { name: 'tenantId', type: 'string' },
+          { name: 'name', type: 'string' },
+          { name: 'sourceId', type: 'integer' },
+          { name: 'targetId', type: 'integer' },
+        ],
+      });
+    db.getCollection('documents').setField('children', { type: 'hasMany', target: 'children', foreignKey: 'sourceId' });
+    db.getCollection('children').setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'targetId' });
+    db.getCollection('children').setField('tags', {
+      type: 'belongsToMany',
+      target: 'tags',
+      through: 'links',
+      foreignKey: 'sourceId',
+      otherKey: 'targetId',
+    });
+  });
+  afterEach(async () => {
+    await db.close();
+  });
+
+  const guard = (path = 'children.owner') =>
+    accessMetadataGuard(db, [
+      {
+        model: db.getCollection('documents').model,
+        config: configFor({ type: 'exists', path, condition: { type: 'constant', value: true } }, 'visibility'),
+      },
+    ]);
+
+  it('captures nested rule dependencies without scanning unrelated collections', () => {
+    const unrelated = db.getCollection('unrelated').model;
+    const spy = vi.spyOn(unrelated, 'getTableName').mockImplementation(() => {
+      throw Error('Unrelated model visited');
+    });
+    const verify = guard();
+    unrelated.rawAttributes.name.field = 'Changed';
+    expect(verify).not.toThrow();
+    expect(spy).not.toHaveBeenCalled();
+  });
+  it('rejects in-place column changes on a third model used by a rule', () => {
+    const verify = guard();
+    db.getCollection('tenants').model.rawAttributes.name.field = 'tenantId';
+    expect(verify).toThrow('metadata changed');
+  });
+  it.each([
+    ['documents', 'children.owner'],
+    ['children', 'children.owner'],
+    ['tenants', 'children.owner'],
+    ['links', 'children.tags'],
+  ])('rejects stable identity changes on %s used by %s', (name, path) => {
+    const verify = guard(path);
+    expect(verify).not.toThrow();
+    db.getCollection('unrelated').options.key = 'unrelated-replacement';
+    expect(verify).not.toThrow();
+    db.getCollection(name).options.key = `${name}-replacement`;
+    expect(verify).toThrow('metadata changed');
+  });
+  it('captures schema-qualified ORM tables without cloning their formatting function', () => {
+    const model = db.getCollection('tenants').model;
+    const runtime = model as typeof model & { _schema: string };
+    runtime._schema = 'public';
+    const verify = guard();
+    expect(verify).not.toThrow();
+    runtime._schema = 'other';
+    expect(verify).toThrow('metadata changed');
+  });
+  it.each(['model', 'through model', 'database and model'])(
+    'rejects a changed database binding on the %s',
+    async (change) => {
+      const foreign = sqliteDatabase();
+      const collection = db.getCollection(change === 'through model' ? 'links' : 'documents');
+      const sequelize = db.sequelize;
+      const verify = guard('children.tags');
+      try {
+        collection.model.sequelize = foreign.sequelize;
+        if (change === 'database and model') {
+          db.sequelize = foreign.sequelize;
+          for (const name of ['children', 'tags', 'links']) db.getCollection(name).model.sequelize = foreign.sequelize;
+        }
+        expect(verify).toThrow('metadata changed');
+      } finally {
+        db.sequelize = sequelize;
+        collection.model.sequelize = sequelize;
+        for (const name of ['children', 'tags', 'links']) db.getCollection(name).model.sequelize = sequelize;
+        await foreign.close();
+      }
+    },
+  );
+  it('rejects nested association replacement', () => {
+    const verify = guard();
+    db.getCollection('children').setField('owner', { type: 'belongsTo', target: 'tenants', foreignKey: 'targetId' });
+    expect(verify).toThrow('metadata changed');
+  });
+  it('rejects a replaced collection model', () => {
+    const verify = guard();
+    db.getCollection('tenants').model = db.getCollection('unrelated').model;
+    expect(verify).toThrow('metadata changed');
+  });
+  it('captures association scopes and keys as well as model columns', () => {
+    const verify = guard();
+    const relation = db.getCollection('children').model.associations.owner as unknown as { scope: object };
+    relation.scope = { name: 'Changed' };
+    expect(verify).toThrow('metadata changed');
+  });
+  it('captures through-table metadata for relational many-to-many rules', () => {
+    const verify = guard('children.tags');
+    db.getCollection('links').model.rawAttributes.sourceId.field = 'targetId';
+    expect(verify).toThrow('metadata changed');
+  });
+  it('captures through-scope changes', () => {
+    const verify = guard('children.tags');
+    const relation = db.getCollection('children').model.associations.tags as unknown as { through: { scope: object } };
+    relation.through.scope = { name: 'Changed' };
+    expect(verify).toThrow('metadata changed');
+  });
+  it('captures relational subjects under logical groups', () => {
+    const config = configFor(ownerCondition);
+    config.rules[0].subject = {
+      type: 'all',
+      children: [
+        {
+          type: 'not',
+          child: {
+            type: 'any',
+            children: [{ type: 'exists', path: 'children.owner', condition: { type: 'constant', value: true } }],
+          },
+        },
+      ],
+    };
+    const verify = accessMetadataGuard(db, [{ model: db.getCollection('documents').model, config }]);
+    db.getCollection('tenants').model.addScope('defaultScope', { where: { name: 'Changed' } }, { override: true });
+    expect(verify).toThrow('metadata changed');
+  });
+});

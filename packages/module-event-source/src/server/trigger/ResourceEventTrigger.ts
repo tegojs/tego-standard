@@ -1,16 +1,23 @@
 import { JOB_STATUS } from '@tachybase/module-workflow';
-import { Context } from '@tego/server';
+import { Application, Context } from '@tego/server';
 
 import { EventSourceModel } from '../model/EventSourceModel';
 import { EventSourceQueueWorker } from '../queue/EventSourceQueueWorker';
 import { formatWorkflowError } from '../utils/workflow-error';
-import { WebhookController } from '../webhooks/webhooks';
+import { WebhookController, type ResourceChangedReadGuard } from '../webhooks/webhooks';
 import { EventSourceTrigger } from './Trigger';
 
 export class ResourceEventTrigger extends EventSourceTrigger {
   // 优先级越小越靠前
   private beforeList: EventSourceModel[] = [];
   private afterList: EventSourceModel[] = [];
+
+  private readonly controller: WebhookController;
+
+  constructor(app: Application, realTimeRefresh = false, changedReadGuard?: ResourceChangedReadGuard) {
+    super(app, realTimeRefresh);
+    this.controller = new WebhookController(changedReadGuard);
+  }
 
   load(model: EventSourceModel) {
     if (!model.options) {
@@ -109,7 +116,7 @@ export class ResourceEventTrigger extends EventSourceTrigger {
     const timeoutMs = this.getTimeoutMs(model);
     try {
       if (executionMode === 'queue') {
-        const body = await new WebhookController().action(ctx, model);
+        const body = await this.controller.action(ctx, model);
         const queueWorker = (this.app as any).eventSourceQueueWorker as EventSourceQueueWorker;
         if (!queueWorker) {
           throw new Error('eventSourceQueueWorker is not available');
@@ -124,6 +131,7 @@ export class ResourceEventTrigger extends EventSourceTrigger {
           contextLite: {
             userId: ctx?.state?.currentUser?.id,
             roleName: ctx?.state?.currentRole,
+            tenantId: ctx?.state?.currentTenantId,
           },
           maxAttempts: this.getMaxAttempts(model),
           retryBackoffMs: this.getRetryBackoffMs(model),
@@ -132,8 +140,8 @@ export class ResourceEventTrigger extends EventSourceTrigger {
       }
       const result = await this.withTimeout(
         async () => {
-          const body = await new WebhookController().action(ctx, model);
-          return await new WebhookController().triggerWorkflow(ctx, model, body);
+          const body = await this.controller.action(ctx, model);
+          return await this.controller.triggerWorkflow(ctx, model, body);
         },
         timeoutMs,
         `[event-source] ${stage} timeout, sourceId=${model.id}, timeoutMs=${timeoutMs}`,

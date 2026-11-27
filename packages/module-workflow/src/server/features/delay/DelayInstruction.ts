@@ -1,6 +1,7 @@
 import WorkflowPlugin, { EXECUTION_STATUS, Instruction, JOB_STATUS, JobModel, Processor } from '../..';
 
 type ValueOf<T> = T[keyof T];
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 interface DelayConfig {
   endStatus: ValueOf<typeof JOB_STATUS>;
@@ -9,6 +10,8 @@ interface DelayConfig {
 
 export default class extends Instruction {
   timers: Map<number, NodeJS.Timeout> = new Map();
+  private generation = {};
+  private discovery = {};
 
   constructor(public workflow: WorkflowPlugin) {
     super(workflow);
@@ -18,8 +21,13 @@ export default class extends Instruction {
   }
 
   load = async () => {
+    const generation = this.generation;
+    const discovery = {};
+    this.discovery = discovery;
     const { model } = this.workflow.app.db.getCollection('jobs');
     const jobs = (await model.findAll({
+      useMaster: true,
+      transaction: null,
       where: {
         status: JOB_STATUS.PENDING,
       },
@@ -43,12 +51,14 @@ export default class extends Instruction {
       ],
     })) as JobModel[];
 
+    if (generation !== this.generation || discovery !== this.discovery) return;
     jobs.forEach((job) => {
       this.schedule(job);
     });
   };
 
   unload = () => {
+    this.generation = {};
     for (const timer of this.timers.values()) {
       clearTimeout(timer);
     }
@@ -57,26 +67,42 @@ export default class extends Instruction {
   };
 
   schedule(job) {
+    const previousTimer = this.timers.get(job.id);
+    if (previousTimer) {
+      clearTimeout(previousTimer);
+      this.timers.delete(job.id);
+    }
     const now = new Date();
     const createdAt = Date.parse(job.createdAt);
     const delay = createdAt + job.node.config.duration - now.getTime();
     if (delay > 0) {
-      const trigger = this.trigger.bind(this, job);
-      this.timers.set(job.id, setTimeout(trigger, delay));
+      const schedule = this.schedule.bind(this, job);
+      this.timers.set(job.id, setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_MS)));
     } else {
       this.trigger(job);
     }
   }
 
   async trigger(job) {
-    if (!job.execution) {
-      job.execution = await job.getExecution();
-    }
-    if (job.execution.status === EXECUTION_STATUS.STARTED) {
-      this.workflow.resume(job);
-    }
-    if (this.timers.get(job.id)) {
-      this.timers.delete(job.id);
+    const timer = this.timers.get(job.id);
+    const generation = this.generation;
+    try {
+      const { model } = this.workflow.app.db.getCollection('jobs');
+      const currentJob = await model.findByPk(job.id, {
+        attributes: ['status'],
+        useMaster: true,
+        transaction: null,
+      });
+      if (generation !== this.generation || currentJob?.status !== JOB_STATUS.PENDING) return;
+      job.execution = await job.getExecution({ useMaster: true, transaction: null });
+      if (generation !== this.generation) return;
+      if (job.execution?.status === EXECUTION_STATUS.STARTED) {
+        await this.workflow.resume(job);
+      }
+    } catch (error) {
+      this.workflow.getLogger('dispatcher').error('failed to trigger delayed workflow execution', error);
+    } finally {
+      if (this.timers.get(job.id) === timer) this.timers.delete(job.id);
     }
   }
 

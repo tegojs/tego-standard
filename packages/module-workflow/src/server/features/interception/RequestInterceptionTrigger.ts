@@ -108,7 +108,7 @@ export class RequestInterceptionTrigger extends Trigger {
     if (!errorHandlerPlugin?.errorHandler) {
       throw new Error('Workflow request interception requires the error-handler plugin');
     }
-    workflow.app.use(this.middleware, { tag: 'workflowFilter', after: 'dataSource' });
+    workflow.app.resourcer.use(this.middleware, { tag: 'workflowFilter', after: 'acl' });
     errorHandlerPlugin.errorHandler.register(
       (err) => err instanceof RequestInterceptionError,
       async (err, ctx) => {

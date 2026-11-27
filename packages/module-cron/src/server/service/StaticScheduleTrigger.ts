@@ -1,4 +1,4 @@
-import { EXECUTION_STATUS, PluginWorkflow, Processor } from '@tachybase/module-workflow';
+import { EXECUTION_STATUS, Processor, type PluginWorkflow } from '@tachybase/module-workflow';
 import { App, Application, Database, Db, Inject, InjectLog, Logger, parseCollectionName, Service } from '@tego/server';
 
 import parser from 'cron-parser';
@@ -289,7 +289,7 @@ export class StaticScheduleTrigger {
       retireTimer();
 
       // TODO: 保存pluginWorkflow
-      const pluginWorkflow = this.app.pm.get(PluginWorkflow) as PluginWorkflow;
+      const pluginWorkflow = this.app.pm.get('workflow') as PluginWorkflow;
 
       const workflow = await this.db.getRepository('workflows').findOne({
         filter: { key: cronJob.workflowKey, enabled: true },

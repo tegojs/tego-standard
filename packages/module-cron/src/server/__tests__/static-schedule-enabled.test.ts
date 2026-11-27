@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module';
-import { PluginWorkflow } from '@tachybase/module-workflow';
 import { createMockServer, type MockServer } from '@tachybase/test';
 import { CacheManager } from '@tego/server';
 
@@ -20,12 +19,7 @@ describe('cron state at dispatch', () => {
     app = await createMockServer({
       skipStart,
       database: { dialect: 'sqlite', storage: ':memory:' },
-      plugins: [
-        'error-handler',
-        'collection',
-        'user',
-        [PluginWorkflow, { name: 'workflow', packageName: '@tachybase/module-workflow' }],
-      ],
+      plugins: ['error-handler', 'collection', 'user', 'workflow'],
     });
     app.db.registerModels({ CronJobModel });
     app.db.collection(cronJobs);
@@ -49,6 +43,7 @@ describe('cron state at dispatch', () => {
     });
     await app.db.sync();
     await app.db.getRepository('tenants').create({ values: { id: 'B', enabled: true } });
+    expect(app.pm.get('workflow')).toBeDefined();
     const workflow = await app.db.getRepository('workflows').create({
       values: { type: 'collection', enabled: true, config: { collection: 'cronContextSource', mode: 0 } },
     });
@@ -56,7 +51,6 @@ describe('cron state at dispatch', () => {
       type: 'create',
       config: { collection: 'cronEnabledResults', params: { values: { label: 'Enabled cron task' } } },
     });
-    expect(app.pm.get(PluginWorkflow)).toBe(app.pm.get('workflow'));
     const repository = app.db.getRepository('cronJobs');
     const cronJob = await repository.create({
       values: {

@@ -109,6 +109,12 @@ export default class StaticScheduleTrigger {
           this.timers.set(
             key,
             setTimeout(() => {
+              if (Date.now() < nextTime) {
+                this.timers.delete(key);
+                this.schedule(workflow, nextTime);
+                return;
+              }
+
               this.trigger(workflow, nextTime).catch((error) => {
                 this.workflow.getLogger(workflow.id).error('failed to trigger static schedule', error);
               });

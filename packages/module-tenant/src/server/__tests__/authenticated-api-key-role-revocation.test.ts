@@ -73,11 +73,13 @@ describe('authenticated API key role revocation', () => {
       },
     });
 
-    const signedIn = await app.agent().post('/auth:signIn').set('X-Authenticator', 'basic').send({
-      account: owner.username,
-      password,
-    });
-    expect(signedIn.status).toBe(200);
+    const signedIn = await app
+      .agent()
+      .post('/auth:signIn')
+      .set('X-Authenticator', 'basic')
+      .set('X-Role', issuerRole)
+      .send({ account: owner.username, password });
+    expect(signedIn.status, JSON.stringify(signedIn.body)).toBe(200);
     expect(signedIn.body.data.user).toMatchObject({ id: owner.id, hasPassword: true });
     const issued = await app
       .agent()
